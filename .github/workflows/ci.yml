@@ -27,8 +27,38 @@ jobs:
       - run: uv run ruff format --check .
       - name: pytest (all markers)
         run: uv run pytest -q -p no:cacheprovider
-      - name: pytest day1 marker only (definition of done)
-        run: uv run pytest -q -p no:cacheprovider -m day1
+      # Definition of done, per day. The marker list is read out of pyproject.toml
+      # rather than typed here, so adding "dayN" to [tool.pytest.ini_options].markers
+      # is enough to gate that day. tests/test_invariants.py asserts (a) every
+      # collected test carries a dayN marker, so a new day's tests cannot hide from
+      # this loop, and (b) that this step stays list-free.
+      - name: pytest every declared day marker (definition of done)
+        run: |
+          set -euo pipefail
+          days=$(uv run python -c "
+          import re, tomllib
+          with open('pyproject.toml','rb') as fh:
+              markers = tomllib.load(fh)['tool']['pytest']['ini_options']['markers']
+          names = {m.split(':',1)[0] for m in markers}
+          days = sorted((d for d in names if re.fullmatch(r'day\d+', d)), key=lambda s: int(s[3:]))
+          print(' '.join(days))
+          ")
+          echo "day markers declared: $days"
+          for d in $days; do
+            echo "::group::pytest -m $d"
+            set +e
+            uv run pytest -q -p no:cacheprovider -m "$d"
+            rc=$?
+            set -e
+            # exit 5 = no tests collected: a declared-but-not-yet-built day. Any other
+            # non-zero code is a real failure.
+            if [ "$rc" -eq 5 ]; then
+              echo "no tests yet for $d"
+            elif [ "$rc" -ne 0 ]; then
+              exit "$rc"
+            fi
+            echo "::endgroup::"
+          done
       - name: doctor in the CI venv
         run: uv run proofpack doctor --offline
 

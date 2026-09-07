@@ -136,6 +136,20 @@ def write_yaml(path: Path, data: dict[str, Any]) -> Path:
     return path
 
 
+#: Node ids collected in this run that carry no ``dayN`` marker. Filled at collection
+#: time (before ``-m`` deselection) so the assertion in ``test_invariants.py`` sees the
+#: whole suite even when CI runs a single day's marker.
+UNMARKED_ITEMS: list[str] = []
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(items) -> None:
+    UNMARKED_ITEMS.clear()
+    for item in items:
+        if not any(m.name.startswith("day") and m.name[3:].isdigit() for m in item.iter_markers()):
+            UNMARKED_ITEMS.append(item.nodeid)
+
+
 @pytest.fixture
 def cohort() -> dict[str, list[Any]]:
     return make_cohort()

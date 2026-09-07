@@ -11,6 +11,14 @@ optional dependency) produces ``ci_lo = ci_hi = None`` *and* a
 ``not_estimable_reason`` drawn from :data:`NOT_ESTIMABLE_REASONS`. Constructing a
 Number with neither a CI nor a reason raises ``ValueError``.
 
+The dataclass is **frozen**: the invariant is checked in ``__post_init__``, so a
+mutable Number would let a caller strip an interval off an already-validated
+object and escape the check (the JSON schema would still catch it downstream, but
+only if the document is validated). Assigning to any field raises
+``dataclasses.FrozenInstanceError``. ``flags`` is the one field still appended to
+in place, by :meth:`Number.with_precision_flags`; flags are advisory and cannot
+violate the invariant.
+
 This module is numpy-free and scipy-free on purpose: it is imported by everything.
 """
 
@@ -83,7 +91,7 @@ FLAGS: frozenset[str] = frozenset(
 )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Number:
     """One rendered quantity: estimate, interval, the method that produced it, and n.
 
