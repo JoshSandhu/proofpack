@@ -108,14 +108,18 @@
         "insufficient_negatives", "zero_cell_log_undefined",
         "zero_cell_logit_undefined", "boundary_estimate",
         "analytic_ci_unavailable", "clustered_data_analytic_ci_invalid",
-        "scipy_unavailable", "not_computed_this_run"
+        "scipy_unavailable", "not_computed_this_run",
+        "insufficient_clusters", "degenerate_resamples"
       ]
     },
     "flag": {
+      "description": "Advisory annotations. The three added on build day 4 record the X2 clustered auto-switch and the small-class switch on the Number that is rendered; the typed reason itself rides on the companion analytic Number.",
       "enum": [
         "not_evaluable_shown_for_transparency", "very_low_precision", "imprecise",
         "wald_interval_exceeds_unit_range", "ci_pending_bootstrap",
-        "continuity_corrected", "shown_alongside_wilson_at_boundary"
+        "continuity_corrected", "shown_alongside_wilson_at_boundary",
+        "delong_refused_clustered", "wilson_refused_clustered",
+        "analytic_ci_replaced_small_class"
       ]
     },
 

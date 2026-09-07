@@ -74,6 +74,9 @@ NOT_ESTIMABLE_REASONS: frozenset[str] = frozenset(
         "clustered_data_analytic_ci_invalid",  # rows are not independent (case_id)
         "scipy_unavailable",  # Clopper-Pearson for 0 < k < n needs scipy.stats.beta
         "not_computed_this_run",
+        # bootstrap (build day 4)
+        "insufficient_clusters",  # fewer than two cases in a resampling stratum
+        "degenerate_resamples",  # too few resamples gave a defined statistic
     }
 )
 
@@ -87,6 +90,14 @@ FLAGS: frozenset[str] = frozenset(
         "ci_pending_bootstrap",  # day-4 bootstrap will fill this interval
         "continuity_corrected",
         "shown_alongside_wilson_at_boundary",  # Clopper-Pearson at 0/n and n/n
+        # The X2 clustered auto-switch (build day 4). These flags ride on the Number
+        # that IS rendered, so the reader of the document sees that an analytic method
+        # was refused; the typed reason itself rides on the companion Number.
+        "delong_refused_clustered",
+        "wilson_refused_clustered",
+        # R2 1.3: a class below 10 gets the stratified bootstrap as its rendered
+        # interval, with the DeLong Number carried alongside. Recorded, never silent.
+        "analytic_ci_replaced_small_class",
     }
 )
 
