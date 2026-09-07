@@ -26,35 +26,15 @@ from proofpack.io import mapping as mapping_mod
 from proofpack.io import schema as schema_mod
 from proofpack.io.declare import Declarations
 from proofpack.io.schema import RawTable, Table
+from proofpack.stats.discrimination import auroc_mann_whitney as _auroc_mann_whitney
 
 # --------------------------------------------------------------------------- helpers
 
 
-def auroc_mann_whitney(scores: np.ndarray, positives: np.ndarray) -> float:
-    """AUROC by Mann-Whitney placement with midranks for ties (numpy only).
-
-    ``positives`` is a boolean mask. Requires at least one positive and one negative.
-    """
-    scores = np.asarray(scores, dtype=np.float64)
-    pos = np.asarray(positives, dtype=bool)
-    n1 = int(pos.sum())
-    n0 = int((~pos).sum())
-    if n1 == 0 or n0 == 0:
-        raise ValueError("AUROC needs both classes")
-    order = np.argsort(scores, kind="mergesort")
-    sorted_scores = scores[order]
-    ranks = np.empty(len(scores), dtype=np.float64)
-    # midranks: average rank within tie groups
-    i = 0
-    n = len(scores)
-    while i < n:
-        j = i
-        while j + 1 < n and sorted_scores[j + 1] == sorted_scores[i]:
-            j += 1
-        ranks[order[i : j + 1]] = (i + j + 2) / 2.0  # 1-based average
-        i = j + 1
-    rank_sum_pos = ranks[pos].sum()
-    return float((rank_sum_pos - n1 * (n1 + 1) / 2.0) / (n1 * n0))
+#: AUROC lives in ``stats.discrimination`` (day 3). It is re-exported here because
+#: gate H01 was the first consumer and the day-1 tests import it from this module.
+#: numpy only - importing it does not pull in scipy.
+auroc_mann_whitney = _auroc_mann_whitney
 
 
 def _oriented(scores: np.ndarray, orientation: str) -> np.ndarray:
