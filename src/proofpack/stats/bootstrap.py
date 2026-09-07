@@ -24,6 +24,14 @@ that reaches the output JSON, plus a closed-enum flag on the Number that *is*
 rendered, plus (for the detected route) a :class:`~proofpack.errors.Finding` the run
 carries into ``warnings``.
 
+**The guard is symmetric.** A clustered plan with no ``cluster_ids`` raises; so does a
+plan asserting independence over ``cluster_ids`` that repeat; and ``cluster_ids`` passed
+with no plan at all are *detected*, not ignored. Until that last case was closed (verify
+note, 2026-09-10) one forgotten keyword argument on one subgroup cell out of forty
+handed clustered rows to DeLong or Wilson, silently, with ``analytic_status: used`` and
+no flag anywhere in the output. Independence is never assumed while the evidence against
+it is in the arguments.
+
 **The point estimate is not changed by clustering, only the interval.** A clustered
 AUROC or proportion is still computed over all analysed rows, so it equals the number
 the customer would get from their own table; cases with more rows therefore carry more
@@ -50,7 +58,8 @@ Explicit, because reproducibility is part of what a customer is buying.
   than the built-in ``hash()`` precisely because ``hash()`` of a string is salted per
   process.
 * **No global RNG is ever touched.** Nothing here calls ``numpy.random.seed`` or the
-  legacy ``numpy.random.*`` functions; a test greps the package to keep it that way.
+  legacy ``numpy.random.*`` functions; a test *parses* the package to keep it that
+  way - attribute chains and ``from numpy.random import ...`` alike.
 
 The **algorithm** is pinned by fixture F3: on the F3 cohort with
 ``numpy.random.default_rng(20240101)``, B = 2000, positives and negatives resampled
@@ -109,6 +118,7 @@ __all__ = [
     "clustered_by_case",
     "clustered_flat",
     "percentile_bounds",
+    "precision_flags",
     "plan_clustering",
     "policy_from_declarations",
     "proportion_ci",
@@ -123,11 +133,21 @@ DEFAULT_SEED = 20240101
 DEFAULT_LEVEL = 0.95
 #: The only interval type v1 emits. BCa is v1.1; see the module docstring.
 SUPPORTED_INTERVALS = ("percentile",)
-#: Below two units in a stratum every resample is identical - there is nothing to
-#: estimate. A mathematical floor, not a reporting convention.
+#: Below two independent units supplying an outcome class, that class contributes the
+#: same rows to every resample and the interval would carry no uncertainty about it.
+#: A mathematical floor, not a reporting convention - but it is a floor on the *class*,
+#: counted over the whole cell, not on ``min`` over the resampler's internal strata: a
+#: single mixed-outcome case must not veto a cohort of two hundred (verify note,
+#: 2026-09-10, statistics B2 / safety B3).
 MIN_UNITS_PER_STRATUM = 2
-#: Advisory only (R2 section 3.3 precision tiers); never a suppression.
+#: R2 section 3.3 precision tiers, measured in **resampling units** - cases when the
+#: rows are clustered, rows when they are not. Advisory only; never a suppression.
+#: Below :data:`LOW_PRECISION_UNITS` the tier is "not evaluable, shown for
+#: transparency"; below :data:`VERY_LOW_PRECISION_UNITS`, or with fewer than
+#: :data:`FEW_EVENTS` units carrying the event, it is "very low precision".
 LOW_PRECISION_UNITS = 10
+VERY_LOW_PRECISION_UNITS = 30
+FEW_EVENTS = 5
 #: A resample may be degenerate (the statistic undefined on the drawn rows). Below this
 #: share of usable resamples the interval is refused rather than quietly computed from
 #: whatever survived.
@@ -143,6 +163,22 @@ ANALYTIC_STATUS = frozenset(
         "unavailable",  # the cell is degenerate; neither method has an interval
     }
 )
+
+
+def precision_flags(n_units: int, n_events: int | None = None) -> list[str]:
+    """The R2 section 3.3 tier for a cell of ``n_units`` independent units.
+
+    Exactly the two tiers R2 defines, in the order R2 defines them: ``n < 10`` is *not
+    evaluable, shown for transparency* (the more severe label, which the module
+    previously never emitted), ``10 <= n < 30`` or fewer than five events is *very low
+    precision*. Counted over the cell, because that is the evidence a reviewer is
+    judging - not over the smallest internal resampling stratum, which is bookkeeping.
+    """
+    if n_units < LOW_PRECISION_UNITS:
+        return ["not_evaluable_shown_for_transparency"]
+    if n_units < VERY_LOW_PRECISION_UNITS or (n_events is not None and n_events < FEW_EVENTS):
+        return ["very_low_precision"]
+    return []
 
 
 # --------------------------------------------------------------------------- seed policy
@@ -181,17 +217,35 @@ class BootstrapPolicy:
             )
         if self.n_resamples < 1:
             raise ValueError("bootstrap.B must be at least 1")
+        if self.seed < 0:
+            # numpy would raise "expected non-negative integer" on the first cell, half
+            # way through a run; refuse the declaration instead.
+            raise ValueError(f"bootstrap.seed must not be negative (got {self.seed})")
 
     def rng(self, cell_key: str) -> np.random.Generator:
         return rng_for_cell(self.seed, cell_key)
 
     def as_dict(self) -> dict[str, Any]:
+        """The manifest block. T7 must state the methods actually used (D1 section 9).
+
+        ``thresholds`` carries the engine constants that decide whether a cell is
+        estimable and which precision tier it carries. They are not customer-declarable
+        and they are not acceptance criteria; they are method parameters, and a reviewer
+        cannot check the refusals without seeing them.
+        """
         return {
             "B": self.n_resamples,
             "seed": self.seed,
             "interval": self.interval,
             "seed_source": "declared" if self.seed_declared else "engine_default",
             "b_source": "declared" if self.b_declared else "engine_default",
+            "thresholds": {
+                "min_units_per_class": MIN_UNITS_PER_STRATUM,
+                "min_usable_fraction": MIN_USABLE_FRACTION,
+                "low_precision_units": LOW_PRECISION_UNITS,
+                "very_low_precision_units": VERY_LOW_PRECISION_UNITS,
+                "small_class": SMALL_CLASS,
+            },
         }
 
 
@@ -337,6 +391,40 @@ class Resampler:
     def smallest_stratum(self) -> int:
         return min((s.n_units for s in self.strata), default=0)
 
+    @property
+    def class_units(self) -> dict[str, int]:
+        """Independent units able to supply rows of each outcome class.
+
+        A ``mixed`` cluster carries rows of *both* outcomes, so it counts towards both:
+        it is a fully informative unit, not a shortage. This is the quantity the refusal
+        is measured against. ``min`` over the strata is not: it let one multi-lesion
+        patient with one benign and one malignant lesion - the case the ``mixed``
+        stratum exists for - delete the interval of a two-hundred-patient study.
+        """
+        sizes = {s.label: s.n_units for s in self.strata}
+        if "all" in sizes:
+            return {"all": sizes["all"]}
+        mixed = sizes.get("mixed", 0)
+        return {
+            "positive": sizes.get("positive", 0) + mixed,
+            "negative": sizes.get("negative", 0) + mixed,
+        }
+
+    @property
+    def deficient_class(self) -> str | None:
+        """The class supplied by too few units to resample, or ``None``.
+
+        The scarcest class wins when both are short, so the reported reason names the
+        column the customer would actually have to add to.
+        """
+        counts = self.class_units
+        short = [
+            (counts[label], rank, label)
+            for rank, label in enumerate(("positive", "negative", "all"))
+            if label in counts and counts[label] < MIN_UNITS_PER_STRATUM
+        ]
+        return min(short)[2] if short else None
+
     def draw(self, rng: np.random.Generator) -> np.ndarray:
         return np.concatenate([s.draw(rng) for s in self.strata])
 
@@ -393,13 +481,23 @@ def clustered_by_case(positives: np.ndarray, cluster_ids: Sequence[Any] | np.nda
     return Resampler(kind="clustered", strata=strata, n_rows=int(pos.shape[0]))
 
 
-def clustered_flat(cluster_ids: Sequence[Any] | np.ndarray) -> Resampler:
+def clustered_flat(cluster_ids: Sequence[Any] | np.ndarray, n_rows: int | None = None) -> Resampler:
     """Cases resampled in a single stratum - for a proportion inside one cell.
 
     The cell is already conditioned on the outcome (sensitivity is computed among the
     reference-positive rows), so there is no second class left to stratify on.
+
+    ``n_rows`` is the length of the cell's data. Supplying it is how a caller gets the
+    alignment check :func:`clustered_by_case` has always had: ``cluster_ids`` shorter
+    than the cell would otherwise give an estimate over all the rows and an interval
+    resampled from a prefix of them, in one Number, with no error and no flag.
     """
     ids = np.asarray(cluster_ids)
+    if n_rows is not None and ids.shape[0] != int(n_rows):
+        raise ValueError(
+            f"cluster_ids must align with the cell's rows "
+            f"({ids.shape[0]} ids against {int(n_rows)} rows)"
+        )
     groups = _clusters_in_first_appearance_order(ids)
     return Resampler(kind="clustered", strata=(_stratum("all", groups),), n_rows=int(ids.shape[0]))
 
@@ -414,6 +512,21 @@ def percentile_bounds(values: np.ndarray, level: float = DEFAULT_LEVEL) -> tuple
     alpha = 1.0 - level
     lo, hi = np.quantile(np.asarray(values, dtype=np.float64), [alpha / 2.0, 1.0 - alpha / 2.0])
     return float(lo), float(hi)
+
+
+def _refusal_reason(kind: str, deficient_class: str) -> str:
+    """The typed reason for a class with too few resampling units.
+
+    Under clustering the shortage is of independent **cases**, and saying
+    "insufficient positives" beside ``n_pos: 199`` would be false on its face; the
+    remedy is more patients, which is what ``insufficient_clusters`` names. Without
+    clustering the unit is the row, so the reason names the class that is actually
+    short - ``insufficient_negatives`` has been in the enum since build day 2 and was
+    reachable from no code path here.
+    """
+    if kind == "clustered":
+        return "insufficient_clusters"
+    return "insufficient_negatives" if deficient_class == "negative" else "insufficient_positives"
 
 
 @dataclass(frozen=True)
@@ -446,7 +559,8 @@ def bootstrap_percentile(
     ``boundary_estimate`` - the bootstrap genuinely cannot express uncertainty there,
     and a printed ``(1.00, 1.00)`` would claim a certainty the data do not support.
     """
-    if resampler.smallest_stratum < MIN_UNITS_PER_STRATUM:
+    deficient = resampler.deficient_class
+    if deficient is not None:
         return BootstrapDraw(
             values=np.empty(0),
             ci_lo=None,
@@ -454,11 +568,7 @@ def bootstrap_percentile(
             sd=None,
             n_requested=n_resamples,
             n_usable=0,
-            reason=(
-                "insufficient_clusters"
-                if resampler.kind == "clustered"
-                else "insufficient_positives"
-            ),
+            reason=_refusal_reason(resampler.kind, deficient),
         )
     values = np.empty(n_resamples, dtype=np.float64)
     for b in range(n_resamples):
@@ -541,12 +651,38 @@ class CellCI:
 
 
 def _resolved(
-    policy: BootstrapPolicy | None, plan: ClusterPlan | None, n_rows: int
+    policy: BootstrapPolicy | None,
+    plan: ClusterPlan | None,
+    n_rows: int,
+    cluster_ids: Sequence[Any] | np.ndarray | None = None,
 ) -> tuple[BootstrapPolicy, ClusterPlan]:
-    return (
-        policy if policy is not None else BootstrapPolicy(),
-        plan if plan is not None else ClusterPlan(False, "none", n_rows, n_rows),
-    )
+    """Resolve the policy and the plan for one cell, **looking at the ids**.
+
+    X2 is symmetric here or it is not enforced at all. A clustered plan with no
+    ``cluster_ids`` has always raised. The reverse - ``cluster_ids`` in hand and no
+    plan, one forgotten keyword argument out of forty cells - used to hand the cell
+    to DeLong or Wilson on clustered rows, with no flag, no companion refusal and
+    ``analytic_status: used``. Independence is never assumed while the evidence
+    against it is in the arguments:
+
+    * no plan and ids that repeat -> the ``detected`` route, exactly as
+      :func:`plan_clustering` would have decided it at run level;
+    * a plan that positively asserts independence over ids that repeat -> a
+      contradiction, and it raises rather than quietly degrading to row resampling.
+    """
+    pol = policy if policy is not None else BootstrapPolicy()
+    ids = None if cluster_ids is None else np.asarray(cluster_ids)
+    if plan is None:
+        if ids is None:
+            return pol, ClusterPlan(False, "none", n_rows, n_rows)
+        return pol, plan_clustering("none", ids, n_rows)
+    if ids is not None and not plan.clustered and int(np.unique(ids).shape[0]) < ids.shape[0]:
+        raise ValueError(
+            "cluster_ids repeat but the plan says the rows are independent "
+            f"({int(np.unique(ids).shape[0])} cases over {ids.shape[0]} rows); "
+            "the analytic interval is not valid here and is not silently substituted"
+        )
+    return pol, plan
 
 
 def _number_from_draw(
@@ -599,7 +735,7 @@ def auroc_ci(
     """
     scores = np.asarray(scores, dtype=np.float64)
     pos = np.asarray(positives, dtype=bool)
-    pol, cplan = _resolved(policy, plan, int(pos.shape[0]))
+    pol, cplan = _resolved(policy, plan, int(pos.shape[0]), cluster_ids)
     n_pos, n_neg = int(pos.sum()), int((~pos).sum())
 
     if n_pos == 0 or n_neg == 0:
@@ -618,18 +754,21 @@ def auroc_ci(
         if cluster_ids is None:
             raise ValueError("a clustered plan needs cluster_ids")
         resampler = clustered_by_case(pos, cluster_ids)
+        # the CELL's own case count, never the run-level plan's: a run plan is built
+        # once and passed to every subgroup cell, so cplan.n_units here would print the
+        # whole cohort's case count beside a subgroup's rows.
+        n_cases = resampler.n_units
         draw = bootstrap_percentile(statistic, resampler, pol.rng(cell_key), pol.n_resamples, level)
         refused = not_estimable(
             "clustered_data_analytic_ci_invalid",
             est=point,
             n_pos=n_pos,
             n_neg=n_neg,
-            n_cases=cplan.n_units,
+            n_cases=n_cases,
             ci_level=level,
         )
         flags = ["delong_refused_clustered"]
-        if resampler.smallest_stratum < LOW_PRECISION_UNITS:
-            flags.append("very_low_precision")
+        flags += precision_flags(n_cases, resampler.class_units.get("positive"))
         number = _number_from_draw(
             draw,
             est=point,
@@ -638,7 +777,7 @@ def auroc_ci(
             flags=flags,
             n_pos=n_pos,
             n_neg=n_neg,
-            n_cases=cplan.n_units,
+            n_cases=n_cases,
         )
         return CellCI(
             number,
@@ -653,7 +792,12 @@ def auroc_ci(
 
     analytic = auroc_number(scores, pos, level=level).auroc
     if min(n_pos, n_neg) >= SMALL_CLASS:
-        return CellCI(analytic, analytic, "used", cell_key, cplan.route)
+        # "used" is documented as "the analytic interval is the rendered one". When the
+        # analytic method produced no interval - a perfectly separated subgroup, which
+        # is routine - there is no interval to have used, and the enum already carries
+        # the truthful value.
+        status = "used" if analytic.has_ci else "unavailable"
+        return CellCI(analytic, analytic, status, cell_key, cplan.route)
 
     resampler = stratified_by_outcome(pos)
     draw = bootstrap_percentile(statistic, resampler, pol.rng(cell_key), pol.n_resamples, level)
@@ -662,7 +806,10 @@ def auroc_ci(
         est=point,
         method="bootstrap_percentile",
         level=level,
-        flags=["analytic_ci_replaced_small_class", "very_low_precision"],
+        flags=[
+            "analytic_ci_replaced_small_class",
+            *precision_flags(n_pos + n_neg, min(n_pos, n_neg)),
+        ],
         n_pos=n_pos,
         n_neg=n_neg,
     )
@@ -692,7 +839,7 @@ def proportion_ci(
       on the rendered Number (X2).
     """
     ind = np.asarray(indicator, dtype=bool)
-    pol, cplan = _resolved(policy, plan, int(ind.shape[0]))
+    pol, cplan = _resolved(policy, plan, int(ind.shape[0]), cluster_ids)
     n = int(ind.shape[0])
     k = int(ind.sum())
 
@@ -702,22 +849,26 @@ def proportion_ci(
 
     if not cplan.clustered:
         number = proportion(k, n, level=level).with_precision_flags()
-        return CellCI(number, number, "used", cell_key, cplan.route)
+        return CellCI(
+            number, number, "used" if number.has_ci else "unavailable", cell_key, cplan.route
+        )
 
     if cluster_ids is None:
         raise ValueError("a clustered plan needs cluster_ids")
-    resampler = clustered_flat(cluster_ids)
+    resampler = clustered_flat(cluster_ids, n_rows=n)
+    n_cases = resampler.n_units
 
     def statistic(idx: np.ndarray) -> float:
         return float(ind[idx].mean())
 
     draw = bootstrap_percentile(statistic, resampler, pol.rng(cell_key), pol.n_resamples, level)
     refused = not_estimable(
-        "clustered_data_analytic_ci_invalid", est=k / n, n=n, k=k, ci_level=level
+        "clustered_data_analytic_ci_invalid", est=k / n, n=n, k=k, n_cases=n_cases, ci_level=level
     )
-    flags = ["wilson_refused_clustered"]
-    if resampler.smallest_stratum < LOW_PRECISION_UNITS:
-        flags.append("very_low_precision")
+    # n is the row count; under clustering the effective sample size is the case count,
+    # and a subgroup table that printed n = 160 for twenty patients would overstate the
+    # evidence by the design effect. Both are carried, and the tier is taken from cases.
+    flags = ["wilson_refused_clustered", *precision_flags(n_cases)]
     number = _number_from_draw(
         draw,
         est=k / n,
@@ -726,6 +877,7 @@ def proportion_ci(
         flags=flags,
         n=n,
         k=k,
+        n_cases=n_cases,
     )
     return CellCI(
         number, refused, "refused_clustered", cell_key, cplan.route, pol, draw.n_usable, draw.sd

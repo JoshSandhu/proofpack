@@ -108,10 +108,21 @@ def unverified_fixture_values() -> set[str]:
 
 
 def unmarked_unverified_values(rendered: str, values: set[str]) -> list[str]:
-    """Fixture values that appear in ``rendered`` with no ``[unverified]`` marking on it."""
-    if UNVERIFIED_MARK in rendered:
-        return []
-    return sorted(v for v in values if v in rendered)
+    """Fixture values in ``rendered`` with no ``[unverified]`` marking in their paragraph.
+
+    Scoped to the paragraph, not to the whole file. A file-wide exemption meant that one
+    marked citation anywhere in a module - build day 4 added a marked Efron & Tibshirani
+    note to ``stats/bootstrap.py`` - made every value in that file invisible to the
+    guard, and three of the stats modules had quietly become exempt (verify note,
+    2026-09-10, safety N2). The marking has to travel with the value, which is the whole
+    point of the rule.
+    """
+    found: set[str] = set()
+    for block in re.split(r"\n[ \t]*\n", rendered):
+        if UNVERIFIED_MARK in block:
+            continue
+        found |= {v for v in values if v in block}
+    return sorted(found)
 
 
 def test_the_guard_itself_catches_an_unmarked_renderer():

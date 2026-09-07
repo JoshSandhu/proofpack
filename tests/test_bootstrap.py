@@ -323,19 +323,40 @@ def _dotted(node: ast.AST) -> str | None:
     return ".".join(reversed(parts))
 
 
-def test_nothing_touches_a_global_random_number_generator():
-    """Parsed, not grepped: prose about the legacy API must not fail its own rule."""
-    allowed = {"np.random.default_rng", "numpy.random.default_rng", "np.random.Generator"}
-    offenders: list[tuple[str, str]] = []
-    for path in (REPO / "src" / "proofpack").rglob("*.py"):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            name = _dotted(node) if isinstance(node, ast.Attribute) else None
+#: The only members of the ``numpy.random`` namespace this package may name.
+GLOBAL_RNG_ALLOWED = {"np.random.default_rng", "numpy.random.default_rng", "np.random.Generator"}
+
+
+def global_rng_offenders(tree: ast.AST) -> list[str]:
+    """Every reference in ``tree`` to a global or legacy random API.
+
+    Two forms, because walking attribute chains alone missed the second:
+    ``np.random.seed(0)`` (an attribute chain) and ``from numpy.random import seed``
+    (an import binding the same function to a bare name, invisible to the chain walk).
+    """
+    found: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute):
+            name = _dotted(node)
             if name is None:
                 continue
             root = name.rsplit(".", 1)[0]
-            if root in {"np.random", "numpy.random", "random"} and name not in allowed:
-                offenders.append((str(path.relative_to(REPO)), name))
+            if root in {"np.random", "numpy.random", "random"} and name not in GLOBAL_RNG_ALLOWED:
+                found.append(name)
+        elif isinstance(node, ast.ImportFrom) and (node.module or "") in {"random", "numpy.random"}:
+            for alias in node.names:
+                name = f"{node.module}.{alias.name}"
+                if name not in GLOBAL_RNG_ALLOWED:
+                    found.append(name)
+    return found
+
+
+def test_nothing_touches_a_global_random_number_generator():
+    """Parsed, not grepped: prose about the legacy API must not fail its own rule."""
+    offenders: list[tuple[str, str]] = []
+    for path in (REPO / "src" / "proofpack").rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        offenders += [(str(path.relative_to(REPO)), name) for name in global_rng_offenders(tree)]
     assert offenders == [], offenders
 
 
@@ -350,6 +371,15 @@ def test_the_policy_records_whether_the_seed_was_declared_or_defaulted():
         "interval": "percentile",
         "seed_source": "engine_default",
         "b_source": "engine_default",
+        # T7 must state the methods actually used, and a reviewer cannot check a
+        # refusal or a precision tier without the constants that produced it.
+        "thresholds": {
+            "min_units_per_class": 2,
+            "min_usable_fraction": 0.90,
+            "low_precision_units": 10,
+            "very_low_precision_units": 30,
+            "small_class": 10,
+        },
     }
 
     class Declared:
@@ -461,6 +491,7 @@ def test_the_bootstrap_standard_error_reproduces_delongs_across_a_grid(n_per_cla
     the standard error by a factor of sqrt(rows per case), far outside this band.
     """
     band = se_band(n_per_class)
+    asserted = 0
     for cohort_seed in (101, 102, 103):
         rng = np.random.default_rng(cohort_seed)
         y = np.array([True] * n_per_class + [False] * n_per_class)
@@ -471,6 +502,11 @@ def test_the_bootstrap_standard_error_reproduces_delongs_across_a_grid(n_per_cla
             continue
         d = draw_auroc(s, y, 20240101)
         assert abs(d.sd / se - 1.0) <= band, (cohort_seed, auc, se, d.sd)
+        asserted += 1
+    # Nine of the 84 (n, separation, cohort seed) cells are excluded as degenerate - the
+    # whole separation = 3.0 column, where the AUROC sits above 0.98. Without this line
+    # a parametrisation whose every cell was excluded would pass green and vacuous.
+    assert asserted, ("every cell excluded as degenerate", n_per_class, separation)
 
 
 def test_f3_bootstrap_standard_error_reproduces_the_delong_standard_error():
@@ -989,3 +1025,279 @@ def test_the_plan_serialises_the_provenance_of_the_clustering_decision():
 def test_z_for_is_the_same_quantile_the_analytic_intervals_use():
     """Guards against the bootstrap and the analytic path drifting apart on the level."""
     assert z_for(0.95) == pytest.approx(1.959963984540054, abs=1e-12)
+
+
+# ==================================== 8. repairs from the day-4 adversarial verification
+#
+# One test per blocker raised by the three verify notes
+# (``handoffs/2026-09-10_E_verify_{statistics,safety,acceptance}.md``). Each one fails
+# against 5bc69fb, the pre-repair commit; the verbatim failures are recorded in
+# ``handoffs/2026-09-10_E_verify.md``.
+
+
+def _multi_lesion_cohort(n_cases: int, k: int, seed: int, mixed: int = 0):
+    """``n_cases`` patients with ``k`` lesions each; ``mixed`` of them carry both outcomes.
+
+    The design the module docstring names as the reason the ``mixed`` stratum exists:
+    one patient, several lesions, not all of them malignant.
+    """
+    rng = np.random.default_rng(seed)
+    y_case = np.array([True] * (n_cases // 2) + [False] * (n_cases - n_cases // 2))
+    y = np.repeat(y_case, k)
+    cid = np.repeat(np.arange(n_cases), k)
+    for j in range(mixed):
+        y[j * k] = not y[j * k]  # flip one lesion of patient j: that case is now mixed
+    s = rng.normal(size=n_cases * k) + y * 1.0
+    return s, y, cid
+
+
+def test_n_cases_is_the_cells_own_case_count_not_the_runs():
+    """B1 (statistics) / B3 (acceptance): a run-level ClusterPlan must not set a cell count.
+
+    Day 5 is instructed to build one ClusterPlan for the run and pass it to every cell,
+    so every subgroup row would otherwise print the whole run's case count - here 40
+    cases beside 36 analysed rows, which is arithmetically impossible.
+    """
+    s, y, cid = _multi_lesion_cohort(40, 3, seed=5)
+    run_plan = plan_clustering("case_id", cid)
+    assert (run_plan.n_rows, run_plan.n_units) == (120, 40)
+
+    # a subgroup slice: 36 rows, 12 whole cases, six of each outcome
+    cell = np.isin(cid, [*range(6), *range(20, 26)])
+    assert int(cell.sum()) == 36
+    got = auroc_ci(
+        s[cell],
+        y[cell],
+        cell_key="subgroups.sex.F.auroc",
+        plan=run_plan,
+        cluster_ids=cid[cell],
+        policy=BootstrapPolicy(n_resamples=200),
+    )
+    assert got.number.n_cases == 12
+    assert got.analytic.n_cases == 12
+    assert got.number.n_cases <= got.number.n_pos + got.number.n_neg
+
+
+def test_one_mixed_outcome_case_does_not_veto_a_two_hundred_case_cohort():
+    """B2 (statistics) / B3 (safety): the refusal is about the data, not the bookkeeping.
+
+    ``clustered_by_case`` gives a case carrying both outcomes its own ``mixed`` stratum.
+    Refusing on ``min`` over the strata let a single multi-lesion patient delete the
+    interval of a 200-patient study, with ``insufficient_clusters`` printed beside
+    ``n_cases: 200`` and a ``very_low_precision`` flag on the same Number.
+    """
+    s, y, cid = _multi_lesion_cohort(200, 2, seed=7, mixed=1)
+    resampler = clustered_by_case(y, cid)
+    assert resampler.units_per_stratum.get("mixed") == 1  # the singleton stratum is real
+    cell = auroc_ci(
+        s,
+        y,
+        cell_key="overall.auroc",
+        plan=plan_clustering("case_id", cid),
+        cluster_ids=cid,
+        policy=BootstrapPolicy(n_resamples=400),
+    )
+    assert cell.number.has_ci, cell.number.not_estimable_reason
+    assert cell.number.method == "cluster_bootstrap_percentile"
+    assert cell.number.n_cases == 200
+    assert "very_low_precision" not in cell.number.flags
+    assert "not_evaluable_shown_for_transparency" not in cell.number.flags
+
+
+def test_the_refusal_names_the_class_that_is_actually_short():
+    """B2 (statistics) / B4 (acceptance) / N1 (safety): the typed reason must be true.
+
+    ``insufficient_negatives`` is in the enum and was emitted by no code path, while
+    ``insufficient_positives`` was printed beside ``n_pos: 25``.
+    """
+    rng = np.random.default_rng(23)
+    y = np.array([True] * 25 + [False] * 1)
+    s = rng.normal(size=26) + y
+    short_negatives = auroc_ci(s, y, cell_key="c", policy=BootstrapPolicy(n_resamples=50))
+    assert short_negatives.number.not_estimable_reason == "insufficient_negatives"
+    assert short_negatives.number.n_pos == 25 and short_negatives.number.n_neg == 1
+
+    short_positives = auroc_ci(s, ~y, cell_key="c", policy=BootstrapPolicy(n_resamples=50))
+    assert short_positives.number.not_estimable_reason == "insufficient_positives"
+
+
+def test_a_perfectly_separated_cell_promises_no_bootstrap_and_claims_no_analytic_ci():
+    """B3 (statistics): two false statements reached the output JSON.
+
+    ``ci_pending_bootstrap`` is defined as "day-4 bootstrap will fill this interval";
+    day 4 has landed and this cell has been through it. ``analytic_status: used`` is
+    defined as "the analytic interval is the rendered one" - there is no interval.
+    """
+    y = np.array([True] * 30 + [False] * 30)
+    s = np.concatenate([np.linspace(0.6, 1.0, 30), np.linspace(0.0, 0.4, 30)])
+    cell = auroc_ci(s, y, cell_key="subgroups.site.A.auroc")
+    assert cell.number.est == 1.0 and not cell.number.has_ci
+    assert cell.number.not_estimable_reason == "boundary_estimate"
+    assert "ci_pending_bootstrap" not in cell.number.flags
+    assert cell.analytic_status == "unavailable"
+    assert "ci_pending_bootstrap" not in json.dumps(cell.as_dict())
+
+
+def test_cluster_ids_without_a_plan_never_reach_delong_or_wilson():
+    """B1 (safety) / B1 (acceptance): X2 defeated by forgetting one keyword argument.
+
+    The mirror mistake - a clustered plan with no ``cluster_ids`` - already raises. The
+    reverse silently produced a DeLong interval several times too narrow, with
+    ``analytic_status: used`` and no flag anywhere in the output.
+    """
+    s, y, cid = _multi_lesion_cohort(20, 5, seed=9)
+    cell = auroc_ci(s, y, cell_key="overall.auroc", cluster_ids=cid)
+    assert cell.analytic_status != "used"
+    assert cell.number.method == "cluster_bootstrap_percentile"
+    assert "delong_refused_clustered" in cell.number.flags
+    assert cell.route == "detected"
+
+    prop = proportion_ci(s > 0, cell_key="op1.sensitivity", cluster_ids=cid)
+    assert prop.analytic_status == "refused_clustered"
+    assert prop.number.method == "cluster_bootstrap_percentile"
+    assert "wilson_refused_clustered" in prop.number.flags
+
+    # and a plan that positively asserts independence over clustered ids is a
+    # contradiction, exactly as the mirror case is
+    iid_plan = ClusterPlan(False, "none", int(y.shape[0]), int(y.shape[0]))
+    with pytest.raises(ValueError, match="cluster_ids repeat"):
+        auroc_ci(s, y, cell_key="c", plan=iid_plan, cluster_ids=cid)
+    with pytest.raises(ValueError, match="cluster_ids repeat"):
+        proportion_ci(s > 0, cell_key="c", plan=iid_plan, cluster_ids=cid)
+
+
+@pytest.mark.parametrize("duplicated", [1, 2, 10])
+def test_any_repeated_case_id_triggers_the_clustered_path(duplicated):
+    """B2 (safety): D1 line 43 says ``n_rows > n_cases``, with no threshold.
+
+    Every other day-4 fixture duplicates *every* case, so a partially clustered table -
+    a handful of patients contributing a second lesion, which is the realistic shape -
+    was never exercised, and an arbitrary threshold survived all 213 tests.
+    """
+    rng = np.random.default_rng(101 + duplicated)
+    ids = np.concatenate([np.arange(100), np.arange(duplicated)])
+    plan = plan_clustering("none", ids)
+    assert (plan.clustered, plan.route) == (True, "detected")
+    assert (plan.n_rows, plan.n_units) == (100 + duplicated, 100)
+    finding = plan.finding()
+    assert finding is not None and finding.code == "W13"
+
+    y = np.isin(ids, np.arange(50))
+    s = rng.normal(size=ids.shape[0]) + y
+    cell = auroc_ci(
+        s, y, cell_key="c", plan=plan, cluster_ids=ids, policy=BootstrapPolicy(n_resamples=200)
+    )
+    assert cell.number.method == "cluster_bootstrap_percentile"
+    assert "delong_refused_clustered" in cell.number.flags
+
+
+def test_a_clustered_proportion_refuses_cluster_ids_that_do_not_align():
+    """B4 (safety) / B2 (acceptance): one Number built from three different row sets.
+
+    ``clustered_by_case`` checks the length; ``clustered_flat`` did not, so a short
+    ``cluster_ids`` gave an estimate over all the rows, an interval resampled from a
+    prefix of them, and ``n`` equal to all of them, with no error and no flag.
+    """
+    rng = np.random.default_rng(13)
+    cid = np.repeat(np.arange(100), 4)
+    ind = rng.random(400) < 0.8
+    plan = plan_clustering("case_id", cid)
+    with pytest.raises(ValueError, match="align"):
+        proportion_ci(ind, cell_key="c", plan=plan, cluster_ids=cid[:200])
+    with pytest.raises(ValueError, match="align"):
+        clustered_flat(cid[:200], n_rows=400)
+
+
+# ---------------------------------------------- non-blocking observations, repaired here
+
+
+def test_a_clustered_proportion_reports_its_case_count():
+    """N7 (safety) / N4 (acceptance): n = 160 rows over 20 patients, with no n_cases."""
+    cid = np.repeat(np.arange(20), 8)
+    ind = np.repeat(np.random.default_rng(3).random(20) < 0.75, 8)
+    cell = proportion_ci(
+        ind,
+        cell_key="op1.sensitivity",
+        plan=plan_clustering("case_id", cid),
+        cluster_ids=cid,
+        policy=BootstrapPolicy(n_resamples=200),
+    )
+    assert cell.number.n == 160 and cell.number.n_cases == 20
+    assert cell.analytic.n_cases == 20
+
+
+@pytest.mark.parametrize(
+    ("n_cases", "expected"),
+    [(6, "not_evaluable_shown_for_transparency"), (20, "very_low_precision"), (60, None)],
+)
+def test_the_precision_tier_follows_r2_section_3_3_on_the_cells_units(n_cases, expected):
+    """N1 (acceptance): ``n < 10`` is "not evaluable", ``10 <= n < 30`` is "very low".
+
+    The module attached the *less* severe label below ten, and measured it on the
+    smallest resampling stratum rather than on the cell.
+    """
+    s, y, cid = _multi_lesion_cohort(n_cases, 3, seed=17)
+    cell = auroc_ci(
+        s,
+        y,
+        cell_key="c",
+        plan=plan_clustering("case_id", cid),
+        cluster_ids=cid,
+        policy=BootstrapPolicy(n_resamples=200),
+    )
+    tiers = {"not_evaluable_shown_for_transparency", "very_low_precision"}
+    assert set(cell.number.flags) & tiers == ({expected} if expected else set())
+
+
+def test_the_engine_default_seed_is_pinned_by_this_test_not_only_by_prose():
+    """N3 (safety): mutating DEFAULT_SEED left all 85 day-4 tests passing.
+
+    Every customer's intervals move if this constant moves between releases, and
+    reproducing a pack against a re-run is part of what is sold.
+    """
+    assert DEFAULT_SEED == 20240101
+    assert BootstrapPolicy().seed == DEFAULT_SEED
+    pinned = bootstrap_percentile(
+        auroc_statistic(F3_S1, F3_Y),
+        stratified_by_outcome(F3_Y),
+        np.random.default_rng(DEFAULT_SEED),
+        DEFAULT_B,
+    )
+    assert (round(pinned.ci_lo, 2), round(pinned.ci_hi, 2)) == F3_BOOTSTRAP_CI
+
+
+def test_a_negative_declared_seed_is_refused_at_declaration_time():
+    """N4 (safety): ``{"seed": -1}`` validated, then crashed numpy on the first cell."""
+    with pytest.raises(ValueError, match="seed"):
+        BootstrapPolicy(seed=-1)
+    criteria = load_json_schema("criteria_schema.json")
+    assert criteria["properties"]["bootstrap"]["properties"]["seed"]["minimum"] == 0
+    assert criteria["properties"]["bootstrap"]["additionalProperties"] is False
+
+
+def test_the_global_rng_guard_also_rejects_the_import_form():
+    """N3 (acceptance): the ast walk saw attribute chains only.
+
+    ``from numpy.random import seed`` slipped past it; the guard's whole purpose is
+    that reading the prose is not enough.
+    """
+    probe = ast.parse("from numpy.random import seed\n\n\ndef f():\n    seed(0)\n")
+    assert global_rng_offenders(probe) == ["numpy.random.seed"]
+    clean = ast.parse("import numpy as np\n\n\ndef f():\n    return np.random.default_rng(1)\n")
+    assert global_rng_offenders(clean) == []
+
+
+def test_a_warning_code_is_validated_the_way_a_halt_code_is():
+    """N5 (acceptance): ``Finding.code`` was free text while ``HaltError.code`` was closed.
+
+    W13 is invented in this module, W10 and W12 in ``gates``; only W06 appears in the
+    spec. A warning code reaches the rendered document and the exit status, so a typo or
+    a collision between two lanes has to fail at construction.
+    """
+    from proofpack.errors import WARN_CODES, Finding
+
+    _, _, cid = _duplicated_cohort()
+    assert plan_clustering("none", cid).finding().code in WARN_CODES
+    assert {"W06", "W10", "W12", "W13"} <= set(WARN_CODES)
+    with pytest.raises(ValueError, match="unknown warning code"):
+        Finding("W99", "a code nobody registered")

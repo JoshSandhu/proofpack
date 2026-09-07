@@ -213,10 +213,12 @@
     },
     "bootstrap": {
       "type": "object",
+      "additionalProperties": false,
       "description": "Optional. Engine defaults: B 2000, seed 20240101, percentile intervals. The seed and B are recorded in the manifest together with whether they were declared or defaulted.",
       "properties": {
         "B": { "type": "integer", "minimum": 1 },
-        "seed": { "type": "integer" },
+        "seed": { "type": "integer", "minimum": 0,
+          "description": "Non-negative: numpy's Generator refuses a negative seed, and it would do so half way through a run rather than at declaration time." },
         "interval": {
           "type": "string",
           "description": "BCa is deferred to v1.1 (build day 4 decision). Declaring it fails validation here rather than silently yielding a percentile interval.",

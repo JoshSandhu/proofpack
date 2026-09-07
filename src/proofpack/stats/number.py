@@ -68,14 +68,20 @@ NOT_ESTIMABLE_REASONS: frozenset[str] = frozenset(
         # 2x2 degeneracies
         "zero_cell_log_undefined",  # LR+/LR-/DOR: a zero cell makes log(.) undefined
         "zero_cell_logit_undefined",  # PPV/NPV at prevalence: Se or Sp at a boundary
-        "boundary_estimate",  # estimate on 0 or 1; the delta method is invalid there
+        # estimate on 0 or 1, where the delta method is invalid; also a resample
+        # distribution of zero width, where the bootstrap cannot express uncertainty
+        # either and a printed (x, x) would claim a certainty the data do not support
+        "boundary_estimate",
         # methods deliberately not available yet / not valid here
         "analytic_ci_unavailable",  # F1, MCC: no standard closed form; bootstrap on day 4
         "clustered_data_analytic_ci_invalid",  # rows are not independent (case_id)
         "scipy_unavailable",  # Clopper-Pearson for 0 < k < n needs scipy.stats.beta
         "not_computed_this_run",
         # bootstrap (build day 4)
-        "insufficient_clusters",  # fewer than two cases in a resampling stratum
+        # fewer than two independent cases supplying an outcome class. Counted over
+        # the cell: a case carrying both outcomes counts towards both, so one mixed
+        # multi-lesion patient is not a shortage.
+        "insufficient_clusters",
         "degenerate_resamples",  # too few resamples gave a defined statistic
     }
 )
@@ -87,7 +93,11 @@ FLAGS: frozenset[str] = frozenset(
         "very_low_precision",  # 10 <= n < 30, or events < 5
         "imprecise",  # Wilson half-width > 0.10
         "wald_interval_exceeds_unit_range",  # DeLong Wald CI outside [0, 1]
-        "ci_pending_bootstrap",  # day-4 bootstrap will fill this interval
+        # F1 and MCC only: no analytic interval, and whether to bootstrap them or
+        # drop them from the document is the customer-facing presentation decision
+        # in day-2 question 1, still unanswered. The AUROC paths dropped this flag
+        # on build day 4, when stats.bootstrap.auroc_ci landed and made it false.
+        "ci_pending_bootstrap",
         "continuity_corrected",
         "shown_alongside_wilson_at_boundary",  # Clopper-Pearson at 0/n and n/n
         # The X2 clustered auto-switch (build day 4). These flags ride on the Number
@@ -166,13 +176,23 @@ class Number:
             return None
         return (self.ci_hi - self.ci_lo) / 2.0  # type: ignore[operator]
 
+    #: The two R2 section 3.3 tiers. They are ordered and mutually exclusive: a Number
+    #: must never carry both, or the document states two different things about the
+    #: same cell.
+    PRECISION_TIERS = ("not_evaluable_shown_for_transparency", "very_low_precision")
+
     def with_precision_flags(self) -> Number:
-        """Attach the R2 section 3.3 precision tiers. Returns ``self`` for chaining."""
+        """Attach the R2 section 3.3 precision tier. Returns ``self`` for chaining.
+
+        A tier already present is left alone rather than joined by a second one: under
+        clustering the caller assigns the tier from the *case* count, which is the
+        effective sample size, and ``n`` here is the row count.
+        """
         n = self.n
-        if n is not None:
-            if n < 10 and "not_evaluable_shown_for_transparency" not in self.flags:
+        if n is not None and not set(self.PRECISION_TIERS) & set(self.flags):
+            if n < 10:
                 self.flags.append("not_evaluable_shown_for_transparency")
-            elif 10 <= n < 30 and "very_low_precision" not in self.flags:
+            elif n < 30:
                 self.flags.append("very_low_precision")
         hw = self.half_width
         if hw is not None and hw > 0.10 and "imprecise" not in self.flags:

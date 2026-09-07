@@ -20,8 +20,9 @@ schema types ``auprc`` as ``null`` so nobody can quietly start emitting one.
 **Clustered data**: when rows are not independent (declared ``clustering.unit =
 case_id``, or more rows than cases) the DeLong variance is *wrong* - it shrinks
 roughly as sqrt(rows/cases). It is refused with the typed reason
-``clustered_data_analytic_ci_invalid`` rather than silently reported; the cluster
-bootstrap on day 4 fills that path.
+``clustered_data_analytic_ci_invalid`` rather than silently reported. Since build
+day 4 ``stats.bootstrap.auroc_ci`` fills that path with a cluster bootstrap, so this
+Number no longer promises a later interval - it is the companion refusal itself.
 
 No scipy: the normal quantile comes from ``statistics.NormalDist`` and the normal
 tail from ``math.erfc``.
@@ -188,7 +189,7 @@ def logit_ci(auc: float, se: float, level: float = 0.95) -> tuple[float, float]:
 
 
 #: Below this count in either class, R2 section 1.3 wants a stratified bootstrap
-#: instead of DeLong. The bootstrap lands on day 4; until then the Number is flagged.
+#: instead of DeLong; ``stats.bootstrap.auroc_ci`` routes that switch and records it.
 SMALL_CLASS = 10
 #: At or below this, the logit interval is primary regardless of the AUC (D1 section 3.1).
 LOGIT_PRIMARY_CLASS = 30
@@ -247,7 +248,6 @@ def auroc_number(
                 n_neg=n_neg,
                 n_cases=n_cases,
                 ci_level=level,
-                flags=["ci_pending_bootstrap"],
             ),
             auroc_secondary=None,
             se=None,
@@ -287,7 +287,7 @@ def auroc_number(
                 n_pos=n_pos,
                 n_neg=n_neg,
                 ci_level=level,
-                flags=[*flags, "ci_pending_bootstrap"],
+                flags=flags,
             ),
             auroc_secondary=None,
             se=se,

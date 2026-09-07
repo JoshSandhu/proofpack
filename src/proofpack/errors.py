@@ -42,6 +42,17 @@ SCHEMA_CODES: dict[str, str] = {
 #: Gates that produce a flag/warning rather than a HALT.
 FLAG_ONLY_CODES = frozenset({"H10"})
 
+#: Non-fatal warning codes, closed the way :data:`HALT_CODES` is. ``Finding.code`` used
+#: to be free text, so a typo or a collision between two lanes could not be caught, and
+#: three of the four codes in use appear nowhere in the spec. D1 section 5 names W06;
+#: the rest are recorded here as engine codes so at least they cannot drift silently.
+WARN_CODES: dict[str, str] = {
+    "W06": "single-class site(s) present; site-level metrics limited (D1 section 5)",
+    "W10": "observed prevalence differs from declared intended-use prevalence by > 0.10",
+    "W12": "unmatched row_ids in a paired compare; unpaired methods used",
+    "W13": "clustering detected from repeated case_id although clustering.unit is 'none'",
+}
+
 
 class ProofPackError(Exception):
     """Base class for all engine errors."""
@@ -72,11 +83,21 @@ class HaltError(ProofPackError):
 
 @dataclass
 class Finding:
-    """A non-fatal finding (W06, W10, ...). Rendered in T8; exit code 2 if any."""
+    """A non-fatal finding (W06, W10, ...). Rendered in T8; exit code 2 if any.
+
+    The code is validated against :data:`WARN_CODES` exactly as ``HaltError`` validates
+    against :data:`HALT_CODES`: a warning code reaches the document and the exit status,
+    so a typo must fail at construction rather than render as a warning nobody can look
+    up.
+    """
 
     code: str
     message: str
     detail: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.code not in WARN_CODES:
+            raise ValueError(f"unknown warning code {self.code!r}")
 
 
 class LicenceError(ProofPackError):

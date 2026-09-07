@@ -242,7 +242,10 @@ def test_perfect_separation_gives_a_typed_reason_not_a_zero_width_interval():
     assert r.auroc.est == 1.0
     assert not r.auroc.has_ci
     assert r.auroc.not_estimable_reason == "boundary_estimate"
-    assert "ci_pending_bootstrap" in r.auroc.flags
+    # build day 4 landed the bootstrap, and it cannot help here either (every resample
+    # of a perfectly separated cohort gives 1.0). The Number must therefore promise no
+    # later interval: "ci_pending_bootstrap" would be a promise that will never be kept.
+    assert "ci_pending_bootstrap" not in r.auroc.flags
 
 
 def test_single_class_gives_a_typed_reason():
