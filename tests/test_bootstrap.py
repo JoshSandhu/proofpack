@@ -1301,3 +1301,227 @@ def test_a_warning_code_is_validated_the_way_a_halt_code_is():
     assert {"W06", "W10", "W12", "W13"} <= set(WARN_CODES)
     with pytest.raises(ValueError, match="unknown warning code"):
         Finding("W99", "a code nobody registered")
+
+
+# ============================ 9. repairs from the day-4 re-verification (repair round 2)
+#
+# One test per blocker raised by the two re-verify notes
+# (``handoffs/2026-09-10_E_reverify_r1_{regression,fresh-attack}.md``). R1 and FA-B2 are
+# the same defect found by two lenses. Each test fails against 5b92fc5, the round-1
+# commit; the verbatim failures are recorded in ``handoffs/2026-09-10_E_verify.md``.
+
+
+def _imbalanced_lesion_cohort(n_pos_cases: int, n_neg_cases: int, k: int, seed: int):
+    """``n_pos_cases`` all-malignant patients and ``n_neg_cases`` all-benign ones.
+
+    ``k`` rows each. ``_multi_lesion_cohort`` is balanced by construction, so every
+    precision assertion written against it is blind to *which* class is scarce. This
+    one is not.
+    """
+    rng = np.random.default_rng(seed)
+    y_case = np.array([True] * n_pos_cases + [False] * n_neg_cases)
+    y = np.repeat(y_case, k)
+    cid = np.repeat(np.arange(y_case.shape[0]), k)
+    s = rng.normal(size=y.shape[0]) + y * 1.0
+    return s, y, cid
+
+
+@pytest.mark.parametrize(
+    ("n_pos_cases", "n_neg_cases", "expected"),
+    [
+        (40, 3, "very_low_precision"),
+        (40, 5, "very_low_precision"),
+        (40, 9, "very_low_precision"),
+        (60, 6, "very_low_precision"),
+        (100, 8, "very_low_precision"),
+        (3, 40, "very_low_precision"),
+        (9, 40, "very_low_precision"),
+        (40, 12, None),  # negative control: neither class is short, so no tier
+    ],
+)
+def test_the_clustered_precision_tier_reads_the_scarcer_class(n_pos_cases, n_neg_cases, expected):
+    """R1 (regression) / FA-B2 (fresh attack): the tier read only the positive class.
+
+    R2 section 3.3 asks for at least ten positives **and** at least ten negatives
+    before an AUROC per group is evaluable, so the tier has to come from whichever
+    class is scarce. Repair round 1 passed ``class_units["positive"]`` in as the event
+    count, so an AUROC resting on three negative patients carried no tier at all, where
+    the code before it did. ``imprecise`` is not a substitute - it is a half-width
+    heuristic and it does not fire when the interval is narrow (100 against 8 below).
+    """
+    s, y, cid = _imbalanced_lesion_cohort(n_pos_cases, n_neg_cases, 3, seed=5)
+    cell = auroc_ci(
+        s,
+        y,
+        cell_key="subgroups.site.C.auroc",
+        plan=plan_clustering("case_id", cid),
+        cluster_ids=cid,
+        policy=BootstrapPolicy(n_resamples=200),
+    )
+    tiers = {"not_evaluable_shown_for_transparency", "very_low_precision"}
+    got = set(cell.number.flags) & tiers
+    assert got == ({expected} if expected else set()), cell.number.flags
+
+    # and it is symmetric: the same shortage on the other side gets the same tier
+    s2, y2, cid2 = _imbalanced_lesion_cohort(n_neg_cases, n_pos_cases, 3, seed=5)
+    mirror = auroc_ci(
+        s2,
+        y2,
+        cell_key="subgroups.site.C.auroc",
+        plan=plan_clustering("case_id", cid2),
+        cluster_ids=cid2,
+        policy=BootstrapPolicy(n_resamples=200),
+    )
+    assert set(mirror.number.flags) & tiers == got
+
+
+def test_both_auroc_routes_use_one_definition_of_a_scarce_class():
+    """R1 (regression) / FA-N6 (fresh attack): two definitions of "events" in one module.
+
+    The i.i.d. small-class branch counted events as ``min(n_pos, n_neg)`` against
+    ``n_pos + n_neg`` units, so nine positives among 409 rows carried no tier either -
+    409 units, nine events, and R2 section 3.3's five-event floor never reached. Both
+    branches now ask one question: is either class below ``LOW_PRECISION_UNITS``?
+    """
+    rng = np.random.default_rng(7)
+    y = np.array([True] * 9 + [False] * 400)
+    s = rng.normal(size=409) + y * 1.0
+    iid = auroc_ci(s, y, cell_key="c", policy=BootstrapPolicy(n_resamples=200))
+    assert iid.number.method == "bootstrap_percentile"
+    assert "very_low_precision" in iid.number.flags
+
+    # the same nine-against-many shortage, clustered: the same tier
+    s2, y2, cid2 = _imbalanced_lesion_cohort(9, 400, 2, seed=11)
+    clustered = auroc_ci(
+        s2,
+        y2,
+        cell_key="c",
+        plan=plan_clustering("case_id", cid2),
+        cluster_ids=cid2,
+        policy=BootstrapPolicy(n_resamples=200),
+    )
+    assert "very_low_precision" in clustered.number.flags
+
+
+def _one_pure_one_mixed_cohort(positive_side: bool, n_other: int = 60, seed: int = 13):
+    """One pure case and one mixed case supplying a class, against ``n_other`` pure cases.
+
+    Two rows per case. The class in question has ``class_units == 2`` and **zero**
+    resampling variability: a stratum of one unit draws that unit every time.
+    """
+    rows = [[True, True], [True, False]] + [[False, False]] * n_other
+    y = np.array([v for case in rows for v in case])
+    if not positive_side:
+        y = ~y
+    cid = np.repeat(np.arange(n_other + 2), 2)
+    s = np.random.default_rng(seed).normal(size=y.shape[0]) + y * 1.0
+    return s, y, cid
+
+
+@pytest.mark.parametrize("positive_side", [True, False])
+def test_a_class_whose_every_stratum_is_a_singleton_is_refused(positive_side):
+    """FA-B1 (fresh attack): the round-1 class floor counted units it could not resample.
+
+    Strata ``{positive: 1, mixed: 1, negative: 60}`` sum to two positive units and
+    passed the floor, but the pure stratum draws one from one and the mixed stratum
+    draws one from one, so **every resample carries the same positive rows**. The
+    engine rendered an interval there - measured coverage 0.233 against a nominal 0.95
+    over 300 replications, 15x too narrow on one draw - where the code before round 1
+    refused with ``insufficient_clusters``. That is the module's own stated rationale
+    for ``MIN_UNITS_PER_STRATUM``: below two independent units supplying a class, the
+    interval carries no uncertainty about it.
+    """
+    s, y, cid = _one_pure_one_mixed_cohort(positive_side)
+    resampler = clustered_by_case(y, cid)
+    label = "positive" if positive_side else "negative"
+    assert resampler.units_per_stratum.get("mixed") == 1
+    assert resampler.class_units[label] == 2  # the count that satisfied the round-1 floor
+
+    # the property the floor exists to guarantee, measured rather than argued
+    gen = np.random.default_rng(1)
+    wanted = y if positive_side else ~y
+    seen = {tuple(sorted(int(i) for i in resampler.draw(gen) if wanted[i])) for _ in range(200)}
+    assert len(seen) == 1, "the class does vary; this fixture no longer proves anything"
+
+    assert resampler.deficient_class == label
+    cell = auroc_ci(
+        s,
+        y,
+        cell_key="subgroups.age.65plus.auroc",
+        plan=plan_clustering("case_id", cid),
+        cluster_ids=cid,
+        policy=BootstrapPolicy(n_resamples=400),
+    )
+    assert not cell.number.has_ci, (cell.number.ci_lo, cell.number.ci_hi)
+    assert cell.number.not_estimable_reason == "insufficient_clusters"
+
+    # and the round-1 repair this must not undo: one mixed case among many pure ones
+    # still forms an interval (the D2 defect, re-asserted from the other direction)
+    s2, y2, cid2 = _multi_lesion_cohort(200, 2, seed=7, mixed=1)
+    kept = auroc_ci(
+        s2,
+        y2,
+        cell_key="overall.auroc",
+        plan=plan_clustering("case_id", cid2),
+        cluster_ids=cid2,
+        policy=BootstrapPolicy(n_resamples=200),
+    )
+    assert kept.number.has_ci, kept.number.not_estimable_reason
+
+
+def test_a_mixed_outcome_case_counts_towards_both_classes():
+    """FA-B3 (fresh attack): the load-bearing half of the round-1 D2 repair, pinned.
+
+    Mutation R7 - ``mixed = 0`` in ``Resampler.class_units`` - survived all 102 day-4
+    tests, because the D2 regression cohort is 199 pure cases plus one mixed and the
+    pure strata carry the count on their own. On the canonical multi-lesion design,
+    forty patients each with one malignant and one benign lesion, **every** case is
+    mixed: without the clause both classes report zero units and the whole 80-lesion
+    cell is refused.
+    """
+    rng = np.random.default_rng(21)
+    y = np.array([True, False] * 40)
+    cid = np.repeat(np.arange(40), 2)
+    s = rng.normal(size=80) + y * 1.0
+
+    resampler = clustered_by_case(y, cid)
+    assert resampler.units_per_stratum == {"mixed": 40}
+    assert resampler.class_units == {"positive": 40, "negative": 40}
+    assert resampler.deficient_class is None
+
+    cell = auroc_ci(
+        s,
+        y,
+        cell_key="overall.auroc",
+        plan=plan_clustering("case_id", cid),
+        cluster_ids=cid,
+        policy=BootstrapPolicy(n_resamples=400),
+    )
+    assert cell.number.method == "cluster_bootstrap_percentile"
+    assert cell.number.has_ci, cell.number.not_estimable_reason
+    assert cell.number.n_cases == 40
+    assert cell.number.n_pos == 40 and cell.number.n_neg == 40
+
+
+def test_one_number_never_carries_two_precision_tiers():
+    """FA-N2 (fresh attack): the single-tier guard was pinned by no test.
+
+    Under clustering the caller assigns the tier from the **case** count, which is the
+    effective sample size, while ``Number.n`` is the row count; twenty rows over five
+    patients would otherwise print *not evaluable* and *very low precision* on one
+    Number, which is a contradiction a reviewer has to resolve by guessing. Round 1
+    added the guard while repairing the tier and left it unpinned - mutation R16
+    survived all 102 day-4 tests.
+    """
+    cid = np.repeat(np.arange(5), 4)
+    ind = np.repeat(np.random.default_rng(3).random(5) < 0.6, 4)
+    cell = proportion_ci(
+        ind,
+        cell_key="op1.sensitivity",
+        plan=plan_clustering("case_id", cid),
+        cluster_ids=cid,
+        policy=BootstrapPolicy(n_resamples=200),
+    )
+    assert cell.number.n == 20 and cell.number.n_cases == 5
+    tiers = set(Number.PRECISION_TIERS) & set(cell.number.flags)
+    assert tiers == {"not_evaluable_shown_for_transparency"}, cell.number.flags

@@ -93,7 +93,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -113,6 +113,7 @@ __all__ = [
     "ClusterPlan",
     "Resampler",
     "auroc_ci",
+    "auroc_precision_flags",
     "bootstrap_percentile",
     "cell_entropy",
     "clustered_by_case",
@@ -135,10 +136,14 @@ DEFAULT_LEVEL = 0.95
 SUPPORTED_INTERVALS = ("percentile",)
 #: Below two independent units supplying an outcome class, that class contributes the
 #: same rows to every resample and the interval would carry no uncertainty about it.
-#: A mathematical floor, not a reporting convention - but it is a floor on the *class*,
-#: counted over the whole cell, not on ``min`` over the resampler's internal strata: a
-#: single mixed-outcome case must not veto a cohort of two hundred (verify note,
-#: 2026-09-10, statistics B2 / safety B3).
+#: A mathematical floor, not a reporting convention - and it is a floor on the units
+#: the resampler can actually *vary*, which is neither ``min`` nor ``sum`` over the
+#: resampler's internal strata. Not ``min``: a single mixed-outcome case must not veto a
+#: cohort of two hundred (verify note, 2026-09-10, statistics B2 / safety B3). Not
+#: ``sum`` either: one pure case plus one mixed case sum to two and draw the same rows
+#: every time (re-verify note, 2026-09-10, fresh-attack FA-B1). See
+#: :attr:`Resampler.deficient_class`, which applies it to the largest stratum supplying
+#: the class.
 MIN_UNITS_PER_STRATUM = 2
 #: R2 section 3.3 precision tiers, measured in **resampling units** - cases when the
 #: rows are clustered, rows when they are not. Advisory only; never a suppression.
@@ -179,6 +184,29 @@ def precision_flags(n_units: int, n_events: int | None = None) -> list[str]:
     if n_units < VERY_LOW_PRECISION_UNITS or (n_events is not None and n_events < FEW_EVENTS):
         return ["very_low_precision"]
     return []
+
+
+def auroc_precision_flags(n_units: int, class_units: Iterable[int]) -> list[str]:
+    """The R2 section 3.3 tier for an AUROC cell, which needs **both** classes.
+
+    One definition of "a scarce class" for both AUROC routes. The clustered branch
+    counts cases and the i.i.d. branch counts rows, but the question is the same in
+    both: is *either* class below :data:`LOW_PRECISION_UNITS`? R2 section 3.3 asks for
+    at least ten positives and at least ten negatives before an AUROC per group is
+    evaluable, so reading only the positives - which the module did between commits
+    5b92fc5 and this one - loses the tier on exactly the cells R2 is strictest about:
+    an AUROC of 0.97 resting on four negative patients rendered with no tier at all
+    (re-verify note, 2026-09-10, regression R1 / fresh-attack FA-B2 and FA-N6).
+
+    ProofPack annotates rather than omits, so the shortage is a tier, never a
+    suppression; and it stays at *very low precision* rather than escalating, which is
+    what the module emitted before the round-1 repair.
+    """
+    scarcest = min(class_units, default=0)
+    tier = precision_flags(n_units, scarcest)
+    if not tier and scarcest < LOW_PRECISION_UNITS:
+        return ["very_low_precision"]
+    return tier
 
 
 # --------------------------------------------------------------------------- seed policy
@@ -389,39 +417,65 @@ class Resampler:
 
     @property
     def smallest_stratum(self) -> int:
+        """Diagnostic only. Neither the refusal criterion (:attr:`deficient_class`) nor
+        the precision tier (:attr:`class_units`) is measured on it: it was, and one
+        multi-lesion patient could then delete a two-hundred-patient interval."""
         return min((s.n_units for s in self.strata), default=0)
+
+    @property
+    def class_strata(self) -> dict[str, tuple[int, ...]]:
+        """Per outcome class, the unit count of every stratum that can supply its rows.
+
+        A ``mixed`` cluster carries rows of *both* outcomes, so it appears under both:
+        it is a fully informative unit, not a shortage. Kept as the separate stratum
+        counts rather than a single total because the two questions the module asks of
+        them have different answers - see :attr:`class_units` and
+        :attr:`deficient_class`.
+        """
+        sizes = {s.label: s.n_units for s in self.strata}
+        if "all" in sizes:
+            return {"all": (sizes["all"],)}
+        mixed = sizes.get("mixed", 0)
+        return {
+            "positive": (sizes.get("positive", 0), mixed),
+            "negative": (sizes.get("negative", 0), mixed),
+        }
 
     @property
     def class_units(self) -> dict[str, int]:
         """Independent units able to supply rows of each outcome class.
 
-        A ``mixed`` cluster carries rows of *both* outcomes, so it counts towards both:
-        it is a fully informative unit, not a shortage. This is the quantity the refusal
-        is measured against. ``min`` over the strata is not: it let one multi-lesion
-        patient with one benign and one malignant lesion - the case the ``mixed``
-        stratum exists for - delete the interval of a two-hundred-patient study.
+        The *reported* count, and the one the precision tier is measured against.
+        ``min`` over the strata is not that quantity: it let one multi-lesion patient
+        with one benign and one malignant lesion - the case the ``mixed`` stratum
+        exists for - delete the interval of a two-hundred-patient study.
         """
-        sizes = {s.label: s.n_units for s in self.strata}
-        if "all" in sizes:
-            return {"all": sizes["all"]}
-        mixed = sizes.get("mixed", 0)
-        return {
-            "positive": sizes.get("positive", 0) + mixed,
-            "negative": sizes.get("negative", 0) + mixed,
-        }
+        return {label: sum(parts) for label, parts in self.class_strata.items()}
 
     @property
     def deficient_class(self) -> str | None:
-        """The class supplied by too few units to resample, or ``None``.
+        """The class this resampler cannot vary, or ``None``.
+
+        Not the same question as :attr:`class_units`, and conflating them was a defect.
+        Each stratum is drawn independently, ``m`` units from ``m``; a stratum holding
+        a single unit therefore contributes *that unit* to every resample. So a class
+        is deficient when its **largest** contributing stratum is below
+        :data:`MIN_UNITS_PER_STRATUM`, not when the units summed across its strata are:
+        strata ``{positive: 1, mixed: 1, negative: 60}`` count two positive units and
+        vary in none of them, and the interval the round-1 code rendered there covered
+        the truth 23 % of the time at a nominal 95 % (re-verify note, 2026-09-10,
+        fresh-attack FA-B1). A class whose units are split one-and-one across the pure
+        and the mixed stratum satisfies the count and violates the reason for it.
 
         The scarcest class wins when both are short, so the reported reason names the
         column the customer would actually have to add to.
         """
         counts = self.class_units
+        strata = self.class_strata
         short = [
             (counts[label], rank, label)
             for rank, label in enumerate(("positive", "negative", "all"))
-            if label in counts and counts[label] < MIN_UNITS_PER_STRATUM
+            if label in strata and max(strata[label]) < MIN_UNITS_PER_STRATUM
         ]
         return min(short)[2] if short else None
 
@@ -768,7 +822,7 @@ def auroc_ci(
             ci_level=level,
         )
         flags = ["delong_refused_clustered"]
-        flags += precision_flags(n_cases, resampler.class_units.get("positive"))
+        flags += auroc_precision_flags(n_cases, resampler.class_units.values())
         number = _number_from_draw(
             draw,
             est=point,
@@ -808,7 +862,7 @@ def auroc_ci(
         level=level,
         flags=[
             "analytic_ci_replaced_small_class",
-            *precision_flags(n_pos + n_neg, min(n_pos, n_neg)),
+            *auroc_precision_flags(n_pos + n_neg, (n_pos, n_neg)),
         ],
         n_pos=n_pos,
         n_neg=n_neg,
