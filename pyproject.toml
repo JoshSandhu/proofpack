@@ -26,6 +26,9 @@ dev = [
     "ruff>=0.6",
     "pip-audit>=2.7",
     "scipy>=1.14",
+    # test-only oracles: never imported by src/proofpack (asserted in test_no_oracle_leaks)
+    "statsmodels>=0.14",
+    "scikit-learn>=1.5",
 ]
 
 [build-system]
@@ -40,10 +43,11 @@ packages = ["src/proofpack"]
 "schema/criteria_schema.json" = "proofpack/_schema/criteria_schema.json"
 "schema/claims_schema.json" = "proofpack/_schema/claims_schema.json"
 "schema/egress_schema.json" = "proofpack/_schema/egress_schema.json"
+"schema/output_schema_v1.json" = "proofpack/_schema/output_schema_v1.json"
 "design/guidance_map_v1.csv" = "proofpack/_schema/guidance_map_v1.csv"
 
 [tool.hatch.build.targets.sdist]
-include = ["src/proofpack", "schema", "README.md", "pyproject.toml"]
+include = ["src/proofpack", "schema", "fixtures", "README.md", "pyproject.toml"]
 
 [tool.ruff]
 line-length = 100

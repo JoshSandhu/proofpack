@@ -1,0 +1,309 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proofpack.io/schema/output_schema_v1.json",
+  "title": "ProofPack output document v1",
+  "description": "D1 section 4. The document the renderer consumes. Sections not yet produced by the engine (calibration, subgroups, fairness, robustness, comparison, drift, claims) are declared here with their shape so the schema is stable, but are permitted to be null or absent until their build day lands.",
+  "type": "object",
+  "required": ["schema_version", "manifest", "declarations", "halts", "warnings", "flow"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "manifest": {
+      "type": "object",
+      "required": ["run_id", "engine_version", "python", "numpy", "seed", "started"],
+      "properties": {
+        "run_id": { "type": "string" },
+        "engine_version": { "type": "string" },
+        "platform": { "type": "string" },
+        "python": { "type": "string" },
+        "numpy": { "type": "string" },
+        "scipy": { "type": ["string", "null"] },
+        "input_sha256": { "type": ["string", "null"] },
+        "criteria_sha256": { "type": ["string", "null"] },
+        "mapping_sha256": { "type": ["string", "null"] },
+        "seed": { "type": ["integer", "null"] },
+        "B": { "type": ["integer", "null"] },
+        "started": { "type": "string" },
+        "duration_s": { "type": ["number", "null"] },
+        "reference_platform": { "type": "boolean" },
+        "licence_id": { "type": ["string", "null"] },
+        "tier": { "type": ["string", "null"] },
+        "ledger_count": { "type": ["integer", "null"] }
+      }
+    },
+    "declarations": { "type": "object" },
+    "halts": { "type": "array", "items": { "type": "object" } },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code"],
+        "properties": {
+          "code": { "type": "string" },
+          "text_id": { "type": ["string", "null"] },
+          "params": { "type": "object" }
+        }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "required": ["rows_read", "analysed"],
+      "properties": {
+        "rows_read": { "type": "integer", "minimum": 0 },
+        "excluded_missing_label": { "type": "integer", "minimum": 0 },
+        "excluded_missing_score": { "type": "integer", "minimum": 0 },
+        "indeterminate": { "type": "integer", "minimum": 0 },
+        "analysed": { "type": "integer", "minimum": 0 },
+        "n_cases": { "type": ["integer", "null"] },
+        "clustered": { "type": "boolean" }
+      }
+    },
+    "table1": { "type": ["object", "null"] },
+    "overall": {
+      "type": ["object", "null"],
+      "description": "One key per declared operating point id, plus 'threshold_free'.",
+      "properties": {
+        "threshold_free": { "$ref": "#/$defs/thresholdFree" }
+      },
+      "additionalProperties": { "$ref": "#/$defs/operatingPointBlock" }
+    },
+    "calibration": { "type": ["object", "null"] },
+    "subgroups": { "type": ["array", "null"], "items": { "type": "object" } },
+    "intersectional": { "type": ["array", "null"], "items": { "type": "object" } },
+    "fairness": { "type": ["object", "null"] },
+    "robustness": { "type": ["object", "null"] },
+    "comparison": { "type": ["object", "null"] },
+    "drift": { "type": ["object", "null"] },
+    "criteria_results": { "type": ["array", "null"], "items": { "type": "object" } },
+    "claims": { "type": ["array", "null"], "items": { "type": "object" } },
+    "suppression_log": { "type": ["array", "null"], "items": { "type": "object" } },
+    "guidance_refs": { "type": ["array", "null"], "items": { "type": "object" } }
+  },
+
+  "$defs": {
+    "metricId": {
+      "enum": [
+        "sensitivity", "specificity", "ppa", "npa", "ppv", "npv", "accuracy",
+        "balanced_accuracy", "f1", "mcc", "lr_pos", "lr_neg", "dor", "youden",
+        "auroc", "auprc", "brier", "ipa", "oe", "calibration_slope",
+        "calibration_intercept", "ece", "tpr_gap", "fpr_gap", "ppv_gap", "npv_gap",
+        "auroc_gap", "psi", "ks_d", "prevalence",
+        "kappa", "macro_auroc", "bias", "loa_low", "loa_high", "mae", "rmse", "ccc",
+        "dice_mean", "dice_median"
+      ]
+    },
+    "method": {
+      "description": "D1 section 4.1 enum. 'logit_delta' and 'newcombe11' were added on build day 2 (see handoffs/2026-09-08_E.md).",
+      "enum": [
+        "wilson", "wilson_cc", "clopper_pearson", "newcombe10", "newcombe11",
+        "newcombe_paired", "delong_logit", "delong_wald",
+        "cluster_bootstrap_percentile", "bootstrap_percentile", "bootstrap_bca",
+        "irls_wald", "log_delta", "logit_delta", "chi2_psi", "exact_mcnemar",
+        "cc_mcnemar", "none"
+      ]
+    },
+    "notEstimableReason": {
+      "description": "Typed reasons a quantity carries no interval. There is no untyped fallback.",
+      "enum": [
+        "zero_denominator", "single_class", "insufficient_positives",
+        "insufficient_negatives", "zero_cell_log_undefined",
+        "zero_cell_logit_undefined", "boundary_estimate",
+        "analytic_ci_unavailable", "clustered_data_analytic_ci_invalid",
+        "scipy_unavailable", "not_computed_this_run"
+      ]
+    },
+    "flag": {
+      "enum": [
+        "not_evaluable_shown_for_transparency", "very_low_precision", "imprecise",
+        "wald_interval_exceeds_unit_range", "ci_pending_bootstrap",
+        "continuity_corrected", "shown_alongside_wilson_at_boundary"
+      ]
+    },
+
+    "Number": {
+      "type": "object",
+      "description": "Every rendered quantity (D1 section 4.1). Invariant: a Number either carries both interval bounds, or is suppressed, or names a typed not_estimable_reason. It is never possible to render an estimate whose uncertainty is unstated.",
+      "required": ["est", "ci_lo", "ci_hi", "ci_level", "method", "flags", "suppressed", "not_estimable_reason"],
+      "additionalProperties": false,
+      "properties": {
+        "est": { "type": ["number", "null"] },
+        "ci_lo": { "type": ["number", "null"] },
+        "ci_hi": { "type": ["number", "null"] },
+        "ci_level": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+        "method": { "$ref": "#/$defs/method" },
+        "n": { "type": "integer", "minimum": 0 },
+        "k": { "type": "integer", "minimum": 0 },
+        "n_pos": { "type": "integer", "minimum": 0 },
+        "n_neg": { "type": "integer", "minimum": 0 },
+        "n_cases": { "type": "integer", "minimum": 0 },
+        "flags": { "type": "array", "items": { "$ref": "#/$defs/flag" } },
+        "suppressed": { "type": "boolean" },
+        "not_estimable_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/notEstimableReason" }]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "suppressed": { "const": true } }, "required": ["suppressed"] },
+          "then": {
+            "properties": {
+              "est": { "type": "null" },
+              "ci_lo": { "type": "null" },
+              "ci_hi": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "No Number without a CI: if either bound is null and it is not suppressed, a typed reason is mandatory and the method must be 'none'.",
+          "if": {
+            "properties": {
+              "suppressed": { "const": false },
+              "ci_lo": { "type": "null" }
+            },
+            "required": ["suppressed", "ci_lo"]
+          },
+          "then": {
+            "properties": {
+              "ci_hi": { "type": "null" },
+              "method": { "const": "none" },
+              "not_estimable_reason": { "$ref": "#/$defs/notEstimableReason" }
+            },
+            "required": ["not_estimable_reason"]
+          }
+        },
+        {
+          "description": "A Number with an interval names a real method and carries no reason.",
+          "if": {
+            "properties": { "ci_lo": { "type": "number" } },
+            "required": ["ci_lo"]
+          },
+          "then": {
+            "properties": {
+              "ci_hi": { "type": "number" },
+              "method": { "not": { "const": "none" } },
+              "not_estimable_reason": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+
+    "twoByTwo": {
+      "type": "object",
+      "required": ["tp", "fn", "fp", "tn"],
+      "additionalProperties": false,
+      "properties": {
+        "tp": { "type": "integer", "minimum": 0 },
+        "fn": { "type": "integer", "minimum": 0 },
+        "fp": { "type": "integer", "minimum": 0 },
+        "tn": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "operatingPointBlock": {
+      "type": "object",
+      "description": "Threshold metrics at one operating point. Exactly one of sensitivity/ppa and one of specificity/npa is present: PPA/NPA when the reference standard is a non-reference comparator (FDA 2007), and then the words sensitivity/specificity must not appear.",
+      "required": ["two_by_two"],
+      "properties": {
+        "two_by_two": { "$ref": "#/$defs/twoByTwo" },
+        "sensitivity": { "$ref": "#/$defs/Number" },
+        "specificity": { "$ref": "#/$defs/Number" },
+        "ppa": { "$ref": "#/$defs/Number" },
+        "npa": { "$ref": "#/$defs/Number" },
+        "ppv": { "$ref": "#/$defs/Number" },
+        "npv": { "$ref": "#/$defs/Number" },
+        "accuracy": { "$ref": "#/$defs/Number" },
+        "balanced_accuracy": { "$ref": "#/$defs/Number" },
+        "f1": { "$ref": "#/$defs/Number" },
+        "mcc": { "$ref": "#/$defs/Number" },
+        "lr_pos": { "$ref": "#/$defs/Number" },
+        "lr_neg": { "$ref": "#/$defs/Number" },
+        "dor": { "$ref": "#/$defs/Number" },
+        "youden": { "$ref": "#/$defs/Number" },
+        "prevalence": { "$ref": "#/$defs/Number" },
+        "ppv_at_prevalence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "value", "ppv", "npv"],
+            "properties": {
+              "label": { "type": "string" },
+              "value": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+              "ppv": { "$ref": "#/$defs/Number" },
+              "npv": { "$ref": "#/$defs/Number" }
+            }
+          }
+        },
+        "indeterminate_as_positive": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/operatingPointBlock" }]
+        },
+        "indeterminate_as_negative": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/operatingPointBlock" }]
+        },
+        "n_indeterminate_reference_positive": { "type": "integer", "minimum": 0 },
+        "n_indeterminate_reference_negative": { "type": "integer", "minimum": 0 }
+      },
+      "oneOf": [
+        { "required": ["sensitivity", "specificity"], "not": { "anyOf": [{ "required": ["ppa"] }, { "required": ["npa"] }] } },
+        { "required": ["ppa", "npa"], "not": { "anyOf": [{ "required": ["sensitivity"] }, { "required": ["specificity"] }] } }
+      ]
+    },
+
+    "thresholdFree": {
+      "type": "object",
+      "required": ["auroc", "prevalence"],
+      "properties": {
+        "auroc": { "$ref": "#/$defs/Number" },
+        "auroc_wald": {
+          "description": "Secondary Wald interval, shown beside the logit interval (R2 section 1.3).",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/Number" }]
+        },
+        "auprc": {
+          "description": "Deferred to v1.1; always null in v1.",
+          "type": "null"
+        },
+        "prevalence": { "$ref": "#/$defs/Number" },
+        "roc": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }],
+            "minItems": 3,
+            "maxItems": 3
+          }
+        },
+        "roc_operating_points": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "threshold", "fpr", "tpr"],
+            "properties": {
+              "id": { "type": "string" },
+              "threshold": { "type": "number" },
+              "fpr": { "type": "number" },
+              "tpr": { "type": "number" }
+            }
+          }
+        },
+        "pr": { "type": ["array", "null"] },
+        "paired_comparison": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["auroc_a", "auroc_b", "difference", "z", "p_value", "method"],
+              "properties": {
+                "auroc_a": { "$ref": "#/$defs/Number" },
+                "auroc_b": { "$ref": "#/$defs/Number" },
+                "difference": { "$ref": "#/$defs/Number" },
+                "variance_difference": { "type": "number" },
+                "z": { "type": "number" },
+                "p_value": { "type": "number" },
+                "method": { "const": "paired_delong" }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -20,6 +20,10 @@ _CANDIDATES = {
     "criteria_schema.json": ["_schema/criteria_schema.json", "../../schema/criteria_schema.json"],
     "claims_schema.json": ["_schema/claims_schema.json", "../../schema/claims_schema.json"],
     "egress_schema.json": ["_schema/egress_schema.json", "../../schema/egress_schema.json"],
+    "output_schema_v1.json": [
+        "_schema/output_schema_v1.json",
+        "../../schema/output_schema_v1.json",
+    ],
     "guidance_map_v1.csv": ["_schema/guidance_map_v1.csv", "../../design/guidance_map_v1.csv"],
 }
 

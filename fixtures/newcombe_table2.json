@@ -1,0 +1,56 @@
+{
+  "fixture_id": "F14",
+  "title": "Newcombe 1998 Table II - worked examples, difference between independent proportions",
+  "primary_reference": "Newcombe RG. Interval estimation for the difference between independent proportions: comparison of eleven methods. Statistics in Medicine 1998;17(8):873-890. doi:10.1002/(SICI)1097-0258(19980430)17:8<873::AID-SIM779>3.0.CO;2-I",
+  "provenance": {
+    "transcribed_from_primary_pdf": false,
+    "attempted": "http://www.stats.org.uk/statistical-inference/Newcombe1998.pdf",
+    "attempt_result": "unreachable from the build environment: HTTP 403, 'Host not in allowlist: www.stats.org.uk'; the agent fetch path additionally fails TLS hostname verification for that host. The paywalled Wiley copy was not fetched.",
+    "actual_source": "Values as reproduced in a secondary source that explicitly recasts Newcombe's Table II: 'Constructing Confidence Intervals for the Differences of Binomial Proportions', WUSS 2016 paper 127, https://www.lexjansen.com/wuss/2016/127_Final_Paper_PDF.pdf ('Table II in Newcombe (1998) provides examples for the initial 11 methods discussed above. That table is recast below...').",
+    "status": "[unverified against the primary PDF]",
+    "corroboration": "Every value below is reproduced to 4 decimal places by proofpack.stats.proportions.newcombe10_bounds / newcombe11_bounds, which were written from the published formula (square-and-add of Wilson score intervals, uncorrected and continuity-corrected) and not from these numbers. An independent implementation agreeing to 4 dp on three examples spanning the interior, a boundary and a double boundary is strong evidence the transcription is right, but it is NOT a substitute for reading the paper.",
+    "action_required": "Josh (or anyone with Statistics in Medicine access) should open the paper and confirm the six intervals below, then set transcribed_from_primary_pdf to true and drop the [unverified] status.",
+    "captured": "2026-09-08",
+    "note_on_completeness": "The secondary source lists three of Newcombe's worked examples. If the primary table carries more rows, add them when the paper is available; nothing in the engine depends on the row count."
+  },
+  "confidence_level": 0.95,
+  "method_definitions": {
+    "10": "score (Wilson) intervals for each proportion, combined by the square-and-add rule; no continuity correction",
+    "11": "as method 10, built from continuity-corrected Wilson intervals"
+  },
+  "examples": [
+    {
+      "label": "56/70 - 48/80",
+      "k1": 56, "n1": 70, "k2": 48, "n2": 80,
+      "difference": 0.2,
+      "method10": {"lower": 0.0524, "upper": 0.3339},
+      "method11": {"lower": 0.0428, "upper": 0.3422}
+    },
+    {
+      "label": "9/10 - 3/10",
+      "k1": 9, "n1": 10, "k2": 3, "n2": 10,
+      "difference": 0.6,
+      "method10": {"lower": 0.1705, "upper": 0.809},
+      "method11": {"lower": 0.1013, "upper": 0.8387}
+    },
+    {
+      "label": "10/10 - 0/20",
+      "k1": 10, "n1": 10, "k2": 0, "n2": 20,
+      "difference": 1.0,
+      "method10": {"lower": 0.6791, "upper": 1.0},
+      "method11": {"lower": 0.6014, "upper": 1.0}
+    }
+  ],
+  "paired_examples": {
+    "primary_reference": "Newcombe RG. Improved confidence intervals for the difference between binomial proportions based on paired data. Statistics in Medicine 1998;17(22):2635-2650.",
+    "status": "[unverified against the primary PDF]",
+    "actual_source": "Table III values read out of a hosted copy of the paired paper (http://www.eiti.uottawa.ca/~nat/Courses/csi5388/Newcombe.1998.pdf) by an automated fetch, not by a human reading the PDF. Same corroboration argument as above: proofpack.stats.proportions.newcombe_paired_bounds reproduces all three to 4 dp from the published formula.",
+    "cells": "e = both positive, f = first only, g = second only, h = both negative; difference = (f - g) / n",
+    "method": "10 (score intervals with correlation term phi; numerator of phi continuity-corrected to max(eh - fg - n/2, 0) when eh > fg)",
+    "examples": [
+      {"e": 36, "f": 12, "g": 2, "h": 0, "difference": 0.2, "method10": {"lower": 0.0569, "upper": 0.3404}},
+      {"e": 2, "f": 98, "g": 0, "h": 0, "difference": 0.98, "method10": {"lower": 0.9178, "upper": 0.9945}},
+      {"e": 0, "f": 30, "g": 0, "h": 0, "difference": 1.0, "method10": {"lower": 0.8395, "upper": 1.0}}
+    ]
+  }
+}

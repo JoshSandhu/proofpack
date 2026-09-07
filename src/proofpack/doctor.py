@@ -82,6 +82,7 @@ def run_checks(*, offline: bool = False, cwd: str | Path | None = None) -> list[
         "criteria_schema.json",
         "claims_schema.json",
         "egress_schema.json",
+        "output_schema_v1.json",
     ):
         try:
             load_json_schema(name)

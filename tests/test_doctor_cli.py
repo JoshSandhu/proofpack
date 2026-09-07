@@ -86,6 +86,7 @@ def test_packaged_schemas_load_and_are_draft_2020():
         "criteria_schema.json",
         "claims_schema.json",
         "egress_schema.json",
+        "output_schema_v1.json",
     ):
         s = load_json_schema(name)
         assert s["$schema"].endswith("2020-12/schema"), name
