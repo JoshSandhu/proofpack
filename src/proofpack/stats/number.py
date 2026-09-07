@@ -78,9 +78,14 @@ NOT_ESTIMABLE_REASONS: frozenset[str] = frozenset(
         "scipy_unavailable",  # Clopper-Pearson for 0 < k < n needs scipy.stats.beta
         "not_computed_this_run",
         # bootstrap (build day 4)
-        # fewer than two independent cases supplying an outcome class. Counted over
-        # the cell: a case carrying both outcomes counts towards both, so one mixed
-        # multi-lesion patient is not a shortage.
+        # an outcome class the cluster resampler cannot meaningfully vary. A stratum
+        # holding one case is drawn one-from-one, so its rows are frozen into every
+        # resample: the class is refused when every stratum supplying it is frozen, and
+        # also when the frozen strata hold at least a fifth of the class's resampling
+        # variance weight, which is where the interval stops being the interval it
+        # claims to be. A case carrying both outcomes counts towards both classes, but
+        # counting is not the test - see stats.bootstrap.Resampler.deficient_class and
+        # MAX_FROZEN_VARIANCE_SHARE for the two halves and the measurements behind them.
         "insufficient_clusters",
         "degenerate_resamples",  # too few resamples gave a defined statistic
     }

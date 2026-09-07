@@ -145,6 +145,31 @@ SUPPORTED_INTERVALS = ("percentile",)
 #: :attr:`Resampler.deficient_class`, which applies it to the largest stratum supplying
 #: the class.
 MIN_UNITS_PER_STRATUM = 2
+#: The other half of the same floor, and the quantitative one. A stratum of one unit is
+#: frozen whatever the *other* strata do, so a class can clear
+#: :data:`MIN_UNITS_PER_STRATUM` and still have most of its rows identical in every
+#: resample - one patient with five malignant lesions beside two mixed patients freezes
+#: 71 % of the positive rows, and the interval the module rendered there was 2.1x too
+#: narrow, covering the truth 34-62 % of the time at a nominal 95 % (re-verify note,
+#: 2026-09-10, fresh-attack FA2-B1).
+#:
+#: The quantity is exact rather than fitted. The resampled spread of a row-weighted
+#: statistic over independent units of weight ``w_j`` goes as ``sum w_j**2``; freezing a
+#: stratum deletes its units from that sum, so
+#: ``sum_frozen w**2 / sum_all w**2`` is the share of that class's resampling variance
+#: the interval cannot see, and the interval's standard deviation is understated by at
+#: most ``1 - sqrt(1 - share)``. At one fifth that is a tenth of the class's standard
+#: error, which is the most a nominal 95 % interval may knowingly be short by and still
+#: be the interval the pack claims. Above it the cell is refused, not annotated: an
+#: annotation cannot make a too-narrow interval true.
+#:
+#: It is an **upper** bound on the cost - the AUROC's other class still contributes
+#: variance - which is why it is safe to refuse on. ``test_the_frozen_variance_share_
+#: bounds_what_the_freeze_costs`` measures the bound against a matched split control
+#: rather than taking it on trust. Both existing multi-lesion fixtures pass it: 199 pure
+#: cases beside one mixed case freeze 1/397 of the positive variance weight, and forty
+#: all-mixed cases freeze none.
+MAX_FROZEN_VARIANCE_SHARE = 0.20
 #: R2 section 3.3 precision tiers, measured in **resampling units** - cases when the
 #: rows are clustered, rows when they are not. Advisory only; never a suppression.
 #: Below :data:`LOW_PRECISION_UNITS` the tier is "not evaluable, shown for
@@ -268,7 +293,11 @@ class BootstrapPolicy:
             "seed_source": "declared" if self.seed_declared else "engine_default",
             "b_source": "declared" if self.b_declared else "engine_default",
             "thresholds": {
-                "min_units_per_class": MIN_UNITS_PER_STRATUM,
+                # named for what the rule measures. "min_units_per_class" was the
+                # round-1 rule, deleted in round 2 and still published in round 2's
+                # manifest beside cells it did not decide (re-verify note, FA2-B2).
+                "min_units_per_class_stratum": MIN_UNITS_PER_STRATUM,
+                "max_frozen_variance_share": MAX_FROZEN_VARIANCE_SHARE,
                 "min_usable_fraction": MIN_USABLE_FRACTION,
                 "low_precision_units": LOW_PRECISION_UNITS,
                 "very_low_precision_units": VERY_LOW_PRECISION_UNITS,
@@ -367,15 +396,26 @@ def plan_clustering(
 
 @dataclass(frozen=True)
 class _Stratum:
-    """One resampling stratum: its units, and the rows each unit carries."""
+    """One resampling stratum: its units, and the rows each unit carries.
+
+    ``class_unit_rows`` is how many rows of each outcome class each unit contributes,
+    in unit order - the weights :attr:`Resampler.frozen_variance_share` is measured on.
+    A ``mixed`` unit appears in both entries, which is the whole point of it.
+    """
 
     label: str
     unit_rows: tuple[np.ndarray, ...]
     matrix: np.ndarray | None  # (n_units, rows_per_unit) when every unit is the same size
+    class_unit_rows: dict[str, tuple[int, ...]]
 
     @property
     def n_units(self) -> int:
         return len(self.unit_rows)
+
+    @property
+    def frozen(self) -> bool:
+        """A stratum of one unit draws that unit every time, so its rows never vary."""
+        return self.n_units == 1
 
     def draw(self, rng: np.random.Generator) -> np.ndarray:
         m = len(self.unit_rows)
@@ -385,11 +425,27 @@ class _Stratum:
         return np.concatenate([self.unit_rows[i] for i in sel])
 
 
-def _stratum(label: str, unit_rows: Sequence[np.ndarray]) -> _Stratum:
+def _stratum(
+    label: str, unit_rows: Sequence[np.ndarray], positives: np.ndarray | None = None
+) -> _Stratum:
+    """Build a stratum. ``positives`` splits each unit's rows by outcome class.
+
+    Without it the stratum is not conditioned on an outcome (:func:`clustered_flat`),
+    so its rows all belong to the single class ``all``.
+    """
     rows = tuple(np.asarray(u, dtype=np.intp) for u in unit_rows)
     sizes = {u.shape[0] for u in rows}
     matrix = np.stack(rows) if rows and len(sizes) == 1 else None
-    return _Stratum(label=label, unit_rows=rows, matrix=matrix)
+    if positives is None:
+        per_unit = {"all": tuple(int(u.shape[0]) for u in rows)}
+    else:
+        pos = np.asarray(positives, dtype=bool)
+        n_pos = tuple(int(pos[u].sum()) for u in rows)
+        per_unit = {
+            "positive": n_pos,
+            "negative": tuple(int(u.shape[0]) - k for u, k in zip(rows, n_pos, strict=True)),
+        }
+    return _Stratum(label=label, unit_rows=rows, matrix=matrix, class_unit_rows=per_unit)
 
 
 @dataclass(frozen=True)
@@ -453,6 +509,50 @@ class Resampler:
         return {label: sum(parts) for label, parts in self.class_strata.items()}
 
     @property
+    def frozen_variance_share(self) -> dict[str, float]:
+        """Per class, the share of its resampling variance weight the freeze destroys.
+
+        The variance of a row-weighted statistic over independent units of weight
+        ``w_j`` goes as ``sum w_j**2``, and a stratum of one unit is drawn one-from-one,
+        so its units never enter that sum. The ratio is therefore the share of the
+        class's resampling variance the interval cannot see - exact under the standard
+        model, and an upper bound on what the interval loses, because for an AUROC the
+        other class still varies. See :data:`MAX_FROZEN_VARIANCE_SHARE`.
+        """
+        total: dict[str, float] = {}
+        frozen: dict[str, float] = {}
+        for stratum in self.strata:
+            for label, counts in stratum.class_unit_rows.items():
+                weight = float(sum(c * c for c in counts))
+                total[label] = total.get(label, 0.0) + weight
+                if stratum.frozen:
+                    frozen[label] = frozen.get(label, 0.0) + weight
+        return {
+            label: (frozen.get(label, 0.0) / weight if weight else 0.0)
+            for label, weight in total.items()
+        }
+
+    def describe(self) -> dict[str, Any]:
+        """The quantities the refusal rule is measured on, for the manifest.
+
+        A reviewer cannot check a refusal without the number that decided it (D1
+        section 9). Round 2 printed ``insufficient_clusters`` beside ``n_cases: 202``
+        and published a threshold the rule no longer used, so the pack contradicted the
+        refusal it was meant to explain (re-verify note, 2026-09-10, fresh-attack
+        FA2-B2). Unit counts and shares only: nothing row-level is carried here.
+        """
+        return {
+            "kind": self.kind,
+            "units_per_stratum": self.units_per_stratum,
+            "class_strata": {label: list(parts) for label, parts in self.class_strata.items()},
+            "class_units": self.class_units,
+            "frozen_variance_share": {
+                label: round(share, 6) for label, share in self.frozen_variance_share.items()
+            },
+            "deficient_class": self.deficient_class,
+        }
+
+    @property
     def deficient_class(self) -> str | None:
         """The class this resampler cannot vary, or ``None``.
 
@@ -467,15 +567,31 @@ class Resampler:
         fresh-attack FA-B1). A class whose units are split one-and-one across the pure
         and the mixed stratum satisfies the count and violates the reason for it.
 
+        That is the qualitative half. It refuses a class the resampler cannot vary *at
+        all*, and it is blind to a class the resampler can barely vary: strata
+        ``{positive: 1, mixed: 2, negative: 40}`` clear it while the single pure case
+        contributes its five malignant lesions - 71 % of the positive rows - to every
+        resample, and the interval rendered there was 2.1x too narrow (re-verify note,
+        2026-09-10, fresh-attack FA2-B1). So the second, quantitative half:
+        :attr:`frozen_variance_share` against :data:`MAX_FROZEN_VARIANCE_SHARE`. It
+        subsumes the first - a class every stratum of which is a singleton has a frozen
+        share of exactly 1 - and the first is kept because it is exact where the class
+        has no rows at all, and because it is the half a reader checks by counting.
+
         The scarcest class wins when both are short, so the reported reason names the
         column the customer would actually have to add to.
         """
         counts = self.class_units
         strata = self.class_strata
+        frozen = self.frozen_variance_share
         short = [
             (counts[label], rank, label)
             for rank, label in enumerate(("positive", "negative", "all"))
-            if label in strata and max(strata[label]) < MIN_UNITS_PER_STRATUM
+            if label in strata
+            and (
+                max(strata[label]) < MIN_UNITS_PER_STRATUM
+                or frozen.get(label, 0.0) >= MAX_FROZEN_VARIANCE_SHARE
+            )
         ]
         return min(short)[2] if short else None
 
@@ -489,8 +605,8 @@ def stratified_by_outcome(positives: np.ndarray) -> Resampler:
     return Resampler(
         kind="stratified",
         strata=(
-            _stratum("positive", [np.array([i]) for i in np.flatnonzero(pos)]),
-            _stratum("negative", [np.array([i]) for i in np.flatnonzero(~pos)]),
+            _stratum("positive", [np.array([i]) for i in np.flatnonzero(pos)], pos),
+            _stratum("negative", [np.array([i]) for i in np.flatnonzero(~pos)], pos),
         ),
         n_rows=int(pos.shape[0]),
     )
@@ -528,7 +644,7 @@ def clustered_by_case(positives: np.ndarray, cluster_ids: Sequence[Any] | np.nda
         label = "positive" if got.all() else "negative" if not got.any() else "mixed"
         buckets[label].append(rows)
     strata = tuple(
-        _stratum(label, buckets[label])
+        _stratum(label, buckets[label], pos)
         for label in ("positive", "negative", "mixed")
         if buckets[label]
     )
@@ -681,6 +797,10 @@ class CellCI:
     policy: BootstrapPolicy | None = None
     n_usable: int = 0
     resample_sd: float | None = None
+    #: :meth:`Resampler.describe` for the resampler that produced (or refused) the
+    #: interval - the quantities the refusal rule is measured on. ``None`` when no
+    #: resampler ran, which is exactly when there is nothing to explain.
+    resampling: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.analytic_status not in ANALYTIC_STATUS:
@@ -699,6 +819,9 @@ class CellCI:
                 "cell_key": self.cell_key,
                 "usable_resamples": self.n_usable,
                 "resample_sd": self.resample_sd,
+                # the deciding quantity beside the threshold that decided it: a
+                # reviewer cannot check a refusal against a constant alone
+                "resampling": self.resampling,
                 **self.policy.as_dict(),
             }
         return out
@@ -842,6 +965,7 @@ def auroc_ci(
             pol,
             draw.n_usable,
             draw.sd,
+            resampler.describe(),
         )
 
     analytic = auroc_number(scores, pos, level=level).auroc
@@ -868,7 +992,15 @@ def auroc_ci(
         n_neg=n_neg,
     )
     return CellCI(
-        number, analytic, "replaced_small_class", cell_key, cplan.route, pol, draw.n_usable, draw.sd
+        number,
+        analytic,
+        "replaced_small_class",
+        cell_key,
+        cplan.route,
+        pol,
+        draw.n_usable,
+        draw.sd,
+        resampler.describe(),
     )
 
 
@@ -934,5 +1066,13 @@ def proportion_ci(
         n_cases=n_cases,
     )
     return CellCI(
-        number, refused, "refused_clustered", cell_key, cplan.route, pol, draw.n_usable, draw.sd
+        number,
+        refused,
+        "refused_clustered",
+        cell_key,
+        cplan.route,
+        pol,
+        draw.n_usable,
+        draw.sd,
+        resampler.describe(),
     )

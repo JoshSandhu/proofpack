@@ -59,6 +59,7 @@ import numpy as np
 import pytest
 
 from proofpack.resources import load_json_schema
+from proofpack.stats import bootstrap as bootstrap_module
 from proofpack.stats.bootstrap import (
     ANALYTIC_STATUS,
     DEFAULT_B,
@@ -372,9 +373,12 @@ def test_the_policy_records_whether_the_seed_was_declared_or_defaulted():
         "seed_source": "engine_default",
         "b_source": "engine_default",
         # T7 must state the methods actually used, and a reviewer cannot check a
-        # refusal or a precision tier without the constants that produced it.
+        # refusal or a precision tier without the constants that produced it - which
+        # means the constants the rule actually measures (FA2-B2), not the ones an
+        # earlier version of the rule measured.
         "thresholds": {
-            "min_units_per_class": 2,
+            "min_units_per_class_stratum": 2,
+            "max_frozen_variance_share": 0.20,
             "min_usable_fraction": 0.90,
             "low_precision_units": 10,
             "very_low_precision_units": 30,
@@ -1525,3 +1529,281 @@ def test_one_number_never_carries_two_precision_tiers():
     assert cell.number.n == 20 and cell.number.n_cases == 5
     tiers = set(Number.PRECISION_TIERS) & set(cell.number.flags)
     assert tiers == {"not_evaluable_shown_for_transparency"}, cell.number.flags
+
+
+# ------------------------------------------- repair round 3: partially frozen strata
+
+
+def _frozen_stratum_cohort(
+    pure_lesions: int,
+    mixed_cases: int,
+    n_neg: int = 40,
+    seed: int = 20260910,
+    pure_cases: int = 1,
+):
+    """The multi-lesion design the ``mixed`` stratum exists for, with a frozen stratum.
+
+    ``pure_cases`` patients share ``pure_lesions`` malignant lesions between them,
+    ``mixed_cases`` patients carry one malignant and one benign lesion each, and
+    ``n_neg`` patients carry one benign lesion. Scores are a case-level effect of
+    variance 0.6 plus per-row noise of variance 0.4, so rows within a patient are
+    genuinely correlated and the marginals are N(1,1) and N(0,1).
+
+    At ``pure_cases == 1`` the pure-positive stratum holds a single unit, so it is
+    drawn one-from-one and its ``pure_lesions`` rows are in **every** resample. At
+    ``pure_cases >= 2`` the same rows are spread over units the resampler can vary:
+    the matched control that isolates freezing from small n.
+    """
+    rng = np.random.default_rng(seed)
+    sd_u, sd_e = math.sqrt(0.6), math.sqrt(0.4)
+    s, y, cid = [], [], []
+    case = 0
+    for i in range(pure_cases):
+        size = pure_lesions // pure_cases + (1 if i < pure_lesions % pure_cases else 0)
+        u = rng.normal(0.0, sd_u)
+        for _ in range(size):
+            s.append(1.0 + u + rng.normal(0.0, sd_e))
+            y.append(True)
+            cid.append(case)
+        case += 1
+    for _ in range(mixed_cases):
+        u = rng.normal(0.0, sd_u)
+        s.append(1.0 + u + rng.normal(0.0, sd_e))
+        y.append(True)
+        cid.append(case)
+        s.append(0.0 + u + rng.normal(0.0, sd_e))
+        y.append(False)
+        cid.append(case)
+        case += 1
+    for _ in range(n_neg):
+        u = rng.normal(0.0, sd_u)
+        s.append(0.0 + u + rng.normal(0.0, sd_e))
+        y.append(False)
+        cid.append(case)
+        case += 1
+    return np.array(s), np.array(y, dtype=bool), np.array(cid)
+
+
+@pytest.mark.parametrize(
+    ("pure_lesions", "mixed_cases"),
+    # (1, 4) sits exactly ON the threshold - one frozen unit of one row against four
+    # varying units of one row each is a frozen variance share of exactly 1/5. The
+    # comparison is ">=", and without this parametrisation a ">" would pass every test.
+    [(1, 2), (1, 3), (1, 4), (5, 2), (5, 10), (20, 2), (20, 10), (20, 60)],
+)
+def test_a_class_dominated_by_a_frozen_stratum_is_refused(pure_lesions, mixed_cases):
+    """FA2-B1 (fresh attack, round 2): the round-2 floor asks the question too weakly.
+
+    ``max(class_strata[label]) >= MIN_UNITS_PER_STRATUM`` refuses a class the resampler
+    cannot vary **at all**. It does not refuse a class the resampler can barely vary: a
+    stratum of one unit contributes the same rows to every resample whether or not the
+    other strata move, so one patient with five malignant lesions plus two mixed
+    patients clears the floor with 71 % of the positive rows frozen. The engine rendered
+    ``0.735 (0.622, 0.847)`` there against a pooled cluster bootstrap's
+    ``(0.397, 0.860)`` - 2.1x too narrow, coverage 0.34-0.62 at a nominal 0.95 over 250
+    replications - and the original build 5bc69fb refused every one of these cells.
+
+    ``(20, 10)`` is the worst of them: 11 positive class units over 51 cases clears both
+    precision tiers, so the cell carried **no annotation at all** while covering the
+    truth 41 % of the time.
+    """
+    s, y, cid = _frozen_stratum_cohort(pure_lesions, mixed_cases)
+    resampler = clustered_by_case(y, cid)
+
+    # the round-2 floor is satisfied - this class HAS a stratum the resampler can vary
+    assert max(resampler.class_strata["positive"]) >= bootstrap_module.MIN_UNITS_PER_STRATUM
+    assert resampler.class_units["positive"] == 1 + mixed_cases
+
+    # the freeze itself, measured rather than argued: the positive rows that survive
+    # the intersection of 200 independent draws are exactly the singleton stratum's
+    gen = np.random.default_rng(11)
+    always = set(np.flatnonzero(y).tolist())
+    for _ in range(200):
+        always &= {int(i) for i in resampler.draw(gen)}
+    assert always == set(np.flatnonzero(y & (cid == 0)).tolist())
+    assert len(always) == pure_lesions
+
+    if (pure_lesions, mixed_cases) == (20, 10):
+        # no precision tier would have fired on this one: it is not an annotated
+        # small-n cell, it is a wrong interval printed plain
+        assert resampler.class_units["positive"] >= bootstrap_module.LOW_PRECISION_UNITS
+        assert resampler.n_units >= bootstrap_module.VERY_LOW_PRECISION_UNITS
+
+    # the behaviour, before the quantity that produces it, so that this test bites on
+    # the rendered interval and not merely on a missing attribute
+    assert resampler.deficient_class == "positive"
+    cell = auroc_ci(
+        s,
+        y,
+        cell_key="subgroups.site.A.auroc",
+        plan=plan_clustering("case_id", cid),
+        cluster_ids=cid,
+        policy=BootstrapPolicy(n_resamples=400),
+    )
+    assert not cell.number.has_ci, (cell.number.ci_lo, cell.number.ci_hi)
+    assert cell.number.not_estimable_reason == "insufficient_clusters"
+
+    # and the share of the class's resampling variance weight the freeze destroys,
+    # against the closed form for this cohort: one frozen unit of L rows against
+    # ``mixed_cases`` varying units of one row each
+    share = pure_lesions**2 / (pure_lesions**2 + mixed_cases)
+    assert resampler.frozen_variance_share["positive"] == pytest.approx(share)
+    assert share >= bootstrap_module.MAX_FROZEN_VARIANCE_SHARE
+    assert resampler.frozen_variance_share["negative"] == pytest.approx(0.0)
+
+
+@pytest.mark.parametrize("pure_cases", [2, 5])
+def test_the_same_rows_spread_over_units_the_resampler_can_vary_still_render(pure_cases):
+    """The matched control for FA2-B1: it is the freeze that is refused, not small n.
+
+    Twenty malignant lesions over one patient and over ``pure_cases`` patients give the
+    same row count, the same class counts and the same design. Only the first is
+    frozen. If this test ever fails alongside the one above, the floor has stopped
+    measuring freezing and started measuring cohort size - which is the defect the
+    round-1 repair was written to remove.
+    """
+    s, y, cid = _frozen_stratum_cohort(20, 10, pure_cases=pure_cases)
+    resampler = clustered_by_case(y, cid)
+    assert min(resampler.units_per_stratum.values()) >= 2  # nothing is drawn one-from-one
+    assert resampler.frozen_variance_share == {"positive": 0.0, "negative": 0.0}
+    assert resampler.deficient_class is None
+
+    gen = np.random.default_rng(11)
+    always = set(np.flatnonzero(y).tolist())
+    for _ in range(200):
+        always &= {int(i) for i in resampler.draw(gen)}
+    assert always == set(), "the control is frozen too; it proves nothing"
+
+    cell = auroc_ci(
+        s,
+        y,
+        cell_key="subgroups.site.A.auroc",
+        plan=plan_clustering("case_id", cid),
+        cluster_ids=cid,
+        policy=BootstrapPolicy(n_resamples=400),
+    )
+    assert cell.number.has_ci, cell.number.not_estimable_reason
+    assert cell.number.method == "cluster_bootstrap_percentile"
+
+
+@pytest.mark.parametrize(("pure_lesions", "mixed_cases"), [(20, 10), (20, 60), (6, 10)])
+def test_the_frozen_variance_share_bounds_what_the_freeze_costs(pure_lesions, mixed_cases):
+    """Why :data:`MAX_FROZEN_VARIANCE_SHARE` is a bound and not a number chosen to fit.
+
+    The resampled spread of a row-weighted statistic over independent units of weight
+    ``w_j`` goes as ``sum w_j**2``. Freezing a stratum removes its units from that sum,
+    so the share of a class's variance weight held in frozen strata is the share of
+    that class's resampling variance the interval cannot see, and the interval's
+    standard deviation is understated by at most ``1 - sqrt(1 - share)``.
+
+    The comparator is the **pooled** cluster bootstrap on the *same cohort* - every case
+    in one stratum, so the case the engine freezes is resampled like any other. Same
+    rows, same patients, same within-case correlation, same estimate; only the scheme
+    differs, so nothing here is confounded by cohort size or by how the lesions are
+    distributed. Both directions are asserted: the bound is never violated (it is an
+    upper bound - the AUROC's other class still varies, so the realised cost is
+    smaller), and the freeze costs something material, so the test is not a rubber
+    stamp that would pass on an unfrozen cohort.
+    """
+    _, y0, cid0 = _frozen_stratum_cohort(pure_lesions, mixed_cases)
+    share = clustered_by_case(y0, cid0).frozen_variance_share["positive"]
+    bound = math.sqrt(1.0 - share)
+
+    def resample_sd(s, y, resampler, seed):
+        """The spread a scheme would produce, measured past the refusal gate."""
+        statistic = auroc_statistic(s, y)
+        gen = np.random.default_rng(seed)
+        values = np.array([statistic(resampler.draw(gen)) for _ in range(400)])
+        return float(values[np.isfinite(values)].std(ddof=1))
+
+    ratios = []
+    for seed in (101, 202, 303, 404):
+        s, y, cid = _frozen_stratum_cohort(pure_lesions, mixed_cases, seed=seed)
+        engine = resample_sd(s, y, clustered_by_case(y, cid), seed)
+        pooled = resample_sd(s, y, clustered_flat(cid, n_rows=y.shape[0]), seed)
+        ratios.append(engine / pooled)
+    got = sum(ratios) / len(ratios)
+
+    assert got >= bound - 0.05, f"the freeze cost more than the bound allows: {got} < {bound}"
+    assert got < 0.95, "the freeze cost nothing measurable here; this test proves nothing"
+
+
+def test_the_manifest_names_the_quantity_the_refusal_rule_measures():
+    """FA2-B2(a): ``as_dict()`` published a threshold the rule stopped using in round 2.
+
+    The block's own docstring says why it exists - *a reviewer cannot check the refusals
+    without seeing them* - and it published ``min_units_per_class: 2`` beside a cell
+    refused for insufficient clusters whose class had exactly two units. The key must
+    name what is measured: the largest **stratum** supplying the class, and the share
+    of the class that stratum freezes.
+    """
+    thresholds = BootstrapPolicy().as_dict()["thresholds"]
+    assert "min_units_per_class" not in thresholds, "the superseded round-1 key is still published"
+    assert thresholds["min_units_per_class_stratum"] == bootstrap_module.MIN_UNITS_PER_STRATUM
+    assert thresholds["max_frozen_variance_share"] == bootstrap_module.MAX_FROZEN_VARIANCE_SHARE
+
+
+def test_a_refused_cell_emits_the_quantity_that_decided_the_refusal():
+    """FA2-B2(a): ``insufficient_clusters`` beside ``n_cases: 202`` explains nothing.
+
+    202 patients, one pure positive and one mixed. ``class_units`` is
+    ``{'positive': 2, 'negative': 201}``, so every count in the output says the cohort
+    is ample; the quantity that actually decided it - both strata supplying the
+    positive class hold one unit - appeared nowhere. D1 section 9 requires T7 to state
+    the methods actually used, and CLAUDE.md requires a Number without a CI to carry an
+    explicit documented reason.
+    """
+    y = np.array([True, True, False] + [False] * 200)
+    cid = np.array([0, 1, 1] + list(range(2, 202)))
+    s = np.random.default_rng(31).normal(size=y.shape[0]) + y * 1.0
+
+    cell = auroc_ci(
+        s,
+        y,
+        cell_key="overall.auroc",
+        plan=plan_clustering("case_id", cid),
+        cluster_ids=cid,
+        policy=BootstrapPolicy(n_resamples=200),
+    )
+    got = cell.as_dict()
+    assert got["number"]["not_estimable_reason"] == "insufficient_clusters"
+    assert got["number"]["n_cases"] == 202
+
+    resampling = got["bootstrap"]["resampling"]
+    assert resampling["deficient_class"] == "positive"
+    assert resampling["class_strata"]["positive"] == [1, 1]
+    assert resampling["class_units"] == {"positive": 2, "negative": 201}
+    assert resampling["frozen_variance_share"]["positive"] == 1.0
+    json.dumps(got)  # the manifest still round-trips
+
+
+def _typed_reason_comment(name: str) -> str:
+    """The comment lines documenting one ``NOT_ESTIMABLE_REASONS`` member."""
+    text = (REPO / "src" / "proofpack" / "stats" / "number.py").read_text(encoding="utf-8")
+    lines = text.splitlines()
+    at = next(i for i, line in enumerate(lines) if line.strip().startswith(f'"{name}"'))
+    before = []
+    j = at - 1
+    while j >= 0 and lines[j].strip().startswith("#"):
+        before.append(lines[j].strip().lstrip("#").strip())
+        j -= 1
+    parts = lines[at].split("#", 1)
+    return " ".join([*reversed(before), parts[1].strip() if len(parts) > 1 else ""]).strip()
+
+
+def test_the_insufficient_clusters_reason_documents_the_rule_actually_in_force():
+    """FA2-B2(b): the typed reason's own definition described the deleted round-1 rule.
+
+    It read *"fewer than two independent cases supplying an outcome class. Counted over
+    the cell: a case carrying both outcomes counts towards both, so one mixed
+    multi-lesion patient is not a shortage."* Under the rule now in force one mixed
+    patient beside one pure patient **is** a shortage, and so is a class most of whose
+    rows sit in a stratum the resampler cannot vary. CLAUDE.md requires the documented
+    reason to be true, and this is the module it points at for that.
+    """
+    comment = _typed_reason_comment("insufficient_clusters")
+    assert comment, "the typed reason carries no documentation at all"
+    assert "not a shortage" not in comment, comment
+    assert "fewer than two independent cases supplying an outcome class" not in comment, comment
+    assert "vary" in comment, comment
+    assert "frozen" in comment, comment
