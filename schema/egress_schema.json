@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proofpack.globalphoenix.co.uk/schema/egress_schema.json",
+  "title": "ProofPack egress schema (SKELETON, day 1)",
+  "description": "Everything that may ever leave the customer's machine. At launch the runner makes at most one outbound call: the telemetry POST. No column names, no counts below bucket level, no metric values, no row-level field, no free-text declaration field. Prose source: D1 section 6. Published verbatim on the trust page.",
+  "$defs": {
+    "telemetry": {
+      "type": "object",
+      "properties": {
+        "schema": { "type": "string", "const": "proofpack-telemetry/1" },
+        "licence_id": { "type": "string", "pattern": "^L-[A-Za-z0-9-]+$" },
+        "run_id": { "type": "string", "format": "uuid" },
+        "engine_version": { "type": "string" },
+        "platform": { "type": "string", "pattern": "^[a-z0-9_]+-[a-z0-9_]+-cp3[0-9]{2}$" },
+        "manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "duration_s": { "type": "number", "minimum": 0 },
+        "halt_code": { "type": ["string", "null"], "enum": ["H01", "H02", "H03", "H04", "H05", "H06", "H07", "H08", "H09", "H10", "H11", "H12", null] },
+        "row_count_bucket": { "type": "string", "enum": ["<1k", "1k-10k", "10k-100k", ">100k"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["schema", "licence_id", "run_id", "engine_version", "platform", "manifest_sha256", "duration_s", "halt_code", "row_count_bucket", "timestamp"],
+      "additionalProperties": false
+    },
+    "number": {
+      "type": "object",
+      "description": "Aggregate Number object (deferred narrative call). Suppressed cells carry null values.",
+      "properties": {
+        "value": { "type": ["number", "null"] },
+        "ci_low": { "type": ["number", "null"] },
+        "ci_high": { "type": ["number", "null"] },
+        "n": { "type": ["integer", "null"], "minimum": 10 },
+        "k": { "type": ["integer", "null"] },
+        "suppressed": { "type": "boolean" }
+      },
+      "required": ["value", "suppressed"],
+      "additionalProperties": false
+    },
+    "aggregate_cell": {
+      "type": "object",
+      "properties": {
+        "metric_id": { "$ref": "criteria_schema.json#/$defs/metric_id" },
+        "attribute": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+        "level": { "type": ["string", "null"], "pattern": "^(Site|Device|Protocol|Level) [A-Z]+$|^Unknown/missing$|^[a-z][a-z0-9_]{0,31}$" },
+        "number": { "$ref": "#/$defs/number" }
+      },
+      "required": ["metric_id", "number"],
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/telemetry" },
+    {
+      "type": "object",
+      "properties": {
+        "schema": { "type": "string", "const": "proofpack-aggregates/1" },
+        "cells": { "type": "array", "items": { "$ref": "#/$defs/aggregate_cell" } }
+      },
+      "required": ["schema", "cells"],
+      "additionalProperties": false
+    }
+  ],
+  "x-proofpack": {
+    "status": "skeleton",
+    "suppression_defaults": { "min_n": 10, "min_events": 5, "min_nonevents": 5 },
+    "suppression_rule": "Any cell with n < min_n, events < min_events or non-events < min_nonevents is serialised with suppressed=true and null values. Customers may only tighten these.",
+    "pseudonymised_attributes": ["site", "device", "protocol", "attr_*"],
+    "header_whitelist_pattern": "^[a-z][a-z0-9_]{0,31}$",
+    "never_serialised": ["original headers", "row-level values", "justification", "description", "source", "raw dates"]
+  }
+}

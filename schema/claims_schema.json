@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proofpack.globalphoenix.co.uk/schema/claims_schema.json",
+  "title": "ProofPack claims list schema (SKELETON, day 1)",
+  "description": "Skeleton only. One claim object as consumed by the renderer; the only path to prose. Prose source: D1 section 4.4. The claim-binding checker (forbidden tokens, value_ref resolution, status equality) is built on the narrate day, not day 1.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "claim_id": { "type": "string", "pattern": "^CL-\\d{4,}$" },
+      "template_id": { "type": "string", "minLength": 1 },
+      "metric_id": { "type": ["string", "null"] },
+      "operating_point": { "type": ["string", "null"] },
+      "subgroup": {
+        "type": ["object", "null"],
+        "properties": { "attribute": { "type": "string" }, "level": { "type": ["string", "integer", "number"] } },
+        "required": ["attribute", "level"]
+      },
+      "reference": {
+        "type": ["object", "null"],
+        "properties": { "attribute": { "type": "string" }, "level": { "type": ["string", "integer", "number"] } },
+        "required": ["attribute", "level"]
+      },
+      "value_refs": { "type": "array", "items": { "type": "string" } },
+      "relation": { "type": "string", "enum": ["estimate", "above", "below", "within", "not_assessable"] },
+      "criterion_id": { "type": ["string", "null"] },
+      "status": { "type": ["string", "null"], "enum": ["met", "not_met", "not_assessable", null] },
+      "guidance_ref": { "type": ["string", "null"], "description": "Must be an internal_id present in design/guidance_map_v1.csv." },
+      "free_text": {
+        "type": ["string", "null"],
+        "description": "Forbidden tokens (checked by the binding checker, not by this schema): digits, '%', verdict words, section sign, 'CFR', 'guidance'."
+      }
+    },
+    "required": ["claim_id", "template_id", "value_refs", "relation"],
+    "additionalProperties": false
+  },
+  "x-proofpack": {
+    "status": "skeleton",
+    "forbidden_free_text_tokens": ["pass", "fail", "verdict", "unbiased", "well calibrated", "consistent", "meets", "acceptable", "safe", "§", "CFR", "guidance", "%"],
+    "renderer_permitted_status_words": ["criterion met", "criterion not met", "not assessable", "record of criterion not met"]
+  }
+}

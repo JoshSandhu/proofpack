@@ -1,0 +1,73 @@
+[project]
+name = "proofpack"
+version = "0.1.0.dev1"
+description = "ProofPack engine: validated ingest, declarations and statistical evidence packs for AI-enabled medical devices"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "Global Phoenix Solutions Ltd" }]
+dependencies = [
+    "numpy>=2.0",
+    "pyyaml>=6.0",
+    "jsonschema>=4.23",
+]
+
+[project.optional-dependencies]
+# scipy is an optional acceleration/oracle dependency; `import proofpack` must work without it.
+stats = ["scipy>=1.14"]
+
+[project.scripts]
+proofpack = "proofpack.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "hypothesis>=6.112",
+    "ruff>=0.6",
+    "pip-audit>=2.7",
+    "scipy>=1.14",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/proofpack"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"schema/schema_v1.json" = "proofpack/_schema/schema_v1.json"
+"schema/criteria_schema.json" = "proofpack/_schema/criteria_schema.json"
+"schema/claims_schema.json" = "proofpack/_schema/claims_schema.json"
+"schema/egress_schema.json" = "proofpack/_schema/egress_schema.json"
+"design/guidance_map_v1.csv" = "proofpack/_schema/guidance_map_v1.csv"
+
+[tool.hatch.build.targets.sdist]
+include = ["src/proofpack", "schema", "README.md", "pyproject.toml"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N"]
+ignore = ["N818"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "day1: Day 1 (E1) validated ingest and declarations",
+    "day2: Day 2",
+    "day3: Day 3",
+    "day4: Day 4",
+    "day5: Day 5",
+    "day6: Day 6",
+    "day7: Day 7",
+    "day8: Day 8",
+    "day9: Day 9",
+    "day10: Day 10",
+    "fixture: named fixture register entries (F1-F21)",
+    "slow: slow tests",
+]
+addopts = "-ra"

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proofpack.globalphoenix.co.uk/schema/schema_v1.json",
+  "title": "ProofPack input table schema v1",
+  "description": "One row of the canonical (post-mapping) test table. Column names are canonical roles as seen by the engine after `proofpack map`; original headers live in mapping.json and never leave the machine. Prose source: D1 section 1.",
+  "type": "object",
+  "x-proofpack": {
+    "schema_version": 1,
+    "row_target": 100000,
+    "encoding": "utf-8",
+    "canonical_columns": [
+      "row_id", "case_id", "y_true", "score", "y_pred", "indeterminate",
+      "age", "age_band", "sex", "race", "ethnicity", "site", "device", "protocol", "severity",
+      "event_date", "period", "model_version", "dataset"
+    ],
+    "attribute_columns": ["age", "age_band", "sex", "race", "ethnicity", "site", "device", "protocol", "severity"],
+    "pseudonymised_in_egress": ["site", "device", "protocol"],
+    "missing_tokens": ["", "NA", "N/A", "na", "n/a", "NaN", "nan", "null", "NULL", "None", "unknown", "Unknown", "UNKNOWN", "missing", "Missing"],
+    "identifier_name_pattern": "^[a-z][a-z0-9_]{0,31}$",
+    "requirements": {
+      "y_true": "required",
+      "score": "required unless y_pred present",
+      "row_id": "required for paired compare",
+      "case_id": "required if clustering.unit == case_id"
+    },
+    "halt_gates": ["H01", "H02", "H03", "H04", "H05", "H06", "H07", "H08", "H09", "H10", "H11", "H12"]
+  },
+  "properties": {
+    "row_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique per row; join key for version N vs N-1 (paired compare). Duplicates -> H05."
+    },
+    "case_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Cluster unit (patient/study). n_rows > n_cases triggers the clustered path."
+    },
+    "y_true": {
+      "type": ["string", "integer"],
+      "description": "Values must be a subset of declared classes.positive ∪ classes.negative ∪ indeterminates.values, else H02."
+    },
+    "score": {
+      "type": ["number", "null"],
+      "description": "Continuous output. Orientation and type are declared, never inferred. If score.type == probability, values outside [0,1] -> H03."
+    },
+    "y_pred": {
+      "type": ["string", "integer", "null"],
+      "description": "Optional. Must equal rule(score, threshold) at every declared operating point on every row, else H04."
+    },
+    "indeterminate": {
+      "type": ["integer", "null"],
+      "enum": [0, 1, null],
+      "description": "0/1 alternative to listing indeterminate values in y_true / y_pred."
+    },
+    "age": { "type": ["number", "null"], "description": "Banded by declared age_bands; no default bands exist." },
+    "age_band": { "type": ["string", "null"] },
+    "sex": { "type": ["string", "null"] },
+    "race": { "type": ["string", "null"] },
+    "ethnicity": { "type": ["string", "null"] },
+    "site": { "type": ["string", "null"] },
+    "device": { "type": ["string", "null"] },
+    "protocol": { "type": ["string", "null"] },
+    "severity": { "type": ["string", "null"] },
+    "event_date": {
+      "type": ["string", "null"],
+      "description": "ISO date. Coarsened at ingest to declared period.granularity; raw dates never appear in output. Present without a period declaration -> H11."
+    },
+    "period": { "type": ["string", "null"], "description": "Pre-coarsened period label (e.g. 2026-Q1)." },
+    "model_version": { "type": ["string", "null"] },
+    "dataset": { "type": ["string", "null"], "enum": ["dev", "test", null] }
+  },
+  "patternProperties": {
+    "^attr_[a-z0-9_]{1,26}$": {
+      "type": ["string", "number", "null"],
+      "description": "Customer extra attribute; numeric extras need declared bands."
+    },
+    "^rater_[a-z0-9_]{1,25}$": {
+      "description": "Echoed in Table 1 only; never used to construct y_true."
+    }
+  },
+  "required": ["y_true"],
+  "anyOf": [
+    { "required": ["score"] },
+    { "required": ["y_pred"] }
+  ],
+  "additionalProperties": true
+}
