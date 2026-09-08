@@ -1807,3 +1807,204 @@ def test_the_insufficient_clusters_reason_documents_the_rule_actually_in_force()
     assert "fewer than two independent cases supplying an outcome class" not in comment, comment
     assert "vary" in comment, comment
     assert "frozen" in comment, comment
+
+
+# ============= 10. repairs from the round-4 reconciliation: X2 and the misaligned ids
+#
+# The round-1 repair closed "``cluster_ids`` in hand, no plan" for ids that *align* with
+# the analysed rows, and left it open for ids that do not. ``plan_clustering`` compared
+# the case count against ``ids.shape[0]`` where its own docstring - and the ``rows`` it
+# had already computed one line above - say the analysed row count. ``_resolved`` calls
+# it with ``n_rows`` on every cell, so 200 case ids beside 400 analysed rows returned
+# ``ClusterPlan(clustered=False, route='none', n_rows=400, n_units=200)``: a plan
+# asserting independence whose own public ``rows_per_unit`` was 2.0. DeLong and Wilson
+# then ran on clustered rows with ``analytic_status: used``, no flag, no W13 and no
+# companion refusal.
+#
+# Every existing call in this file passes ``plan_clustering`` two arguments. The
+# three-argument form the engine itself uses on every cell was exercised by nothing,
+# which is why the one-line defect survived 259 tests.
+#
+# Measured against the pre-fix tree in this session - 300 replications, 200 patients x 2
+# lesions, within-patient score correlation 0.9, label constant within patient, true
+# AUROC 0.760250: the bypassed DeLong interval covered 0.857 against a nominal 0.95 and
+# the cluster bootstrap 0.967; mean widths 0.0931 and 0.1270, a factor of 1.365.
+
+
+def _misaligned_ids(n_rows: int) -> dict[str, np.ndarray]:
+    """``cluster_ids`` arrays that do not correspond row-for-row with ``n_rows`` rows.
+
+    All four shapes are here on purpose, and the two ``long_`` ones are the reason the
+    one-line candidate was not taken. Applying only ``units < rows`` to 7d14ce4 and
+    running this section was measured in the repair session: 17 of these 21 tests still
+    failed, and ``long_distinct`` and ``long_repeating`` still returned
+    ``analytic_status: 'used'``, ``route: 'none'`` and ``method: 'delong_wald'`` with the
+    interval (0.6488, 0.7510) over 400 clustered rows. With *more* ids than rows the case
+    count is not below the row count, so the symptom the candidate keys on is absent
+    while the data is exactly as unusable. A predicate on the invariant - the ids span
+    the rows one for one - closes all four.
+    """
+    return {
+        "short_distinct": np.arange(n_rows // 2),
+        "short_repeating": np.repeat(np.arange(n_rows // 4), 2),
+        "long_distinct": np.arange(n_rows * 2),
+        "long_repeating": np.repeat(np.arange(n_rows), 2),
+    }
+
+
+def _lesion_cohort(n_cases: int, k: int, seed: int, rho: float = 0.9):
+    """``k`` lesions per patient, scores correlated within patient, label per patient."""
+    rng = np.random.default_rng(seed)
+    y_case = np.array([True] * (n_cases // 2) + [False] * (n_cases - n_cases // 2))
+    u = rng.normal(size=n_cases)
+    e = rng.normal(size=(n_cases, k))
+    s = (np.sqrt(rho) * u[:, None] + np.sqrt(1 - rho) * e + y_case[:, None] * 1.0).ravel(order="F")
+    return s, np.tile(y_case, k), np.tile(np.arange(n_cases), k)
+
+
+@pytest.mark.parametrize("shape", sorted(_misaligned_ids(400)))
+@pytest.mark.parametrize("unit", ["none", "case_id"])
+def test_plan_clustering_refuses_cluster_ids_that_do_not_span_the_analysed_rows(shape, unit):
+    """The three-argument form, which is the only form the engine uses.
+
+    A ``cluster_ids`` array of a different length from the analysed rows carries no
+    row-to-case correspondence at all - ``cluster_ids[i]`` is the case of row ``i``, and
+    there is no row ``i`` to speak of - so it is refused rather than interpreted.
+    """
+    ids = _misaligned_ids(400)[shape]
+    with pytest.raises(ValueError, match="align"):
+        plan_clustering(unit, ids, 400)
+
+
+@pytest.mark.parametrize("shape", sorted(_misaligned_ids(400)))
+def test_the_three_argument_plan_never_asserts_independence_over_misaligned_ids(shape):
+    """The defect stated as its outcome rather than as its cause.
+
+    Whatever :func:`plan_clustering` does with a misaligned array, it must not hand back
+    a plan saying the rows are independent. Pre-fix, ``short_distinct`` returned exactly
+    that, and so would ``long_distinct`` and ``long_repeating`` under ``units < rows``.
+    """
+    ids = _misaligned_ids(400)[shape]
+    try:
+        plan = plan_clustering("none", ids, 400)
+    except ValueError:
+        return
+    assert plan.clustered, f"{shape} came back asserting independence: {plan}"
+
+
+def test_an_independent_cluster_plan_cannot_exist_over_more_rows_than_units():
+    """The invariant, enforced where the object is built rather than at one call site.
+
+    ``clustered=False`` means one row per unit. The plan the bypass produced contradicted
+    itself: ``clustered=False`` with ``rows_per_unit`` 2.0. Any future path that rebuilds
+    that object now fails at construction instead of rendering a narrow interval.
+    """
+    with pytest.raises(ValueError, match="independent"):
+        ClusterPlan(False, "none", 400, 200)
+    with pytest.raises(ValueError, match="independent"):
+        ClusterPlan(False, "none", 200, 400)
+    ok = ClusterPlan(False, "none", 400, 400)
+    assert ok.rows_per_unit == 1.0
+    assert ClusterPlan(True, "declared", 400, 200).rows_per_unit == 2.0
+
+
+@pytest.mark.parametrize("shape", sorted(_misaligned_ids(400)))
+def test_a_cell_given_misaligned_cluster_ids_renders_no_delong_and_no_wilson(shape):
+    """The blocker at the surface a customer's pack is built from.
+
+    Pre-fix, ``short_distinct`` returned ``analytic_status: used`` with a DeLong Wald
+    interval of (0.7341, 0.8251) and a Wilson interval of (0.6276, 0.7190) on rows whose
+    cluster bootstrap intervals are (0.7154, 0.8401) and (0.6125, 0.7300) - 1.372 and
+    1.285 times wider - and no flag on either Number.
+    """
+    s, y, cid = _lesion_cohort(200, 2, seed=5)
+    ids = _misaligned_ids(400)[shape]
+    assert s.shape[0] == 400 and cid.shape[0] == 400
+
+    for call in (
+        lambda: auroc_ci(s, y, cell_key="overall.auroc", cluster_ids=ids),
+        lambda: proportion_ci(s > 0, cell_key="op1.sensitivity", cluster_ids=ids),
+    ):
+        try:
+            cell = call()
+        except ValueError as exc:
+            assert "align" in str(exc), str(exc)
+            continue
+        assert cell.analytic_status != "used", cell.as_dict()
+        assert cell.number.method not in {"delong_wald", "delong_logit", "wilson"}
+
+
+@pytest.mark.parametrize("shape", sorted(_misaligned_ids(400)))
+def test_a_supplied_plan_does_not_excuse_misaligned_cluster_ids(shape):
+    """The same hole through the other branch of ``_resolved``.
+
+    The repeat check there compares ``unique(ids)`` against ``ids.shape[0]`` - the length
+    of the ids, not the cell's rows - so an i.i.d. plan beside 200 distinct ids for 400
+    rows passed it and rendered Wilson.
+    """
+    s, y, cid = _lesion_cohort(200, 2, seed=6)
+    ids = _misaligned_ids(400)[shape]
+    iid_plan = ClusterPlan(False, "none", 400, 400)
+    with pytest.raises(ValueError, match="align"):
+        auroc_ci(s, y, cell_key="c", plan=iid_plan, cluster_ids=ids)
+    with pytest.raises(ValueError, match="align"):
+        proportion_ci(s > 0, cell_key="c", plan=iid_plan, cluster_ids=ids)
+
+
+def test_aligned_ids_route_exactly_as_before_through_both_argument_forms():
+    """The fix must not move a single aligned cell, and the two forms must agree."""
+    s, y, cid = _lesion_cohort(200, 2, seed=7)
+    assert plan_clustering("none", cid, 400) == plan_clustering("none", cid)
+    assert plan_clustering("none", cid, 400) == ClusterPlan(True, "detected", 400, 200)
+    assert plan_clustering("case_id", cid, 400) == ClusterPlan(True, "declared", 400, 200)
+
+    distinct = np.arange(400)
+    assert plan_clustering("none", distinct, 400) == ClusterPlan(False, "none", 400, 400)
+    cell = auroc_ci(s, y, cell_key="c", cluster_ids=distinct)
+    assert cell.analytic_status == "used" and cell.route == "none"
+
+
+def test_the_module_does_not_claim_a_completeness_it_has_not_got():
+    """The record errors the reconciliation measured, in shipped text.
+
+    Two docstrings asserted the X2 guard was *symmetric*, and that "independence is never
+    assumed while the evidence against it is in the arguments". The evidence was in the
+    arguments - 200 case ids beside 400 rows - and independence was assumed anyway.
+    CLAUDE.md forbids a sentence claiming a check guarantees what the check does not.
+    """
+
+    def flat(doc: str) -> str:
+        """Line wrapping must not decide whether a claim counts as present."""
+        return " ".join(doc.split())
+
+    for doc in (bootstrap_module.__doc__, bootstrap_module._resolved.__doc__):
+        assert "guard is symmetric" not in flat(doc), doc
+        assert "X2 is symmetric" not in flat(doc), doc
+        assert "never assumed while the evidence against it is in the arguments" not in flat(doc)
+    # and the one case it genuinely cannot see is named, not left to be inferred
+    assert "not passed at all" in flat(bootstrap_module.__doc__)
+
+    # ``stats.discrimination`` said the clustered DeLong interval "is refused ... rather
+    # than silently reported", which reads as a property of that module. It has none: it
+    # never sees a case column and computes DeLong over whatever rows it is handed.
+    import proofpack.stats.discrimination as discrimination_module
+
+    assert "rather than silently reported" not in flat(discrimination_module.__doc__)
+    assert "nothing here inspects a case column" in flat(discrimination_module.__doc__)
+
+
+def test_cluster_ids_never_passed_at_all_are_still_invisible_to_this_module():
+    """The hole that stays open, pinned so the docstring above cannot drift off it.
+
+    This is not a regression test for a fix - it records what the fix does *not* close.
+    With no ``cluster_ids`` argument there is no evidence of clustering in this module's
+    inputs, and the analytic interval is rendered on clustered rows. Closing it needs the
+    caller that reads the customer's table to pass the case column on every cell.
+    """
+    s, y, cid = _lesion_cohort(200, 2, seed=8)
+    cell = auroc_ci(s, y, cell_key="overall.auroc")
+    assert cell.analytic_status == "used"
+    assert cell.number.method in {"delong_wald", "delong_logit"}
+    assert cell.number.flags == []
+    prop = proportion_ci(s > 0, cell_key="op1.sensitivity")
+    assert prop.analytic_status == "used" and prop.number.method == "wilson"

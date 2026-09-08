@@ -24,13 +24,28 @@ that reaches the output JSON, plus a closed-enum flag on the Number that *is*
 rendered, plus (for the detected route) a :class:`~proofpack.errors.Finding` the run
 carries into ``warnings``.
 
-**The guard is symmetric.** A clustered plan with no ``cluster_ids`` raises; so does a
-plan asserting independence over ``cluster_ids`` that repeat; and ``cluster_ids`` passed
-with no plan at all are *detected*, not ignored. Until that last case was closed (verify
-note, 2026-09-10) one forgotten keyword argument on one subgroup cell out of forty
-handed clustered rows to DeLong or Wilson, silently, with ``analytic_status: used`` and
-no flag anywhere in the output. Independence is never assumed while the evidence against
-it is in the arguments.
+**What the guard checks.** Four things, each named because naming them is the only way a
+reader can tell what is left over. A clustered plan with no ``cluster_ids`` raises; a
+plan asserting independence over ``cluster_ids`` that repeat raises; ``cluster_ids``
+passed with no plan at all are *detected*, not ignored; and ``cluster_ids`` whose length
+is not the analysed row count raise, in either direction, because a case column that
+does not correspond row-for-row with the data cannot say which row belongs to which
+case. The third was closed by the verify note of 2026-09-10 and the fourth by the
+round-4 reconciliation: until then 200 case ids beside 400 analysed rows produced
+``ClusterPlan(clustered=False, route='none', n_rows=400, n_units=200)`` - a plan
+asserting independence whose own ``rows_per_unit`` read 2.0 - and then DeLong or Wilson
+on clustered rows, with ``analytic_status: used`` and no flag anywhere in the output.
+Measured over 300 replications at 200 patients and two lesions each, within-patient
+score correlation 0.9 and the label constant within patient, that DeLong interval
+covered 0.857 of the time against a nominal 0.95, where the cluster bootstrap covered
+0.967; it was 1.365 times too narrow.
+
+**What the guard does not check, and cannot.** When ``cluster_ids`` is **not passed at
+all** there is no evidence of clustering in this module's inputs, and the analytic
+interval is rendered. Nothing below this line can detect a case column it was never
+given; that has to come from the caller that reads the customer's table, on every cell.
+``test_cluster_ids_never_passed_at_all_are_still_invisible_to_this_module`` pins the
+hole so this paragraph cannot quietly stop being true.
 
 **The point estimate is not changed by clustering, only the interval.** A clustered
 AUROC or proportion is still computed over all analysed rows, so it equals the number
@@ -323,12 +338,29 @@ def policy_from_declarations(declarations: Any) -> BootstrapPolicy:
 
 @dataclass(frozen=True)
 class ClusterPlan:
-    """Whether this run resamples rows or cases, and how that was decided."""
+    """Whether this run resamples rows or cases, and how that was decided.
+
+    ``clustered=False`` *means* one row per unit, so a plan asserting independence over
+    a different number of rows than units is self-contradictory and cannot be built. The
+    round-4 reconciliation found the module producing exactly that object -
+    ``ClusterPlan(clustered=False, route='none', n_rows=400, n_units=200)``, whose own
+    :attr:`rows_per_unit` reported 2.0 - and routing it to DeLong. Validating the
+    invariant here rather than at the one call site that broke it means any future path
+    that rebuilds that object fails at construction instead of rendering a narrow
+    interval.
+    """
 
     clustered: bool
     route: str  # "none" | "declared" | "detected"
     n_rows: int
     n_units: int
+
+    def __post_init__(self) -> None:
+        if not self.clustered and self.n_units != self.n_rows:
+            raise ValueError(
+                "a plan asserting the rows are independent must have one unit per row "
+                f"({self.n_units} units over {self.n_rows} rows)"
+            )
 
     @property
     def unit(self) -> str:
@@ -362,6 +394,22 @@ class ClusterPlan:
         }
 
 
+def _require_aligned_ids(ids: np.ndarray, n_rows: int) -> None:
+    """``cluster_ids[i]`` is the case of row ``i``, so the two lengths must be equal.
+
+    An array of a different length carries no row-to-case correspondence in either
+    direction: there is no row ``i`` for a surplus id, and no id for a surplus row. It is
+    refused rather than interpreted, because every interpretation of it - resample the
+    prefix, resample the ids' own rows, treat the count as the case count - answers a
+    question about a row set that is not the one being reported on.
+    """
+    if ids.shape[0] != n_rows:
+        raise ValueError(
+            "cluster_ids must align row-for-row with the analysed rows "
+            f"({ids.shape[0]} ids against {n_rows} rows)"
+        )
+
+
 def plan_clustering(
     clustering_unit: str,
     cluster_ids: Sequence[Any] | np.ndarray | None,
@@ -375,17 +423,27 @@ def plan_clustering(
       :meth:`ClusterPlan.finding` carries the discrepancy into the run's warnings.
 
     A declared ``case_id`` unit with no ``case_id`` column is a contradiction and
-    raises, rather than quietly falling back to row resampling.
+    raises, rather than quietly falling back to row resampling. So does a ``cluster_ids``
+    array whose length is not ``n_rows`` when ``n_rows`` is supplied - see
+    :func:`_require_aligned_ids`. With ``n_rows`` omitted there is no second quantity to
+    check against and the ids *are* the rows, which is the two-argument run-level form.
+
+    The detection rule is ``units < rows``, the rule this docstring states. It read
+    ``units < ids.shape[0]`` until the round-4 reconciliation, which is the same
+    comparison only while the two lengths agree - and the three-argument form
+    :func:`_resolved` uses on every cell is exactly where they may not.
     """
     ids = None if cluster_ids is None else np.asarray(cluster_ids)
     rows = int(n_rows if n_rows is not None else (0 if ids is None else ids.shape[0]))
+    if ids is not None and n_rows is not None:
+        _require_aligned_ids(ids, rows)
     if clustering_unit == "case_id":
         if ids is None:
             raise ValueError("clustering.unit is 'case_id' but no case_id column was supplied")
         return ClusterPlan(True, "declared", rows, int(np.unique(ids).shape[0]))
     if ids is not None:
         units = int(np.unique(ids).shape[0])
-        if units < ids.shape[0]:
+        if units < rows:
             return ClusterPlan(True, "detected", rows, units)
         return ClusterPlan(False, "none", rows, units)
     return ClusterPlan(False, "none", rows, rows)
@@ -835,28 +893,36 @@ def _resolved(
 ) -> tuple[BootstrapPolicy, ClusterPlan]:
     """Resolve the policy and the plan for one cell, **looking at the ids**.
 
-    X2 is symmetric here or it is not enforced at all. A clustered plan with no
-    ``cluster_ids`` has always raised. The reverse - ``cluster_ids`` in hand and no
-    plan, one forgotten keyword argument out of forty cells - used to hand the cell
-    to DeLong or Wilson on clustered rows, with no flag, no companion refusal and
-    ``analytic_status: used``. Independence is never assumed while the evidence
-    against it is in the arguments:
+    Four things can be wrong with the pair, and each is checked here rather than left to
+    whichever downstream function happens to notice:
 
-    * no plan and ids that repeat -> the ``detected`` route, exactly as
-      :func:`plan_clustering` would have decided it at run level;
+    * a clustered plan with no ``cluster_ids`` -> raises (in the cell functions below);
+    * ``cluster_ids`` in hand and no plan - one forgotten keyword argument out of forty
+      cells - used to hand the cell to DeLong or Wilson on clustered rows with no flag,
+      no companion refusal and ``analytic_status: used``. Ids that repeat now take the
+      ``detected`` route, exactly as :func:`plan_clustering` decides it at run level;
     * a plan that positively asserts independence over ids that repeat -> a
-      contradiction, and it raises rather than quietly degrading to row resampling.
+      contradiction, and it raises rather than quietly degrading to row resampling;
+    * ``cluster_ids`` of a different length from the cell's rows -> raises, in either
+      direction, through both branches. This is checked first because until it holds the
+      other three checks are reading a case column that does not describe these rows: 200
+      distinct ids beside 400 rows passed the repeat check trivially and rendered DeLong.
+
+    What is *not* checked, because nothing here can see it: ``cluster_ids`` not passed at
+    all. See the module docstring.
     """
     pol = policy if policy is not None else BootstrapPolicy()
     ids = None if cluster_ids is None else np.asarray(cluster_ids)
+    if ids is not None:
+        _require_aligned_ids(ids, n_rows)
     if plan is None:
         if ids is None:
             return pol, ClusterPlan(False, "none", n_rows, n_rows)
         return pol, plan_clustering("none", ids, n_rows)
-    if ids is not None and not plan.clustered and int(np.unique(ids).shape[0]) < ids.shape[0]:
+    if ids is not None and not plan.clustered and int(np.unique(ids).shape[0]) < n_rows:
         raise ValueError(
             "cluster_ids repeat but the plan says the rows are independent "
-            f"({int(np.unique(ids).shape[0])} cases over {ids.shape[0]} rows); "
+            f"({int(np.unique(ids).shape[0])} cases over {n_rows} rows); "
             "the analytic interval is not valid here and is not silently substituted"
         )
     return pol, plan

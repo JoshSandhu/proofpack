@@ -20,9 +20,13 @@ schema types ``auprc`` as ``null`` so nobody can quietly start emitting one.
 **Clustered data**: when rows are not independent (declared ``clustering.unit =
 case_id``, or more rows than cases) the DeLong variance is *wrong* - it shrinks
 roughly as sqrt(rows/cases). It is refused with the typed reason
-``clustered_data_analytic_ci_invalid`` rather than silently reported. Since build
-day 4 ``stats.bootstrap.auroc_ci`` fills that path with a cluster bootstrap, so this
-Number no longer promises a later interval - it is the companion refusal itself.
+``clustered_data_analytic_ci_invalid``. The refusal is not a property of this module:
+nothing here inspects a case column, and this file will compute a DeLong interval over
+whatever rows it is handed. It is ``stats.bootstrap.auroc_ci`` that decides the route,
+and it can only decide it on the ``cluster_ids`` it is given - see that module's
+docstring for what its guard checks and for the one case it cannot see. Since build
+day 4 ``auroc_ci`` fills the clustered path with a cluster bootstrap, so this Number no
+longer promises a later interval - it is the companion refusal itself.
 
 No scipy: the normal quantile comes from ``statistics.NormalDist`` and the normal
 tail from ``math.erfc``.
