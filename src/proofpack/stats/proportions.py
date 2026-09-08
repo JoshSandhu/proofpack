@@ -362,6 +362,14 @@ def two_by_two_metrics(
     F1 and MCC have no standard closed-form interval: they are emitted with an
     explicit ``analytic_ci_unavailable`` reason and the ``ci_pending_bootstrap``
     flag, never with a made-up interval.
+
+    **Rows are assumed independent and nothing here checks that.** A 2x2 table is four
+    counts: by the time the rows reach this function the case column is gone, and there
+    is **no clustering parameter** to restore it. Every Wilson and Newcombe interval below
+    is therefore computed as though each row were its own patient. The X2 routing lives in
+    ``stats.bootstrap.proportion_ci``, which takes the indicator vector and the
+    ``cluster_ids`` beside it; this function reaches none of it. The caller that reads the
+    customer's table has to choose between the two (round-7 fresh attack, 2026-09-10).
     """
     tp, fn, fp, tn = t.tp, t.fn, t.fp, t.tn
     n_pos, n_neg, n = t.n_pos, t.n_neg, t.n

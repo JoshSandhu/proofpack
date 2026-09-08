@@ -2008,3 +2008,321 @@ def test_cluster_ids_never_passed_at_all_are_still_invisible_to_this_module():
     assert cell.number.flags == []
     prop = proportion_ci(s > 0, cell_key="op1.sensitivity")
     assert prop.analytic_status == "used" and prop.number.method == "wilson"
+
+
+# ================ 11. repairs from the round-7 fresh attack: the shape of the ids, the
+#                     shape of the plan, and the checks two docstrings claimed to make
+#
+# Round 4 closed "``cluster_ids`` that do not span the analysed rows". The round-7
+# fresh-attack lens found three defects in what it closed it *with*.
+#
+# **X-1 - the guard was a length check wearing the words of a shape check.** It tested
+# ``ids.shape[0] != n_rows`` while its own docstring stated the invariant as
+# "``cluster_ids[i]`` is the case of row ``i``", which needs a *one-dimensional column of
+# exactly n_rows ids*. ``shape[0]`` is one dimension short of that. A composite case key -
+# the natural ``df[['patient', 'visit']].to_numpy()`` - is (400, 2): 400 in ``shape[0]``,
+# so it satisfied the guard, and no row-to-case correspondence at all. Measured at
+# ace5cf5 on ``_lesion_cohort(200, 2, seed=5)``:
+#
+#   composite (400, 2)   auroc  used              delong_wald       (0.6488, 0.7510) w 0.1022
+#                        prop   used              wilson            (0.6020, 0.6951) w 0.0931
+#   1-D case column      auroc  refused_clustered cluster_bootstrap (0.6279, 0.7696) w 0.1417
+#                        prop   refused_clustered cluster_bootstrap (0.5850, 0.7125) w 0.1275
+#
+# - 1.387 and 1.370 times too narrow, ``flags == []`` on both, no W13 and no companion
+# refusal. That is the X2 symptom exactly, reached by the next argument shape.
+#
+# **X-2 - ClusterPlan validated one of the contradictions its four fields admit.**
+# ``ClusterPlan(False, 'detected', 400, 400)`` still constructed, still rendered
+# ``delong_wald`` with ``analytic_status: used``, and its ``finding()`` still emitted W13
+# saying "cluster resampling was used and the analytic intervals (DeLong, Wilson) were
+# refused" - a false sentence about the run, in the warnings a regulator reads. Its
+# mirror, ``ClusterPlan(True, 'none', 400, 200)``, resampled cases correctly and carried
+# no W13 at all.
+#
+# **X-3 - two docstrings listed a check that was not made where they said.** "A clustered
+# plan with no ``cluster_ids`` raises" was named as one of the four things the guard
+# checks, and ``_resolved`` said each of the four "is checked here". The raise lived in
+# the cell functions instead, *after* their degenerate-cell early returns: a single-class
+# AUROC cell or an empty proportion cell with a clustered plan and no ids returned
+# ``analytic_status: unavailable`` and no exception, and ``_resolved`` never looked.
+
+
+def _keys_that_are_not_a_case_column(n_rows: int) -> dict[str, np.ndarray]:
+    """``cluster_ids`` arrays that are not one id per row, and that look like one.
+
+    ``two_column_composite`` and ``single_column_2d`` are what pandas hands back from a
+    two-column and a one-column selection; both have ``n_rows`` in ``shape[0]`` and both
+    passed the length guard. ``transposed`` and ``scalar`` are here to fix the *manner* of
+    the refusal: the length guard already rejected the first, and crashed on the second
+    with ``IndexError: tuple index out of range``, which is an accident rather than a
+    decision.
+    """
+    cid = np.tile(np.arange(n_rows // 2), 2)
+    visit = np.concatenate([np.arange(1000, 1000 + n_rows // 2)] * 2)
+    return {
+        "two_column_composite": np.column_stack([cid, visit]),
+        "single_column_2d": cid.reshape(n_rows, 1),
+        "transposed": np.vstack([cid, visit]),
+        "scalar": np.asarray(7),
+    }
+
+
+@pytest.mark.parametrize("shape", sorted(_keys_that_are_not_a_case_column(400)))
+@pytest.mark.parametrize("unit", ["none", "case_id"])
+def test_a_cluster_id_array_that_is_not_one_id_per_row_is_refused(shape, unit):
+    """The three-argument form, which is the form every cell goes through.
+
+    ``ValueError`` and not merely "an exception": a deliberate refusal, not the
+    ``IndexError`` a scalar used to produce by falling off the end of ``shape``.
+    """
+    ids = _keys_that_are_not_a_case_column(400)[shape]
+    with pytest.raises(ValueError):
+        plan_clustering(unit, ids, 400)
+
+
+@pytest.mark.parametrize("shape", sorted(_keys_that_are_not_a_case_column(400)))
+def test_the_two_argument_plan_also_refuses_a_key_that_is_not_a_case_column(shape):
+    """The run-level form has no second quantity to compare against - but it has a shape.
+
+    Pre-fix this form had no guard at all, so ``plan_clustering('none', composite)``
+    returned ``ClusterPlan(clustered=False, route='none', n_rows=400, n_units=400)``.
+    """
+    ids = _keys_that_are_not_a_case_column(400)[shape]
+    with pytest.raises(ValueError):
+        plan_clustering("none", ids)
+
+
+@pytest.mark.parametrize("shape", sorted(_keys_that_are_not_a_case_column(400)))
+def test_a_composite_case_key_renders_no_delong_and_no_wilson(shape):
+    """The blocker at the surface a customer's pack is built from.
+
+    Stated as the outcome, not as the mechanism: whatever the module does with an array
+    that is not a case column, it must not put an analytic interval on clustered rows.
+    """
+    s, y, cid = _lesion_cohort(200, 2, seed=5)
+    ids = _keys_that_are_not_a_case_column(400)[shape]
+    for call in (
+        lambda: auroc_ci(s, y, cell_key="overall.auroc", cluster_ids=ids),
+        lambda: proportion_ci(s > 0, cell_key="op1.sensitivity", cluster_ids=ids),
+    ):
+        try:
+            cell = call()
+        except ValueError:
+            continue
+        assert cell.analytic_status != "used", cell.as_dict()
+        assert cell.number.method not in {"delong_wald", "delong_logit", "wilson", "wilson_cc"}
+
+
+@pytest.mark.parametrize("shape", sorted(_keys_that_are_not_a_case_column(400)))
+def test_the_public_resamplers_refuse_a_key_that_is_not_a_case_column(shape):
+    """``clustered_by_case`` and ``clustered_flat`` are both in ``__all__``.
+
+    Written because the round-7 mutation sweep found their share of the guard
+    unobservable: with the cell functions handing them an already-validated column, both
+    could be reverted to a length-only check and the whole day-4 marker stayed green. A
+    direct caller is a real surface, so it is tested like one. Pre-fix, a ``(400, 2)``
+    key reached ``_clusters_in_first_appearance_order``, which returned 400 groups whose
+    largest row index was 799 - over 400 rows.
+    """
+    ids = _keys_that_are_not_a_case_column(400)[shape]
+    s, y, cid = _lesion_cohort(200, 2, seed=14)
+    with pytest.raises(ValueError):
+        clustered_by_case(y, ids)
+    with pytest.raises(ValueError):
+        clustered_flat(ids, n_rows=400)
+    with pytest.raises(ValueError):
+        clustered_flat(ids)
+
+
+def test_a_one_dimensional_case_column_still_routes_exactly_as_it_did():
+    """The control. The shape check must refuse shapes, not cases."""
+    s, y, cid = _lesion_cohort(200, 2, seed=5)
+    cell = auroc_ci(s, y, cell_key="overall.auroc", cluster_ids=cid)
+    assert cell.analytic_status == "refused_clustered" and cell.route == "detected"
+    assert cell.number.method == "cluster_bootstrap_percentile"
+    assert "delong_refused_clustered" in cell.number.flags
+    prop = proportion_ci(s > 0, cell_key="op1.sensitivity", cluster_ids=cid)
+    assert prop.analytic_status == "refused_clustered"
+    assert "wilson_refused_clustered" in prop.number.flags
+    # a list of ids is still a case column; only the rank of the array is refused
+    assert plan_clustering("none", list(cid), 400) == ClusterPlan(True, "detected", 400, 200)
+
+
+def test_a_plans_route_and_its_clustered_flag_cannot_contradict_each_other():
+    """X-2. Four fields, and every contradiction between them refused at construction.
+
+    ``route='none'`` *means* the rows are independent and ``declared``/``detected`` mean
+    they are not, so the flag is not free to disagree with the route; ``detected`` means
+    case ids were seen to repeat, so it cannot hold over as many cases as rows; and no
+    plan can have more cases than the rows they were counted from.
+    """
+    with pytest.raises(ValueError):
+        ClusterPlan(False, "detected", 400, 400)
+    with pytest.raises(ValueError):
+        ClusterPlan(False, "declared", 400, 400)
+    with pytest.raises(ValueError):
+        ClusterPlan(True, "none", 400, 200)
+    with pytest.raises(ValueError):
+        ClusterPlan(True, "detected", 400, 400)
+    with pytest.raises(ValueError):
+        ClusterPlan(True, "declared", 400, 800)
+    with pytest.raises(ValueError):
+        ClusterPlan(False, "guessed", 400, 400)
+
+    # the plans the module actually builds, unchanged
+    assert ClusterPlan(False, "none", 400, 400).unit == "row"
+    assert ClusterPlan(True, "declared", 400, 200).rows_per_unit == 2.0
+    assert ClusterPlan(True, "detected", 400, 200).finding().code == "W13"
+    assert ClusterPlan(True, "declared", 400, 400).rows_per_unit == 1.0
+    assert ClusterPlan(False, "none", 0, 0).rows_per_unit is None
+
+
+def test_no_constructible_plan_carries_a_w13_beside_the_interval_it_denies():
+    """The W13 sentence must be true of the run carrying it, for every plan that exists.
+
+    Pre-fix ``ClusterPlan(False, 'detected', 400, 400)`` constructed, routed the cell to
+    ``delong_wald`` with ``analytic_status: used``, and emitted W13 stating that "cluster
+    resampling was used and the analytic intervals (DeLong, Wilson) were refused".
+    """
+    s, y, cid = _lesion_cohort(200, 2, seed=11)
+    built = []
+    for clustered in (False, True):
+        for route in ("none", "declared", "detected", "guessed"):
+            for n_units in (200, 400, 800):
+                try:
+                    built.append(ClusterPlan(clustered, route, 400, n_units))
+                except ValueError:
+                    continue
+    assert built, "the grid built nothing; the invariant is too strong"
+    for plan in built:
+        cell = auroc_ci(
+            s,
+            y,
+            cell_key="c",
+            plan=plan,
+            cluster_ids=cid if plan.clustered else None,
+            policy=BootstrapPolicy(n_resamples=200),
+        )
+        if plan.finding() is not None:
+            assert plan.finding().code == "W13"
+            assert cell.analytic_status == "refused_clustered", (plan, cell.as_dict())
+            assert cell.number.method == "cluster_bootstrap_percentile", (plan, cell.as_dict())
+        # undeclared clustering is the whole point of W13, so a clustered plan may carry
+        # no warning only when the customer declared the unit themselves
+        if plan.clustered and plan.finding() is None:
+            assert plan.route == "declared", plan
+
+
+def test_a_clustered_plan_with_no_cluster_ids_raises_even_where_the_cell_is_degenerate():
+    """X-3(a). The check was made after the early returns that skip it.
+
+    A single-class AUROC cell and an empty proportion cell returned
+    ``analytic_status: unavailable`` and no exception, so the one call site that forgot
+    the argument was told nothing until a cell happened to be non-degenerate.
+
+    Only the first fault below was the defect; the other three already raised from
+    ``_resolved`` before the early returns. They are asserted here anyway, because the
+    module docstring now says all four are checked there and a claim about four things
+    should be tested on four things.
+    """
+    s, y, cid = _lesion_cohort(200, 2, seed=12)
+    clustered = plan_clustering("case_id", cid, 400)
+    single_class = np.ones(400, dtype=bool)
+    with pytest.raises(ValueError, match="needs cluster_ids"):
+        auroc_ci(s, single_class, cell_key="c", plan=clustered)
+    with pytest.raises(ValueError, match="needs cluster_ids"):
+        auroc_ci(s, np.zeros(400, dtype=bool), cell_key="c", plan=clustered)
+    empty_plan = plan_clustering("case_id", np.array([], dtype=int), 0)
+    with pytest.raises(ValueError, match="needs cluster_ids"):
+        proportion_ci(np.array([], dtype=bool), cell_key="c", plan=empty_plan)
+
+    with pytest.raises(ValueError):  # ids of the wrong length, degenerate cell
+        auroc_ci(s, single_class, cell_key="c", cluster_ids=np.arange(200))
+    with pytest.raises(ValueError):  # ids of the wrong rank, degenerate cell
+        auroc_ci(s, single_class, cell_key="c", cluster_ids=np.column_stack([cid, cid]))
+    with pytest.raises(ValueError):  # an i.i.d. plan over ids that repeat, degenerate cell
+        auroc_ci(
+            s,
+            single_class,
+            cell_key="c",
+            plan=ClusterPlan(False, "none", 400, 400),
+            cluster_ids=cid,
+        )
+    with pytest.raises(ValueError):  # the same three through the proportion cell
+        proportion_ci(np.array([], dtype=bool), cell_key="c", cluster_ids=np.arange(5))
+
+
+def test_resolved_itself_checks_each_of_the_four_faults_its_docstring_lists():
+    """X-3(b). "Each is checked here" was three of four, with the fourth delegated.
+
+    Written against the tuple's first two positions, so it pins the checks and not the
+    function's arity.
+    """
+    resolved = bootstrap_module._resolved
+    s, y, cid = _lesion_cohort(200, 2, seed=13)
+
+    with pytest.raises(ValueError):  # a clustered plan with no cluster_ids
+        resolved(None, ClusterPlan(True, "declared", 400, 200), 400, None)
+    with pytest.raises(ValueError):  # a plan asserting independence over ids that repeat
+        resolved(None, ClusterPlan(False, "none", 400, 400), 400, cid)
+    with pytest.raises(ValueError):  # ids of the wrong length
+        resolved(None, None, 400, np.arange(200))
+    with pytest.raises(ValueError):  # ids that are not a case column
+        resolved(None, None, 400, np.column_stack([cid, cid]))
+
+    out = resolved(None, None, 400, cid)  # ids with no plan: detected, never ignored
+    assert out[1] == ClusterPlan(True, "detected", 400, 200)
+    assert isinstance(out[0], BootstrapPolicy)
+
+
+def test_the_guard_documents_the_shape_it_checks_and_not_a_wider_one():
+    """The sentences corrected here, pinned so they cannot drift back.
+
+    The round-4 text said ``cluster_ids`` "whose length is not the analysed row count"
+    raise "because a case column that does not correspond row-for-row with the data
+    cannot say which row belongs to which case". The reason given is about
+    correspondence; the check made was about length; and a (400, 2) array is the gap
+    between them.
+    """
+
+    def flat(doc: str) -> str:
+        return " ".join(doc.split())
+
+    module_doc = flat(bootstrap_module.__doc__)
+    assert "whose length is not the analysed row count" not in module_doc
+    assert "one-dimensional" in module_doc
+    for doc in (module_doc, flat(bootstrap_module._resolved.__doc__)):
+        assert "guard is symmetric" not in doc
+        assert "never assumed while the evidence against it is in the arguments" not in doc
+    assert "not passed at all" in module_doc
+
+
+def test_the_surfaces_no_clustering_guard_covers_are_named_where_they_live():
+    """X-4, which is pre-existing and is not fixed here - only stated where it is true.
+
+    ``stats.discrimination``'s clustering paragraph said the route is decided by
+    ``stats.bootstrap.auroc_ci``. That is true of ``auroc_number`` and false of
+    ``paired_delong``, which lives in the same file, is in its ``__all__``, is the
+    version-comparison statistic the PCCP report rests on, and has no clustering
+    parameter for any caller to pass and no guard to reach. The same holds of
+    ``two_by_two_metrics``, which builds every operating-point proportion from Wilson.
+    The day-5 caller therefore has to carry clustering for three surfaces, not one.
+    """
+    import inspect
+
+    import proofpack.stats.discrimination as discrimination_module
+    import proofpack.stats.proportions as proportions_module
+
+    def flat(doc: str) -> str:
+        return " ".join(doc.split())
+
+    for fn in (discrimination_module.paired_delong, proportions_module.two_by_two_metrics):
+        params = set(inspect.signature(fn).parameters)
+        assert not [p for p in params if "cluster" in p], (fn.__name__, params)
+        assert "no clustering parameter" in flat(fn.__doc__), fn.__name__
+
+    disc = flat(discrimination_module.__doc__)
+    assert "paired_delong" in disc
+    assert "rather than silently reported" not in disc
+    assert "nothing here inspects a case column" in disc

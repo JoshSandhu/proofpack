@@ -24,9 +24,19 @@ roughly as sqrt(rows/cases). It is refused with the typed reason
 nothing here inspects a case column, and this file will compute a DeLong interval over
 whatever rows it is handed. It is ``stats.bootstrap.auroc_ci`` that decides the route,
 and it can only decide it on the ``cluster_ids`` it is given - see that module's
-docstring for what its guard checks and for the one case it cannot see. Since build
+docstring for what its guard checks and for the cases it cannot see. Since build
 day 4 ``auroc_ci`` fills the clustered path with a cluster bootstrap, so this Number no
 longer promises a later interval - it is the companion refusal itself.
+
+**That covers ``auroc_number`` and nothing else in this file.** ``paired_delong``, the
+version-comparison statistic the PCCP performance-evaluation report rests on, has no
+``cluster_ids`` parameter for a caller to pass and no route decision anywhere: it will
+build a ``delong_wald`` interval for the difference and two logit intervals for the arms
+over clustered rows, with no flag and no companion refusal, exactly as ``auroc_number``
+would. Nothing in ``src`` calls it yet (the round-7 fresh attack, 2026-09-10). Making it
+clustering-aware needs a cluster bootstrap of the *difference*, which is a build-day
+feature and not a docstring; until then the caller that reads the customer's table has to
+carry clustering here itself.
 
 No scipy: the normal quantile comes from ``statistics.NormalDist`` and the normal
 tail from ``math.erfc``.
@@ -368,6 +378,14 @@ def paired_delong(
     ``Var(A - B) = S_aa + S_bb - 2 S_ab`` is (usually much) smaller than the
     unpaired sum. The difference Number carries a Wald interval on that variance;
     the AUCs themselves carry their logit intervals.
+
+    **Rows are assumed independent and nothing here checks that.** This function has
+    **no clustering parameter**: no caller can tell it that its rows are lesions of two
+    hundred patients, and it reaches none of the X2 routing in ``stats.bootstrap``. On
+    clustered rows the paired variance is understated the same way the unpaired one is,
+    and the interval comes back with no flag and no companion refusal. Nothing in ``src``
+    calls this yet; the day-5 caller must not call it on a clustered table until a
+    cluster bootstrap of the difference exists (round-7 fresh attack, 2026-09-10).
     """
     a = np.asarray(scores_a, dtype=np.float64)
     b = np.asarray(scores_b, dtype=np.float64)
