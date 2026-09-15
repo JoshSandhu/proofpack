@@ -317,7 +317,9 @@ def test_the_module_imports_and_the_footnote_degrades_with_scipy_hidden(monkeypa
     entry = mod._homogeneity_test([(45, 5), (38, 12), (27, 3)])
     assert entry["not_estimable_reason"] == "scipy_unavailable"
     assert entry["p_raw"] is None and entry["p_holm"] is None and entry["test"] is None
-    foot = mod.heterogeneity_footnote({"op1": {"sensitivity": [(45, 5), (38, 12)]}})
+    foot = mod.heterogeneity_footnote(
+        {"op1": {"sensitivity": [(45, 5), (38, 12)]}}, clustering_route="none"
+    )
     assert foot["tests"][0]["not_estimable_reason"] == "scipy_unavailable"
     assert foot["family_size"] == 0 and foot["label"] == "exploratory"
     monkeypatch.undo()
@@ -997,10 +999,13 @@ def test_the_two_sided_bootstrap_is_deterministic_and_the_policy_seed_moves_only
 
 
 class _RecordingResampler:
-    """Wraps a Resampler and records the generator state each draw is made from."""
+    """Wraps a Resampler; records each index vector it returns, and appends its side
+    label to a log shared with the other side so the order of the draws is visible."""
 
-    def __init__(self, inner):
+    def __init__(self, inner, side: str, log: list[str]):
         self.inner = inner
+        self.side = side
+        self.log = log
         self.draws: list[np.ndarray] = []
 
     @property
@@ -1014,56 +1019,57 @@ class _RecordingResampler:
     def draw(self, rng):
         idx = self.inner.draw(rng)
         self.draws.append(np.asarray(idx).copy())
+        self.log.append(self.side)
         return idx
 
 
-def test_the_two_sided_bootstrap_draws_side_b_from_the_cell_generator_after_side_a():
-    """Inspects the index vectors each side's resampler returns, across two generators.
-
-    Side b's draws must change when the cell's generator changes (they are drawn from
-    it, not from a generator of their own), and within one run side a and side b must
-    consume the *same* generator in turn - so side b's sequence under generator 1 is not
-    side b's sequence under generator 2. The committed sweep's mutant
-    ``two_sided_bootstrap_side_b_from_a_fixed_generator`` draws side b from
-    ``default_rng(b)`` inside the loop and is killed by the first assertion.
-    """
-    ind_a = np.array([1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1], dtype=bool)
-    ind_b = np.array([1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0], dtype=bool)
+def _record_two_sided(ind_a, ind_b, seed: int, n: int = 50):
     ids_a = np.arange(ind_a.shape[0]) // 2
     ids_b = np.arange(ind_b.shape[0]) // 2
-    runs = []
-    for seed in (1, 2):
-        ra = _RecordingResampler(clustered_flat(ids_a, n_rows=ind_a.shape[0]))
-        rb = _RecordingResampler(clustered_flat(ids_b, n_rows=ind_b.shape[0]))
-        subgroups_module._bootstrap_difference(
-            lambda idx: float(ind_a[idx].mean()),
-            ra,
-            lambda idx: float(ind_b[idx].mean()),
-            rb,
-            np.random.default_rng(seed),
-            50,
-            0.95,
-        )
-        runs.append((ra.draws, rb.draws))
-    (a1, b1), (a2, b2) = runs
-    assert len(a1) == len(b1) == len(a2) == len(b2) == 50
-    differs_b = sum(not np.array_equal(x, y) for x, y in zip(b1, b2, strict=True))
-    differs_a = sum(not np.array_equal(x, y) for x, y in zip(a1, a2, strict=True))
-    assert differs_b > 40, differs_b  # side b is drawn from the cell's generator
-    assert differs_a > 40, differs_a
-    # the same generator, same seed, reproduces both sides exactly
-    ra = _RecordingResampler(clustered_flat(ids_a, n_rows=ind_a.shape[0]))
-    rb = _RecordingResampler(clustered_flat(ids_b, n_rows=ind_b.shape[0]))
+    log: list[str] = []
+    ra = _RecordingResampler(clustered_flat(ids_a, n_rows=ind_a.shape[0]), "a", log)
+    rb = _RecordingResampler(clustered_flat(ids_b, n_rows=ind_b.shape[0]), "b", log)
     subgroups_module._bootstrap_difference(
         lambda idx: float(ind_a[idx].mean()),
         ra,
         lambda idx: float(ind_b[idx].mean()),
         rb,
-        np.random.default_rng(1),
-        50,
+        np.random.default_rng(seed),
+        n,
         0.95,
     )
-    assert all(np.array_equal(x, y) for x, y in zip(rb.draws, b1, strict=True))
+    return ra.draws, rb.draws, log
+
+
+def test_the_two_sided_bootstrap_draws_side_a_then_side_b_from_the_cell_generator():
+    """Inspects the index vectors each side's resampler returns across two generators,
+    and the order in which the two resamplers are asked to draw, through one log both
+    sides append to.
+
+    Side b's draws change when the cell's generator changes (they are drawn from it,
+    not from a generator of their own); the log reads ``a, b, a, b, ...`` - one draw per
+    side per resample, side a first; the same seed reproduces both sides. Renamed in
+    repair round 2 (lens 2, FA-N4): the previous name said "after side a" while nothing
+    recorded the order, and the lens's b-before-a mutant survived; on these index
+    vectors that mutant moves the interval from (0.0, 0.4643) to (0.0696, 0.4762). The
+    committed sweep's ``two_sided_bootstrap_side_b_from_a_fixed_generator`` is killed
+    by the first assertion and ``two_sided_bootstrap_side_b_drawn_before_side_a`` by
+    the log assertion.
+    """
+    ind_a = np.array([1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1], dtype=bool)
+    ind_b = np.array([1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0], dtype=bool)
+    a1, b1, log1 = _record_two_sided(ind_a, ind_b, seed=1)
+    a2, b2, log2 = _record_two_sided(ind_a, ind_b, seed=2)
+    assert len(a1) == len(b1) == len(a2) == len(b2) == 50
+    differs_b = sum(not np.array_equal(x, y) for x, y in zip(b1, b2, strict=True))
+    differs_a = sum(not np.array_equal(x, y) for x, y in zip(a1, a2, strict=True))
+    assert differs_b > 40, differs_b  # side b is drawn from the cell's generator
+    assert differs_a > 40, differs_a
+    assert log1 == log2 == ["a", "b"] * 50, log1[:6]
+    # the same generator, same seed, reproduces both sides exactly
+    a3, b3, _ = _record_two_sided(ind_a, ind_b, seed=1)
+    assert all(np.array_equal(x, y) for x, y in zip(b3, b1, strict=True))
+    assert all(np.array_equal(x, y) for x, y in zip(a3, a1, strict=True))
 
 
 def test_a_case_id_column_is_used_even_when_not_passed_and_detected_clustering_routes_everything():
@@ -1279,10 +1285,21 @@ VERDICT_WORDS = {
     "calibrated",
     "passes",
     "fails",
+    # inflections lens 2 (FA-N5) found unflagged: the tokeniser matches whole words
+    # after splitting on non-letters and has no stemmer, so a spelling is flagged only
+    # when it is listed here
+    "passing",
+    "failing",
+    "meets",
+    "verdicts",
+    "miscalibrated",
+    "satisfied",
+    "successful",
 }
 
 
 def _verdict_flagged(token: str) -> bool:
+    """Whole-word match after splitting on non-letters; no stemming."""
     words = set(re.split(r"[^a-z]+", token.lower()))
     return bool(words & VERDICT_WORDS)
 
@@ -1295,8 +1312,11 @@ def test_no_verdict_word_appears_in_any_key_or_engine_string_of_the_output(repor
 
 def test_the_verdict_grep_flags_every_phrase_the_brief_names():
     """The day-5 brief: no 'pass', 'fail', 'verdict', 'met', 'consistent', 'acceptable',
-    'unbiased', 'well calibrated' in any key or value. Each phrase, and its hyphenated and
-    inflected spellings, must trip the tokeniser the output test uses."""
+    'unbiased', 'well calibrated' in any key or value. Inspected: each phrase listed
+    below, in the spelling listed - the brief's words, three hyphenated or punctuated
+    forms, and the seven inflections lens 2 (FA-N5) found unflagged at 9da4401 - trips
+    the tokeniser the output test uses. The tokeniser is a whole-word grep, not a
+    stemmer: a spelling not in ``VERDICT_WORDS`` is not flagged."""
     for phrase in (
         "pass",
         "passes",
@@ -1311,6 +1331,13 @@ def test_the_verdict_grep_flags_every_phrase_the_brief_names():
         "well calibrated",
         "model is well-calibrated",
         "criterion: met",
+        "passing",
+        "failing",
+        "meets",
+        "verdicts",
+        "miscalibrated",
+        "satisfied",
+        "successful",
     ):
         assert _verdict_flagged(phrase), phrase
     for phrase in ("calibration", "not_computed_this_run", "sensitivity", "descriptive_not_target"):
@@ -1620,3 +1647,186 @@ def test_a_declared_reference_whose_rows_are_all_excluded_halts_h09_naming_the_a
     assert info.value.code == "H09"
     assert info.value.detail["reference_level"] == "S3"
     assert "observed" not in str(info.value)
+
+
+# ------------------------------------------------------------ day-5 repair round 2
+# The lens id each test answers is in its docstring, with what it fails on at 9da4401.
+
+
+def separated_level_cohort_with_case_ids(move_one: bool = False) -> dict[str, list[Any]]:
+    """:func:`separated_level_cohort` with every row duplicated under one case id, so a
+    declared ``case_id`` unit routes every difference through the two-sided cluster
+    bootstrap (lens 2, FA-B1's construction)."""
+    base = separated_level_cohort(move_one=move_one)
+    n = len(base["y_true"])
+    cols = {k: [v[i // 2] for i in range(2 * n)] for k, v in base.items()}
+    cols["case_id"] = [f"c{i // 2:04d}" for i in range(2 * n)]
+    return cols
+
+
+CLUSTERED_BY_CASE = {"clustering": {"unit": "case_id", "declared_by": "t"}}
+
+
+def test_the_two_sided_cluster_bootstrap_refuses_a_difference_whose_one_side_is_frozen():
+    """Fresh-attack lens 2 FA-B1. At 9da4401 the separated level A (own AUROC and own
+    sensitivity refused ``boundary_estimate`` two keys away) had its AUROC difference
+    rendered ``cluster_bootstrap_percentile`` 0.2256 (0.1599, 0.3054) and its sensitivity
+    difference 0.35 (0.25, 0.4671) - each the other side's interval alone, shifted; the
+    lens measured that AUROC interval covering the true difference in 0.295 of
+    replicates and the sensitivity one in 0.615, at a nominal 0.95. Inspected here: on
+    the AUROC and the sensitivity difference, against the reference and against the
+    complement, from the frozen side (A) and from the side whose complement is frozen
+    (B), the Number is ``boundary_estimate`` with the estimate carried as level minus
+    other, method ``none``, no bounds, the clustered flags kept, and the cell records
+    which side was frozen; with one A positive moved among the negatives nothing is
+    frozen and the same cells render with an interval."""
+    rep = run(separated_level_cohort_with_case_ids(), criteria_for(SITE_REF_B, **CLUSTERED_BY_CASE))
+    row_a, row_b = rep.row("site", "A"), rep.row("site", "B")
+    assert row_a["metrics"]["auroc"]["number"]["not_estimable_reason"] == "boundary_estimate"
+    assert row_a["metrics"]["op1"]["sensitivity"]["number"]["not_estimable_reason"] == (
+        "boundary_estimate"
+    )
+    auroc_b = row_b["metrics"]["auroc"]["number"]["est"]
+    sens_b = row_b["metrics"]["op1"]["sensitivity"]["number"]
+    assert 0.0 < auroc_b < 1.0 and 0 < sens_b["k"] < sens_b["n"]
+    p_b = sens_b["k"] / sens_b["n"]
+    checked = []
+    for row, side, kinds, sign in (
+        (row_a, "a", ("diff_vs_reference", "diff_vs_complement"), 1.0),
+        (row_b, "b", ("diff_vs_complement",), -1.0),
+    ):
+        for kind in kinds:
+            for cell, expected in (
+                (row[kind]["auroc"], sign * (1.0 - auroc_b)),
+                (row[kind]["op1"]["sensitivity"], sign * (1.0 - p_b)),
+            ):
+                num = cell["number"]
+                assert num["not_estimable_reason"] == "boundary_estimate", (side, kind, num)
+                assert num["method"] == "none" and num["ci_lo"] is None and num["ci_hi"] is None
+                assert num["est"] == pytest.approx(expected), (side, kind, num["est"], expected)
+                assert cell["analytic_status"] == "refused_clustered"
+                assert cell["analytic"]["not_estimable_reason"] == (
+                    "clustered_data_analytic_ci_invalid"
+                )
+                assert cell["bootstrap"]["resampling"]["frozen_sides"] == [side]
+                assert Number(**num).not_estimable_reason in NOT_ESTIMABLE_REASONS
+                checked.append((side, kind))
+        flags_auroc = row[kinds[0]]["auroc"]["number"]["flags"]
+        flags_sens = row[kinds[0]]["op1"]["sensitivity"]["number"]["flags"]
+        assert "delong_refused_clustered" in flags_auroc
+        assert "newcombe_refused_clustered" in flags_sens
+    assert len(checked) == 6
+    # B against the reference is null (B is the reference); B's own cells render
+    assert row_b["diff_vs_reference"]["auroc"] is None
+    assert row_b["metrics"]["auroc"]["number"]["method"] == "cluster_bootstrap_percentile"
+    # the output with the refused differences still validates
+    validator = jsonschema.Draft202012Validator(load_json_schema("output_schema_v1.json"))
+    assert list(validator.iter_errors(_document(rep))) == []
+    # one A positive moved inside the negatives: neither side is frozen, both render
+    moved = run(
+        separated_level_cohort_with_case_ids(move_one=True),
+        criteria_for(SITE_REF_B, **CLUSTERED_BY_CASE),
+    )
+    for cell in (
+        moved.row("site", "A")["diff_vs_reference"]["auroc"],
+        moved.row("site", "A")["diff_vs_reference"]["op1"]["sensitivity"],
+        moved.row("site", "B")["diff_vs_complement"]["auroc"],
+    ):
+        assert cell["number"]["method"] == "cluster_bootstrap_percentile", cell["number"]
+        assert cell["number"]["ci_lo"] is not None
+        assert cell["number"]["not_estimable_reason"] is None
+        assert cell["bootstrap"]["resampling"]["frozen_sides"] == []
+
+
+def test_frozen_sides_applies_the_single_cell_percentile_rule_to_each_side():
+    """The unit of FA-B1's repair: :func:`_frozen_sides` names a side whose finite draws
+    have coinciding ``alpha/2`` and ``1 - alpha/2`` quantiles - the rule
+    :func:`bootstrap_percentile` refuses a single cell on - and nothing else. Inspected:
+    a constant side, a side constant in all but one draw of 200 (the quantiles still
+    coincide), a side with one NaN draw among constants, a varying side, and a side
+    whose draws are all NaN (not named: there is nothing to freeze)."""
+    const = np.full(200, 1.0)
+    nearly = const.copy()
+    nearly[7] = 0.9
+    with_nan = const.copy()
+    with_nan[3] = np.nan
+    varying = np.linspace(0.0, 1.0, 200)
+    all_nan = np.full(200, np.nan)
+    f = subgroups_module._frozen_sides
+    assert f({"a": const, "b": varying}, 0.95) == ("a",)
+    assert f({"a": varying, "b": const}, 0.95) == ("b",)
+    assert f({"a": const, "b": const}, 0.95) == ("a", "b")
+    assert f({"a": nearly, "b": varying}, 0.95) == ("a",)
+    assert f({"a": with_nan, "b": varying}, 0.95) == ("a",)
+    assert f({"a": varying, "b": varying}, 0.95) == ()
+    assert f({"a": all_nan, "b": varying}, 0.95) == ()
+    # the constant side alone would be refused by the single-cell rule
+    lo, hi = subgroups_module.percentile_bounds(const, 0.95)
+    assert lo == hi
+
+
+def test_fewer_than_two_evaluable_levels_is_insufficient_levels_on_every_route():
+    """Lens 2 FA-N8 / RG-N2. At 9da4401 an all-Unknown or one-level attribute under a
+    clustered plan reported ``clustered_data_analytic_ci_invalid`` with ``n_levels`` 0 or
+    1, where the i.i.d. route reports ``insufficient_levels``. Inspected: both shapes,
+    declared and detected, report ``insufficient_levels``; a two-level clustered
+    attribute still reports the clustered refusal; the route is recorded either way."""
+    n = 60
+    base = make_cohort(n=n, with_case_id=True)
+    dup = {k: [v[i // 2] for i in range(2 * n)] for k, v in base.items()}
+    declared = criteria_for(SITE_LARGEST, **CLUSTERED_BY_CASE)
+    detected = criteria_for(SITE_LARGEST)
+    for site, n_levels in (([None] * (2 * n), 0), (["S1"] * (2 * n), 1)):
+        cols = {**dup, "site": site}
+        for crit, route in ((declared, "declared"), (detected, "detected")):
+            foot = run(cols, crit).attribute("site")["heterogeneity"]
+            assert foot["clustering_route"] == route
+            for t in foot["tests"]:
+                assert t["not_estimable_reason"] == "insufficient_levels", (route, n_levels, t)
+                assert t["n_levels"] == n_levels and t["p_raw"] is None
+    two = {**dup, "site": ["S1", "S1", "S2", "S2"] * (n // 2)}
+    foot = run(two, declared).attribute("site")["heterogeneity"]
+    assert {t["not_estimable_reason"] for t in foot["tests"]} == {
+        "clustered_data_analytic_ci_invalid"
+    }
+    assert {t["n_levels"] for t in foot["tests"]} == {2}
+    # the function itself, on the counts: the precedence does not depend on the table
+    foot = subgroups_module.heterogeneity_footnote(
+        {"op1": {"sensitivity": [(45, 5)], "specificity": [(40, 10), (38, 12)]}},
+        clustering_route="declared",
+    )
+    by_metric = {t["metric"]: t["not_estimable_reason"] for t in foot["tests"]}
+    assert by_metric == {
+        "sensitivity": "insufficient_levels",
+        "specificity": "clustered_data_analytic_ci_invalid",
+    }
+
+
+def test_the_heterogeneity_footnote_has_no_default_clustering_route():
+    """Lens 2 FA-N9. At 9da4401 ``clustering_route`` defaulted to ``"none"``, so a direct
+    call that forgot it computed the row test (F6: p 0.0986). Inspected: the call
+    without the keyword raises ``TypeError``; with it, the F6 figures are unchanged."""
+    per_op = {"op1": {"sensitivity": [(45, 5), (38, 12), (27, 3)]}}
+    with pytest.raises(TypeError, match="clustering_route"):
+        subgroups_module.heterogeneity_footnote(per_op)  # type: ignore[call-arg]
+    foot = subgroups_module.heterogeneity_footnote(per_op, clustering_route="none")
+    approx4(foot["tests"][0]["p_raw"], 0.0986)
+
+
+def test_the_sentences_lens_2_falsified_are_gone_from_the_shipped_text():
+    """Lens 2 FA-N2 / RG-N1 / FA-N3. Inspected: the two phrases the lens falsified by
+    measurement - "at every seed tried" beside a 0.870 and a 0.880, and "not
+    implemented for the proportion route" while the AUROC route renders shapes below
+    the bar too - are absent from ``design/conventions_T7.md`` and
+    ``src/proofpack/stats/bootstrap.py``, and the two measurements that falsified them
+    are recorded there. A grep on prose, not a check on behaviour."""
+    t7 = (REPO / "design" / "conventions_T7.md").read_text(encoding="utf-8")
+    bootstrap_src = (REPO / "src" / "proofpack" / "stats" / "bootstrap.py").read_text(
+        encoding="utf-8"
+    )
+    for text in (t7, bootstrap_src):
+        assert "at every seed tried" not in text
+        assert "not implemented** for the proportion route" not in text
+        assert "not implemented for the proportion route" not in text
+        assert "0.880" in text and "0.870" in text
+    assert "on either route" in t7

@@ -242,17 +242,20 @@ MIN_UNITS_PER_STRATUM = 2
 #: 0.770. The rule refuses at ``frozen >= MAX_FROZEN_VARIANCE_SHARE``, so with the
 #: constant at 0.20 the shapes it **renders** are 0.05 and 0.10 (both at or above the
 #: bar in the recorded run) and the share-0.20 shape (m = 36, 9/45 exactly) is the first
-#: shape it **refuses** - a shape that measured at or above the bar (0.932 / 0.915;
-#: 0.900 / 0.870 at ``--quick``, R = 100; 0.925 / 0.915 at seed 20260916, R = 200,
-#: B = 500 in the day-5 repair). The next refused shape, 0.30, straddles the bar across
-#: seeds: 0.863 / 0.873 in the recorded run, 0.930 / 0.915 at the lens's seed 7 and
-#: 0.910 / 0.890 at seed 20260916 - a spread of about three Monte-Carlo standard errors
-#: (0.015 at R = 400, 0.021 at R = 200). The day-4 value is **kept** as the
-#: conservative choice at this boundary: it refuses one measured shape that met the bar
-#: at every seed tried, and was not loosened to 0.30 because that shape's measurements
-#: fall on both sides of the bar. Recorded in the day-5 lens note (FA-N1) and repair
-#: note; the full table is in ``design/conventions_T7.md``. This is a measurement on the
-#: grid's shapes, not a guarantee.
+#: shape it **refuses** - a shape measured eight times (N = 30 / N = 120) at 0.932 /
+#: 0.915 (recorded run, R = 400), 0.900 / 0.870 (``--quick``, R = 100), and at seed
+#: 20260916 (R = 200, B = 500) 0.925 / 0.915 with a fresh generator per cell and
+#: 0.880 / 0.915 with one generator shared across the cells: two of eight cells below
+#: the bar, so the shape sits near the bar rather than above it. The next refused shape,
+#: 0.30, straddles the bar across seeds too: 0.863 / 0.873 in the recorded run, 0.930 /
+#: 0.915 at the lens's seed 7 and 0.910 / 0.890 at seed 20260916. The spread is about
+#: two and a half Monte-Carlo standard errors (0.015 at R = 400, 0.021 at R = 200). The
+#: day-4 value is **kept** as the conservative choice at this boundary: it refuses a
+#: shape whose measurements fall on both sides of the bar, and was not loosened to 0.30
+#: because that shape's measurements do too. Recorded in the day-5 lens notes (lens 1
+#: FA-N1; lens 2 FA-N2 and RG-N1) and repair notes; the full table is in
+#: ``design/conventions_T7.md``. This is a measurement on the grid's shapes, not a
+#: guarantee.
 MAX_FROZEN_VARIANCE_SHARE = 0.20
 #: R2 section 3.3 precision tiers, measured in **resampling units** - cases when the
 #: rows are clustered, rows when they are not. Advisory only; never a suppression.

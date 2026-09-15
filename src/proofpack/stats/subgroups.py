@@ -63,7 +63,13 @@ within each side *independently* with the day-4 :class:`~proofpack.stats.bootstr
 percentile interval, method ``cluster_bootstrap_percentile``, flag
 ``newcombe_refused_clustered`` (proportions) or ``delong_refused_clustered`` (AUROC) on the
 rendered Number; if **any** case has rows on both sides the two sides are not independent
-samples and the difference is refused outright with ``cases_span_both_groups``.
+samples and the difference is refused outright with ``cases_span_both_groups``. A
+difference is refused with ``boundary_estimate`` (estimate carried) when one side is
+frozen: on the analytic route when either side's DeLong variance is zero
+(:func:`~proofpack.stats.discrimination.unpaired_delong`), and on the cluster-bootstrap
+route when either side's own resampled statistic has a zero-width percentile interval
+(:func:`_frozen_sides`) - the interval would otherwise be the other side's alone. The
+cell records which sides were frozen under ``bootstrap.resampling.frozen_sides``.
 
 **AUROC evaluability.** A level with fewer than :data:`AUROC_EVALUABLE_CLASS` positives
 or fewer than that many negatives has its AUROC shown as not estimable
@@ -111,7 +117,8 @@ has no ``status`` key beside any p-value. With scipy absent the test entries car
 a clustered plan** (declared or detected) the tests are not run: the chi-square counts
 rows as independent trials, so every entry carries
 ``not_estimable_reason: clustered_data_analytic_ci_invalid`` and the footnote records
-the ``clustering_route`` (lens note 2026-09-15, FA-B1).
+the ``clustering_route`` (lens note 2026-09-15, FA-B1). Fewer than two evaluable levels
+is ``insufficient_levels`` on every route.
 
 **Cell shape.** Every metric and every difference is serialised as the day-4 cell
 ``{number, analytic, analytic_status, clustering_route, bootstrap}`` (plus an optional
@@ -328,7 +335,7 @@ def _clustered_refusal(counts: Sequence[tuple[int, int]]) -> dict[str, Any]:
 def heterogeneity_footnote(
     per_op: dict[str, dict[str, Sequence[tuple[int, int]]]],
     *,
-    clustering_route: str = "none",
+    clustering_route: str,
 ) -> dict[str, Any]:
     """The exploratory footnote for one attribute.
 
@@ -338,17 +345,23 @@ def heterogeneity_footnote(
     key anywhere in the result, by design and by test.
 
     ``clustering_route`` is the run-level :class:`~proofpack.stats.bootstrap.ClusterPlan`
-    route (``none`` / ``declared`` / ``detected``). The chi-square and Fisher tests count
-    **rows** as independent Bernoulli trials; under a clustered plan the rows are not,
-    the chi-square statistic grows with the rows-per-case factor and the p-value shrinks
-    with it (F6 with every patient's row copied three times: chi-square 13.898, p 0.00096
-    against 4.6327, p 0.0986 on one row per patient - lens note 2026-09-15, FA-B1). So
-    under ``declared`` or ``detected`` every entry carries
+    route (``none`` / ``declared`` / ``detected``) and has no default: a caller that
+    omits it gets a ``TypeError``, not the row test (lens 2, FA-N9). The chi-square and
+    Fisher tests count **rows** as independent Bernoulli trials; under a clustered plan
+    the rows are not, the chi-square statistic grows with the rows-per-case factor and
+    the p-value shrinks with it (F6 with every patient's row copied three times:
+    chi-square 13.898, p 0.00096 against 4.6327, p 0.0986 on one row per patient - lens
+    note 2026-09-15, FA-B1). So under ``declared`` or ``detected`` every entry carries
     ``not_estimable_reason: clustered_data_analytic_ci_invalid`` - the DEC-09 typed
     reason the same block's intervals already carry - with ``n_levels`` kept so the
     reader sees what would have been compared, and the Holm family is empty. No
     case-level homogeneity test is offered in its place: a switch to a different method
     is a method choice, not a fallback, and none is made here.
+
+    Precedence of the two refusals (lens 2, FA-N8 / RG-N2): fewer than two evaluable
+    levels is ``insufficient_levels`` on every route, because there was no comparison
+    to make before the question of independence arose; the clustered refusal applies
+    only where a test would otherwise have run.
     """
     if clustering_route not in CLUSTER_ROUTES:
         raise ValueError(f"unknown clustering_route {clustering_route!r}")
@@ -356,7 +369,11 @@ def heterogeneity_footnote(
     tests: list[dict[str, Any]] = []
     for op_id, metrics in per_op.items():
         for metric, counts in metrics.items():
-            entry = _clustered_refusal(counts) if clustered else _homogeneity_test(counts)
+            entry = (
+                _clustered_refusal(counts)
+                if clustered and len(counts) >= 2
+                else _homogeneity_test(counts)
+            )
             entry = {"operating_point": op_id, "metric": metric, **entry}
             tests.append(entry)
     raw = [t["p_raw"] for t in tests if t["p_raw"] is not None]
@@ -429,6 +446,27 @@ def _unavailable(number: Number, key: str, route: str, analytic: Number | None =
 # -------------------------------------------------------------- two-sided bootstrap
 
 
+def _frozen_sides(side_values: dict[str, np.ndarray], level: float) -> tuple[str, ...]:
+    """The sides whose own resampled statistic has a zero-width percentile interval.
+
+    :func:`proofpack.stats.bootstrap.bootstrap_percentile` refuses a single cell with
+    ``boundary_estimate`` when the ``alpha/2`` and ``1 - alpha/2`` quantiles of its
+    draws coincide. The same rule, applied to each side's finite draws on its own: a
+    perfectly separated level's AUROC is 1.0 (or 0.0) in every case-resample, a level's
+    proportion at ``k = n`` or ``k = 0`` is the same in every resample, and a
+    constant-score level's AUROC is 0.5 in every resample.
+    """
+    frozen: list[str] = []
+    for side, values in side_values.items():
+        finite = values[np.isfinite(values)]
+        if finite.shape[0] == 0:
+            continue
+        lo, hi = percentile_bounds(finite, level)
+        if lo == hi:
+            frozen.append(side)
+    return tuple(frozen)
+
+
 def _bootstrap_difference(
     stat_a: Callable[[np.ndarray], float],
     res_a: Resampler,
@@ -437,14 +475,27 @@ def _bootstrap_difference(
     rng: np.random.Generator,
     n_resamples: int,
     level: float,
-) -> BootstrapDraw:
+) -> tuple[BootstrapDraw, tuple[str, ...]]:
     """Percentile interval for ``stat_a - stat_b`` with the two sides drawn independently.
 
+    Returns the draw and the sides found frozen (``("a",)``, ``("b",)``, ``("a", "b")``
+    or ``()``), which the cell records under ``bootstrap.resampling.frozen_sides``.
+
     The same refusal rules as :func:`proofpack.stats.bootstrap.bootstrap_percentile`,
-    applied to each side's resampler before any draw is made: a side whose class the
-    resampler cannot vary refuses the difference with that side's typed reason. The two
-    sides consume one generator in a fixed order (a then b), so the draw is a pure
-    function of the cell key like every other cell.
+    applied to each side: a side whose class the resampler cannot vary refuses the
+    difference with that side's typed reason before any draw is made; after the draws,
+    a side whose own statistic has a zero-width percentile interval (:func:`_frozen_sides`)
+    refuses the difference with ``boundary_estimate``, estimate carried, because
+    ``values = const - stat_b(draw)`` would make the rendered interval the other side's
+    alone, shifted (lens note 2026-09-15, lens 2 FA-B1: measured on a 10-case level
+    perfectly separated beside a 60-case level under clustering, that interval covered
+    the true AUROC difference in 0.295 of replicates, and the sensitivity difference at
+    10/10 in 0.615, at a nominal 0.95). What is inspected:
+    ``test_the_two_sided_cluster_bootstrap_refuses_a_difference_whose_one_side_is_frozen``
+    reads the AUROC and sensitivity differences of a separated level, and of the
+    complement that contains it, on the repair-round-1 cohort duplicated under case ids.
+    The two sides consume one generator in a fixed order (a then b, one draw each per
+    resample), so the draw is a pure function of the cell key like every other cell.
     """
     for res in (res_a, res_b):
         deficient = res.deficient_class
@@ -457,22 +508,26 @@ def _bootstrap_difference(
                 n_requested=n_resamples,
                 n_usable=0,
                 reason=_refusal_reason(res.kind, deficient),
-            )
-    values = np.empty(n_resamples, dtype=np.float64)
+            ), ()
+    values_a = np.empty(n_resamples, dtype=np.float64)
+    values_b = np.empty(n_resamples, dtype=np.float64)
     for b in range(n_resamples):
-        values[b] = stat_a(res_a.draw(rng)) - stat_b(res_b.draw(rng))
+        values_a[b] = stat_a(res_a.draw(rng))
+        values_b[b] = stat_b(res_b.draw(rng))
+    values = values_a - values_b
     usable = values[np.isfinite(values)]
     if usable.shape[0] < math.ceil(MIN_USABLE_FRACTION * n_resamples):
         return BootstrapDraw(
             values, None, None, None, n_resamples, int(usable.shape[0]), "degenerate_resamples"
-        )
+        ), ()
+    frozen = _frozen_sides({"a": values_a, "b": values_b}, level)
     lo, hi = percentile_bounds(usable, level)
     sd = float(usable.std(ddof=1)) if usable.shape[0] > 1 else 0.0
-    if lo == hi:
+    if frozen or lo == hi:
         return BootstrapDraw(
             values, None, None, sd, n_resamples, int(usable.shape[0]), "boundary_estimate"
-        )
-    return BootstrapDraw(values, lo, hi, sd, n_resamples, int(usable.shape[0]))
+        ), frozen
+    return BootstrapDraw(values, lo, hi, sd, n_resamples, int(usable.shape[0])), frozen
 
 
 def _shared_cases(ids_a: np.ndarray, ids_b: np.ndarray) -> int:
@@ -534,7 +589,7 @@ def _proportion_difference(
         )
     res_a, res_b = clustered_flat(ids_a, n_rows=n1), clustered_flat(ids_b, n_rows=n2)
     pol = arrays.policy
-    draw = _bootstrap_difference(
+    draw, frozen = _bootstrap_difference(
         lambda idx: float(ind_a[idx].mean()),
         res_a,
         lambda idx: float(ind_b[idx].mean()),
@@ -560,7 +615,7 @@ def _proportion_difference(
         pol,
         draw.n_usable,
         draw.sd,
-        {"a": res_a.describe(), "b": res_b.describe()},
+        {"a": res_a.describe(), "b": res_b.describe(), "frozen_sides": list(frozen)},
     )
 
 
@@ -654,7 +709,7 @@ def _auroc_difference(
         return statistic
 
     pol = arrays.policy
-    draw = _bootstrap_difference(
+    draw, frozen = _bootstrap_difference(
         stat(s_a, pos_a), res_a, stat(s_b, pos_b), res_b, pol.rng(key), pol.n_resamples, level
     )
     number = _number_from_draw(
@@ -674,7 +729,7 @@ def _auroc_difference(
         pol,
         draw.n_usable,
         draw.sd,
-        {"a": res_a.describe(), "b": res_b.describe()},
+        {"a": res_a.describe(), "b": res_b.describe(), "frozen_sides": list(frozen)},
     )
     return cell, None
 

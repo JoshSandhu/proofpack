@@ -233,7 +233,7 @@ MUTANTS: tuple[Mutant, ...] = (
         "heterogeneity_ignores_the_plan",
         SUBGROUPS,
         r"heterogeneity_footnote\(per_op, clustering_route=arrays\.plan\.route\)",
-        "heterogeneity_footnote(per_op)",
+        'heterogeneity_footnote(per_op, clustering_route="none")',
         what="the chi-square runs on the rows of a clustered table (fresh-attack lens B1)",
     ),
     Mutant(
@@ -246,8 +246,8 @@ MUTANTS: tuple[Mutant, ...] = (
     Mutant(
         "two_sided_bootstrap_side_b_from_a_fixed_generator",
         SUBGROUPS,
-        r"values\[b\] = stat_a\(res_a\.draw\(rng\)\) - stat_b\(res_b\.draw\(rng\)\)",
-        "values[b] = stat_a(res_a.draw(rng)) - stat_b(res_b.draw(np.random.default_rng(b)))",
+        r"values_b\[b\] = stat_b\(res_b\.draw\(rng\)\)",
+        "values_b[b] = stat_b(res_b.draw(np.random.default_rng(b)))",
         what="side b of the two-sided bootstrap is not drawn from the cell's generator (RG-N2)",
     ),
     Mutant(
@@ -256,6 +256,43 @@ MUTANTS: tuple[Mutant, ...] = (
         r'"subgroup reference_level is not a level of the analysed rows"',
         '"subgroup reference_level is not an observed level"',
         what="the H09 halt on an excluded reference level says it was not observed (FA-N7)",
+    ),
+    # ---- day-5 repair round 2: lens 2's blocker and the survivors this round's tests observe
+    Mutant(
+        "two_sided_bootstrap_frozen_side_check_removed",
+        SUBGROUPS,
+        r"if frozen or lo == hi:",
+        "if lo == hi:",
+        what="a difference with one side frozen renders the other side's interval (lens 2 FA-B1)",
+    ),
+    Mutant(
+        "two_sided_bootstrap_frozen_check_side_a_only",
+        SUBGROUPS,
+        r'frozen = _frozen_sides\(\{"a": values_a, "b": values_b\}, level\)',
+        'frozen = _frozen_sides({"a": values_a}, level)',
+        what="the frozen-side check inspects side a only (lens 2 FA-B1, side b)",
+    ),
+    Mutant(
+        "two_sided_bootstrap_side_b_drawn_before_side_a",
+        SUBGROUPS,
+        r"values_a\[b\] = stat_a\(res_a\.draw\(rng\)\)\n"
+        r"        values_b\[b\] = stat_b\(res_b\.draw\(rng\)\)",
+        "values_b[b] = stat_b(res_b.draw(rng))\n        values_a[b] = stat_a(res_a.draw(rng))",
+        what="side b consumes the cell's generator before side a (lens 2 FA-N4)",
+    ),
+    Mutant(
+        "clustered_proportion_difference_sign",
+        SUBGROUPS,
+        r"    d = k1 / n1 - k2 / n2\n    if not arrays\.clustered:",
+        "    d = k2 / n2 - k1 / n1\n    if not arrays.clustered:",
+        what="the clustered proportion difference estimate is other minus level (lens 2 FA-N6)",
+    ),
+    Mutant(
+        "heterogeneity_clustered_refusal_before_the_level_count",
+        SUBGROUPS,
+        r"if clustered and len\(counts\) >= 2",
+        "if clustered",
+        what="fewer than two levels under clustering reports the clustered reason (lens 2 FA-N8)",
     ),
     Mutant(
         "schema_extension_missing_reason",

@@ -35,16 +35,24 @@ the unpaired DeLong (1988) difference - the two variances add because the sample
 disjoint - with a Wald interval; z and the two-sided p are detail, never a verdict. The
 AUROC difference is refused with `boundary_estimate` (estimate carried, no z, no p) when
 either side's DeLong variance is zero - a perfectly separated side, whose own AUROC the
-engine already refuses for the same reason - because the interval would then be the other
-side's alone. Under
-clustering (declared `case_id`, or repeated case ids detected) both analytic methods are
-refused with the typed reason `clustered_data_analytic_ci_invalid`; the difference is
-computed by the cluster bootstrap with each side's cases resampled independently
-(percentile interval, method `cluster_bootstrap_percentile`, flag
-`newcombe_refused_clustered` or `delong_refused_clustered`), and is refused outright with
-`cases_span_both_groups` when any case has rows on both sides. The shared-case test is made
-on exactly the rows that enter the difference (for a sensitivity difference, the
-reference-positive rows of each side).
+engine already refuses for the same reason - because the interval would otherwise be the
+other side's alone. Under clustering (declared `case_id`, or repeated case ids detected)
+both analytic methods are refused with the typed reason
+`clustered_data_analytic_ci_invalid`; the difference is computed by the cluster bootstrap
+with each side's cases resampled independently (percentile interval, method
+`cluster_bootstrap_percentile`, flag `newcombe_refused_clustered` or
+`delong_refused_clustered`), and is refused outright with `cases_span_both_groups` when
+any case has rows on both sides. The shared-case test is made on exactly the rows that
+enter the difference (for a sensitivity difference, the reference-positive rows of each
+side). On that route too a difference is refused with `boundary_estimate` (estimate
+carried) when either side is frozen - when the side's own resampled statistic has a
+zero-width percentile interval, the rule that refuses a single cell, applied to each side:
+a perfectly separated level's AUROC, a level's proportion at 0/n or n/n, a constant-score
+level's AUROC. The cell records the frozen side under `bootstrap.resampling.frozen_sides`.
+Lens 2 (15 September 2026, FA-B1) measured the interval that was rendered before this
+refusal existed - a 10-case level perfectly separated beside a 60-case level - covering
+the true AUROC difference in 0.295 of replicates and the true sensitivity difference (a
+10-case level at 10/10) in 0.615, at a nominal 0.95.
 
 **AUROC per level** needs at least 10 positives and 10 negatives (R2 section 3.3); below
 that it is shown as not evaluable with the reason, never omitted.
@@ -68,7 +76,9 @@ case ids detected) the tests are not run: they count rows as independent trials,
 F6 with every patient's row copied three times the chi-square rose from 4.63 (p 0.099) to
 13.90 (p 0.001). Every entry then carries the typed reason
 `clustered_data_analytic_ci_invalid`, the footnote records the `clustering_route`, and no
-p-value is printed.
+p-value is printed. An attribute with fewer than two evaluable levels reports
+`insufficient_levels` on every route: there was no comparison to make before the question
+of independence arose.
 
 **Fairness** is measured, never mitigated. Gaps against the reference level are the
 reference-level differences read as gaps: `tpr_gap` = sensitivity difference; `fpr_gap` =
@@ -94,13 +104,17 @@ minutes) or `--quick` (R = 100, B = 200, 41 seconds measured on 15 September 202
 **Constants after this measurement:** `MAX_FROZEN_VARIANCE_SHARE = 0.20` (kept). The
 refusal rule is `frozen share >= 0.20`, so the shapes this constant renders are the 0.05
 and 0.10 rows below (0.912 / 0.958 and 0.943 / 0.935) and the 0.20 row is the first shape
-it refuses. That refused shape measured at or above the bar at every seed tried - 0.932 /
-0.915 in the recorded run (Monte-Carlo error 0.015), 0.900 / 0.870 at `--quick`, 0.925 /
-0.915 at seed 20260916 (R = 200, B = 500) - and the 0.30 row straddles the bar across
-seeds (0.863 / 0.873 recorded; 0.930 / 0.915 at the lens's seed 7; 0.910 / 0.890 at seed
-20260916). The constant was therefore neither loosened to 0.30 nor moved: at this boundary
-it refuses one shape that met the bar, which is the conservative side of a measurement
-whose seed-to-seed spread is about three Monte-Carlo standard errors.
+it refuses. That refused shape has been measured eight times (N = 30 / N = 120): 0.932 /
+0.915 in the recorded run (R = 400, Monte-Carlo error 0.015); 0.900 / 0.870 at `--quick`
+(R = 100, error 0.03); and at seed 20260916 (R = 200, B = 500, error 0.021) 0.925 / 0.915
+with a fresh generator per cell and 0.880 / 0.915 with one generator shared across the
+cells in share order. Two of the eight cells are below the bar: the shape sits near the
+bar, not above it. The 0.30 row straddles the bar across seeds too (0.863 / 0.873
+recorded; 0.930 / 0.915 at the lens's seed 7; 0.910 / 0.890 at seed 20260916). The
+constant was therefore neither loosened to 0.30 nor moved: at this boundary it refuses a
+shape whose measurements fall on both sides of the bar, which is the conservative side of
+a measurement whose seed-to-seed spread is about two and a half Monte-Carlo standard
+errors.
 `MIN_UNITS_PER_STRATUM = 2` (kept, **but it does not meet the bar** - see below).
 
 ### AUROC cell: one frozen pure-positive case of 3 rows beside m mixed cases
@@ -152,10 +166,12 @@ effective-units floor per cell, or T7 carrying this table as the statement of wh
 interval does. Until it is taken, this paragraph is the honest one and T7 should carry it.
 
 The AUROC frozen-share half: every shape the constant renders measured at or above the
-bar in the recorded run, and the first shape it refuses did too (see the constants
-paragraph above for the seed-to-seed spread at the 0.20 and 0.30 rows).
+bar in the recorded run; the first shape it refuses did in the recorded run and in six of
+eight cells over four runs (see the constants paragraph above for the seed-to-seed spread
+at the 0.20 and 0.30 rows).
 
-The DEC-08 refusal-below-the-bar is **not implemented** for the proportion route: a
-clustered proportion cell of 10 cases at p = 0.9 (measured 0.672 above) renders today with
-its tier annotation and no refusal. That is the open decision named in the previous
-paragraph, not an omission of this file.
+The DEC-08 refusal-below-the-bar is **not implemented on either route** for the
+`MIN_UNITS_PER_STRATUM` half: the AUROC route renders the u = 2, m = 0 shape (0.715 /
+0.620 in the table above) and the proportion route renders a clustered cell of 10 cases at
+p = 0.9 (0.672 above), each with its tier annotation and no refusal. That is the open
+decision named in the previous paragraph, not an omission of this file.
