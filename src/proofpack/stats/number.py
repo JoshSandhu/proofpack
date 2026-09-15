@@ -88,6 +88,17 @@ NOT_ESTIMABLE_REASONS: frozenset[str] = frozenset(
         # MAX_FROZEN_VARIANCE_SHARE for the two halves and the measurements behind them.
         "insufficient_clusters",
         "degenerate_resamples",  # too few resamples gave a defined statistic
+        # subgroup differences (build day 5). Inspects the set intersection of the case
+        # ids on the two sides of a difference (a level against its reference level, or
+        # against its complement). Under clustering the two sides of an *unpaired*
+        # difference must be independent samples; a case with rows on both sides makes
+        # them dependent, so neither Newcombe-10, the unpaired DeLong variance nor a
+        # two-sided cluster bootstrap describes the difference, and it is refused rather
+        # than computed on a false independence. See stats.subgroups.
+        "cases_span_both_groups",
+        # the exploratory heterogeneity footnote (stats.subgroups): a homogeneity test
+        # needs at least two evaluable levels of the attribute to compare
+        "insufficient_levels",
     }
 )
 
@@ -110,6 +121,11 @@ FLAGS: frozenset[str] = frozenset(
         # was refused; the typed reason itself rides on the companion Number.
         "delong_refused_clustered",
         "wilson_refused_clustered",
+        # Build day 5: a subgroup *difference* under clustering. Newcombe method 10
+        # assumes independent rows on each side; it is refused and the difference is
+        # cluster-bootstrapped with each side resampled independently. The flag rides on
+        # the rendered difference; the typed reason rides on its companion.
+        "newcombe_refused_clustered",
         # R2 1.3: a class below 10 gets the stratified bootstrap as its rendered
         # interval, with the DeLong Number carried alongside. Recorded, never silent.
         "analytic_ci_replaced_small_class",

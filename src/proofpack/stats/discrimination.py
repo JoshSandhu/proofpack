@@ -75,6 +75,7 @@ __all__ = [
     "logit_ci",
     "paired_delong",
     "roc_curve",
+    "unpaired_delong",
     "wald_ci",
 ]
 
@@ -416,6 +417,97 @@ def paired_delong(
         auroc_a=auroc_number(a, pos, level).auroc,
         auroc_b=auroc_number(b, pos, level).auroc,
         difference=difference,
+        variance_difference=var_diff,
+        z=float(z),
+        p_value=_two_sided_p(z),
+    )
+
+
+# --------------------------------------------------------------------- unpaired DeLong
+
+
+@dataclass
+class UnpairedDeLong:
+    """Two ROC curves on **disjoint** samples (a subgroup and its complement)."""
+
+    auroc_a: float
+    auroc_b: float
+    difference: Number
+    variance_a: float
+    variance_b: float
+    variance_difference: float
+    z: float
+    p_value: float
+    method: str = "unpaired_delong"
+
+
+def unpaired_delong(
+    scores_a: np.ndarray,
+    positives_a: np.ndarray,
+    scores_b: np.ndarray,
+    positives_b: np.ndarray,
+    level: float = 0.95,
+) -> UnpairedDeLong:
+    """AUC(A) - AUC(B) for two ROC curves estimated on **independent** samples.
+
+    DeLong, DeLong and Clarke-Pearson (1988, Biometrics 44:837-845) give the
+    covariance matrix of a vector of AUC estimates from the structural components
+    ``V10`` (one per positive) and ``V01`` (one per negative): ``S = S10/m + S01/n``.
+    When the two curves are estimated on disjoint samples no case contributes a
+    component to both, so the cross term is zero and the variance of the difference is
+    the plain sum ``Var(A) + Var(B)`` - each computed by :func:`delong_variance`, the
+    day-3 code that R2 section 9 F3 pins at ``SE = 0.1549`` and that the day-3 tests
+    check against a direct O(n*m) computation of the same components. The interval is
+    Wald on the difference, ``diff +/- z * sqrt(Var(A) + Var(B))``; ``z`` and the
+    two-sided p-value are returned as *detail* and are never a verdict about the
+    subgroup (R2 section 3.4: "never let a p-value clear a subgroup").
+
+    **Checked against**: (a) the day-3 :func:`delong_variance` on each arm separately,
+    so the sum is exactly the sum of two oracled quantities; (b) in
+    ``tests/test_subgroups.py`` the difference and its variance are recomputed from the
+    placement-value definition of ``V10``/``V01`` written out in the test, and the z
+    against ``scipy.stats.norm`` for the tail. No R (pROC) capture exists for the
+    unpaired case; pROC's ``roc.test(paired = FALSE)`` is the natural external oracle
+    and is **[unverified - not captured in this build environment]**.
+
+    Rows on each side are assumed independent **and independent of the other side**.
+    This function has no clustering parameter and inspects no case column; the caller
+    (``stats.subgroups``) routes clustered data away from it and refuses the
+    difference outright when a case has rows on both sides.
+    """
+    a = np.asarray(scores_a, dtype=np.float64)
+    b = np.asarray(scores_b, dtype=np.float64)
+    pa = np.asarray(positives_a, dtype=bool)
+    pb = np.asarray(positives_b, dtype=bool)
+    auc_a, var_a = delong_variance(a, pa)
+    auc_b, var_b = delong_variance(b, pb)
+    var_diff = float(var_a + var_b)
+    diff = float(auc_a - auc_b)
+    se = math.sqrt(max(var_diff, 0.0))
+    z = diff / se if se > 0 else 0.0
+    counts = {
+        "n_pos": int(pa.sum()) + int(pb.sum()),
+        "n_neg": int((~pa).sum()) + int((~pb).sum()),
+    }
+    zq = z_for(level)
+    difference = (
+        Number(
+            est=diff,
+            ci_lo=diff - zq * se,
+            ci_hi=diff + zq * se,
+            ci_level=level,
+            method="delong_wald",
+            **counts,
+        )
+        if se > 0
+        else not_estimable("boundary_estimate", est=diff, ci_level=level, **counts)
+    )
+    return UnpairedDeLong(
+        auroc_a=float(auc_a),
+        auroc_b=float(auc_b),
+        difference=difference,
+        variance_a=float(var_a),
+        variance_b=float(var_b),
         variance_difference=var_diff,
         z=float(z),
         p_value=_two_sided_p(z),

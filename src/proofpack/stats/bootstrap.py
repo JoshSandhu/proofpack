@@ -189,6 +189,24 @@ CLUSTER_ROUTES = ("none", "declared", "detected")
 #: every time (re-verify note, 2026-09-10, fresh-attack FA-B1). See
 #: :attr:`Resampler.deficient_class`, which applies it to the largest stratum supplying
 #: the class.
+#:
+#: **DEC-08 coverage bar (build day 5, ``scripts/coverage_bar.py`` v1, seed 20260915,
+#: R = 400 cohorts, B = 1000, nominal 0.95, bar 0.90): this constant does NOT meet the
+#: bar, and was not changed.** Measured on a positive class resting on ``u`` pure-positive
+#: cases of three rows and nothing else (30 / 120 negative cases), the percentile
+#: interval covered the truth at u = 2 / 3 / 4 / 5 in 0.715 / 0.787 / 0.815 / 0.870 and
+#: 0.620 / 0.715 / 0.810 / 0.795 of cohorts; on a clustered proportion cell of ``u``
+#: cases at p = 0.5 in 0.505 / 0.762 / 0.870 / 0.940 (u = 2..5) and 0.975 (u = 10), but
+#: at p = 0.9 in 0.190 / 0.237 / 0.347 / 0.407 (u = 2..5), 0.672 (u = 10), 0.850 (u = 20)
+#: and 0.922 (u = 40) with one row per case. No value of this constant on the grid
+#: renders only shapes at or above the bar: the shortfall is the percentile bootstrap's
+#: own behaviour at few units and near a boundary proportion, and a floor high enough to
+#: clear it (above 40 units at p = 0.9) would refuse fixture F3 (five positives, R2
+#: section 9) and most of the R2 section 1.3 small-class route. The shapes below the bar
+#: all carry the R2 section 3.3 tier ("not evaluable, shown for transparency" below 10
+#: units, "very low precision" below 30); what to do about the 10-40 unit range at high
+#: proportions is a decision for Josh, recorded in the day-5 note, not a constant changed
+#: here. Full table: ``design/conventions_T7.md``.
 MIN_UNITS_PER_STRATUM = 2
 #: The other half of the same floor, and the quantitative one. A stratum of one unit is
 #: frozen whatever the *other* strata do, so a class can clear
@@ -214,6 +232,18 @@ MIN_UNITS_PER_STRATUM = 2
 #: rather than taking it on trust. Both existing multi-lesion fixtures pass it: 199 pure
 #: cases beside one mixed case freeze 1/397 of the positive variance weight, and forty
 #: all-mixed cases freeze none.
+#:
+#: **DEC-08 coverage bar (build day 5, ``scripts/coverage_bar.py`` v1, seed 20260915,
+#: R = 400 cohorts, B = 1000, nominal 0.95, bar 0.90).** Measured on AUROC cells whose
+#: positive class rests on one frozen pure-positive case of three rows beside ``m`` mixed
+#: cases, the interval covered the truth at a frozen share of 0.05 / 0.10 / 0.20 in
+#: 0.912 / 0.943 / 0.932 of cohorts (30 negative cases) and 0.958 / 0.935 / 0.915 (120
+#: negative cases); at 0.30 / 0.41 / 0.50 in 0.863 / 0.877 / 0.843 and 0.873 / 0.823 /
+#: 0.770. Every measured shape this constant lets through covers at or above the bar
+#: and the first refused shape is below it, so the day-4 value is **kept**. No shape
+#: between 0.20 and 0.30 was measured; 0.20 is the loosest *measured* value, not an
+#: extrapolation to 0.30. The full table is in ``design/conventions_T7.md``. This is a
+#: measurement on the grid's shapes, not a guarantee.
 MAX_FROZEN_VARIANCE_SHARE = 0.20
 #: R2 section 3.3 precision tiers, measured in **resampling units** - cases when the
 #: rows are clustered, rows when they are not. Advisory only; never a suppression.

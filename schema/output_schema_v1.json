@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://proofpack.io/schema/output_schema_v1.json",
   "title": "ProofPack output document v1",
-  "description": "D1 section 4. The document the renderer consumes. Sections not yet produced by the engine (calibration, subgroups, fairness, robustness, comparison, drift, claims) are declared here with their shape so the schema is stable, but are permitted to be null or absent until their build day lands.",
+  "description": "D1 section 4. The document the renderer consumes. Sections not yet produced by the engine (calibration, robustness, comparison, drift, claims) are declared here with their shape so the schema is stable, but are permitted to be null or absent until their build day lands. The subgroups, subgroup_attributes and fairness blocks landed on build day 5 (stats.subgroups).",
   "type": "object",
   "required": ["schema_version", "manifest", "declarations", "halts", "warnings", "flow"],
   "properties": {
@@ -67,9 +67,14 @@
       "additionalProperties": { "$ref": "#/$defs/operatingPointBlock" }
     },
     "calibration": { "type": ["object", "null"] },
-    "subgroups": { "type": ["array", "null"], "items": { "type": "object" } },
+    "subgroups": { "type": ["array", "null"], "items": { "$ref": "#/$defs/subgroupRow" } },
+    "subgroup_attributes": {
+      "type": ["array", "null"],
+      "description": "Build day 5: one block per tabulated attribute (reference level, level order, heterogeneity footnote).",
+      "items": { "$ref": "#/$defs/subgroupAttribute" }
+    },
     "intersectional": { "type": ["array", "null"], "items": { "type": "object" } },
-    "fairness": { "type": ["object", "null"] },
+    "fairness": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/fairnessBlock" }] },
     "robustness": { "type": ["object", "null"] },
     "comparison": { "type": ["object", "null"] },
     "drift": { "type": ["object", "null"] },
@@ -102,23 +107,24 @@
       ]
     },
     "notEstimableReason": {
-      "description": "Typed reasons a quantity carries no interval. There is no untyped fallback.",
+      "description": "Typed reasons a quantity carries no interval. There is no untyped fallback. 'cases_span_both_groups' and 'insufficient_levels' were added on build day 5 (stats.subgroups).",
       "enum": [
         "zero_denominator", "single_class", "insufficient_positives",
         "insufficient_negatives", "zero_cell_log_undefined",
         "zero_cell_logit_undefined", "boundary_estimate",
         "analytic_ci_unavailable", "clustered_data_analytic_ci_invalid",
         "scipy_unavailable", "not_computed_this_run",
-        "insufficient_clusters", "degenerate_resamples"
+        "insufficient_clusters", "degenerate_resamples",
+        "cases_span_both_groups", "insufficient_levels"
       ]
     },
     "flag": {
-      "description": "Advisory annotations. The three added on build day 4 record the X2 clustered auto-switch and the small-class switch on the Number that is rendered; the typed reason itself rides on the companion analytic Number.",
+      "description": "Advisory annotations. The three added on build day 4 record the X2 clustered auto-switch and the small-class switch on the Number that is rendered; the typed reason itself rides on the companion analytic Number. 'newcombe_refused_clustered' (build day 5) rides on a subgroup difference computed by the two-sided cluster bootstrap because Newcombe method 10 was refused on clustered rows.",
       "enum": [
         "not_evaluable_shown_for_transparency", "very_low_precision", "imprecise",
         "wald_interval_exceeds_unit_range", "ci_pending_bootstrap",
         "continuity_corrected", "shown_alongside_wilson_at_boundary",
-        "delong_refused_clustered", "wilson_refused_clustered",
+        "delong_refused_clustered", "wilson_refused_clustered", "newcombe_refused_clustered",
         "analytic_ci_replaced_small_class"
       ]
     },
@@ -306,6 +312,738 @@
               }
             }
           ]
+        }
+      }
+    },
+
+    "Cell": {
+      "type": "object",
+      "description": "One rendered quantity with its audit trail (build day 4 CellCI.as_dict, D1 section 9): the Number the renderer prints, the companion analytic Number (a typed refusal under clustering, or the same Number when the analytic method was used), what became of the analytic method, the clustering route, and the bootstrap block (policy, usable resamples, the resampling quantities the refusal rule was measured on) when a resampler ran. 'detail' carries statistics that are not Numbers and never verdicts (z, p_value, variances for an AUROC difference; the declared score type for a Brier that was not computed).",
+      "required": [
+        "number",
+        "analytic",
+        "analytic_status",
+        "clustering_route",
+        "bootstrap"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "number": {
+          "$ref": "#/$defs/Number"
+        },
+        "analytic": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Number"
+            }
+          ]
+        },
+        "analytic_status": {
+          "enum": [
+            "used",
+            "refused_clustered",
+            "replaced_small_class",
+            "unavailable"
+          ]
+        },
+        "clustering_route": {
+          "enum": [
+            "none",
+            "declared",
+            "detected"
+          ]
+        },
+        "bootstrap": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "detail": {
+          "type": "object"
+        },
+        "label": {
+          "type": "string",
+          "description": "The selection-rate gap carries 'descriptive_not_target' (R2 section 4)."
+        }
+      }
+    },
+    "nullableCell": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/Cell"
+        }
+      ]
+    },
+    "subgroupOperatingPointMetrics": {
+      "type": "object",
+      "description": "Per operating point inside a subgroup row: the 2x2 counts and every proportion metric as a Cell. Exactly one of sensitivity/ppa and one of specificity/npa is present (FDA 2007 routing).",
+      "required": [
+        "two_by_two",
+        "ppv",
+        "npv",
+        "accuracy",
+        "selection_rate"
+      ],
+      "properties": {
+        "two_by_two": {
+          "$ref": "#/$defs/twoByTwo"
+        },
+        "sensitivity": {
+          "$ref": "#/$defs/Cell"
+        },
+        "specificity": {
+          "$ref": "#/$defs/Cell"
+        },
+        "ppa": {
+          "$ref": "#/$defs/Cell"
+        },
+        "npa": {
+          "$ref": "#/$defs/Cell"
+        },
+        "ppv": {
+          "$ref": "#/$defs/Cell"
+        },
+        "npv": {
+          "$ref": "#/$defs/Cell"
+        },
+        "accuracy": {
+          "$ref": "#/$defs/Cell"
+        },
+        "selection_rate": {
+          "$ref": "#/$defs/Cell"
+        }
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "sensitivity",
+            "specificity"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "ppa"
+                ]
+              },
+              {
+                "required": [
+                  "npa"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "required": [
+            "ppa",
+            "npa"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "sensitivity"
+                ]
+              },
+              {
+                "required": [
+                  "specificity"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "subgroupOperatingPointDifferences": {
+      "type": "object",
+      "description": "Per operating point: the level-minus-other difference of each proportion metric (Newcombe method 10, or the two-sided cluster bootstrap, or a typed refusal). Every value is null on the reference row's own diff_vs_reference.",
+      "required": [
+        "ppv",
+        "npv",
+        "accuracy",
+        "selection_rate"
+      ],
+      "properties": {
+        "sensitivity": {
+          "$ref": "#/$defs/nullableCell"
+        },
+        "specificity": {
+          "$ref": "#/$defs/nullableCell"
+        },
+        "ppa": {
+          "$ref": "#/$defs/nullableCell"
+        },
+        "npa": {
+          "$ref": "#/$defs/nullableCell"
+        },
+        "ppv": {
+          "$ref": "#/$defs/nullableCell"
+        },
+        "npv": {
+          "$ref": "#/$defs/nullableCell"
+        },
+        "accuracy": {
+          "$ref": "#/$defs/nullableCell"
+        },
+        "selection_rate": {
+          "$ref": "#/$defs/nullableCell"
+        }
+      },
+      "additionalProperties": false
+    },
+    "subgroupDifferences": {
+      "type": "object",
+      "description": "diff_vs_reference / diff_vs_complement: one key per operating point id plus 'auroc'. There is no diff_vs_overall anywhere (objection X1: the subgroup is part of the overall cohort).",
+      "required": [
+        "auroc"
+      ],
+      "properties": {
+        "auroc": {
+          "$ref": "#/$defs/nullableCell"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/subgroupOperatingPointDifferences"
+      }
+    },
+    "subgroupRow": {
+      "type": "object",
+      "description": "One level of one attribute (D1 section 4.2 'subgroups'; D4 section 5.3 row shape). is_unknown_row marks the explicit Unknown/missing row, which is never the reference. tier is the R2 section 3.3 precision tier measured in resampling units, or null.",
+      "required": [
+        "attribute",
+        "level",
+        "prespecified",
+        "source",
+        "is_reference",
+        "is_unknown_row",
+        "n",
+        "events",
+        "n_units",
+        "event_units",
+        "tier",
+        "metrics",
+        "diff_vs_reference",
+        "diff_vs_complement"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "attribute": {
+          "type": "string"
+        },
+        "level": {
+          "type": "string"
+        },
+        "prespecified": {
+          "type": "boolean"
+        },
+        "source": {
+          "type": "string"
+        },
+        "is_reference": {
+          "type": "boolean"
+        },
+        "is_unknown_row": {
+          "type": "boolean"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "events": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_units": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_units": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tier": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "not_evaluable_shown_for_transparency",
+                "very_low_precision"
+              ]
+            }
+          ]
+        },
+        "metrics": {
+          "type": "object",
+          "required": [
+            "auroc",
+            "brier"
+          ],
+          "properties": {
+            "auroc": {
+              "$ref": "#/$defs/Cell"
+            },
+            "brier": {
+              "$ref": "#/$defs/Cell"
+            }
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/subgroupOperatingPointMetrics"
+          }
+        },
+        "diff_vs_reference": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/subgroupDifferences"
+            }
+          ]
+        },
+        "diff_vs_complement": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/subgroupDifferences"
+            }
+          ]
+        }
+      }
+    },
+    "heterogeneityTest": {
+      "type": "object",
+      "description": "One exploratory homogeneity test (R2 section 3.4). Raw and Holm-adjusted p-values are detail, never a criterion: this object has no 'status' key and a test asserts it.",
+      "required": [
+        "operating_point",
+        "metric",
+        "test",
+        "statistic",
+        "df",
+        "p_raw",
+        "p_holm",
+        "n_levels",
+        "min_expected",
+        "not_estimable_reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "operating_point": {
+          "type": "string"
+        },
+        "metric": {
+          "enum": [
+            "sensitivity",
+            "specificity",
+            "ppa",
+            "npa"
+          ]
+        },
+        "test": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "chi2_homogeneity",
+                "fisher_exact"
+              ]
+            }
+          ]
+        },
+        "statistic": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "df": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "p_raw": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "p_holm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "n_levels": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "min_expected": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "not_estimable_reason": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/notEstimableReason"
+            }
+          ]
+        }
+      }
+    },
+    "subgroupAttribute": {
+      "type": "object",
+      "description": "Per-attribute block: the reference level and how it was chosen, the level order, the age bands and their source, the complement definition, and the exploratory heterogeneity footnote.",
+      "required": [
+        "attribute",
+        "prespecified",
+        "source",
+        "declared",
+        "reference_level",
+        "reference_rule",
+        "level_order",
+        "has_unknown_row",
+        "n_unknown_missing",
+        "n_outside_bands",
+        "bands",
+        "bands_source",
+        "complement_definition",
+        "heterogeneity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "attribute": {
+          "type": "string"
+        },
+        "prespecified": {
+          "type": "boolean"
+        },
+        "source": {
+          "type": "string"
+        },
+        "declared": {
+          "type": "boolean"
+        },
+        "reference_level": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reference_rule": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "declared",
+                "largest",
+                "largest_tie_first_in_level_order"
+              ]
+            }
+          ]
+        },
+        "level_order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "has_unknown_row": {
+          "type": "boolean"
+        },
+        "n_unknown_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_outside_bands": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bands": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          ]
+        },
+        "bands_source": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "declared",
+                "engine_default"
+              ]
+            }
+          ]
+        },
+        "complement_definition": {
+          "type": "string"
+        },
+        "heterogeneity": {
+          "type": "object",
+          "required": [
+            "label",
+            "sentence",
+            "adjustment",
+            "family_size",
+            "tests"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "label": {
+              "const": "exploratory"
+            },
+            "sentence": {
+              "type": "string"
+            },
+            "adjustment": {
+              "const": "holm"
+            },
+            "family_size": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "tests": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/heterogeneityTest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "fairnessGap": {
+      "type": "object",
+      "description": "One level's gaps against the reference level: the diff_vs_reference cells re-read as gaps (fpr_gap is the mirrored specificity difference), the AUROC gap, the selection-rate gap labelled descriptive_not_target, and calibration-by-group as null with a typed reason until the calibration day. No status key: the comparison to the bound is E7's.",
+      "required": [
+        "level",
+        "is_unknown_row",
+        "n",
+        "operating_points",
+        "auroc_gap",
+        "calibration"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string"
+        },
+        "is_unknown_row": {
+          "type": "boolean"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operating_points": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "tpr_gap",
+              "fpr_gap",
+              "ppv_gap",
+              "npv_gap",
+              "selection_rate_gap"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "tpr_gap": {
+                "$ref": "#/$defs/Cell"
+              },
+              "fpr_gap": {
+                "$ref": "#/$defs/Cell"
+              },
+              "ppv_gap": {
+                "$ref": "#/$defs/Cell"
+              },
+              "npv_gap": {
+                "$ref": "#/$defs/Cell"
+              },
+              "selection_rate_gap": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/Cell"
+                  },
+                  {
+                    "required": [
+                      "label"
+                    ],
+                    "properties": {
+                      "label": {
+                        "const": "descriptive_not_target"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "auroc_gap": {
+          "$ref": "#/$defs/Cell"
+        },
+        "calibration": {
+          "type": "object",
+          "required": [
+            "oe",
+            "slope",
+            "intercept",
+            "not_estimable_reason"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "oe": {
+              "type": "null"
+            },
+            "slope": {
+              "type": "null"
+            },
+            "intercept": {
+              "type": "null"
+            },
+            "not_estimable_reason": {
+              "const": "not_computed_this_run"
+            }
+          }
+        }
+      }
+    },
+    "fairnessBlock": {
+      "type": "object",
+      "description": "D1 section 4.2 'fairness' (R2 section 4): measured, never mitigated. criterion_of_interest and bound are the customer's declaration echoed verbatim; no status is emitted here.",
+      "required": [
+        "attribute",
+        "reference_level",
+        "reference_rule",
+        "criterion_of_interest",
+        "bound",
+        "author",
+        "date",
+        "justification",
+        "measured_not_mitigated",
+        "gap_definitions",
+        "impossibility_citation",
+        "gaps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "attribute": {
+          "type": "string"
+        },
+        "reference_level": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reference_rule": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "declared",
+                "largest",
+                "largest_tie_first_in_level_order"
+              ]
+            }
+          ]
+        },
+        "criterion_of_interest": {
+          "enum": [
+            "tpr_gap",
+            "fpr_gap",
+            "ppv_gap",
+            "npv_gap",
+            "auroc_gap",
+            "calibration_by_group"
+          ]
+        },
+        "bound": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "author": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "justification": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "measured_not_mitigated": {
+          "const": true
+        },
+        "gap_definitions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "impossibility_citation": {
+          "type": "string",
+          "pattern": "\\[unverified"
+        },
+        "gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fairnessGap"
+          }
         }
       }
     }
