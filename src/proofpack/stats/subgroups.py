@@ -107,7 +107,11 @@ implementation, checked against ``statsmodels.stats.multitest.multipletests`` in
 tests). The Unknown row is not a level of the attribute for this purpose and is left
 out of the test. The footnote is labelled ``exploratory``, carries the D4 sentence, and
 has no ``status`` key beside any p-value. With scipy absent the test entries carry
-``not_estimable_reason: scipy_unavailable``; the module imports without scipy.
+``not_estimable_reason: scipy_unavailable``; the module imports without scipy. **Under
+a clustered plan** (declared or detected) the tests are not run: the chi-square counts
+rows as independent trials, so every entry carries
+``not_estimable_reason: clustered_data_analytic_ci_invalid`` and the footnote records
+the ``clustering_route`` (lens note 2026-09-15, FA-B1).
 
 **Cell shape.** Every metric and every difference is serialised as the day-4 cell
 ``{number, analytic, analytic_status, clustering_route, bootstrap}`` (plus an optional
@@ -133,6 +137,7 @@ from proofpack.errors import HaltError
 from proofpack.io.declare import Declarations, OperatingPoint
 from proofpack.io.schema import UNKNOWN_LEVEL, Table
 from proofpack.stats.bootstrap import (
+    CLUSTER_ROUTES,
     DEFAULT_LEVEL,
     MIN_USABLE_FRACTION,
     BootstrapDraw,
@@ -306,8 +311,24 @@ def _homogeneity_test(
     return base
 
 
+def _clustered_refusal(counts: Sequence[tuple[int, int]]) -> dict[str, Any]:
+    """The footnote entry for a clustered table: no test, the typed reason, the level count."""
+    return {
+        "test": None,
+        "statistic": None,
+        "df": None,
+        "p_raw": None,
+        "p_holm": None,
+        "n_levels": len(counts),
+        "min_expected": None,
+        "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+    }
+
+
 def heterogeneity_footnote(
     per_op: dict[str, dict[str, Sequence[tuple[int, int]]]],
+    *,
+    clustering_route: str = "none",
 ) -> dict[str, Any]:
     """The exploratory footnote for one attribute.
 
@@ -315,11 +336,27 @@ def heterogeneity_footnote(
     "specificity": [(tn, fp), ...]}`` over the evaluable levels (the Unknown row
     excluded). All tests of one attribute form one Holm family. There is no ``status``
     key anywhere in the result, by design and by test.
+
+    ``clustering_route`` is the run-level :class:`~proofpack.stats.bootstrap.ClusterPlan`
+    route (``none`` / ``declared`` / ``detected``). The chi-square and Fisher tests count
+    **rows** as independent Bernoulli trials; under a clustered plan the rows are not,
+    the chi-square statistic grows with the rows-per-case factor and the p-value shrinks
+    with it (F6 with every patient's row copied three times: chi-square 13.898, p 0.00096
+    against 4.6327, p 0.0986 on one row per patient - lens note 2026-09-15, FA-B1). So
+    under ``declared`` or ``detected`` every entry carries
+    ``not_estimable_reason: clustered_data_analytic_ci_invalid`` - the DEC-09 typed
+    reason the same block's intervals already carry - with ``n_levels`` kept so the
+    reader sees what would have been compared, and the Holm family is empty. No
+    case-level homogeneity test is offered in its place: a switch to a different method
+    is a method choice, not a fallback, and none is made here.
     """
+    if clustering_route not in CLUSTER_ROUTES:
+        raise ValueError(f"unknown clustering_route {clustering_route!r}")
+    clustered = clustering_route != "none"
     tests: list[dict[str, Any]] = []
     for op_id, metrics in per_op.items():
         for metric, counts in metrics.items():
-            entry = _homogeneity_test(counts)
+            entry = _clustered_refusal(counts) if clustered else _homogeneity_test(counts)
             entry = {"operating_point": op_id, "metric": metric, **entry}
             tests.append(entry)
     raw = [t["p_raw"] for t in tests if t["p_raw"] is not None]
@@ -333,6 +370,7 @@ def heterogeneity_footnote(
         "sentence": HETEROGENEITY_SENTENCE,
         "adjustment": "holm",
         "family_size": len(raw),
+        "clustering_route": clustering_route,
         "tests": tests,
     }
 
@@ -769,10 +807,13 @@ def _choose_reference(
                 {"attribute": attribute},
             )
         if label not in {lv.label for lv in candidates}:
+            # either the declared label is absent from the table, or every row carrying
+            # it was excluded by the analysis mask (missing score, indeterminate): the
+            # message names the analysed rows, which is what was inspected
             raise HaltError(
                 "H09",
-                "subgroup reference_level is not an observed level",
-                {"attribute": attribute},
+                "subgroup reference_level is not a level of the analysed rows",
+                {"attribute": attribute, "reference_level": label},
             )
         return label, "declared"
     largest = max(lv.n for lv in candidates)
@@ -1158,11 +1199,17 @@ def subgroup_analysis(
     rows from :func:`~proofpack.io.schema.analysis_mask`, ``decl`` the validated
     declarations (the operating points are taken from it, thresholds already declared).
     ``cluster_ids`` is the case column over the *analysed* rows; when omitted and the
-    table has a ``case_id`` column, that column is used - so a clustered table cannot
-    reach the analytic intervals by a forgotten argument (the day-4 handoff's first
-    "tomorrow needs"). ``plan`` is the run-level :class:`ClusterPlan`; when omitted it is
-    resolved here by :func:`~proofpack.stats.bootstrap.plan_clustering`, declared or
-    detected. Every cell receives the case ids **sliced with its rows**.
+    table has a ``case_id`` column, that column is used (the day-4 handoff's first
+    "tomorrow needs"). What is inspected: ``test_a_case_id_column_is_used_even_when_
+    not_passed_and_detected_clustering_routes_everything`` omits the argument over a
+    repeating ``case_id`` column under ``clustering.unit: none`` and reads every
+    proportion Number's method and the cells' ``clustering_route``;
+    ``test_a_supplied_plan_that_contradicts_the_case_column_is_refused`` supplies a
+    non-clustered plan over the same column and an ids vector of the wrong length. A
+    declared ``case_id`` unit with no ``case_id`` column raises in
+    :func:`~proofpack.stats.bootstrap.plan_clustering`. ``plan`` is the run-level
+    :class:`ClusterPlan`; when omitted it is resolved here by ``plan_clustering``,
+    declared or detected. Every cell receives the case ids **sliced with its rows**.
     """
     arrays = _arrays(table, decl, mask, plan, cluster_ids, policy, level)
     ops = list(decl.operating_points)
@@ -1231,5 +1278,5 @@ def _attribute_block(
         "complement_definition": (
             "every other analysed row of this attribute, including the Unknown/missing row"
         ),
-        "heterogeneity": heterogeneity_footnote(per_op),
+        "heterogeneity": heterogeneity_footnote(per_op, clustering_route=arrays.plan.route),
     }

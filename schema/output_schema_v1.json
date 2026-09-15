@@ -826,6 +826,7 @@
             "sentence",
             "adjustment",
             "family_size",
+            "clustering_route",
             "tests"
           ],
           "additionalProperties": false,
@@ -842,6 +843,14 @@
             "family_size": {
               "type": "integer",
               "minimum": 0
+            },
+            "clustering_route": {
+              "description": "The run-level clustering route. Under 'declared' or 'detected' the row-level chi-square / Fisher tests are not run and every entry carries not_estimable_reason clustered_data_analytic_ci_invalid.",
+              "enum": [
+                "none",
+                "declared",
+                "detected"
+              ]
             },
             "tests": {
               "type": "array",

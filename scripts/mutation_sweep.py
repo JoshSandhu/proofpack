@@ -10,9 +10,15 @@ it in the handoff note with the reason.
 Why a copy and not a worktree: the sweep must run against the *working tree* (the code
 being handed off, committed or not), and a git worktree can only check out a commit. The
 copy holds ``src``, ``tests``, ``schema``, ``fixtures``, ``design`` and
-``pyproject.toml``; ``PYTHONPATH`` is forced to the copy's ``src`` and the script
-asserts that ``proofpack`` resolves there before any mutant runs, so an editable install
-of the real tree cannot be what the tests import.
+``pyproject.toml``; ``PYTHONPATH`` is forced to the copy's ``src`` for every subprocess.
+What is inspected before any mutant runs: one ``python -c "import proofpack"``
+subprocess with that environment and the copy as its working directory, whose
+``proofpack.__file__`` must resolve under the copy's ``src`` or the sweep exits. That is
+a check on one import in one subprocess with the same environment the pytest
+subprocesses receive; it is not a check inside pytest. Attempts to defeat it recorded by
+the day-5 regression lens (2026-09-15, RG-N6): ``PYTHONPATH`` pre-set to the main tree's
+``src`` and the working directory set to the main tree - both resolved to the copy,
+because ``env_for`` overwrites ``PYTHONPATH`` and ``cwd`` is the copy.
 
 Usage::
 
@@ -42,6 +48,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 COPIED = ("src", "tests", "schema", "fixtures", "design", "pyproject.toml")
 SUBGROUPS = "src/proofpack/stats/subgroups.py"
+DISCRIMINATION = "src/proofpack/stats/discrimination.py"
 OUTPUT_SCHEMA = "schema/output_schema_v1.json"
 
 
@@ -192,6 +199,63 @@ MUTANTS: tuple[Mutant, ...] = (
         r"\(a < float\(hi\)\)",
         "(a <= float(hi))",
         what="age banding becomes [lo, hi] instead of [lo, hi)",
+    ),
+    # ---- day-5 repair round 1: the lens's survivors that this round's tests observe
+    Mutant(
+        "ppv_indicator_inverted",
+        SUBGROUPS,
+        r"sel = pred\n        ind = pos\[sel\]",
+        "sel = pred\n        ind = ~pos[sel]",
+        what="per-level PPV becomes 1 - PPV (regression lens RG-B1)",
+    ),
+    Mutant(
+        "npv_indicator_inverted",
+        SUBGROUPS,
+        r"sel = ~pred\n        ind = ~pos\[sel\]",
+        "sel = ~pred\n        ind = pos[sel]",
+        what="per-level NPV becomes 1 - NPV (regression lens RG-B1)",
+    ),
+    Mutant(
+        "accuracy_inverted",
+        SUBGROUPS,
+        r"ind = pos == pred",
+        "ind = pos != pred",
+        what="per-level accuracy becomes 1 - accuracy (regression lens RG-B1)",
+    ),
+    Mutant(
+        "ppv_conditioned_on_positives",
+        SUBGROUPS,
+        r'elif metric == "ppv":\n        sel = pred',
+        'elif metric == "ppv":\n        sel = pos',
+        what="per-level PPV computed on the reference-positive rows (fresh-attack lens N4)",
+    ),
+    Mutant(
+        "heterogeneity_ignores_the_plan",
+        SUBGROUPS,
+        r"heterogeneity_footnote\(per_op, clustering_route=arrays\.plan\.route\)",
+        "heterogeneity_footnote(per_op)",
+        what="the chi-square runs on the rows of a clustered table (fresh-attack lens B1)",
+    ),
+    Mutant(
+        "unpaired_delong_renders_with_a_frozen_arm",
+        DISCRIMINATION,
+        r"if var_a <= 0\.0 or var_b <= 0\.0:",
+        "if var_a <= 0.0 and var_b <= 0.0:",
+        what="delong_wald rendered when one arm's DeLong variance is zero (fresh-attack lens B2)",
+    ),
+    Mutant(
+        "two_sided_bootstrap_side_b_from_a_fixed_generator",
+        SUBGROUPS,
+        r"values\[b\] = stat_a\(res_a\.draw\(rng\)\) - stat_b\(res_b\.draw\(rng\)\)",
+        "values[b] = stat_a(res_a.draw(rng)) - stat_b(res_b.draw(np.random.default_rng(b)))",
+        what="side b of the two-sided bootstrap is not drawn from the cell's generator (RG-N2)",
+    ),
+    Mutant(
+        "h09_message_names_observed_levels",
+        SUBGROUPS,
+        r'"subgroup reference_level is not a level of the analysed rows"',
+        '"subgroup reference_level is not an observed level"',
+        what="the H09 halt on an excluded reference level says it was not observed (FA-N7)",
     ),
     Mutant(
         "schema_extension_missing_reason",

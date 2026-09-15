@@ -239,11 +239,20 @@ MIN_UNITS_PER_STRATUM = 2
 #: cases, the interval covered the truth at a frozen share of 0.05 / 0.10 / 0.20 in
 #: 0.912 / 0.943 / 0.932 of cohorts (30 negative cases) and 0.958 / 0.935 / 0.915 (120
 #: negative cases); at 0.30 / 0.41 / 0.50 in 0.863 / 0.877 / 0.843 and 0.873 / 0.823 /
-#: 0.770. Every measured shape this constant lets through covers at or above the bar
-#: and the first refused shape is below it, so the day-4 value is **kept**. No shape
-#: between 0.20 and 0.30 was measured; 0.20 is the loosest *measured* value, not an
-#: extrapolation to 0.30. The full table is in ``design/conventions_T7.md``. This is a
-#: measurement on the grid's shapes, not a guarantee.
+#: 0.770. The rule refuses at ``frozen >= MAX_FROZEN_VARIANCE_SHARE``, so with the
+#: constant at 0.20 the shapes it **renders** are 0.05 and 0.10 (both at or above the
+#: bar in the recorded run) and the share-0.20 shape (m = 36, 9/45 exactly) is the first
+#: shape it **refuses** - a shape that measured at or above the bar (0.932 / 0.915;
+#: 0.900 / 0.870 at ``--quick``, R = 100; 0.925 / 0.915 at seed 20260916, R = 200,
+#: B = 500 in the day-5 repair). The next refused shape, 0.30, straddles the bar across
+#: seeds: 0.863 / 0.873 in the recorded run, 0.930 / 0.915 at the lens's seed 7 and
+#: 0.910 / 0.890 at seed 20260916 - a spread of about three Monte-Carlo standard errors
+#: (0.015 at R = 400, 0.021 at R = 200). The day-4 value is **kept** as the
+#: conservative choice at this boundary: it refuses one measured shape that met the bar
+#: at every seed tried, and was not loosened to 0.30 because that shape's measurements
+#: fall on both sides of the bar. Recorded in the day-5 lens note (FA-N1) and repair
+#: note; the full table is in ``design/conventions_T7.md``. This is a measurement on the
+#: grid's shapes, not a guarantee.
 MAX_FROZEN_VARIANCE_SHARE = 0.20
 #: R2 section 3.3 precision tiers, measured in **resampling units** - cases when the
 #: rows are clustered, rows when they are not. Advisory only; never a suppression.

@@ -436,8 +436,8 @@ class UnpairedDeLong:
     variance_a: float
     variance_b: float
     variance_difference: float
-    z: float
-    p_value: float
+    z: float | None  # None when the difference is refused (an arm's variance is zero)
+    p_value: float | None
     method: str = "unpaired_delong"
 
 
@@ -470,6 +470,19 @@ def unpaired_delong(
     unpaired case; pROC's ``roc.test(paired = FALSE)`` is the natural external oracle
     and is **[unverified - not captured in this build environment]**.
 
+    **Refused when either arm's DeLong variance is zero** - a perfectly separated arm
+    (AUC exactly 0 or 1) or one whose placement values are all equal (constant
+    scores). That is the condition under which :func:`auroc_number` refuses the arm's
+    own AUROC as ``boundary_estimate`` (``se == 0``: "the Wald interval is also
+    useless"), and the sum ``Var(A) + Var(B)`` then carries no uncertainty about that
+    arm at all: the interval it gives is the other arm's alone. Measured by the lens
+    (2026-09-15, FA-B2; 20,000 replicates, A = 10/10 against B = 60/60, true AUROC_A
+    0.898): where A came out perfectly separated the rendered ``delong_wald`` interval
+    covered the true difference in 0.269 of replicates at a nominal 0.95. So the
+    difference is ``not_estimable`` with ``boundary_estimate``, the estimate carried,
+    and ``z`` / ``p_value`` are ``None``. ``test_unpaired_delong_refuses_the_difference_
+    when_either_arm_has_zero_variance`` inspects both arms and the constant-score case.
+
     Rows on each side are assumed independent **and independent of the other side**.
     This function has no clustering parameter and inspects no case column; the caller
     (``stats.subgroups``) routes clustered data away from it and refuses the
@@ -483,29 +496,37 @@ def unpaired_delong(
     auc_b, var_b = delong_variance(b, pb)
     var_diff = float(var_a + var_b)
     diff = float(auc_a - auc_b)
-    se = math.sqrt(max(var_diff, 0.0))
-    z = diff / se if se > 0 else 0.0
     counts = {
         "n_pos": int(pa.sum()) + int(pb.sum()),
         "n_neg": int((~pa).sum()) + int((~pb).sum()),
     }
+    if var_a <= 0.0 or var_b <= 0.0:
+        # one arm's variance is frozen at zero: the day-3 boundary condition on that
+        # arm, and the Wald interval on the difference would be the other arm's alone
+        return UnpairedDeLong(
+            auroc_a=float(auc_a),
+            auroc_b=float(auc_b),
+            difference=not_estimable("boundary_estimate", est=diff, ci_level=level, **counts),
+            variance_a=float(var_a),
+            variance_b=float(var_b),
+            variance_difference=var_diff,
+            z=None,
+            p_value=None,
+        )
+    se = math.sqrt(var_diff)
+    z = diff / se
     zq = z_for(level)
-    difference = (
-        Number(
+    return UnpairedDeLong(
+        auroc_a=float(auc_a),
+        auroc_b=float(auc_b),
+        difference=Number(
             est=diff,
             ci_lo=diff - zq * se,
             ci_hi=diff + zq * se,
             ci_level=level,
             method="delong_wald",
             **counts,
-        )
-        if se > 0
-        else not_estimable("boundary_estimate", est=diff, ci_level=level, **counts)
-    )
-    return UnpairedDeLong(
-        auroc_a=float(auc_a),
-        auroc_b=float(auc_b),
-        difference=difference,
+        ),
         variance_a=float(var_a),
         variance_b=float(var_b),
         variance_difference=var_diff,

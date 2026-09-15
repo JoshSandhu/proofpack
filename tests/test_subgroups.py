@@ -48,9 +48,12 @@ from proofpack.resources import load_json_schema
 from proofpack.stats import subgroups as subgroups_module
 from proofpack.stats.bootstrap import (
     LOW_PRECISION_UNITS,
+    MAX_FROZEN_VARIANCE_SHARE,
     VERY_LOW_PRECISION_UNITS,
     BootstrapPolicy,
     ClusterPlan,
+    clustered_by_case,
+    clustered_flat,
 )
 from proofpack.stats.discrimination import delong_variance, unpaired_delong
 from proofpack.stats.number import FLAGS, METHODS, NOT_ESTIMABLE_REASONS, Number
@@ -975,7 +978,13 @@ def test_without_a_spanning_case_the_differences_are_cluster_bootstrapped_with_r
     assert "newcombe_refused_clustered" in FLAGS
 
 
-def test_the_two_sided_bootstrap_draws_each_side_independently_and_is_seeded_by_the_cell_key():
+def test_the_two_sided_bootstrap_is_deterministic_and_the_policy_seed_moves_only_the_bounds():
+    """Inspects: two runs agree; a different seed moves the bounds and not the estimate.
+
+    Renamed in the day-5 repair (regression lens RG-N2): the previous name claimed the
+    two sides were drawn independently, which nothing here inspected - the next test
+    does that, by recording what each side's resampler is asked to draw.
+    """
     cols, crit = clustered_pair(span=False)
     a = run(cols, crit).row("site", "S1")["diff_vs_complement"]["op1"]["sensitivity"]["number"]
     b = run(cols, crit).row("site", "S1")["diff_vs_complement"]["op1"]["sensitivity"]["number"]
@@ -985,6 +994,76 @@ def test_the_two_sided_bootstrap_draws_each_side_independently_and_is_seeded_by_
     ]["op1"]["sensitivity"]["number"]
     assert (c["ci_lo"], c["ci_hi"]) != (a["ci_lo"], a["ci_hi"])
     assert c["est"] == a["est"]
+
+
+class _RecordingResampler:
+    """Wraps a Resampler and records the generator state each draw is made from."""
+
+    def __init__(self, inner):
+        self.inner = inner
+        self.draws: list[np.ndarray] = []
+
+    @property
+    def deficient_class(self):
+        return self.inner.deficient_class
+
+    @property
+    def kind(self):
+        return self.inner.kind
+
+    def draw(self, rng):
+        idx = self.inner.draw(rng)
+        self.draws.append(np.asarray(idx).copy())
+        return idx
+
+
+def test_the_two_sided_bootstrap_draws_side_b_from_the_cell_generator_after_side_a():
+    """Inspects the index vectors each side's resampler returns, across two generators.
+
+    Side b's draws must change when the cell's generator changes (they are drawn from
+    it, not from a generator of their own), and within one run side a and side b must
+    consume the *same* generator in turn - so side b's sequence under generator 1 is not
+    side b's sequence under generator 2. The committed sweep's mutant
+    ``two_sided_bootstrap_side_b_from_a_fixed_generator`` draws side b from
+    ``default_rng(b)`` inside the loop and is killed by the first assertion.
+    """
+    ind_a = np.array([1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1], dtype=bool)
+    ind_b = np.array([1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0], dtype=bool)
+    ids_a = np.arange(ind_a.shape[0]) // 2
+    ids_b = np.arange(ind_b.shape[0]) // 2
+    runs = []
+    for seed in (1, 2):
+        ra = _RecordingResampler(clustered_flat(ids_a, n_rows=ind_a.shape[0]))
+        rb = _RecordingResampler(clustered_flat(ids_b, n_rows=ind_b.shape[0]))
+        subgroups_module._bootstrap_difference(
+            lambda idx: float(ind_a[idx].mean()),
+            ra,
+            lambda idx: float(ind_b[idx].mean()),
+            rb,
+            np.random.default_rng(seed),
+            50,
+            0.95,
+        )
+        runs.append((ra.draws, rb.draws))
+    (a1, b1), (a2, b2) = runs
+    assert len(a1) == len(b1) == len(a2) == len(b2) == 50
+    differs_b = sum(not np.array_equal(x, y) for x, y in zip(b1, b2, strict=True))
+    differs_a = sum(not np.array_equal(x, y) for x, y in zip(a1, a2, strict=True))
+    assert differs_b > 40, differs_b  # side b is drawn from the cell's generator
+    assert differs_a > 40, differs_a
+    # the same generator, same seed, reproduces both sides exactly
+    ra = _RecordingResampler(clustered_flat(ids_a, n_rows=ind_a.shape[0]))
+    rb = _RecordingResampler(clustered_flat(ids_b, n_rows=ind_b.shape[0]))
+    subgroups_module._bootstrap_difference(
+        lambda idx: float(ind_a[idx].mean()),
+        ra,
+        lambda idx: float(ind_b[idx].mean()),
+        rb,
+        np.random.default_rng(1),
+        50,
+        0.95,
+    )
+    assert all(np.array_equal(x, y) for x, y in zip(rb.draws, b1, strict=True))
 
 
 def test_a_case_id_column_is_used_even_when_not_passed_and_detected_clustering_routes_everything():
@@ -1195,14 +1274,47 @@ VERDICT_WORDS = {
     "consistent",
     "inconsistent",
     "ok",
+    # the brief's list also names "well calibrated" (regression lens RG-N5): the phrase
+    # is tokenised to "calibrated" - "calibration" (the key) is a different token
+    "calibrated",
+    "passes",
+    "fails",
 }
+
+
+def _verdict_flagged(token: str) -> bool:
+    words = set(re.split(r"[^a-z]+", token.lower()))
+    return bool(words & VERDICT_WORDS)
 
 
 def test_no_verdict_word_appears_in_any_key_or_engine_string_of_the_output(reports):
     for name, rep in reports.items():
         for token in walk_keys_and_strings(rep.as_dict()):
-            words = set(re.split(r"[^a-z]+", token.lower()))
-            assert not (words & VERDICT_WORDS), (name, token)
+            assert not _verdict_flagged(token), (name, token)
+
+
+def test_the_verdict_grep_flags_every_phrase_the_brief_names():
+    """The day-5 brief: no 'pass', 'fail', 'verdict', 'met', 'consistent', 'acceptable',
+    'unbiased', 'well calibrated' in any key or value. Each phrase, and its hyphenated and
+    inflected spellings, must trip the tokeniser the output test uses."""
+    for phrase in (
+        "pass",
+        "passes",
+        "fail",
+        "fails",
+        "verdict",
+        "met",
+        "not_met",
+        "consistent",
+        "acceptable",
+        "unbiased",
+        "well calibrated",
+        "model is well-calibrated",
+        "criterion: met",
+    ):
+        assert _verdict_flagged(phrase), phrase
+    for phrase in ("calibration", "not_computed_this_run", "sensitivity", "descriptive_not_target"):
+        assert not _verdict_flagged(phrase), phrase
 
 
 def test_comparator_reference_standard_routes_to_ppa_npa_everywhere(reports):
@@ -1262,3 +1374,249 @@ def test_two_by_two_counts_per_level_sum_to_the_level_and_selection_rate_is_the_
         sel = row["metrics"]["op1"]["selection_rate"]["number"]
         assert sel["est"] == pytest.approx(pred[sex == level].mean()) and sel["method"] == "wilson"
         assert sel["k"] == t["tp"] + t["fp"] and sel["n"] == row["n"]
+
+
+# ------------------------------------------------- day-5 repair round 1 (2026-09-15)
+# The lens id each test answers is in its docstring, with what it fails on at d1fd20a.
+
+
+def f6_tripled_with_case_id() -> dict[str, list[Any]]:
+    """F6's counts-exact cohort with every patient's row copied three times under one case id."""
+    base = counts_cohort(
+        {"site1": (45, 5, 10, 40), "site2": (38, 12, 10, 40), "site3": (27, 3, 10, 40)}
+    )
+    n = len(base["y_true"])
+    cols = {k: [v[i // 3] for i in range(n * 3)] for k, v in base.items()}
+    cols["case_id"] = [f"c{i // 3:04d}" for i in range(n * 3)]
+    return cols
+
+
+SITE_LARGEST = [
+    {"attribute": "site", "prespecified": True, "source": "SAP", "reference_level": "largest"}
+]
+
+
+def test_the_heterogeneity_footnote_is_refused_on_clustered_rows_with_the_dec09_typed_reason():
+    """Fresh-attack lens FA-B1. At d1fd20a the tripled F6 cohort reported chi-square
+    13.898, p 0.00096, Holm 0.0019 on the rows (F6 on one row per patient: 4.6327,
+    p 0.0986) while every interval in the same block carried
+    ``clustered_data_analytic_ci_invalid``. Inspected here: every test entry under a
+    declared and under a detected plan carries that typed reason and no p-value, the
+    family is empty, the footnote records the route; one row per patient still gives F6;
+    the schema accepts the refused footnote and requires the route.
+    """
+    cols = f6_tripled_with_case_id()
+    declared = run(
+        cols, criteria_for(SITE_LARGEST, clustering={"unit": "case_id", "declared_by": "t"})
+    )
+    detected = run(cols, criteria_for(SITE_LARGEST))  # clustering.unit none; the ids repeat
+    for rep, route in ((declared, "declared"), (detected, "detected")):
+        foot = rep.attribute("site")["heterogeneity"]
+        assert foot["clustering_route"] == route
+        assert foot["family_size"] == 0 and foot["label"] == EXPLORATORY
+        assert {t["metric"] for t in foot["tests"]} == {"sensitivity", "specificity"}
+        for t in foot["tests"]:
+            assert t["not_estimable_reason"] == "clustered_data_analytic_ci_invalid"
+            assert t["test"] is None and t["statistic"] is None and t["df"] is None
+            assert t["p_raw"] is None and t["p_holm"] is None and t["min_expected"] is None
+            assert t["n_levels"] == 3  # what would have been compared is still visible
+            assert "status" not in t
+        # the same block's own intervals carry the same typed reason on their companion
+        cell = rep.row("site", "site1")["metrics"]["op1"]["sensitivity"]
+        assert cell["analytic"]["not_estimable_reason"] == "clustered_data_analytic_ci_invalid"
+        assert "cluster" in json.dumps(foot)
+    # the tripled cohort without ids is three identical rows per patient, route none,
+    # and the chi-square is three times F6's - the number the refusal keeps off the page
+    tripled = run({k: v for k, v in cols.items() if k != "case_id"}, criteria_for(SITE_LARGEST))
+    foot = tripled.attribute("site")["heterogeneity"]
+    assert foot["clustering_route"] == "none"
+    tripled_stat = next(t for t in foot["tests"] if t["metric"] == "sensitivity")["statistic"]
+    assert tripled_stat == pytest.approx(3 * 4.632727, abs=5e-5)
+    # one row per patient: the F6 figures, route none
+    base = run(
+        counts_cohort(
+            {"site1": (45, 5, 10, 40), "site2": (38, 12, 10, 40), "site3": (27, 3, 10, 40)}
+        ),
+        criteria_for(SITE_LARGEST),
+    )
+    foot = base.attribute("site")["heterogeneity"]
+    se_test = next(t for t in foot["tests"] if t["metric"] == "sensitivity")
+    approx4(se_test["statistic"], 4.6327)
+    approx4(se_test["p_raw"], 0.0986)
+    assert foot["clustering_route"] == "none"
+    # the footnote function itself: the route is validated, the refusal is typed
+    foot = subgroups_module.heterogeneity_footnote(
+        {"op1": {"sensitivity": [(45, 5), (38, 12)]}}, clustering_route="declared"
+    )
+    assert foot["tests"][0]["not_estimable_reason"] in NOT_ESTIMABLE_REASONS
+    with pytest.raises(ValueError, match="clustering_route"):
+        subgroups_module.heterogeneity_footnote({}, clustering_route="rows")
+    # and the schema accepts the refused footnote and requires the route
+    validator = jsonschema.Draft202012Validator(load_json_schema("output_schema_v1.json"))
+    assert list(validator.iter_errors(_document(declared))) == []
+    bad = _document(declared)
+    del bad["subgroup_attributes"][0]["heterogeneity"]["clustering_route"]
+    assert any(validator.iter_errors(bad))
+
+
+def separated_level_cohort(move_one: bool = False) -> dict[str, list[Any]]:
+    """Level A: 10 positives in [0.80, 0.90], 10 negatives in [0.10, 0.20] - perfectly
+    separated, DeLong variance exactly zero. Level B: 60/60 overlapping. ``move_one``
+    puts one A positive among the negatives so A's variance is no longer zero."""
+    rng = np.random.default_rng(2026)
+    a_pos = rng.uniform(0.80, 0.90, 10)
+    if move_one:
+        a_pos[0] = 0.15
+    a_neg = rng.uniform(0.10, 0.20, 10)
+    b_pos = np.clip(rng.normal(0.6, 0.2, 60), 0.01, 0.99)
+    b_neg = np.clip(rng.normal(0.4, 0.2, 60), 0.01, 0.99)
+    score = np.concatenate([a_pos, a_neg, b_pos, b_neg])
+    return {
+        "y_true": ["1"] * 10 + ["0"] * 10 + ["1"] * 60 + ["0"] * 60,
+        "score": [round(float(v), 6) for v in score],
+        "site": ["A"] * 20 + ["B"] * 120,
+    }
+
+
+SITE_REF_B = [{"attribute": "site", "prespecified": False, "reference_level": "B"}]
+
+
+def test_unpaired_delong_refuses_the_difference_when_either_arm_has_zero_variance():
+    """Fresh-attack lens FA-B2. At d1fd20a a perfectly separated level (own AUROC refused
+    ``boundary_estimate``) had its difference rendered ``delong_wald`` with
+    ``variance_a = 0.0`` and a p-value in ``detail``; the lens measured that interval
+    covering the true difference in 0.269 of replicates where separation occurred.
+    Inspected here: ``unpaired_delong`` refuses with ``boundary_estimate`` (estimate
+    carried, z and p ``None``) when either arm's variance is zero, in either position
+    and for a constant-score arm; the subgroup cell shows the refusal; moving one row so
+    the variance is no longer zero renders ``delong_wald`` again - the guard is at zero,
+    not near it."""
+    cols = separated_level_cohort()
+    y = np.array(cols["y_true"]) == "1"
+    s = np.array(cols["score"])
+    a, b = np.array(cols["site"]) == "A", np.array(cols["site"]) == "B"
+    assert delong_variance(s[a], y[a])[1] == 0.0 and delong_variance(s[b], y[b])[1] > 0.0
+    for sa, pa, sb, pb in ((s[a], y[a], s[b], y[b]), (s[b], y[b], s[a], y[a])):
+        res = unpaired_delong(sa, pa, sb, pb)
+        num = res.difference
+        assert num.not_estimable_reason == "boundary_estimate" and num.method == "none"
+        assert num.est == pytest.approx(res.auroc_a - res.auroc_b)
+        assert num.ci_lo is None and num.ci_hi is None
+        assert res.z is None and res.p_value is None
+        assert min(res.variance_a, res.variance_b) == 0.0
+        assert res.variance_difference == pytest.approx(max(res.variance_a, res.variance_b))
+    # a constant-score arm: AUROC 0.5 exactly, every placement value equal, variance 0
+    const = np.full(40, 0.5)
+    res = unpaired_delong(const, np.arange(40) < 15, s[b], y[b])
+    assert res.difference.not_estimable_reason == "boundary_estimate" and res.z is None
+    # through the subgroup table: the level's own AUROC and its differences agree
+    rep = run(cols, criteria_for(SITE_REF_B))
+    row = rep.row("site", "A")
+    assert row["metrics"]["auroc"]["number"]["not_estimable_reason"] == "boundary_estimate"
+    auroc_b = rep.row("site", "B")["metrics"]["auroc"]["number"]["est"]
+    for kind in ("diff_vs_reference", "diff_vs_complement"):
+        cell = row[kind]["auroc"]
+        assert cell["number"]["not_estimable_reason"] == "boundary_estimate"
+        assert cell["number"]["method"] == "none" and cell["number"]["ci_lo"] is None
+        assert cell["number"]["est"] == pytest.approx(1.0 - auroc_b)
+        assert cell["analytic_status"] == "unavailable"
+        assert cell["detail"]["variance_a"] == 0.0 and cell["detail"]["z"] is None
+        assert cell["detail"]["p_value"] is None
+    # B against A is the mirror image and is refused the same way
+    b_cell = rep.row("site", "B")["diff_vs_complement"]["auroc"]["number"]
+    assert b_cell["not_estimable_reason"] == "boundary_estimate"
+    # one A positive moved inside the negatives: variance > 0, delong_wald renders
+    moved = run(separated_level_cohort(move_one=True), criteria_for(SITE_REF_B))
+    cell = moved.row("site", "A")["diff_vs_reference"]["auroc"]
+    assert cell["number"]["method"] == "delong_wald" and cell["detail"]["variance_a"] > 0.0
+    assert moved.row("site", "A")["metrics"]["auroc"]["number"]["method"] == "delong_logit"
+
+
+def test_every_per_level_proportion_matches_numpy_on_the_raw_columns_with_its_k_and_n():
+    """Regression lens RG-B1 (and fresh-attack N4): at d1fd20a inverting PPV, NPV and
+    accuracy left the whole suite green. Inspected here, for every level of sex and
+    site: all six proportions' ``est``, ``k`` and ``n`` against a direct numpy
+    computation on the raw columns, and every ``diff_vs_reference`` estimate as level
+    minus reference from the same counts."""
+    cols = make_cohort(n=400)
+    rep = run(cols)
+    y = np.array(cols["y_true"]) == "1"
+    pred = np.array(cols["score"]) >= 0.5
+
+    def by_hand(sel: np.ndarray) -> dict[str, tuple[int, int]]:
+        p, q = y[sel], pred[sel]
+        tp, fn = int((p & q).sum()), int((p & ~q).sum())
+        fp, tn = int((~p & q).sum()), int((~p & ~q).sum())
+        return {
+            "sensitivity": (tp, tp + fn),
+            "specificity": (tn, tn + fp),
+            "ppv": (tp, tp + fp),
+            "npv": (tn, tn + fn),
+            "accuracy": (tp + tn, int(sel.sum())),
+            "selection_rate": (tp + fp, int(sel.sum())),
+        }
+
+    checked = 0
+    for attribute, reference in (("sex", "M"), ("site", None)):
+        column = np.array(cols[attribute])
+        levels = sorted(set(column.tolist()))
+        if reference is None:
+            reference = rep.attribute(attribute)["reference_level"]
+        ref_hand = by_hand(column == reference)
+        for level in levels:
+            hand = by_hand(column == level)
+            row = rep.row(attribute, level)
+            block = row["metrics"]["op1"]
+            for metric, (k, n) in hand.items():
+                num = block[metric]["number"]
+                assert num["k"] == k and num["n"] == n, (attribute, level, metric, num)
+                assert num["est"] == pytest.approx(k / n), (attribute, level, metric)
+                assert num["method"] == "wilson"
+                checked += 1
+                if level != reference:
+                    d = row["diff_vs_reference"]["op1"][metric]["number"]
+                    rk, rn = ref_hand[metric]
+                    assert d["est"] == pytest.approx(k / n - rk / rn), (attribute, level, metric)
+                    assert d["method"] == "newcombe10"
+    assert checked == 6 * (2 + 3)
+
+
+def test_the_frozen_share_rule_refuses_the_share_exactly_at_the_constant():
+    """Fresh-attack lens FA-N1. The rule is ``frozen >= MAX_FROZEN_VARIANCE_SHARE``: the
+    coverage grid's share-0.20 shape (one pure-positive case of three rows beside 36
+    mixed cases, 9/45 = 0.2 exactly) is *refused*, and the share-0.10 shape (81 mixed)
+    renders. This pins the boundary the corrected docstring and T7 text now describe. It
+    passes at d1fd20a as well: the behaviour was never wrong, the sentence was."""
+    assert MAX_FROZEN_VARIANCE_SHARE == 0.20
+
+    def shape(mixed: int):
+        pos = [True] * 3 + [False] * 30 + [True, False] * mixed
+        ids = [0] * 3 + list(range(1, 31)) + [i for i in range(31, 31 + mixed) for _ in range(2)]
+        return clustered_by_case(np.array(pos), np.array(ids))
+
+    at_bar = shape(36)
+    assert at_bar.frozen_variance_share["positive"] == pytest.approx(0.20)
+    assert at_bar.deficient_class == "positive"
+    below = shape(81)
+    assert below.frozen_variance_share["positive"] == pytest.approx(0.10)
+    assert below.deficient_class is None
+
+
+def test_a_declared_reference_whose_rows_are_all_excluded_halts_h09_naming_the_analysed_rows():
+    """Fresh-attack lens FA-N7. Every S3 row loses its score, so S3 is observed in the
+    table but absent from the analysed rows; at d1fd20a the halt said the level was
+    'not an observed level', which was untrue. The day-1 check on the raw table
+    (``io.declare.check_references``) still passes, as it should."""
+    cols = make_cohort(n=200)
+    cols["score"] = [
+        None if s == "S3" else v for v, s in zip(cols["score"], cols["site"], strict=True)
+    ]
+    crit = criteria_for(
+        [{"attribute": "site", "prespecified": True, "source": "t", "reference_level": "S3"}]
+    )
+    assert "S3" in cols["site"]
+    with pytest.raises(HaltError, match="analysed rows") as info:
+        run(cols, crit)
+    assert info.value.code == "H09"
+    assert info.value.detail["reference_level"] == "S3"
+    assert "observed" not in str(info.value)

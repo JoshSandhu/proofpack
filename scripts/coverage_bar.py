@@ -8,8 +8,8 @@ MAX_FROZEN_VARIANCE_SHARE against that bar, sets both, and records the numbers i
 This script is that simulation. It is deterministic (one seed, recorded in the output),
 committed, and re-runnable::
 
-    python scripts/coverage_bar.py --quick     # ~2-5 minutes, R=100, B=200
-    python scripts/coverage_bar.py --full      # the recorded run, R=400, B=1000
+    python scripts/coverage_bar.py --quick     # R=100, B=200; 41 s measured 2026-09-15
+    python scripts/coverage_bar.py --full      # the recorded run, R=400, B=1000; 743-781 s
     python scripts/coverage_bar.py --full --json out.json
 
 What it measures

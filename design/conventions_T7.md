@@ -32,7 +32,11 @@ because the subgroup is part of it.
 
 **Differences.** Proportion metrics: Newcombe (1998) method 10 on independent rows. AUROC:
 the unpaired DeLong (1988) difference - the two variances add because the samples are
-disjoint - with a Wald interval; z and the two-sided p are detail, never a verdict. Under
+disjoint - with a Wald interval; z and the two-sided p are detail, never a verdict. The
+AUROC difference is refused with `boundary_estimate` (estimate carried, no z, no p) when
+either side's DeLong variance is zero - a perfectly separated side, whose own AUROC the
+engine already refuses for the same reason - because the interval would then be the other
+side's alone. Under
 clustering (declared `case_id`, or repeated case ids detected) both analytic methods are
 refused with the typed reason `clustered_data_analytic_ci_invalid`; the difference is
 computed by the cluster bootstrap with each side's cases resampled independently
@@ -59,7 +63,12 @@ and for specificity separately; Fisher's exact test instead when there are exact
 levels and an expected cell is below 5. The Unknown row is not a level for this purpose.
 Raw p-values and Holm-adjusted p-values within the attribute family are reported with the
 sentence "exploratory; no conclusion about subgroup consistency is drawn from this test".
-Nothing beside a p-value is a status.
+Nothing beside a p-value is a status. Under clustering (declared `case_id`, or repeated
+case ids detected) the tests are not run: they count rows as independent trials, and on
+F6 with every patient's row copied three times the chi-square rose from 4.63 (p 0.099) to
+13.90 (p 0.001). Every entry then carries the typed reason
+`clustered_data_analytic_ci_invalid`, the footnote records the `clustering_route`, and no
+p-value is printed.
 
 **Fairness** is measured, never mitigated. Gaps against the reference level are the
 reference-level differences read as gaps: `tpr_gap` = sensitivity difference; `fpr_gap` =
@@ -79,13 +88,20 @@ intervals; the engine cannot see a case column it was not given.
 nominal level 0.95, bar 0.90. The cluster-bootstrap percentile interval was formed with the
 engine's own resampler and its coverage of a known truth measured; the deficient-class
 refusal was bypassed so that every shape was measured. Monte-Carlo error per cell is about
-0.015. Re-run with `python scripts/coverage_bar.py --full` (about 13 minutes) or `--quick`
-(R = 100, B = 200, about 40 seconds).
+0.015 (0.03 at `--quick`). Re-run with `python scripts/coverage_bar.py --full` (about 13
+minutes) or `--quick` (R = 100, B = 200, 41 seconds measured on 15 September 2026).
 
-**Constants after this measurement:** `MAX_FROZEN_VARIANCE_SHARE = 0.20` (kept: every
-measured shape it renders covers at or above 0.90 and the first refused shape is below it;
-no shape between 0.20 and 0.30 was measured); `MIN_UNITS_PER_STRATUM = 2` (kept, **but it
-does not meet the bar** - see below).
+**Constants after this measurement:** `MAX_FROZEN_VARIANCE_SHARE = 0.20` (kept). The
+refusal rule is `frozen share >= 0.20`, so the shapes this constant renders are the 0.05
+and 0.10 rows below (0.912 / 0.958 and 0.943 / 0.935) and the 0.20 row is the first shape
+it refuses. That refused shape measured at or above the bar at every seed tried - 0.932 /
+0.915 in the recorded run (Monte-Carlo error 0.015), 0.900 / 0.870 at `--quick`, 0.925 /
+0.915 at seed 20260916 (R = 200, B = 500) - and the 0.30 row straddles the bar across
+seeds (0.863 / 0.873 recorded; 0.930 / 0.915 at the lens's seed 7; 0.910 / 0.890 at seed
+20260916). The constant was therefore neither loosened to 0.30 nor moved: at this boundary
+it refuses one shape that met the bar, which is the conservative side of a measurement
+whose seed-to-seed spread is about three Monte-Carlo standard errors.
+`MIN_UNITS_PER_STRATUM = 2` (kept, **but it does not meet the bar** - see below).
 
 ### AUROC cell: one frozen pure-positive case of 3 rows beside m mixed cases
 
@@ -135,4 +151,11 @@ Josh (day-5 note): a design-effect-adjusted Wilson interval for clustered propor
 effective-units floor per cell, or T7 carrying this table as the statement of what the
 interval does. Until it is taken, this paragraph is the honest one and T7 should carry it.
 
-The AUROC frozen-share half is consistent with the bar as far as it was measured.
+The AUROC frozen-share half: every shape the constant renders measured at or above the
+bar in the recorded run, and the first shape it refuses did too (see the constants
+paragraph above for the seed-to-seed spread at the 0.20 and 0.30 rows).
+
+The DEC-08 refusal-below-the-bar is **not implemented** for the proportion route: a
+clustered proportion cell of 10 cases at p = 0.9 (measured 0.672 above) renders today with
+its tier annotation and no refusal. That is the open decision named in the previous
+paragraph, not an omission of this file.
