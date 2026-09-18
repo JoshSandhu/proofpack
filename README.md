@@ -66,8 +66,10 @@ What it does, in order:
    missing-token normalisation, and for <= 2-unique columns the split. A value is
    listed only when its count is >= 10 (the egress cell floor of D1 section 6, reused
    here because D1 section 5 states no floor of its own); below that it prints as
-   `<suppressed>`. A categorical/string column with more than half of its non-missing
-   sample unique lists no values.
+   `<suppressed>`. A numeric min or max is printed only when >= 10 sampled rows hold
+   that value; otherwise it prints as `<suppressed>` too (`["100"] * 41 + ["7"] * 9`
+   prints `min <suppressed> max 100`). A categorical/string column with more than half
+   of its non-missing sample unique lists no values.
 2. Assigns a role and a confidence to every header (`io.mapping.map_headers`): exact
    canonical name, the synonym table, an affix-stripped synonym (`pt_age`,
    `label_v2`), a header token (`patient_nbr`), a date-like header, then the value
@@ -77,19 +79,27 @@ What it does, in order:
    are not read by the mapper; `io.declare` reads them from `criteria.yaml`.
 3. Halts with a typed code and exit 3: H07 when two headers coincide after case-folding,
    trimming and NFC normalisation; E01 (DEC-11) when two headers resolve to `case_id`
-   by name, or when `criteria.yaml`'s `clustering.unit` names two or more columns
-   (message ends `reduce your case key to one column`); H11 when a column is date-like
-   by header or by values and no `period` declaration covers it.
-4. Prints the table `original header -> role -> confidence -> value summary`, then:
+   by name, when `criteria.yaml`'s `clustering.unit` is a list of two or more, or a
+   string that splits into two or more tokens on ` and ` or any character outside
+   `[A-Za-z0-9_]` (`subject_id/hadm_id`, `patient_id, study_id`, `a b`; the hyphenated
+   single name `patient-id` also counts two), or when `clustering.columns` / `key` /
+   `keys` / `column` / `units` / `fields` lists two or more (message ends `reduce your
+   case key to one column`); H11 when a column is date-like by header or by values and
+   no `period` declaration covers it.
+4. Prints the table `original header -> role -> confidence -> value summary` (under
+   `--quiet` only when stdin is a terminal, because the prompts refer to it), then:
    * stdin is a terminal and `--yes` is absent: prompts once per non-high role
-     (accept / edit to a canonical role or `ignore` / quit) and writes `mapping.json`
-     with `decided_by: interactive`;
+     (accept / edit to a canonical role or `ignore` / quit; an edit to a role another
+     column already holds is refused at the prompt), or once for the whole mapping
+     when every role is high, and writes `mapping.json` with `decided_by: interactive`.
+     Ctrl-C or a closed stdin at a prompt is H07 (`nothing written`);
    * stdin is not a terminal and `--yes` is absent: halts H07 (`run interactively or
-     pass --yes with a prior mapping.json`) without reading stdin;
+     pass --yes with a prior mapping.json`) before any prompt;
    * `--yes`: accepted only when a prior `mapping.json` at `--out` has the same
-     `header_set_sha256` and every mapped role is `high` both in that file and in the
-     mapping computed from this table; otherwise H07. The prior file's roles are used
-     (`decided_by: file`).
+     `header_set_sha256`, its `decided_by` is `interactive` or `file` (a `proposed`
+     file written by `proofpack run` is refused), and every mapped role is `high` both
+     in that file and in the mapping computed from this table; otherwise H07. The prior
+     file's roles are used (`decided_by: file`).
 
 `mapping.json` (the one file this command writes original headers to) is written as:
 

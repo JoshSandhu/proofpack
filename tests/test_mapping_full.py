@@ -175,7 +175,9 @@ def test_two_unique_split_is_suppressed_the_same_way():
     s = profile_column(col)
     assert s.split == [["0", 41], [SUPPRESSED, 1]]
     assert s.n_unique == 2 and s.inferred_type == "int"
-    assert s.min == "0" and s.max == "1"
+    # 41 rows hold the min (shown); 9 rows hold the max (below k=10: the literal).
+    # At 555a5e1 this line read ``s.max == "1"`` and pinned the leak (repair 1, FA-B1).
+    assert s.min == "0" and s.max == SUPPRESSED
 
 
 def test_sample_boundary_row_10001_does_not_reach_the_summary():
@@ -193,7 +195,9 @@ def test_missing_pct_after_missing_token_normalisation():
     raw = table_from_columns({"c": ["1", "NA", "", "unknown", "2", None, "3", "4"]})
     s = profile_column(raw.columns["c"])
     assert s.n_sampled == 8 and s.n_missing == 4 and s.missing_pct == 50.0
-    assert s.inferred_type == "int" and s.min == "1" and s.max == "4"
+    # each of 1..4 is held by one row (below k=10), so both extremes are the literal
+    assert s.inferred_type == "int" and s.min == SUPPRESSED and s.max == SUPPRESSED
+    assert s.signals["min"] == 1.0 and s.signals["max"] == 4.0  # the mapper still sees them
 
 
 def test_date_column_lists_no_values_and_coarsens_min_max_to_month():
@@ -364,6 +368,7 @@ def test_two_headers_claiming_y_true_are_both_low_and_yes_is_refused(tmp_path: P
     assert (m.entry("label").role, m.entry("label").confidence) == ("y_true", "low")
     assert (m.entry("outcome").role, m.entry("outcome").confidence) == ("y_true", "low")
     assert any("2 headers claim y_true" in n for n in m.entry("label").notes)
+    m.decided_by = "interactive"  # a confirmed prior (repair 1: a proposed one is refused first)
     m.write(tmp_path / "mapping.json")
     with pytest.raises(HaltError) as ei:
         check_h07(raw.headers, tmp_path / "mapping.json", non_interactive=True, fresh=m)
@@ -542,7 +547,9 @@ def test_yes_without_a_prior_mapping_halts_h07(tmp_path: Path, capsys):
 def test_yes_with_matching_all_high_prior_is_accepted(tmp_path: Path, capsys):
     csv_path, cols = _cohort_csv(tmp_path)
     prior = tmp_path / "m.json"
-    map_headers(list(cols), cols).write(prior)
+    confirmed = map_headers(list(cols), cols)
+    confirmed.decided_by = "interactive"  # repair 1: a proposed prior is refused (FA-N1)
+    confirmed.write(prior)
     rc = main(["map", "--input", str(csv_path), "--out", str(prior), "--yes"])
     out = capsys.readouterr().out
     assert rc == EXIT_OK
@@ -557,6 +564,7 @@ def test_yes_with_matching_prior_holding_a_medium_role_halts_h07(tmp_path: Path,
     prior = tmp_path / "m.json"
     m = map_headers(list(cols))  # header-only: 'label' would be medium; use canonical + edit
     m.roles[0].confidence = "medium"
+    m.decided_by = "interactive"
     m.write(prior)
     rc = main(["map", "--input", str(csv_path), "--out", str(prior), "--yes"])
     assert rc == EXIT_HALT
@@ -583,6 +591,7 @@ def test_yes_is_refused_when_the_fresh_mapping_has_a_medium_even_if_the_file_say
     prior = tmp_path / "m.json"
     forged = map_headers(raw.headers)  # header-only: every canonical name is high
     assert forged.all_high
+    forged.decided_by = "file"
     forged.write(prior)
     fresh = map_headers(raw.headers, raw.columns)
     assert fresh.entry("sex").confidence == "medium"
@@ -723,8 +732,12 @@ def test_value_summaries_in_mapping_json_are_the_suppressed_ones():
 # --------------------------------------------------------------------------- privacy
 
 
-def test_no_halt_carries_a_header_or_value():
-    """Walks every halt the committed fixtures raise, plus two constructed ones."""
+def test_fixture_halts_and_two_constructed_ones_carry_no_header_or_value():
+    """Walks every halt the committed fixtures raise, plus two constructed ones.
+
+    Renamed in repair 1 (FA-N11): the old id ``test_no_halt_carries_a_header_or_value``
+    asserted a universal the test does not inspect.
+    """
     seen = 0
     for fid in FIXTURE_IDS:
         spec = json.loads((FIXTURES / f"{fid}.expected.json").read_text(encoding="utf-8"))

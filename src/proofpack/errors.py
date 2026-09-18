@@ -40,8 +40,14 @@ SCHEMA_CODES: dict[str, str] = {
 }
 
 #: Mapper halts that are neither one of the twelve gates nor a schema failure. They exit
-#: 3 like the others. E01 is DEC-11 (Josh, 13 September 2026): a composite case key is a
-#: typed halt whose message ends "reduce your case key to one column", never a traceback.
+#: 3 like the others. E01 is DEC-11 (Josh, 13 September 2026); its message ends "reduce
+#: your case key to one column". Raised by ``io.declare._check_dec11_case_key`` (a
+#: ``clustering.unit`` list of >= 2, a string splitting into >= 2 tokens, or a list of
+#: >= 2 under ``clustering.columns``/``key``/...) and by ``io.mapping.map_headers`` (two
+#: headers resolving to ``case_id`` by name). ``tests/test_mapping_full.py::
+#: test_dec11_via_the_cli_run_and_map_exit_3_with_the_message_and_no_traceback`` runs
+#: ``run`` and ``map`` through ``main()`` and one subprocess and asserts exit 3, the first
+#: stderr line and no ``Traceback``.
 MAPPING_CODES: dict[str, str] = {
     "E01": "composite case key: two or more columns identify a case (DEC-11)",
 }

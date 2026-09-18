@@ -36,9 +36,9 @@ levels stay the strings ``1`` and ``2`` (or ``0`` and ``1``) until a human confi
 Two headers resolving to ``case_id`` halt with E01 (DEC-11), not ``low``.
 
 Original headers are written to ``mapping.json`` and nowhere else by this module.
-``tests/test_mapping_full.py::test_no_halt_carries_a_header_or_value`` raises every halt
-the committed fixtures raise, plus two constructed ones, and greps each message and detail
-for that table's headers and its cell values of three or more characters.
+``tests/test_mapping_full.py::test_fixture_halts_and_two_constructed_ones_carry_no_header_or_value``
+raises every halt the committed fixtures raise, plus two constructed ones, and greps each
+message and detail for that table's headers and its cell values of three or more characters.
 """
 
 from __future__ import annotations
@@ -175,6 +175,8 @@ AGE_BAND = re.compile(r"^\[?\s*\d{1,3}\s*[-\u2013]\s*\d{1,3}\s*[\)\]]?$|^\d{1,3}
 SINGLE_HOLDER_ROLES = frozenset(canonical_columns())
 IGNORE = "ignore"
 CONFIDENCES = ("high", "medium", "low")
+#: ``decided_by`` values a prior mapping.json may carry for ``--yes`` (D1 section 5 step 5).
+CONFIRMED_DECIDED_BY = frozenset({"interactive", "file"})
 
 _CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _SEPARATORS = re.compile(r"[\s\-\.]+")
@@ -291,12 +293,27 @@ class Mapping:
 
     @classmethod
     def read(cls, path: str | Path) -> Mapping:
+        """Read a prior ``mapping.json``; any shape or I/O failure is H07 ``could not be read``.
+
+        The shape checks (``header_set_sha256`` a string, each ``roles`` entry a mapping whose
+        ``original`` and ``confidence`` are strings; a non-mapping file or a non-list ``roles``
+        raises AttributeError/TypeError on its own) are there because at 555a5e1 a file with
+        ``"roles": "x"`` or ``"header_set_sha256": 123`` reached ``--yes`` as exit 5
+        ``internal error: AttributeError`` / ``TypeError`` (repair 1, FA-N6;
+        ``tests/test_mapping_repair1.py::test_malformed_prior_under_yes_halts_h07_not_exit_5``).
+        """
         try:
             raw = Path(path).read_bytes()
             data = json.loads(raw.decode("utf-8"))
+            if not isinstance(data.get("header_set_sha256"), str):
+                raise TypeError("header_set_sha256")
             roles = []
             for r in data["roles"]:
+                if not isinstance(r, dict):  # a string's characters or a list's ints
+                    raise TypeError("role entry")
                 role = r.get("role")
+                if not isinstance(r["original"], str) or not isinstance(r["confidence"], str):
+                    raise TypeError("role entry fields")
                 roles.append(
                     RoleMapping(
                         r["original"],
@@ -309,13 +326,13 @@ class Mapping:
             m = cls(
                 header_set_sha256=data["header_set_sha256"],
                 roles=roles,
-                decided_by=data.get("decided_by", "file"),
-                timestamp=data.get("timestamp", ""),
-                value_summaries=data.get("value_summaries", {}),
+                decided_by=str(data.get("decided_by", "file")),
+                timestamp=str(data.get("timestamp", "")),
+                value_summaries=data.get("value_summaries") or {},
             )
             m.file_sha256 = hashlib.sha256(raw).hexdigest()
             return m
-        except (OSError, ValueError, KeyError, TypeError) as exc:
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
             raise HaltError("H07", "mapping.json could not be read") from exc
 
     def table(self) -> str:
@@ -657,8 +674,12 @@ def check_h07(
     Interactive mode (``non_interactive=False``): return the prior mapping if its hash
     matches, otherwise the fresh mapping (the confirm step is the CLI's).
     Non-interactive mode: HALT H07 unless a prior ``mapping.json`` exists, its hash equals
-    the current header set, and every mapped role is ``high`` in both the prior file and
-    the fresh mapping computed from this table.
+    the current header set, its ``decided_by`` is ``interactive`` or ``file`` (D1 section 5
+    step 5's two values; a ``proposed`` file is one ``proofpack run`` wrote without a
+    confirm step - at 555a5e1 ``map --yes`` accepted such a file and rewrote it as ``file``,
+    repair 1, FA-N1; ``tests/test_mapping_repair1.py::test_yes_refuses_a_proposed_prior``),
+    and every mapped role is ``high`` in both the prior file and the fresh mapping computed
+    from this table.
     """
     current = header_set_sha256(headers)
     fresh = fresh or map_headers(headers)
@@ -667,6 +688,14 @@ def check_h07(
         prior = Mapping.read(mapping_path)
 
     if prior is not None and prior.header_set_sha256 == current:
+        if non_interactive and prior.decided_by not in CONFIRMED_DECIDED_BY:
+            raise HaltError(
+                "H07",
+                "non-interactive mode requires a confirmed mapping.json (decided_by "
+                "interactive or file); this one was not confirmed: run proofpack map "
+                "interactively once",
+                {"decided_by": prior.decided_by[:16]},
+            )
         if non_interactive and not prior.all_high:
             raise HaltError(
                 "H07",

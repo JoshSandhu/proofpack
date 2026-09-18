@@ -6,20 +6,26 @@ type, ``n_unique``, the top <= :data:`TOP_VALUES` values with counts, min/max fo
 numeric and date columns, the missing percentage after the schema's missing-token
 normalisation, and for <= 2-unique-value columns the split (candidate labels).
 
-Suppression is applied before anything is displayed or written: a value is listed only
-when its count in the sample is >= :data:`SUPPRESSION_K`; below that it is replaced by
-the literal ``<suppressed>`` and counted in ``n_suppressed_values``. Free-text-looking
-columns (more than :data:`FREE_TEXT_UNIQUE_SHARE` of the non-missing sample is unique
-and the type is not numeric or date) list no values at all. Date min/max are coarsened
-to ``YYYY-MM``; a date column lists no values (D1 section 1's rule on raw dates). The
-summary is what ``mapping.json``'s ``value_summaries`` holds and what
-the printed table shows.
+The floor :data:`SUPPRESSION_K` is applied to three fields of the summary: a value is
+listed in ``top`` / ``split`` only when its count in the sample is >= the floor, below
+that it is replaced by the literal ``<suppressed>`` and counted in
+``n_suppressed_values``; and a numeric ``min`` / ``max`` is printed only when the sampled
+rows holding that extreme value number >= the floor, otherwise the field holds the same
+literal (repair 1, FA-B1: at 555a5e1 ``["100"] * 41 + ["7"] * 9`` printed ``min 7`` while
+listing ``7`` as ``<suppressed>``;
+``tests/test_mapping_repair1.py::test_numeric_min_max_below_the_floor_print_as_suppressed``
+feeds that column and four others). Free-text-looking columns (more than
+:data:`FREE_TEXT_UNIQUE_SHARE` of the non-missing sample is unique and the type is not
+numeric or date) list no values at all. Date min/max are coarsened to ``YYYY-MM`` and are
+not put through the floor (D1 section 1's rule on raw dates; open question 1 of the
+repair-1 note); a date column lists no values. The summary is what ``mapping.json``'s
+``value_summaries`` holds and what the printed table shows.
 
 Typing reuses :mod:`proofpack.io.schema`: the missing tokens are already applied by
 ``load_table`` / ``table_from_columns`` (a ``None`` cell is missing), ``float()`` is the
 numeric rule ``_to_float`` uses, and ``_ISO_DATE`` is the date prefix ``coarsen_date``
-accepts. Two slash-separated date shapes are accepted in addition (recorded in
-:data:`DATE_PATTERNS`).
+accepts. Two slash-separated date shapes and one dash-separated shape are accepted in
+addition (recorded in :data:`DATE_PATTERNS`).
 """
 
 from __future__ import annotations
@@ -46,19 +52,26 @@ FREE_TEXT_UNIQUE_SHARE = 0.5
 SUPPRESSED = "<suppressed>"
 
 _INT = re.compile(r"^[+-]?\d+$")
-#: Date shapes the value sniff accepts: the schema's ISO prefix, then D/M/YYYY and
-#: YYYY/MM/DD. A column is typed ``date`` only when every non-missing sampled value
-#: matches one of them.
+#: Date shapes the value sniff accepts: the schema's ISO prefix, then D/M/YYYY,
+#: YYYY/MM/DD and D-M-YYYY (the last added in repair 1, FA-N7: at 555a5e1 a ``visit``
+#: column of ``15-03-2024`` values was typed ``string`` and passed H11). A column is typed
+#: ``date`` only when every non-missing sampled value matches one of them; an integer
+#: column (Excel serials such as 45000, or 20240315) is typed ``int``.
 DATE_PATTERNS: tuple[re.Pattern[str], ...] = (
     _ISO_DATE,
     re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$"),
     re.compile(r"^\d{4}/\d{2}/\d{2}$"),
+    re.compile(r"^\d{1,2}-\d{1,2}-\d{4}$"),
 )
 
 
 @dataclass
 class ColumnSummary:
-    """Aggregates only. ``top`` and ``split`` hold ``[value_or_<suppressed>, count]`` pairs."""
+    """Counts, the inferred type and the floor-filtered extremes and values of one column.
+
+    ``top`` and ``split`` hold ``[value_or_<suppressed>, count]`` pairs; ``min`` / ``max``
+    hold a formatted number, a ``YYYY-MM`` month, the ``<suppressed>`` literal, or None.
+    """
 
     inferred_type: str  # int | float | date | categorical | string | empty
     n_sampled: int
@@ -139,6 +152,18 @@ def _fmt_num(x: float) -> str:
     return f"{x:g}"
 
 
+def _extreme_or_suppressed(x: float, counts: Counter) -> str:
+    """The formatted extreme when the sampled rows holding it number >= the floor."""
+    rows = 0
+    for value, count in counts.items():
+        try:
+            if float(value) == x:
+                rows += count
+        except ValueError:  # pragma: no cover - counts come from an int/float column
+            continue
+    return _fmt_num(x) if rows >= SUPPRESSION_K else SUPPRESSED
+
+
 def _date_key(v: str) -> str:
     """``YYYY-MM`` for ordering and display; slash shapes are reduced by their digits."""
     m = _ISO_DATE.match(v)
@@ -147,7 +172,7 @@ def _date_key(v: str) -> str:
     m = re.match(r"^(\d{4})/(\d{2})/\d{2}$", v)
     if m:
         return f"{m.group(1)}-{m.group(2)}"
-    m = re.match(r"^\d{1,2}/(\d{1,2})/(\d{4})$", v)
+    m = re.match(r"^\d{1,2}[/-](\d{1,2})[/-](\d{4})$", v)
     if m:
         return f"{m.group(2)}-{int(m.group(1)):02d}"
     return v  # unreachable for a value that passed DATE_PATTERNS
@@ -172,6 +197,8 @@ def profile_column(column: list[str | None], *, sample_rows: int = SAMPLE_ROWS) 
     missing_pct = (100.0 * n_missing / n) if n else 0.0
 
     lo = hi = None
+    shown_lo: str | None = None
+    shown_hi: str | None = None
     signals: dict = {"n_rows": n, "n_nonmissing": len(present)}
     if kind in ("int", "float"):
         nums = [f for f in (float(v) for v in present) if not math.isnan(f)]
@@ -180,9 +207,14 @@ def profile_column(column: list[str | None], *, sample_rows: int = SAMPLE_ROWS) 
         signals["min"], signals["max"] = lo, hi
         signals["unit_interval"] = lo is not None and lo >= 0.0 and hi <= 1.0
         signals["all_unique"] = len(present) >= 2 and n_unique == len(present) == n
+        if lo is not None:
+            # the extreme is printed only when >= SUPPRESSION_K sampled rows hold it
+            # (summed over the strings that parse to that number, e.g. "1" and "1.0")
+            shown_lo = _extreme_or_suppressed(lo, counts)
+            shown_hi = _extreme_or_suppressed(hi, counts)
     elif kind == "date":
         keys = sorted(_date_key(v) for v in present)
-        lo, hi = keys[0], keys[-1]
+        shown_lo, shown_hi = keys[0], keys[-1]
         signals["date"] = True
 
     lowered = {v.casefold() for v in counts}
@@ -218,8 +250,8 @@ def profile_column(column: list[str | None], *, sample_rows: int = SAMPLE_ROWS) 
         n_unique=n_unique,
         top=top,
         n_suppressed_values=n_suppressed,
-        min=_fmt_num(lo) if isinstance(lo, float) else lo,
-        max=_fmt_num(hi) if isinstance(hi, float) else hi,
+        min=shown_lo,
+        max=shown_hi,
         split=split,
         free_text=free_text,
         values_shown=values_shown,

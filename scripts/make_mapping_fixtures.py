@@ -295,8 +295,13 @@ def write_fixture(
     n = len(cols[headers[0]]) if headers else 0
     if n_rows is not None:
         n = n_rows
-    with (OUT / f"{name}.csv").open("w", encoding=encoding, newline="") as fh:
-        w = csv.writer(fh, lineterminator="\n")
+    csv_path = OUT / f"{name}.csv"
+    # keep the line ending the checkout already has (CRLF on Windows with autocrlf, LF on
+    # a Linux checkout), so regenerating marks no fixture modified for endings alone
+    # (repair 1, RG-NB-7: at 555a5e1 the generator wrote LF and git status listed all 35)
+    eol = "\r\n" if csv_path.exists() and b"\r\n" in csv_path.read_bytes() else "\n"
+    with csv_path.open("w", encoding=encoding, newline="") as fh:
+        w = csv.writer(fh, lineterminator=eol)
         w.writerow(headers)
         for i in range(n):
             w.writerow([_fmt(cols[h][i]) for h in headers])
