@@ -4,9 +4,8 @@ Josh, 13 September 2026, DEC-08: a cell renders with its tier annotation when th
 engine's own coverage simulation for that shape is >= 0.90. Lens 1 of 2026-09-18
 (FA-B1) measured the build-day-6 clustered route - cases resampled *within outcome
 class* - for the O:E ratio, the intercept-in-the-large and the joint intercept at
-0.61-0.79 on 200 x 1, 200 x 2 and 60 x 3 cases (nominal 0.95): with every case pure, or
-every mixed case carrying one event, the event count ``O`` is the same integer in every
-draw. The repair resamples cases in a single stratum for those quantities
+0.61-0.79 on 200 x 1, 200 x 2 and 60 x 3 cases (nominal 0.95). The repair resamples
+cases in a single stratum for those quantities
 (:func:`proofpack.stats.bootstrap.clustered_flat`), and this script is the measurement
 DEC-08 asks for. Deterministic, committed, re-runnable::
 

@@ -51,10 +51,15 @@ converged when the largest parameter change is at most ``IRLS_TOL`` times
 ``(1 + |parameter|)``; at most ``IRLS_MAX_ITER`` iterations. What does not converge
 is a typed outcome, never ``inf``, ``nan`` or a traceback: ``complete_separation``
 when every fitted probability is within ``SEPARATION_TOL`` of its label (the MLE does
-not exist), ``irls_not_converged`` when the iteration budget runs out, ``single_class``
-before any fit when the labels take one value, ``constant_score`` when ``logit(p)``
-takes one value (the slope is not identifiable and the two-parameter information is
-singular).
+not exist); ``irls_not_converged`` on any of four exits - the ``IRLS_MAX_ITER`` budget
+is spent, the ``MAX_STEP_HALVINGS`` halvings of one Newton step all raise the deviance
+(``detail.iterations`` is then that step's index: 1 on 50 rows all at ``p = 1.0`` with
+12 events, where every score is clipped to ``1 - 1e-12`` and the first step is refused;
+``test_irls_not_converged_at_iteration_one_names_the_step_halving_exit_not_the_budget``
+feeds that input), the information matrix is singular at a step or at convergence, or
+a parameter or standard error is not finite; ``single_class`` before any fit when the
+labels take one value; ``constant_score`` when ``logit(p)`` takes one value (the slope
+is not identifiable and the two-parameter information is singular).
 
 **Scores at exactly 0 or 1.** ``logit(0)`` and ``logit(1)`` are infinite. For the two
 logit-scale models only, the score is clipped to ``[CLIP_EPS, 1 - CLIP_EPS]`` with
@@ -80,19 +85,26 @@ stratified by outcome or clustered by case exactly as ``stats.subgroups._brier_c
 does, so the overall Brier equals the subgroup module's value on the whole cohort taken
 as one level (a test checks est and bounds bit for bit under the same cell key). The
 reference Brier is ``pi (1 - pi)`` at the observed prevalence - the Brier score of
-predicting the prevalence for every row - and ``IPA = 1 - Brier / Brier_ref``. The
-resampled prevalence is the same in every draw exactly when, within every stratum of
-the resampler, every unit carries the same number of positive rows and the same number
-of negative rows (each stratum draws ``m`` units from ``m``, so its class totals are
-then fixed): that is always so for the row resampler, and under a clustered plan it is
-so for, e.g., two-row cases that each carry one event and one non-event, and not so for
-pure cases of one and three rows (:func:`_prevalence_invariant` reads the per-unit class
-counts; ``test_brier_ref_is_fixed_when_every_unit_in_a_stratum_carries_the_same_class_counts``
-feeds those three shapes). When it holds the reference Brier is reported with the typed
-reason ``fixed_by_outcome_stratification`` rather than the ``boundary_estimate`` a
-zero-width draw would produce (its uncertainty is the prevalence's, which the
-threshold-free block carries); otherwise it is bootstrapped with everything else. The
-IPA draws use each resample's own Brier and reference Brier.
+predicting the prevalence for every row - and ``IPA = 1 - Brier / Brier_ref``.
+:func:`_prevalence_invariant` reads the resampler's per-unit class counts and returns
+``True`` when, within every stratum, ``R * pos_u - P * rows_u`` takes one value over the
+stratum's units (``P`` and ``R`` the cohort's positive and total row counts; the
+derivation is in its docstring). On the eleven case shapes
+``test_the_prevalence_rule_agrees_with_the_resamplers_own_draws_on_eleven_shapes`` feeds,
+it returns ``True`` on exactly the shapes whose 500 draws of the module's own
+``clustered_by_case`` resampler give one prevalence - among them 30 mixed cases of (1
+event, 1 non-event) beside 30 of (2, 2), which the round-1 rule (every unit of a stratum
+carrying identical class counts) read as varying and rendered ``boundary_estimate``
+(lens 2 of 2026-09-18, FA-N1 / RG-N1) - and ``False`` on the shapes whose draws give
+several (pure cases of one and three rows; mixed (1, 1) beside (1, 2)). On the row
+resampler every unit of a stratum is one row of one class, so the set has one value
+(``test_brier_ref_is_fixed_under_outcome_stratification_and_varies_when_case_sizes_differ``
+reads ``fixed_by_outcome_stratification`` on 200 i.i.d. rows). When it returns ``True``
+the reference Brier is reported with the typed reason
+``fixed_by_outcome_stratification`` rather than the ``boundary_estimate`` a zero-width
+draw would produce (its uncertainty is the prevalence's, which the threshold-free block
+carries); otherwise it is bootstrapped with everything else. The IPA draws use each
+resample's own Brier and reference Brier.
 
 **ECE** (R2 section 1.4, after Nixon et al. 2019): ``sum_b (n_b / N) |mean(y)_b -
 mean(p)_b|`` under **two** schemes, each reported with its scheme stated - ten
@@ -131,10 +143,13 @@ and which one is a recorded decision (repair round 1 of build day 6, lens 1 FA-B
 
 * the **O:E ratio and the three IRLS quantities** resample cases in a **single
   stratum** (:func:`~proofpack.stats.bootstrap.clustered_flat`: every case drawn with
-  the same probability whatever its outcome, all rows of a drawn case kept), so the
-  event count ``O`` varies from draw to draw. Build day 6 drew these cases *within
-  outcome class* instead, which holds ``O`` at the same integer in every draw whenever
-  every case is pure or every mixed case carries the same number of events: on the
+  the same probability whatever its outcome, all rows of a drawn case kept), so a
+  draw's ``O`` and ``E`` are the sums over the drawn cases (on 100 two-row cases each
+  carrying one event and one non-event, 500 draws give ``O = 100`` every time and the
+  O:E interval comes from the variation of ``E`` alone;
+  ``test_the_flat_resampler_holds_o_at_100_on_100_two_row_cases_of_one_event_each``
+  feeds that input). Build day 6 drew these cases *within outcome class* instead
+  (:func:`~proofpack.stats.bootstrap.clustered_by_case`): on the
   lens's data-generating process (case effect N(0, 0.8), row noise N(0, 0.9), truth
   O:E = 1, intercept 0, slope 1; 300 replicates, B = 200) the O:E interval covered the
   truth in 0.630 / 0.670 / 0.787 of replicates on 200 x 1, 200 x 2 and 60 x 3 cases,
@@ -661,23 +676,48 @@ def _cell_dict(cell: CellCI, detail: dict[str, Any] | None = None) -> dict[str, 
 
 
 def _prevalence_invariant(resampler: Resampler) -> bool:
-    """Whether every resample keeps the prevalence.
+    """``True`` when, within every stratum, ``R * pos_u - P * rows_u`` takes one value
+    over the stratum's units; ``False`` otherwise, and ``False`` when a stratum carries
+    no per-class counts (the single-stratum ``clustered_flat`` resampler;
+    ``_brier_cells`` takes ``_Ctx.resampler()``, which builds the other two).
 
-    Each stratum draws ``m`` units from its ``m`` with replacement, so the rows of one
-    class it contributes are fixed exactly when every one of its units carries the
-    same number of rows of that class. Read from the resampler's own per-unit class
-    counts (:attr:`~proofpack.stats.bootstrap._Stratum.class_unit_rows`), for both
-    classes of every stratum - not from the stratum's label: build day 6 read
-    "no ``mixed`` stratum, every unit of one size", which is false in both directions
-    for two-row mixed cases that each carry one event (the prevalence is the same in
-    every draw and the reference Brier came out ``boundary_estimate``; lens 1 of
-    2026-09-18, FA-B3 / RG-B3).
+    Read from the resampler's own per-unit class counts
+    (:attr:`~proofpack.stats.bootstrap._Stratum.class_unit_rows`); ``P`` and ``R`` are
+    the cohort's positive and total row counts, integers, so the comparison is exact.
+    The algebra behind the rule: each stratum ``s`` draws ``m_s`` units from its ``m_s``
+    with replacement, so a draw is a multiplicity ``k_u`` per unit with ``sum_u k_u =
+    m_s`` in each stratum, and its prevalence is ``P' / R'`` with ``P' = sum k_u pos_u``,
+    ``R' = sum k_u rows_u``. ``P' / R' = P / R`` reads ``sum_u k_u (R pos_u - P rows_u) =
+    0``. Moving a stratum's whole draw from one unit to another changes that sum by
+    ``m_s`` times the difference of the two units' ``R pos_u - P rows_u``, so equality on
+    every draw needs that quantity constant within each stratum; and when it is, the sum
+    over any draw equals the sum over the identity draw (every unit once), which is
+    ``R P - P R = 0``. Two rules preceded this one: build day 6 read "no ``mixed``
+    stratum, every unit of one size" (false in both directions for two-row mixed cases
+    each carrying one event; lens 1 of 2026-09-18, FA-B3 / RG-B3); repair round 1 read
+    "every unit of a stratum carries identical (positive, negative) counts", which is the
+    ``if`` direction only (30 mixed cases of (1, 1) beside 30 of (2, 2) hold the
+    prevalence at 0.5 in every draw and were read as varying; lens 2 of 2026-09-18,
+    FA-N1 / RG-N1). ``test_the_prevalence_rule_agrees_with_the_resamplers_own_draws_on_
+    eleven_shapes`` compares this function with 500 draws of the module's own resampler
+    on each of eleven named case shapes, in both directions.
     """
-    return all(
-        len(set(counts)) <= 1
-        for stratum in resampler.strata
-        for counts in stratum.class_unit_rows.values()
-    )
+    per_unit: list[tuple[int, int]] = []
+    for stratum in resampler.strata:
+        pos = stratum.class_unit_rows.get("positive")
+        neg = stratum.class_unit_rows.get("negative")
+        if pos is None or neg is None:
+            return False
+        per_unit.extend((int(k), int(k) + int(m)) for k, m in zip(pos, neg, strict=True))
+    p_total = sum(k for k, _ in per_unit)
+    r_total = sum(r for _, r in per_unit)
+    start = 0
+    for stratum in resampler.strata:
+        units = per_unit[start : start + stratum.n_units]
+        start += stratum.n_units
+        if len({r_total * k - p_total * r for k, r in units}) > 1:
+            return False
+    return True
 
 
 def _brier_cells(ctx: _Ctx) -> dict[str, CellCI]:

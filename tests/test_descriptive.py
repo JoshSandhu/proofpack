@@ -123,11 +123,17 @@ def test_table1_and_missingness_keys_are_column_names_and_level_labels_and_nothi
     and an ``ethnicity`` column whose row 1 reads ``ID-77812``. Both strings are Table 1
     keys and ``ethnicity`` is a missingness key; no ``row_id`` value, no ``case_id`` value
     and no score string is a key or a string anywhere in the three blocks, and every
-    leaf under a level is an ``int`` count or a ``float`` share."""
+    leaf under a level is an ``int`` count or a ``float`` share. Lens 2 of 2026-09-18
+    (RG-N5): the round-1 docstring said no "numeric row value" is a key; a ``site``
+    column reading ``1000`` .. ``1029`` on rows 0-29 makes those thirty strings
+    ``table1.test.site`` keys with ``n: 1`` each (they are level labels), so the
+    rewritten sentence says that and this test feeds that column."""
     cols = make_cohort(n=60, with_case_id=True)
     cols["sex"][0] = "PATIENT-NAME-JOSH"
     cols["ethnicity"] = ["A"] * 60
     cols["ethnicity"][1] = "ID-77812"
+    for i in range(30):
+        cols["site"][i] = str(1000 + i)
     decl, table, mask, flow = prepared(cols)
     t1 = table1_block(table, decl, mask)
     miss = missingness_block(table)
@@ -137,6 +143,10 @@ def test_table1_and_missingness_keys_are_column_names_and_level_labels_and_nothi
         "pct": 1 / 60,
     }
     assert "ID-77812" in t1["test"]["ethnicity"]
+    numeric_sites = {str(1000 + i) for i in range(30)}
+    assert numeric_sites <= set(t1["test"]["site"])
+    assert all(t1["test"]["site"][s] == {"n": 1, "pct": 1 / 60} for s in numeric_sites)
+    assert f["n_sites"] == len(set(cols["site"]))
     assert "ethnicity" in miss["columns"] and "sex" in miss["columns"]
     tokens = set()
     for node in (t1, miss, f):

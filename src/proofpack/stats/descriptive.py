@@ -35,12 +35,15 @@ Numbers and no intervals (counts are the one thing D1 renders without a CI):
   missingness is what decided the exclusions.
 
 What leaves this module: counts and shares, keyed by the mapped column names (the
-customer's own headers) and by attribute level labels (the category values the rows
-carry, as ``stats.subgroups`` keys its tables), the Unknown/missing label included. No
-row id, row index or numeric row value is a key or a value here;
+customer's own headers) and by attribute level labels exactly as the rows spell them
+(the category values, as ``stats.subgroups`` keys its tables), the Unknown/missing label
+included - a level spelt as a number is a key like any other, so a ``site`` column
+reading ``1000`` .. ``1029`` on thirty rows makes those thirty strings ``table1.test.site``
+keys with ``n: 1`` each. No ``row_id`` value, no ``case_id`` value and no score value is
+a key or a value in the three blocks on the cohort
 ``test_table1_and_missingness_keys_are_column_names_and_level_labels_and_nothing_per_row``
-feeds a ``sex`` level spelt like a name and an extra attribute column and reads what
-comes out.
+feeds (a ``sex`` level spelt like a name, an ``ethnicity`` level spelt like an id, that
+``site`` column); the values under a level are one ``int`` and one ``float``.
 """
 
 from __future__ import annotations

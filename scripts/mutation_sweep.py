@@ -9,8 +9,9 @@ it in the handoff note with the reason.
 
 Why a copy and not a worktree: the sweep must run against the *working tree* (the code
 being handed off, committed or not), and a git worktree can only check out a commit. The
-copy holds ``src``, ``tests``, ``schema``, ``fixtures``, ``design`` and
-``pyproject.toml``; ``PYTHONPATH`` is forced to the copy's ``src`` for every subprocess.
+copy holds ``src``, ``tests``, ``schema``, ``fixtures``, ``design``, ``scripts`` (the
+day-6 sentences test reads ``scripts/coverage_calibration.py``) and ``pyproject.toml``;
+``PYTHONPATH`` is forced to the copy's ``src`` for every subprocess.
 What is inspected before any mutant runs: one ``python -c "import proofpack"``
 subprocess with that environment and the copy as its working directory, whose
 ``proofpack.__file__`` must resolve under the copy's ``src`` or the sweep exits. That is
@@ -47,7 +48,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-COPIED = ("src", "tests", "schema", "fixtures", "design", "pyproject.toml")
+COPIED = ("src", "tests", "schema", "fixtures", "design", "scripts", "pyproject.toml")
 SUBGROUPS = "src/proofpack/stats/subgroups.py"
 DISCRIMINATION = "src/proofpack/stats/discrimination.py"
 CALIBRATION = "src/proofpack/stats/calibration.py"
@@ -501,19 +502,54 @@ MUTANTS: tuple[Mutant, ...] = (
     Mutant(
         "prevalence_invariant_is_the_b93e050_label_rule",
         CALIBRATION,
-        r"    return all\(\n        len\(set\(counts\)\) <= 1\n"
-        r"        for stratum in resampler\.strata\n"
-        r"        for counts in stratum\.class_unit_rows\.values\(\)\n    \)",
-        '    return all(s.label != "mixed" and s.matrix is not None for s in resampler.strata)',
+        r"    per_unit: list\[tuple\[int, int\]\] = \[\]\n",
+        '    return all(s.label != "mixed" and s.matrix is not None for s in resampler.strata)\n'
+        "    per_unit: list[tuple[int, int]] = []\n",
         what="two-row mixed cases make the reference Brier boundary_estimate (lens 1 FA-B3, RG-B3)",
         day=6,
     ),
     Mutant(
         "prevalence_invariant_always_true",
         CALIBRATION,
-        r"    return all\(\n        len\(set\(counts\)\) <= 1\n",
-        "    return True or all(\n        len(set(counts)) <= 1\n",
+        r"    per_unit: list\[tuple\[int, int\]\] = \[\]\n",
+        "    return True\n    per_unit: list[tuple[int, int]] = []\n",
         what="the reference Brier is never bootstrapped (cases of one and three rows)",
+        day=6,
+    ),
+    # ---- day-6 repair round 2: lens 2's FA-N1 / RG-N1 (the prevalence rule) and FA-N5 L2-2
+    Mutant(
+        "prevalence_invariant_is_the_round1_identical_counts_rule",
+        CALIBRATION,
+        r"    per_unit: list\[tuple\[int, int\]\] = \[\]\n",
+        "    return all(\n        len(set(counts)) <= 1\n"
+        "        for stratum in resampler.strata\n"
+        "        for counts in stratum.class_unit_rows.values()\n    )\n"
+        "    per_unit: list[tuple[int, int]] = []\n",
+        what="30 mixed cases of (1, 1) beside 30 of (2, 2): boundary_estimate (lens 2 FA-N1)",
+        day=6,
+    ),
+    Mutant(
+        "prevalence_invariant_reads_positive_counts_only",
+        CALIBRATION,
+        r"        if len\(\{r_total \* k - p_total \* r for k, r in units\}\) > 1:",
+        "        if len({k for k, r in units}) > 1:",
+        what="mixed (1, 1) beside (1, 2): the prevalence varies but reads fixed (lens 2 L2-1)",
+        day=6,
+    ),
+    Mutant(
+        "prevalence_invariant_reads_row_counts_only",
+        CALIBRATION,
+        r"        if len\(\{r_total \* k - p_total \* r for k, r in units\}\) > 1:",
+        "        if len({r for k, r in units}) > 1:",
+        what="mixed (1, 1) beside (2, 2): the prevalence is fixed but is bootstrapped to no width",
+        day=6,
+    ),
+    Mutant(
+        "decile_bin_ids_are_a_prefix_not_the_bins_rows",
+        CALIBRATION,
+        r"            cluster_ids=None if ctx\.ids is None else ctx\.ids\[rows\],",
+        "            cluster_ids=None if ctx.ids is None else ctx.ids[: rows.shape[0]],",
+        what="each decile bin's cluster bootstrap groups the wrong cases (lens 2 FA-N5 L2-2)",
         day=6,
     ),
     Mutant(

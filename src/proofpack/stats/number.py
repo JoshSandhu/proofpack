@@ -108,14 +108,13 @@ NOT_ESTIMABLE_REASONS: frozenset[str] = frozenset(
         "score_not_probability",
         "score_not_positive_class_probability",
         # the module's own IRLS logistic fits, typed instead of inf / nan / a traceback
-        "irls_not_converged",  # the iteration budget ran out
+        "irls_not_converged",  # budget spent, a step refused, or a singular / non-finite fit
         "complete_separation",  # every fitted probability equals its label; no MLE
         "constant_score",  # logit(p) takes one value; the slope is not identifiable
-        # the prevalence-only reference Brier under a resampler whose every stratum
-        # holds units with identical per-class row counts (rows within outcome class;
-        # cases within outcome class when, e.g., every mixed case carries one event):
-        # the draw has no width by construction, not because of the data. See
-        # stats.calibration._prevalence_invariant.
+        # the prevalence-only reference Brier under a resampler whose draws all carry
+        # the cohort's prevalence (stats.calibration._prevalence_invariant reads the
+        # per-unit class counts): the draw has no width by construction, not because
+        # of the data.
         "fixed_by_outcome_stratification",
     }
 )
