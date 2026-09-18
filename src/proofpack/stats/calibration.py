@@ -31,9 +31,9 @@ The interval is on the log scale by the delta method: with ``E`` taken as fixed 
 ``log_delta``). This is the standard error Debray et al. 2017 (BMJ, "A guide to
 systematic review and meta-analysis of prediction model performance") give for
 ``ln(O:E)`` **[unverified - cited from memory; the derivation above is self-contained
-and the tests recompute it from the formula, not the citation]**. ``O = 0`` makes the
-log undefined (``zero_cell_log_undefined``); ``E = 0`` is a zero denominator; a single
-outcome class is refused as ``single_class`` before either.
+and the tests recompute it from the formula, not the citation]**. ``E = 0`` is a zero
+denominator; ``O = 0`` and ``O = N`` are refused as ``single_class`` before any interval
+is formed (the log of ``O = 0`` is never reached).
 
 **Calibration-in-the-large** is the intercept ``a`` of the logistic model
 ``logit P(y=1) = a + logit(p)`` with the slope fixed at 1 (an offset model), fitted by
@@ -81,27 +81,35 @@ does, so the overall Brier equals the subgroup module's value on the whole cohor
 as one level (a test checks est and bounds bit for bit under the same cell key). The
 reference Brier is ``pi (1 - pi)`` at the observed prevalence - the Brier score of
 predicting the prevalence for every row - and ``IPA = 1 - Brier / Brier_ref``. The
-outcome-stratified resampler holds the prevalence in every resample by construction, so
-the reference Brier cannot vary under it and is reported with the typed reason
-``fixed_by_outcome_stratification`` (its uncertainty is the prevalence's, which the
-threshold-free block carries); under a clustered plan whose case sizes differ or whose
-cases mix outcomes the prevalence does vary and the reference Brier is bootstrapped
-with everything else. The IPA draws use each resample's own Brier and reference Brier.
+resampled prevalence is the same in every draw exactly when, within every stratum of
+the resampler, every unit carries the same number of positive rows and the same number
+of negative rows (each stratum draws ``m`` units from ``m``, so its class totals are
+then fixed): that is always so for the row resampler, and under a clustered plan it is
+so for, e.g., two-row cases that each carry one event and one non-event, and not so for
+pure cases of one and three rows (:func:`_prevalence_invariant` reads the per-unit class
+counts; ``test_brier_ref_is_fixed_when_every_unit_in_a_stratum_carries_the_same_class_counts``
+feeds those three shapes). When it holds the reference Brier is reported with the typed
+reason ``fixed_by_outcome_stratification`` rather than the ``boundary_estimate`` a
+zero-width draw would produce (its uncertainty is the prevalence's, which the
+threshold-free block carries); otherwise it is bootstrapped with everything else. The
+IPA draws use each resample's own Brier and reference Brier.
 
 **ECE** (R2 section 1.4, after Nixon et al. 2019): ``sum_b (n_b / N) |mean(y)_b -
 mean(p)_b|`` under **two** schemes, each reported with its scheme stated - ten
 equal-width bins on ``[0, 1]`` and ten equal-mass bins (the decile bins above). The
 equal-width bins are right-closed ``(lo, hi]`` with the first bin closed at 0, so a
 score exactly on an interior edge belongs to the bin whose *upper* edge it is: this is
-the convention that reproduces R2's F4 figures (0.1255 at five bins, 0.1955 at ten) and
-``sklearn.calibration.calibration_curve``'s binning. Both are labelled
-``supplementary`` in a ``note`` (R2: "treat ECE as descriptive"). **No interval is
-emitted for either ECE** - ``not_computed_this_run`` on the Number, and the reason
-why is here: the percentile bootstrap of a binned absolute deviation overstates it in
-every resample (the absolute value of sampling noise does not average out), and no coverage run of
-that interval has been made against the DEC-08 bar; an interval nobody has measured
-would be exactly the kind of number the day-5 lenses found. An ECE interval is a
-build item with its own coverage run, not a default.
+the convention that reproduces R2's F4 figures (0.1255 at five bins, 0.1955 at ten).
+The edges are ``arange(11) / 10``, not ``linspace(0, 1, 11)``: the two differ in the
+third edge (``0.3`` against ``0.30000000000000004``) and place the computed floats
+``0.1 * 3``, ``0.1 * 6`` and ``0.1 * 7`` in bins 3 / 6 / 7 here and 2 / 5 / 6 under
+``linspace`` edges (``test_the_equal_width_edges_are_arange_over_ten_and_not_linspace``
+feeds those three floats). Both ECEs are labelled ``supplementary`` in a ``note`` (R2:
+"treat ECE as descriptive"). **No interval is emitted for either ECE** -
+``not_computed_this_run`` on the Number, and the reason why is beside it: no coverage
+run of a bootstrap interval for the ECE has been made against the DEC-08 bar of 0.90,
+and an interval nobody has measured would be exactly the kind of number the day-5
+lenses found. An ECE interval is a build item with its own coverage run, not a default.
 
 **The 200/200 annotation** (R2 section 1.4, Van Calster 2019: "a minimum of 200
 patients with and 200 patients without the event has been suggested"): when the
@@ -116,13 +124,44 @@ carrying the event is reported beside it. It is an annotation, never a suppressi
 **Under a clustered plan** (declared or detected) every analytic interval - the
 log-delta O:E, the three IRLS Wald intervals, Wilson per bin - is refused with the
 typed reason ``clustered_data_analytic_ci_invalid`` on the companion Number (DEC-09,
-X2) and the cluster bootstrap takes its place: cases resampled within outcome class
-with all rows of a drawn case kept, the statistic (the O:E ratio; the refitted
-intercept, slope or intercept-in-the-large; the Brier) recomputed on each resample,
-percentile interval, method ``cluster_bootstrap_percentile``, flag
-``log_delta_refused_clustered`` or ``irls_wald_refused_clustered`` on the rendered
-Number. A resample on which the IRLS does not converge is ``nan`` to the resampler and
-counted against :data:`~proofpack.stats.bootstrap.MIN_USABLE_FRACTION`.
+X2) and a cluster bootstrap takes its place, percentile interval, method
+``cluster_bootstrap_percentile``, flag ``log_delta_refused_clustered`` or
+``irls_wald_refused_clustered`` on the rendered Number. Two case resamplers are used,
+and which one is a recorded decision (repair round 1 of build day 6, lens 1 FA-B1):
+
+* the **O:E ratio and the three IRLS quantities** resample cases in a **single
+  stratum** (:func:`~proofpack.stats.bootstrap.clustered_flat`: every case drawn with
+  the same probability whatever its outcome, all rows of a drawn case kept), so the
+  event count ``O`` varies from draw to draw. Build day 6 drew these cases *within
+  outcome class* instead, which holds ``O`` at the same integer in every draw whenever
+  every case is pure or every mixed case carries the same number of events: on the
+  lens's data-generating process (case effect N(0, 0.8), row noise N(0, 0.9), truth
+  O:E = 1, intercept 0, slope 1; 300 replicates, B = 200) the O:E interval covered the
+  truth in 0.630 / 0.670 / 0.787 of replicates on 200 x 1, 200 x 2 and 60 x 3 cases,
+  the intercept-in-the-large in 0.613 / 0.673 / 0.793, the joint intercept in 0.725
+  (200 x 2), against a DEC-08 bar of 0.90. Re-measured after the change with the same
+  process, 300 replicates, B = 200 (``scripts/coverage_calibration.py --full``), on the
+  same three shapes at seed 2026 / seed 7: O:E 0.920, 0.943, 0.903 / 0.937, 0.960,
+  0.937; intercept-in-the-large 0.920, 0.943, **0.897** / 0.927, 0.957, 0.930; slope
+  0.940, 0.943, 0.933 / 0.937, 0.940, 0.920; joint intercept 0.903, 0.927, 0.917 /
+  0.923, 0.953, 0.940 (Monte-Carlo standard error about 0.017 per cell). One of the
+  twenty-four cells, the intercept-in-the-large on 60 x 3 at seed 2026, reads below the
+  bar by less than one standard error, where the analytic Wald interval on the same
+  cohorts reads 0.913; it is rendered and recorded here rather than refused on a
+  threshold set from one cell (day-5 handoff, needs-from-Josh 1, is the same class of
+  decision). Those are measurements on that process at those shapes, not a guarantee.
+  A drawn case set with one outcome class makes the O:E and
+  every fit undefined on those rows: the statistic is ``nan`` to the resampler, and a
+  resample on which the IRLS does not converge is ``nan`` likewise, both counted
+  against :data:`~proofpack.stats.bootstrap.MIN_USABLE_FRACTION`
+  (``degenerate_resamples`` when fewer than 90 % of draws are usable). Before any draw
+  the day-4 class-units rule over the cases within outcome class is applied and refuses
+  the cell as ``insufficient_clusters`` (:func:`_clustered_cell`), so one case holding
+  180 of 200 rows is refused on these four quantities as it was on build day 6;
+* the **Brier score, reference Brier and IPA** resample cases **within outcome
+  class** (:func:`~proofpack.stats.bootstrap.clustered_by_case`), exactly as
+  ``stats.subgroups._brier_cell`` does, so the overall Brier equals the subgroup
+  module's value on the whole cohort bit for bit (the cross-check test above).
 
 **Cell shape.** Every quantity is serialised as the day-4 cell ``{number, analytic,
 analytic_status, clustering_route, bootstrap[, detail]}`` so the companion refusal and
@@ -140,7 +179,7 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import numpy as np
@@ -155,6 +194,7 @@ from proofpack.stats.bootstrap import (
     _number_from_draw,
     bootstrap_percentile,
     clustered_by_case,
+    clustered_flat,
     plan_clustering,
     precision_flags,
     proportion_ci,
@@ -204,9 +244,9 @@ _SUPPLEMENTARY_NOTE = (
     "2019); the scheme is stated beside the value; no interval is emitted for it"
 )
 _ECE_CI_WHY = (
-    "no interval is emitted for the ECE: the percentile bootstrap of a binned absolute "
-    "deviation overstates it in every resample (the absolute value of sampling noise does not "
-    "average out) and no coverage run of that interval has been made against the DEC-08 bar"
+    "no interval is emitted for the ECE: no coverage run of a bootstrap interval for a binned "
+    "absolute deviation has been made against the DEC-08 bar of 0.90, and the ECE is reported "
+    "as a descriptive figure (R2 section 1.4)"
 )
 
 
@@ -409,9 +449,18 @@ class _Ctx:
         return self.plan.clustered
 
     def resampler(self) -> Resampler:
+        """The outcome-stratified resampler the Brier cells share with
+        ``stats.subgroups._brier_cell``: rows within class, or cases within class."""
         if self.clustered and self.ids is not None:
             return clustered_by_case(self.pos, self.ids)
         return stratified_by_outcome(self.pos)
+
+    def case_resampler(self) -> Resampler:
+        """Cases in a single stratum, for the O:E and the IRLS quantities under a
+        clustered plan (module docstring, "Under a clustered plan"). Only called there."""
+        if self.ids is None:  # unreachable: calibration_block refuses a plan without ids
+            raise ValueError("a clustered plan needs cluster_ids")
+        return clustered_flat(self.ids, n_rows=self.n)
 
     def counts(self, resampler: Resampler | None = None) -> dict[str, Any]:
         out: dict[str, Any] = {"n": self.n}
@@ -441,15 +490,35 @@ def _clustered_cell(
     refused_flag: str,
     extra_flags: Sequence[str] = (),
 ) -> CellCI:
-    """The cluster-bootstrap route for a quantity whose analytic interval is refused."""
-    resampler = ctx.resampler()
+    """The cluster-bootstrap route for the O:E and the IRLS quantities: cases resampled
+    in a single stratum, the analytic interval refused on the companion.
+
+    The day-4 class-units rule (:attr:`~proofpack.stats.bootstrap.Resampler.deficient_class`
+    over the cases *within outcome class*, :data:`~proofpack.stats.bootstrap.MIN_UNITS_PER_STRATUM`
+    and :data:`~proofpack.stats.bootstrap.MAX_FROZEN_VARIANCE_SHARE`) is applied first and
+    refuses the cell as ``insufficient_clusters`` before any draw: the single-stratum
+    resampler's own rule sees only the case count, so on one case holding 180 of 200 rows
+    beside 20 one-row cases it would draw and render, where build day 6 refused all seven
+    quantities (lens 1 of 2026-09-18, "could not break"; ``test_one_case_holding_180_of_200_
+    rows_is_insufficient_clusters_on_the_oe_and_the_fits`` feeds that input). Both
+    resamplers' quantities are carried under ``bootstrap.resampling`` - the draws' under
+    the usual keys, the guard's under ``class_units_guard``.
+    """
+    resampler = ctx.case_resampler()
+    guard = ctx.resampler()
     counts = ctx.counts(resampler)
     pol = ctx.policy
-    draw = bootstrap_percentile(statistic, resampler, pol.rng(key), pol.n_resamples, ctx.level)
+    described = {**resampler.describe(), "class_units_guard": guard.describe()}
     refused = not_estimable(
         "clustered_data_analytic_ci_invalid", est=est, ci_level=ctx.level, **counts
     )
     flags = [refused_flag, *extra_flags, *ctx.tier(resampler)]
+    if guard.deficient_class is not None:
+        number = not_estimable(
+            "insufficient_clusters", est=est, ci_level=ctx.level, flags=flags, **counts
+        )
+        return CellCI(number, refused, "unavailable", key, ctx.plan.route, pol, 0, None, described)
+    draw = bootstrap_percentile(statistic, resampler, pol.rng(key), pol.n_resamples, ctx.level)
     if draw.reason is not None:
         number = not_estimable(draw.reason, est=est, ci_level=ctx.level, flags=flags, **counts)
         status = "unavailable"
@@ -473,7 +542,7 @@ def _clustered_cell(
         pol,
         draw.n_usable,
         draw.sd,
-        resampler.describe(),
+        described,
     )
 
 
@@ -490,8 +559,13 @@ def _oe_cell(ctx: _Ctx) -> CellCI:
     if ctx.clustered:
 
         def statistic(idx: np.ndarray) -> float:
+            # the same rule as the cell itself: one outcome class, or E = 0, on the
+            # drawn rows is undefined, not a ratio of 0 or a division by zero
+            num = float(ctx.y[idx].sum())
             den = float(ctx.p[idx].sum())
-            return float(ctx.y[idx].sum()) / den if den > 0.0 else float("nan")
+            if den <= 0.0 or num == 0.0 or num == idx.shape[0]:
+                return float("nan")
+            return num / den
 
         return _clustered_cell(
             ctx, key, est=est, statistic=statistic, refused_flag="log_delta_refused_clustered"
@@ -587,9 +661,23 @@ def _cell_dict(cell: CellCI, detail: dict[str, Any] | None = None) -> dict[str, 
 
 
 def _prevalence_invariant(resampler: Resampler) -> bool:
-    """Whether every resample keeps the prevalence: no mixed stratum, and every stratum's
-    units of one size (so the number of rows drawn per class is fixed)."""
-    return all(s.label != "mixed" and s.matrix is not None for s in resampler.strata)
+    """Whether every resample keeps the prevalence.
+
+    Each stratum draws ``m`` units from its ``m`` with replacement, so the rows of one
+    class it contributes are fixed exactly when every one of its units carries the
+    same number of rows of that class. Read from the resampler's own per-unit class
+    counts (:attr:`~proofpack.stats.bootstrap._Stratum.class_unit_rows`), for both
+    classes of every stratum - not from the stratum's label: build day 6 read
+    "no ``mixed`` stratum, every unit of one size", which is false in both directions
+    for two-row mixed cases that each carry one event (the prevalence is the same in
+    every draw and the reference Brier came out ``boundary_estimate``; lens 1 of
+    2026-09-18, FA-B3 / RG-B3).
+    """
+    return all(
+        len(set(counts)) <= 1
+        for stratum in resampler.strata
+        for counts in stratum.class_unit_rows.values()
+    )
 
 
 def _brier_cells(ctx: _Ctx) -> dict[str, CellCI]:
@@ -686,7 +774,10 @@ def _decile_curve(ctx: _Ctx, curve_flag: str | None) -> list[dict[str, Any]]:
             level=ctx.level,
         )
         if curve_flag is not None and curve_flag not in cell.number.flags:
-            cell.number.flags.append(curve_flag)
+            # a new Number, through __post_init__'s flag check, on the rendered Number
+            # only - never an in-place append past construction (number.py docstring)
+            number = replace(cell.number, flags=[*cell.number.flags, curve_flag])
+            cell = replace(cell, number=number)
         out.append(
             {
                 "bin": b + 1,
@@ -817,8 +908,12 @@ def calibration_block(
             curve_flag["nonevent_cases"] = int(np.unique(ids[~pos]).shape[0])
     mass_bins = equal_mass_bins(p)
     width_bins = _equal_width_rows(p)
-    mass_edges = [float(p[b].min()) for b in mass_bins if b.shape[0]] + (
-        [float(p[mass_bins[-1]].max())] if n else []
+    # below ten rows array_split leaves trailing bins empty: the minima of the bins that
+    # hold rows, then the maximum of the last bin that holds rows (N = 1..9 raised on
+    # .max() of the empty last bin at b93e050; lens 1 of 2026-09-18, FA-B2 / RG-B1)
+    filled = [b for b in mass_bins if b.shape[0]]
+    mass_edges = [float(p[b].min()) for b in filled] + (
+        [float(p[filled[-1]].max())] if filled else []
     )
     block: dict[str, Any] = {
         "n": n,

@@ -10,9 +10,18 @@ records (54). Each test names the mutant it kills, from the day-5 note's table A
   generator and subtracting **per resample** in this test, must reproduce the rendered
   bounds bit for bit; (b) the same recomputation from the index vectors a recording
   resampler saw ``_bootstrap_difference`` draw.
-* **17** - no test ran any bootstrap at a level other than 0.95: the 0.90 interval of a
-  cluster-bootstrapped cell must be strictly inside its 0.95 interval and carry
-  ``ci_level: 0.9`` (kills ``percentile_bounds(usable, DEFAULT_LEVEL)``).
+* **17** - no test ran any bootstrap at a level other than 0.95. Two tests: the 0.90
+  interval of a cluster-bootstrapped cell must be strictly narrower than its 0.95
+  interval and carry ``ci_level: 0.9`` (``test_item17_...``: kills
+  ``percentile_bounds(usable, DEFAULT_LEVEL)`` in ``bootstrap.bootstrap_percentile``,
+  and for the differences it asserts containment only, which the regression lens of
+  2026-09-18 (RG-N1) showed does not observe the two sites in
+  ``subgroups._bootstrap_difference``); ``test_item17b_...`` feeds
+  ``_bootstrap_difference`` itself two scripted resamplers at level 0.90 and asserts the
+  bounds are the 0.05 / 0.95 quantiles of the recorded differences (kills
+  ``percentile_bounds(usable, DEFAULT_LEVEL)`` at that site) and that a side whose draws
+  are 96 % one value is frozen at 0.90 and not at 0.95 (kills
+  ``_frozen_sides(..., DEFAULT_LEVEL)``).
 * **18** - the reported counts on a clustered difference: ``n = min(n1, n2)`` as the
   i.i.d. route reports, and ``resample_sd`` is the ``ddof=1`` standard deviation of the
   recorded difference draws.
@@ -134,6 +143,73 @@ def test_item17_a_bootstrap_at_level_0_90_is_strictly_inside_its_0_95_interval_a
             assert d90["ci_level"] == 0.9
             checked += 1
     assert checked >= 20
+
+
+class _ScriptedResampler:
+    """A resampler whose draw ``b`` is the single row ``b``; ``kind`` clustered, no class
+    deficient. Lets a test choose each resample's statistic value exactly."""
+
+    kind = "clustered"
+    deficient_class = None
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def draw(self, rng):
+        idx = np.array([self.calls])
+        self.calls += 1
+        return idx
+
+
+def test_item17b_the_difference_bootstrap_takes_its_bounds_and_its_frozen_rule_at_the_level_asked():
+    """Inspected with ``_bootstrap_difference`` at level 0.90 and B = 200, side a's draws
+    scripted as 1.0 on draws 0..191 and 0.5 on draws 192..199 (8 of 200, 4 %), side b's as
+    ``0.1 * b / 200``:
+
+    * side a is frozen at 0.90 (its 0.05 and 0.95 quantiles are both 1.0) and not at
+      0.95 (its 0.025 quantile is 0.5), so the draw is ``boundary_estimate`` with
+      ``frozen == ("a",)`` - a ``_frozen_sides(..., 0.95)`` would return an interval;
+    * with side a scripted as ``1.0 - 0.2 * b / 200`` instead (nothing frozen) the bounds
+      are the ``alpha/2`` and ``1 - alpha/2`` quantiles (``alpha = 1 - 0.90``) of
+      ``values_a - values_b`` computed here, which a
+      ``percentile_bounds(usable, 0.95)`` would not reproduce (its bounds are the 0.025 /
+      0.975 quantiles, asserted different).
+    """
+    n = 200
+    a_vals = np.where(np.arange(n) < 192, 1.0, 0.5)
+    b_vals = 0.1 * np.arange(n) / n
+    assert np.quantile(a_vals, [0.05, 0.95]).tolist() == [1.0, 1.0]
+    assert np.quantile(a_vals, [0.025, 0.975]).tolist() == [0.5, 1.0]
+    rng = POLICY.rng("item17b")
+    draw, frozen = subgroups_module._bootstrap_difference(
+        lambda idx: float(a_vals[idx[0]]),
+        _ScriptedResampler(),
+        lambda idx: float(b_vals[idx[0]]),
+        _ScriptedResampler(),
+        rng,
+        n,
+        0.90,
+    )
+    assert frozen == ("a",)
+    assert draw.reason == "boundary_estimate" and draw.ci_lo is None and draw.ci_hi is None
+    assert np.array_equal(draw.values, a_vals - b_vals)
+    # nothing frozen: the bounds are the 0.05 / 0.95 quantiles of the differences
+    a_vals = 1.0 - 0.2 * np.arange(n) / n
+    draw, frozen = subgroups_module._bootstrap_difference(
+        lambda idx: float(a_vals[idx[0]]),
+        _ScriptedResampler(),
+        lambda idx: float(b_vals[idx[0]]),
+        _ScriptedResampler(),
+        rng,
+        n,
+        0.90,
+    )
+    assert frozen == ()
+    alpha = 1.0 - 0.90  # the percentile definition: alpha/2 and 1 - alpha/2 of the draws
+    lo, hi = np.quantile(a_vals - b_vals, [alpha / 2.0, 1.0 - alpha / 2.0])
+    assert (draw.ci_lo, draw.ci_hi) == (float(lo), float(hi))
+    lo95, hi95 = np.quantile(a_vals - b_vals, [0.025, 0.975])
+    assert (float(lo95), float(hi95)) != (draw.ci_lo, draw.ci_hi)
 
 
 def test_item19_frozen_sides_reads_the_intervals_own_level_not_the_interquartile_range():

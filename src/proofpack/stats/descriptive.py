@@ -34,7 +34,13 @@ Numbers and no intervals (counts are the one thing D1 renders without a CI):
   ``-1`` are missing). Shares are over every row read, not the analysed rows, because
   missingness is what decided the exclusions.
 
-Aggregates only: no row value, header or id leaves this module.
+What leaves this module: counts and shares, keyed by the mapped column names (the
+customer's own headers) and by attribute level labels (the category values the rows
+carry, as ``stats.subgroups`` keys its tables), the Unknown/missing label included. No
+row id, row index or numeric row value is a key or a value here;
+``test_table1_and_missingness_keys_are_column_names_and_level_labels_and_nothing_per_row``
+feeds a ``sex`` level spelt like a name and an extra attribute column and reads what
+comes out.
 """
 
 from __future__ import annotations

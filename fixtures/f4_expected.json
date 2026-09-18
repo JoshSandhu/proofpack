@@ -19,7 +19,7 @@
     "se": 0.5536866236677364,
     "deviance": 18.207926202461742,
     "iterations": 4,
-    "default_fit_note": "statsmodels' default .fit() (deviance tol 1e-8) stops one IRLS iteration earlier and reports the Wald SE from the penultimate iteration's weights; at tol=1e-10 (and with method='newton') its SE equals the observed information at the MLE, which is what ProofPack's IRLS reports. Both are recorded.",
+    "default_fit_note": "On these 20 rows statsmodels' default .fit() and .fit(tol=1e-10) both stop at 4 IRLS iterations and record the same SE to the last digit (0.0 apart); ProofPack's IRLS SE is 2.19e-9 from it. Both fits are recorded.",
     "default_fit_se": 0.5536866236677364,
     "default_fit_intercept_large": 0.4562304654612093
   },
@@ -34,7 +34,8 @@
     "default_fit_se_intercept": 0.5950464989969844,
     "default_fit_se_slope": 0.5617258993045539,
     "default_fit_intercept": 0.499771633481579,
-    "default_fit_slope": 1.1945124778153176
+    "default_fit_slope": 1.1945124778153176,
+    "default_fit_note": "On these 20 rows statsmodels' default .fit() (deviance tol 1e-8) stops at 5 IRLS iterations and .fit(tol=1e-10) at 6; their Wald SEs are 9.13e-6 (intercept) and 1.99e-5 (slope) apart, and ProofPack's IRLS SEs (7 iterations) are 3.30e-10 / 7.21e-10 from the tol=1e-10 fit and 1.1e-16 from .fit(method='newton', tol=1e-12). Measured on F4 only (2026-09-18); lens 1 of that day (FA-N1) measured the tol=1e-10 IRLS SE up to 1.03e-5 from the engine on an n=30 random cohort where method='newton' equalled the engine bit for bit, so the tol=1e-10 fit is the test oracle at 1e-6 and not an identity."
   },
   "sklearn_brier": {
     "command": "sklearn.metrics.brier_score_loss(y, p)",

@@ -282,6 +282,25 @@ def test_the_equal_width_bins_are_right_closed_with_the_first_bin_closed_at_zero
     assert equal_width_bin_index(p).tolist() == [0, 0, 1, 1, 2, 6, 8, 9, 0]
 
 
+def test_the_equal_width_edges_are_arange_over_ten_and_not_linspace():
+    """Inspected: the computed floats ``0.1 * 3``, ``0.1 * 6``, ``0.1 * 7`` (each a hair
+    above its decimal) and the decimal literals 0.3, 0.6, 0.7. The engine's edges
+    ``arange(11) / 10`` equal the literals, so under the right-closed rule a literal is
+    the upper edge of bins 2 / 5 / 6 and the computed floats fall in bins 3 / 6 / 7.
+    ``numpy.linspace(0, 1, 11)`` edges, whose third edge is ``0.30000000000000004``, put
+    the computed floats in bins 2 / 5 / 6 as well (lens 1 of 2026-09-18, FA-N4: the day-6
+    docstring said the rule reproduced sklearn's binning, which uses linspace edges)."""
+    computed = np.array([0.1 * 3, 0.1 * 6, 0.1 * 7])
+    literals = np.array([0.3, 0.6, 0.7])
+    assert (computed > literals).all()
+    assert equal_width_bin_index(computed).tolist() == [3, 6, 7]
+    assert equal_width_bin_index(literals).tolist() == [2, 5, 6]
+    linspace_edges = np.linspace(0.0, 1.0, 11)
+    assert linspace_edges[3] == 0.30000000000000004 and linspace_edges[3] != 0.3
+    under_linspace = np.searchsorted(linspace_edges, computed, side="left") - 1
+    assert under_linspace.tolist() == [2, 5, 6]
+
+
 def test_the_decile_tie_rule_is_stable_sort_order():
     p = np.array([0.5] * 20 + [0.2] * 5)
     bins = equal_mass_bins(p)
@@ -312,10 +331,17 @@ def _cohort_with_counts(events: int, nonevents: int, seed: int = 5):
     ("events", "nonevents", "flagged"),
     [(199, 300, True), (200, 300, False), (300, 199, True), (300, 200, False), (199, 199, True)],
 )
-def test_the_200_200_annotation_is_strict_on_both_sides_and_never_suppresses(
+def test_the_200_200_annotation_is_strict_on_both_sides_and_the_flagged_fits_keep_their_intervals(
     events, nonevents, flagged
 ):
-    """``events < 200 or nonevents < 200`` -> flagged; exactly 200 of each is not."""
+    """``events < 200 or nonevents < 200`` -> flagged; exactly 200 of each is not.
+
+    Inspected on the flagged side: the O:E, slope, intercept and intercept-in-the-large
+    Numbers carry ``ci_lo`` / ``ci_hi`` with their analytic method, every quantity has
+    an estimate, and all ten bins are present. Lens 1 of 2026-09-18 (RG-N3) planted an
+    ``_oe_cell`` that returns ``not_computed_this_run`` below 200 and the test as then
+    named passed it; the interval assertions below are what observe that.
+    """
     assert CURVE_MIN_EVENTS == 200
     p, y = _cohort_with_counts(events, nonevents)
     b = block(p, y, policy=BootstrapPolicy(n_resamples=50, seed=1))
@@ -330,9 +356,15 @@ def test_the_200_200_annotation_is_strict_on_both_sides_and_never_suppresses(
     else:
         assert b["curve_flag"] is None and b["flags"] == []
         assert not any(flag in d["observed"]["number"]["flags"] for d in b["decile_curve"])
-    # annotation, never suppression: every quantity and every bin is still reported
+    # annotation, not suppression: every quantity has an estimate, the four analytic
+    # cells keep their intervals and their methods, and every bin is reported
     for key in QUANTITIES:
         assert b[key]["number"]["est"] is not None
+    assert b["oe"]["number"]["method"] == "log_delta" and b["oe"]["number"]["ci_lo"] is not None
+    for key in ("slope", "intercept", "intercept_large"):
+        num = b[key]["number"]
+        assert num["method"] == "irls_wald"
+        assert num["ci_lo"] is not None and num["ci_hi"] is not None
     assert (
         len(b["decile_curve"]) == 10
         and sum(d["n"] for d in b["decile_curve"]) == events + nonevents
@@ -421,8 +453,20 @@ def test_a_clustered_plan_refuses_every_analytic_interval_and_routes_to_the_clus
         assert cell["analytic"]["not_estimable_reason"] == "clustered_data_analytic_ci_invalid"
         assert cell["number"]["method"] in ("cluster_bootstrap_percentile", "none")
         assert "wilson_refused_clustered" in cell["number"]["flags"]
+        # 200 events / 200 non-events short on this cohort: the flag rides on the
+        # rendered Number, not on the companion (lens 1 of 2026-09-18, FA-N2 M18)
+        assert "below_200_events_or_nonevents" in cell["number"]["flags"]
+        assert "below_200_events_or_nonevents" not in cell["analytic"]["flags"]
         seen += 1
     assert seen == 17
+    # the O:E and the three fits resample cases in one stratum; the Brier cells within class
+    for key in ("oe", "intercept_large", "slope", "intercept"):
+        assert b[key]["bootstrap"]["resampling"]["units_per_stratum"] == {"all": 200}, key
+    assert set(b["brier"]["bootstrap"]["resampling"]["units_per_stratum"]) <= {
+        "positive",
+        "negative",
+        "mixed",
+    }
     for path, num in walk_numbers(b):
         assert num["method"] not in ("wilson", "log_delta", "irls_wald", "bootstrap_percentile"), (
             path
@@ -435,16 +479,19 @@ def test_a_clustered_plan_refuses_every_analytic_interval_and_routes_to_the_clus
 
 def test_the_clustered_slope_interval_is_the_percentile_of_refits_on_resampled_cases():
     """Independent oracle: rebuild the cluster bootstrap of the slope in this test with the
-    module's resampler and generator, refitting with statsmodels on every resample."""
+    single-stratum case resampler (``clustered_flat``, the route since repair round 1 of
+    2026-09-18; build day 6 used ``clustered_by_case``) and the module's generator,
+    refitting with statsmodels on every resample."""
     import statsmodels.api as sm
 
-    from proofpack.stats.bootstrap import clustered_by_case
+    from proofpack.stats.bootstrap import clustered_flat
 
     p, y, ids = clustered_arrays(n=120)
     pol = BootstrapPolicy(n_resamples=60, seed=7)
     d = decl(clustering={"unit": "case_id", "declared_by": "t"})
     b = calibration_block(p, y, d, cluster_ids=ids, policy=pol).block
-    resampler = clustered_by_case(y, ids)
+    resampler = clustered_flat(ids, n_rows=ids.shape[0])
+    assert b["slope"]["bootstrap"]["resampling"]["units_per_stratum"] == {"all": 120}
     rng = pol.rng(json.dumps(["calibration", "slope"]))
     logit = np.log(p / (1 - p))
     values = []
@@ -460,6 +507,132 @@ def test_the_clustered_slope_interval_is_the_percentile_of_refits_on_resampled_c
     assert b["slope"]["number"]["ci_lo"] == pytest.approx(lo, abs=1e-6)
     assert b["slope"]["number"]["ci_hi"] == pytest.approx(hi, abs=1e-6)
     assert b["slope"]["bootstrap"]["usable_resamples"] == 60
+
+
+def _cases_in_first_appearance_order(ids: np.ndarray) -> list[np.ndarray]:
+    seen: dict[Any, int] = {}
+    for v in ids.tolist():
+        seen.setdefault(v, len(seen))
+    rank = np.array([seen[v] for v in ids.tolist()])
+    return [np.flatnonzero(rank == j) for j in range(len(seen))]
+
+
+def test_the_clustered_oe_and_intercept_intervals_are_the_percentile_of_a_one_stratum_bootstrap():
+    """Lens 1 of 2026-09-18, FA-B1. Inspected on the lens's cohort (``default_rng(5)``: 200
+    rows, ``p = expit(-0.5 + N(0, 1.5))``, ``y ~ U < p``, as 100 declared two-row cases,
+    B = 100, seed 1): an independent case bootstrap written here - every case drawn with
+    the same probability, ``rng.integers(0, 100, 100)`` per draw from the cell's own
+    generator, all rows of a drawn case kept, the O:E as ``sum(y) / sum(p)`` on the drawn
+    rows - reproduces the rendered O:E bounds bit for bit; the event count ``O`` takes at
+    least two distinct values over those 100 draws, so the bounds the engine must
+    reproduce come from draws in which ``O`` varies. At b93e050 the engine drew cases
+    within outcome class - every case here is pure or carries one event, so its ``O`` was
+    one integer in every draw - and its bounds were (1.0885, 1.2770) at B = 100 against
+    this test's (1.0510, 1.3215); at B = 2000 the lens read (1.0911, 1.2709) against the
+    analytic (1.0096, 1.3674). The intercept-in-the-large bounds are the percentile of
+    statsmodels offset refits on the same draws to 1e-6."""
+    import statsmodels.api as sm
+
+    rng0 = np.random.default_rng(5)
+    p = 1.0 / (1.0 + np.exp(-(-0.5 + rng0.normal(0.0, 1.5, 200))))
+    y = rng0.uniform(size=200) < p
+    ids = np.repeat(np.arange(100), 2)
+    pol = BootstrapPolicy(n_resamples=100, seed=1)
+    d = decl(clustering={"unit": "case_id", "declared_by": "t"})
+    b = calibration_block(p, y, d, cluster_ids=ids, policy=pol).block
+    cases = _cases_in_first_appearance_order(ids)
+    assert len(cases) == 100 and all(c.shape[0] == 2 for c in cases)
+    yf = y.astype(float)
+    logit = np.log(p / (1 - p))
+    # O:E
+    rng = pol.rng(b["oe"]["bootstrap"]["cell_key"])
+    values, observed = [], set()
+    for _ in range(100):
+        sel = rng.integers(0, 100, 100)
+        idx = np.concatenate([cases[i] for i in sel])
+        observed.add(int(yf[idx].sum()))
+        values.append(yf[idx].sum() / p[idx].sum())
+    assert len(observed) >= 2, sorted(observed)
+    lo, hi = np.quantile(values, [0.025, 0.975])
+    oe = b["oe"]["number"]
+    assert oe["method"] == "cluster_bootstrap_percentile"
+    assert (oe["ci_lo"], oe["ci_hi"]) == (float(lo), float(hi))
+    assert oe["est"] == pytest.approx(yf.sum() / p.sum(), abs=1e-12)
+    assert b["oe"]["bootstrap"]["resampling"]["units_per_stratum"] == {"all": 100}
+    # intercept-in-the-large: statsmodels offset refit on the same draws
+    rng = pol.rng(b["intercept_large"]["bootstrap"]["cell_key"])
+    refits = []
+    for _ in range(100):
+        sel = rng.integers(0, 100, 100)
+        idx = np.concatenate([cases[i] for i in sel])
+        fit = sm.GLM(
+            yf[idx], np.ones((idx.shape[0], 1)), family=sm.families.Binomial(), offset=logit[idx]
+        ).fit(tol=1e-10)
+        refits.append(float(fit.params[0]))
+    lo, hi = np.quantile(refits, [0.025, 0.975])
+    itl = b["intercept_large"]["number"]
+    assert itl["ci_lo"] == pytest.approx(lo, abs=1e-6)
+    assert itl["ci_hi"] == pytest.approx(hi, abs=1e-6)
+    assert b["intercept_large"]["bootstrap"]["usable_resamples"] == 100
+
+
+def test_a_clustered_oe_resample_with_one_outcome_class_is_nan_and_counted_as_degenerate():
+    """Inspected: 40 declared one-row cases with 2 events (``y[0]``, ``y[1]``), B = 200.
+    A draw of 40 cases from 40 misses both event cases in ``(38/40)**40`` = 0.129 of
+    draws in expectation; the O:E on such a draw is refused the way the cell refuses
+    ``O = 0`` (``single_class``), so the draw is ``nan`` and the interval is refused as
+    ``degenerate_resamples`` when fewer than 90 % are usable. The count of usable draws
+    is asserted equal to the number of draws that hold at least one event case,
+    recomputed here from the cell's own generator."""
+    n = 40
+    p = np.full(n, 0.1)
+    y = np.zeros(n, dtype=bool)
+    y[:2] = True
+    ids = np.array([f"c{i}" for i in range(n)], dtype=object)
+    pol = BootstrapPolicy(n_resamples=200, seed=11)
+    d = decl(clustering={"unit": "case_id", "declared_by": "t"})
+    b = calibration_block(p, y, d, cluster_ids=ids, policy=pol).block
+    rng = pol.rng(b["oe"]["bootstrap"]["cell_key"])
+    with_event = sum(bool((rng.integers(0, n, n) < 2).any()) for _ in range(200))
+    assert b["oe"]["bootstrap"]["usable_resamples"] == with_event
+    assert with_event < 180  # the construction reaches the refusal at this seed
+    oe = b["oe"]["number"]
+    assert oe["not_estimable_reason"] == "degenerate_resamples" and oe["ci_lo"] is None
+    assert oe["est"] == pytest.approx(2.0 / p.sum(), abs=1e-12)
+
+
+def test_one_case_holding_180_of_200_rows_is_insufficient_clusters_on_the_oe_and_the_fits():
+    """Inspected: ``default_rng(3)``, 200 rows, ``p ~ U(0.05, 0.95)``, ``y ~ U < p``, one
+    declared case ``big`` holding rows 0..179 beside twenty one-row cases (lens 1 of
+    2026-09-18 listed this input under "could not break": all seven quantities
+    ``insufficient_clusters``). The O:E and the three fits are refused
+    ``insufficient_clusters`` with ``very_low_precision`` (21 cases) and no interval, the
+    companion is the DEC-09 refusal, ``bootstrap.resampling.class_units_guard`` names a
+    deficient class and ``usable_resamples`` is 0; the Brier and IPA are refused the same
+    way by their own resampler. The single-stratum resampler's own rule alone would not
+    refuse (``units_per_stratum == {"all": 21}``, nothing frozen), which is why the guard
+    exists."""
+    rng = np.random.default_rng(3)
+    p = rng.uniform(0.05, 0.95, 200)
+    y = rng.uniform(size=200) < p
+    ids = np.array(["big"] * 180 + [f"c{i}" for i in range(20)], dtype=object)
+    d = decl(clustering={"unit": "case_id", "declared_by": "t"})
+    b = calibration_block(
+        p, y, d, cluster_ids=ids, policy=BootstrapPolicy(n_resamples=50, seed=1)
+    ).block
+    for key in ("oe", "intercept_large", "slope", "intercept", "brier", "ipa"):
+        num = b[key]["number"]
+        assert num["not_estimable_reason"] == "insufficient_clusters", key
+        assert num["ci_lo"] is None and num["est"] is not None
+        assert "very_low_precision" in num["flags"] and num["n_cases"] == 21
+        assert b[key]["analytic"]["not_estimable_reason"] == "clustered_data_analytic_ci_invalid"
+        assert b[key]["bootstrap"]["usable_resamples"] == 0
+    for key in ("oe", "intercept_large", "slope", "intercept"):
+        res = b[key]["bootstrap"]["resampling"]
+        assert res["units_per_stratum"] == {"all": 21} and res["deficient_class"] is None
+        assert res["class_units_guard"]["deficient_class"] in ("positive", "negative")
+        assert res["class_units_guard"]["units_per_stratum"]["mixed"] == 1
+    assert b["brier_ref"]["number"]["not_estimable_reason"] == "fixed_by_outcome_stratification"
 
 
 def test_a_supplied_plan_that_contradicts_the_case_column_is_refused():
@@ -550,6 +723,51 @@ def test_brier_ref_is_fixed_under_outcome_stratification_and_varies_when_case_si
     ref2 = b2["brier_ref"]["number"]
     assert ref2["method"] == "cluster_bootstrap_percentile" and ref2["ci_lo"] < ref2["ci_hi"]
     assert b2["ipa"]["number"]["ci_lo"] is not None
+
+
+def _case_class_counts(y: np.ndarray, ids: np.ndarray) -> dict[str, set[tuple[int, int]]]:
+    """Per stratum (pure-positive, pure-negative, mixed), the set of (events, non-events)
+    pairs its cases carry. One pair per stratum means every draw has the same prevalence."""
+    out: dict[str, set[tuple[int, int]]] = {"positive": set(), "negative": set(), "mixed": set()}
+    for case in np.unique(ids):
+        got = y[ids == case]
+        k, m = int(got.sum()), int((~got).sum())
+        out["positive" if m == 0 else "negative" if k == 0 else "mixed"].add((k, m))
+    return out
+
+
+def test_brier_ref_is_fixed_when_every_unit_in_a_stratum_carries_the_same_class_counts():
+    """Lens 1 of 2026-09-18, FA-B3 / RG-B3. Inspected: ``default_rng(1)``, 100 declared
+    cases, ``p ~ U(0.05, 0.95)``, ``y ~ U < p``. With two rows per case (48 mixed cases,
+    each one event and one non-event; the pure strata (1, 0) / (0, 1)) every stratum's
+    cases carry one (events, non-events) pair, so the resampled prevalence cannot move and
+    ``brier_ref`` is ``fixed_by_outcome_stratification`` (it was ``boundary_estimate``,
+    method ``none``, at b93e050). With three rows per case (mixed cases split (1, 2) and
+    (2, 1)) it is bootstrapped with an interval, and the IPA has one either way."""
+    for rows_per_case, expect_fixed in ((2, True), (3, False)):
+        rng = np.random.default_rng(1)
+        n_rows = 100 * rows_per_case
+        p = rng.uniform(0.05, 0.95, n_rows)
+        y = rng.random(n_rows) < p
+        ids = np.repeat(np.array([f"c{i}" for i in range(100)], dtype=object), rows_per_case)
+        counts = _case_class_counts(y, ids)
+        assert len(counts["mixed"]) >= 1
+        invariant = all(len(pairs) <= 1 for pairs in counts.values())
+        assert invariant is expect_fixed, counts
+        d = decl(clustering={"unit": "case_id", "declared_by": "t"})
+        b = calibration_block(
+            p, y, d, cluster_ids=ids, policy=BootstrapPolicy(n_resamples=100, seed=2)
+        ).block
+        ref = b["brier_ref"]["number"]
+        pi = y.mean()
+        assert ref["est"] == pytest.approx(pi * (1 - pi), abs=1e-12)
+        if expect_fixed:
+            assert ref["not_estimable_reason"] == "fixed_by_outcome_stratification"
+            assert ref["method"] == "none"
+        else:
+            assert ref["method"] == "cluster_bootstrap_percentile" and ref["ci_lo"] < ref["ci_hi"]
+        assert b["ipa"]["number"]["ci_lo"] is not None, rows_per_case
+        assert b["brier"]["number"]["method"] == "cluster_bootstrap_percentile"
 
 
 # ------------------------------------------------------------------ typed IRLS outcomes
@@ -669,6 +887,48 @@ def test_an_n25_cohort_still_shapes_every_number_with_its_tier_annotation():
         Number(**num)
         assert "very_low_precision" in num["flags"], key
     assert b["curve_flag"]["flag"] == "below_200_events_or_nonevents"
+
+
+@pytest.mark.parametrize("n", [1, 2, 5, 9])
+@pytest.mark.parametrize("route", ["none", "declared"])
+def test_a_cohort_of_one_to_nine_rows_renders_ten_bins_with_the_empty_ones_zero_denominator(
+    n, route
+):
+    """Lens 1 of 2026-09-18, FA-B2 / RG-B1: ``calibration_block`` raised numpy's
+    ``zero-size array to reduction operation maximum`` for N = 1..9 at b93e050.
+    Inspected at N = 1, 2, 5, 9, i.i.d. and under a declared plan of two-row case ids:
+    a block is returned, it validates against ``calibrationBlock``, ten bins are present,
+    bins ``n + 1``.. 10 carry ``n: 0`` and ``zero_denominator``, ``ece_equal_mass_10.edges``
+    has ``n + 1`` entries, and the JSON has no NaN."""
+    p = np.random.default_rng(n).uniform(0.1, 0.9, n)
+    y = np.arange(n) % 2 == 0
+    ids = None
+    crit: dict[str, Any] = {}
+    if route == "declared":
+        ids = np.array([f"c{i // 2}" for i in range(n)], dtype=object)
+        crit = {"clustering": {"unit": "case_id", "declared_by": "t"}}
+    res = calibration_block(
+        p, y, decl(**crit), cluster_ids=ids, policy=BootstrapPolicy(n_resamples=50, seed=1)
+    )
+    b = res.block
+    assert b is not None and b["n"] == n and b["clustering_route"] == route
+    json.dumps(res.as_document(), allow_nan=False)
+    schema = load_json_schema("output_schema_v1.json")
+    v = jsonschema.Draft202012Validator(
+        {"$ref": "#/$defs/calibrationBlock", "$defs": schema["$defs"]}
+    )
+    assert list(v.iter_errors(b)) == []
+    assert len(b["decile_curve"]) == 10
+    for i, d_ in enumerate(b["decile_curve"]):
+        if i < n:
+            assert d_["n"] == 1 and d_["mean_pred"] is not None
+        else:
+            assert d_["n"] == 0 and d_["events"] == 0 and d_["mean_pred"] is None
+            assert d_["observed"]["number"]["not_estimable_reason"] == "zero_denominator"
+    assert len(b["ece_equal_mass_10"]["edges"]) == n + 1
+    assert b["ece_equal_mass_10"]["edges"][-1] == float(p.max())
+    for key in QUANTITIES:
+        Number(**b[key]["number"])
 
 
 # ------------------------------------------------------------ schema, verdicts, enums
@@ -814,3 +1074,34 @@ def test_calibration_imports_and_runs_with_scipy_hidden(monkeypatch):
     src = (REPO / "src/proofpack/stats/calibration.py").read_text(encoding="utf-8")
     assert "scipy" not in src.split('"""', 2)[2].replace("nothing here imports scipy", "")
     importlib.reload(calibration_module)
+
+
+def test_the_sentences_the_day6_lenses_falsified_are_gone_from_the_shipped_text():
+    """The day-5 pattern: each phrase below was asserted in shipped text at b93e050 and
+    falsified by a constructed input run by lens 1 of 2026-09-18 (the finding id beside
+    it). Inspected: the exact phrase is absent from the named file, and the ECE reason
+    string a customer's block carries does not claim what happens in every resample."""
+    src = REPO / "src" / "proofpack" / "stats"
+    texts = {
+        "calibration.py": (src / "calibration.py").read_text(encoding="utf-8"),
+        "descriptive.py": (src / "descriptive.py").read_text(encoding="utf-8"),
+        "f4_expected.json": (REPO / "fixtures" / "f4_expected.json").read_text(encoding="utf-8"),
+    }
+    gone = [
+        ("calibration.py", "overstates it in every resample"),  # FA-B4 / RG-B2
+        ("calibration.py", "calibration_curve"),  # FA-N4
+        ("calibration.py", "whose cases mix outcomes the prevalence does vary"),  # FA-B3
+        ("calibration.py", "no mixed stratum"),  # FA-B3
+        ("calibration.py", "flags.append("),  # FA-N7: number.py's in-place sentence
+        ("descriptive.py", "no row value, header or id leaves this module"),  # FA-N3
+        ("f4_expected.json", "its SE equals the observed information at the MLE"),  # FA-N1
+        ("f4_expected.json", "penultimate iteration's weights"),  # RG-N4
+    ]
+    for name, phrase in gone:
+        assert phrase not in texts[name], (name, phrase)
+    _, p, y = cohort_arrays(n=100)
+    b = block(p, y)
+    for key in ("ece_equal_width_10", "ece_equal_mass_10"):
+        why = b[key]["ci_not_computed_because"]
+        assert "every resample" not in why and "overstates" not in why
+        assert "no coverage run" in why and "0.90" in why

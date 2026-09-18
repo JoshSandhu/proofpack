@@ -116,6 +116,51 @@ def test_flow_counts_cases_and_the_clustered_route_under_a_case_column():
 # --------------------------------------------------------------------------- table 1
 
 
+def test_table1_and_missingness_keys_are_column_names_and_level_labels_and_nothing_per_row():
+    """Lens 1 of 2026-09-18, FA-N3: the day-6 docstring said no row value, header or id
+    leaves the module; attribute level labels are row values and the column names are
+    headers, and both are keys. Inspected: ``sex`` on row 0 set to ``PATIENT-NAME-JOSH``
+    and an ``ethnicity`` column whose row 1 reads ``ID-77812``. Both strings are Table 1
+    keys and ``ethnicity`` is a missingness key; no ``row_id`` value, no ``case_id`` value
+    and no score string is a key or a string anywhere in the three blocks, and every
+    leaf under a level is an ``int`` count or a ``float`` share."""
+    cols = make_cohort(n=60, with_case_id=True)
+    cols["sex"][0] = "PATIENT-NAME-JOSH"
+    cols["ethnicity"] = ["A"] * 60
+    cols["ethnicity"][1] = "ID-77812"
+    decl, table, mask, flow = prepared(cols)
+    t1 = table1_block(table, decl, mask)
+    miss = missingness_block(table)
+    f = flow_block(table, mask, flow, decl)
+    assert "PATIENT-NAME-JOSH" in t1["test"]["sex"] and t1["test"]["sex"]["PATIENT-NAME-JOSH"] == {
+        "n": 1,
+        "pct": 1 / 60,
+    }
+    assert "ID-77812" in t1["test"]["ethnicity"]
+    assert "ethnicity" in miss["columns"] and "sex" in miss["columns"]
+    tokens = set()
+    for node in (t1, miss, f):
+        tokens |= set(_keys_and_strings(node))
+    per_row = set(cols["row_id"]) | set(cols["case_id"]) | {str(v) for v in cols["score"]}
+    assert not (tokens & per_row), tokens & per_row
+    for attr, levels in t1["test"].items():
+        for label, leaf in levels.items():
+            assert set(leaf) == {"n", "pct"} and isinstance(leaf["n"], int), (attr, label)
+            assert isinstance(leaf["pct"], float)
+
+
+def _keys_and_strings(node):
+    if isinstance(node, dict):
+        for k, v in node.items():
+            yield k
+            yield from _keys_and_strings(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _keys_and_strings(v)
+    elif isinstance(node, str):
+        yield node
+
+
 def test_table1_pct_sums_to_one_per_attribute_within_1e_12_including_the_unknown_level():
     cols = make_cohort(n=200)
     for i in range(7):

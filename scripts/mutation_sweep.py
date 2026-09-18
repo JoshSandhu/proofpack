@@ -473,6 +473,93 @@ MUTANTS: tuple[Mutant, ...] = (
         what="the output schema no longer accepts a day-6 flag",
         day=6,
     ),
+    # ---- day-6 repair round 1: lens 1's blockers and the sites its tests now observe
+    Mutant(
+        "clustered_oe_statistic_uses_the_full_cohort_o",
+        CALIBRATION,
+        r"            num = float\(ctx\.y\[idx\]\.sum\(\)\)",
+        "            num = float(ctx.y.sum())",
+        what="the clustered O:E resample holds O at the cohort's value (lens 1 FA-B1 / M2)",
+        day=6,
+    ),
+    Mutant(
+        "clustered_oe_single_class_draw_is_a_ratio_not_nan",
+        CALIBRATION,
+        r"            if den <= 0\.0 or num == 0\.0 or num == idx\.shape\[0\]:",
+        "            if den <= 0.0:",
+        what="a single-class case draw yields O:E = 0 instead of nan (degenerate_resamples)",
+        day=6,
+    ),
+    Mutant(
+        "clustered_route_class_units_guard_dropped",
+        CALIBRATION,
+        r"    if guard\.deficient_class is not None:",
+        "    if guard.deficient_class is not None and False:",
+        what="one case holding 180 of 200 rows renders the O:E and the fits (lens 1 property)",
+        day=6,
+    ),
+    Mutant(
+        "prevalence_invariant_is_the_b93e050_label_rule",
+        CALIBRATION,
+        r"    return all\(\n        len\(set\(counts\)\) <= 1\n"
+        r"        for stratum in resampler\.strata\n"
+        r"        for counts in stratum\.class_unit_rows\.values\(\)\n    \)",
+        '    return all(s.label != "mixed" and s.matrix is not None for s in resampler.strata)',
+        what="two-row mixed cases make the reference Brier boundary_estimate (lens 1 FA-B3, RG-B3)",
+        day=6,
+    ),
+    Mutant(
+        "prevalence_invariant_always_true",
+        CALIBRATION,
+        r"    return all\(\n        len\(set\(counts\)\) <= 1\n",
+        "    return True or all(\n        len(set(counts)) <= 1\n",
+        what="the reference Brier is never bootstrapped (cases of one and three rows)",
+        day=6,
+    ),
+    Mutant(
+        "mass_edges_read_the_empty_last_bin",
+        CALIBRATION,
+        r"        \[float\(p\[filled\[-1\]\]\.max\(\)\)\] if filled else \[\]",
+        "        [float(p[mass_bins[-1]].max())] if n else []",
+        what="N = 1..9 raises numpy's zero-size reduction (lens 1 FA-B2 / RG-B1)",
+        day=6,
+    ),
+    Mutant(
+        "oe_below_200_200_is_not_computed",
+        CALIBRATION,
+        r"    est = o / e\n    if o == 0\.0 or o == n:",
+        "    est = o / e\n    if o < 200 or n - o < 200:\n"
+        '        return _unavailable(ctx, key, "not_computed_this_run", est=est)\n'
+        "    if o == 0.0 or o == n:",
+        what="the 200/200 annotation suppresses the O:E interval (lens 1 RG-N3)",
+        day=6,
+    ),
+    Mutant(
+        "curve_flag_rides_on_the_companion_not_the_number",
+        CALIBRATION,
+        r"            cell = replace\(cell, number=number\)",
+        "            cell = replace(cell, analytic=number)",
+        what="the 200/200 flag lands on the analytic Number under clustering (lens 1 FA-N2 M18)",
+        day=6,
+    ),
+    Mutant(
+        "difference_frozen_sides_at_the_default_level",
+        SUBGROUPS,
+        r'    frozen = _frozen_sides\(\{"a": values_a, "b": values_b\}, level\)',
+        '    frozen = _frozen_sides({"a": values_a, "b": values_b}, DEFAULT_LEVEL)',
+        what="the frozen-side rule reads 0.95 whatever level was asked (item 17, lens 1 RG-N1)",
+        day=6,
+    ),
+    Mutant(
+        "difference_bounds_at_the_default_level",
+        SUBGROUPS,
+        r'    frozen = _frozen_sides\(\{"a": values_a, "b": values_b\}, level\)\n'
+        r"    lo, hi = percentile_bounds\(usable, level\)",
+        '    frozen = _frozen_sides({"a": values_a, "b": values_b}, level)\n'
+        "    lo, hi = percentile_bounds(usable, DEFAULT_LEVEL)",
+        what="a difference at 0.90 renders its 0.95 bounds (day-5 item 17, lens 1 RG-N1)",
+        day=6,
+    ),
 )
 
 

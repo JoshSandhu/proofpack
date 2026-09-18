@@ -111,9 +111,11 @@ NOT_ESTIMABLE_REASONS: frozenset[str] = frozenset(
         "irls_not_converged",  # the iteration budget ran out
         "complete_separation",  # every fitted probability equals its label; no MLE
         "constant_score",  # logit(p) takes one value; the slope is not identifiable
-        # the prevalence-only reference Brier under a resampler that holds the
-        # prevalence fixed in every resample (stratified by outcome): the draw has no
-        # width by construction, not because of the data
+        # the prevalence-only reference Brier under a resampler whose every stratum
+        # holds units with identical per-class row counts (rows within outcome class;
+        # cases within outcome class when, e.g., every mixed case carries one event):
+        # the draw has no width by construction, not because of the data. See
+        # stats.calibration._prevalence_invariant.
         "fixed_by_outcome_stratification",
     }
 )
