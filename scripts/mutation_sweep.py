@@ -22,7 +22,8 @@ because ``env_for`` overwrites ``PYTHONPATH`` and ``cwd`` is the copy.
 
 Usage::
 
-    python scripts/mutation_sweep.py --marker day5            # every declared mutant
+    python scripts/mutation_sweep.py --marker day5            # the day-5 list against -m day5
+    python scripts/mutation_sweep.py --marker day6            # the day-6 list against -m day6
     python scripts/mutation_sweep.py --marker day5 --only ref_largest_to_smallest
     python scripts/mutation_sweep.py --list
     python scripts/mutation_sweep.py --marker day5 --fail-on-survivor   # exit 1 if any survive
@@ -49,6 +50,7 @@ REPO = Path(__file__).resolve().parent.parent
 COPIED = ("src", "tests", "schema", "fixtures", "design", "pyproject.toml")
 SUBGROUPS = "src/proofpack/stats/subgroups.py"
 DISCRIMINATION = "src/proofpack/stats/discrimination.py"
+CALIBRATION = "src/proofpack/stats/calibration.py"
 OUTPUT_SCHEMA = "schema/output_schema_v1.json"
 
 
@@ -60,9 +62,11 @@ class Mutant:
     replacement: str
     count: int = 1  # how many matches the pattern must have (all are replaced)
     what: str = ""  # the behaviour it changes, for the report
+    day: int = 5  # the build day whose marker the mutant is meant to be killed by
 
 
-#: The day-5 list. Every one changes behaviour; none is intended to be equivalent.
+#: The day-5 list, then the day-6 list. Every one changes behaviour; none is intended to
+#: be equivalent. ``--marker dayN`` runs the mutants declared for day N.
 MUTANTS: tuple[Mutant, ...] = (
     Mutant(
         "ref_largest_to_smallest",
@@ -308,6 +312,167 @@ MUTANTS: tuple[Mutant, ...] = (
         '"wilson_refused_clustered",',
         what="the output schema no longer accepts the day-5 flag",
     ),
+    # ------------------------------------------------------------- build day 6
+    Mutant(
+        "oe_denominator_is_n_not_expected",
+        CALIBRATION,
+        r"    e = float\(ctx\.p\.sum\(\)\)\n    n = ctx\.n",
+        "    e = float(ctx.n)\n    n = ctx.n",
+        what="O:E denominator becomes N instead of the sum of predicted probabilities",
+        day=6,
+    ),
+    Mutant(
+        "oe_log_variance_drops_the_finite_factor",
+        CALIBRATION,
+        r"se = math\.sqrt\(\(1\.0 - o / n\) / o\)",
+        "se = math.sqrt(1.0 / o)",
+        what="log-scale delta variance (1 - O/N)/O becomes the Poisson 1/O",
+        day=6,
+    ),
+    Mutant(
+        "offset_model_frees_the_slope",
+        CALIBRATION,
+        r"return irls_logistic\(y, np\.ones\(\(y\.shape\[0\], 1\)\), offset=logit_p\)",
+        "return irls_logistic(y, np.column_stack([np.ones(y.shape[0]), logit_p]))",
+        what="calibration-in-the-large no longer fixes the slope at 1 (offset dropped)",
+        day=6,
+    ),
+    Mutant(
+        "wald_se_is_the_variance",
+        CALIBRATION,
+        r"se = np\.sqrt\(np\.diag\(cov\)\)",
+        "se = np.diag(cov)",
+        what="the Wald SE is reported as the variance",
+        day=6,
+    ),
+    Mutant(
+        "decile_tie_rule_reversed",
+        CALIBRATION,
+        r'order = np\.argsort\(np\.asarray\(score, dtype=np\.float64\), kind="stable"\)',
+        'order = np.argsort(-np.asarray(score, dtype=np.float64), kind="stable")[::-1]',
+        what="ties in the decile bins are placed in reverse row order",
+        day=6,
+    ),
+    Mutant(
+        "ece_equal_width_edges_left_closed",
+        CALIBRATION,
+        r'np\.asarray\(score, dtype=np\.float64\), side="left"\) - 1',
+        'np.asarray(score, dtype=np.float64), side="right") - 1',
+        what="equal-width ECE bins become left-closed [lo, hi)",
+        day=6,
+    ),
+    Mutant(
+        "curve_threshold_199",
+        CALIBRATION,
+        r"^CURVE_MIN_EVENTS = 200$",
+        "CURVE_MIN_EVENTS = 199",
+        what="the 200/200 convention moved to 199",
+        day=6,
+    ),
+    Mutant(
+        "curve_inequality_inclusive",
+        CALIBRATION,
+        r"below = events < CURVE_MIN_EVENTS or nonevents < CURVE_MIN_EVENTS",
+        "below = events <= CURVE_MIN_EVENTS or nonevents <= CURVE_MIN_EVENTS",
+        what="exactly 200 events is flagged",
+        day=6,
+    ),
+    Mutant(
+        "curve_inequality_and_not_or",
+        CALIBRATION,
+        r"below = events < CURVE_MIN_EVENTS or nonevents < CURVE_MIN_EVENTS",
+        "below = events < CURVE_MIN_EVENTS and nonevents < CURVE_MIN_EVENTS",
+        what="the flag needs both classes below 200 instead of either",
+        day=6,
+    ),
+    Mutant(
+        "suppression_ignores_score_type",
+        CALIBRATION,
+        r'    if decl\.score_type != "probability":\n        return "score_not_probability"',
+        '    if decl.score_type == "unused":\n        return "score_not_probability"',
+        what="a logit or other score is calibrated as if it were a probability",
+        day=6,
+    ),
+    Mutant(
+        "suppression_ignores_orientation",
+        CALIBRATION,
+        r'    if decl\.orientation != "higher_is_positive":',
+        '    if decl.orientation == "unused":',
+        what="a lower_is_positive probability is calibrated as the positive-class probability",
+        day=6,
+    ),
+    Mutant(
+        "oe_clustered_refusal_dropped",
+        CALIBRATION,
+        r'        return _unavailable\(ctx, key, "single_class", est=est\)\n    if ctx\.clustered:',
+        '        return _unavailable(ctx, key, "single_class", est=est)\n    if False:',
+        what="the log-delta O:E interval is rendered on clustered rows (X2 / DEC-09)",
+        day=6,
+    ),
+    Mutant(
+        "irls_clustered_refusal_dropped",
+        CALIBRATION,
+        r"# type: ignore\[index\]\n        if ctx\.clustered:",
+        "# type: ignore[index]\n        if False:",
+        what="the IRLS Wald intervals are rendered on clustered rows (X2 / DEC-09)",
+        day=6,
+    ),
+    Mutant(
+        "ipa_sign_flipped",
+        CALIBRATION,
+        r"ipa = 1\.0 - brier / ref if brier is not None and ref else None",
+        "ipa = brier / ref - 1.0 if brier is not None and ref else None",
+        what="IPA reported as Brier/Brier_ref - 1",
+        day=6,
+    ),
+    Mutant(
+        "brier_reference_is_prevalence",
+        CALIBRATION,
+        r"ref = pi \* \(1\.0 - pi\) if pi is not None else None",
+        "ref = pi if pi is not None else None",
+        what="the reference Brier becomes the prevalence itself",
+        day=6,
+    ),
+    Mutant(
+        "clip_epsilon_loosened",
+        CALIBRATION,
+        r"^CLIP_EPS = 1e-12$",
+        "CLIP_EPS = 1e-6",
+        what="boundary scores clipped at 1e-6 instead of 1e-12",
+        day=6,
+    ),
+    Mutant(
+        "separation_not_typed",
+        CALIBRATION,
+        r"        if np\.all\(np\.abs\(mu - y\) < SEPARATION_TOL\):",
+        "        if False:",
+        what="complete separation is no longer detected (runs to the iteration budget)",
+        day=6,
+    ),
+    Mutant(
+        "brier_ref_bootstrapped_under_stratification",
+        CALIBRATION,
+        r"    if _prevalence_invariant\(resampler\):",
+        "    if False:",
+        what="the reference Brier is bootstrapped where the resampler holds it fixed",
+        day=6,
+    ),
+    Mutant(
+        "schema_extension_missing_day6_reason",
+        OUTPUT_SCHEMA,
+        r'"irls_not_converged", "complete_separation", "constant_score",',
+        '"irls_not_converged", "constant_score",',
+        what="the output schema no longer accepts a day-6 typed reason",
+        day=6,
+    ),
+    Mutant(
+        "schema_extension_missing_day6_flag",
+        OUTPUT_SCHEMA,
+        r'"below_200_events_or_nonevents", "scores_clipped_for_logit",',
+        '"below_200_events_or_nonevents",',
+        what="the output schema no longer accepts a day-6 flag",
+        day=6,
+    ),
 )
 
 
@@ -373,14 +538,25 @@ def run_marker(copy: Path, marker: str) -> tuple[int, str]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="plant declared mutants and run a pytest marker")
     ap.add_argument("--marker", default="day5")
+    ap.add_argument(
+        "--day",
+        type=int,
+        default=None,
+        help="run only the mutants declared for this build day (default: the marker's day)",
+    )
     ap.add_argument("--only", action="append", help="mutant id(s) to run")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--fail-on-survivor", action="store_true")
     args = ap.parse_args(argv)
-    chosen = [m for m in MUTANTS if not args.only or m.id in args.only]
+    day = args.day
+    if day is None and args.marker.startswith("day") and args.marker[3:].isdigit():
+        day = int(args.marker[3:])
+    chosen = [
+        m for m in MUTANTS if (not args.only or m.id in args.only) and (day is None or m.day == day)
+    ]
     if args.list:
         for m in MUTANTS:
-            print(f"{m.id:<36} {m.file:<36} {m.what}")
+            print(f"{m.id:<40} day{m.day} {m.file:<36} {m.what}")
         return 0
     copy = make_copy()
     try:
@@ -399,7 +575,7 @@ def main(argv: list[str] | None = None) -> int:
             status = "killed" if rc != 0 else "SURVIVED"
             if rc == 0:
                 survivors.append(m)
-            print(f"{status:<9} {m.id:<36} {m.what}")
+            print(f"{status:<9} {m.id:<40} {m.what}")
             if rc != 0:
                 print(f"          {tail.splitlines()[-1][:110]}")
         killed = len(chosen) - len(survivors)

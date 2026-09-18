@@ -99,6 +99,22 @@ NOT_ESTIMABLE_REASONS: frozenset[str] = frozenset(
         # the exploratory heterogeneity footnote (stats.subgroups): a homogeneity test
         # needs at least two evaluable levels of the attribute to compare
         "insufficient_levels",
+        # calibration (build day 6, stats.calibration). Two suppression reasons, kept
+        # apart because the remedy differs: a logit or "other" score is not a
+        # probability at all (the declared type rides in the detail beside it); a
+        # probability declared lower_is_positive is not the probability of the
+        # *positive* class, and 1 - p would assume it is the negative class's, which
+        # the customer did not declare - refused, never transformed.
+        "score_not_probability",
+        "score_not_positive_class_probability",
+        # the module's own IRLS logistic fits, typed instead of inf / nan / a traceback
+        "irls_not_converged",  # the iteration budget ran out
+        "complete_separation",  # every fitted probability equals its label; no MLE
+        "constant_score",  # logit(p) takes one value; the slope is not identifiable
+        # the prevalence-only reference Brier under a resampler that holds the
+        # prevalence fixed in every resample (stratified by outcome): the draw has no
+        # width by construction, not because of the data
+        "fixed_by_outcome_stratification",
     }
 )
 
@@ -129,6 +145,18 @@ FLAGS: frozenset[str] = frozenset(
         # R2 1.3: a class below 10 gets the stratified bootstrap as its rendered
         # interval, with the DeLong Number carried alongside. Recorded, never silent.
         "analytic_ci_replaced_small_class",
+        # Build day 6, stats.calibration. The 200/200 convention after Van Calster
+        # 2019: fewer than 200 events or fewer than 200 non-events in the analysed rows.
+        # An annotation on the decile curve and the block (DEC-08), never a suppression.
+        "below_200_events_or_nonevents",
+        # scores at exactly 0 or 1 were clipped to [CLIP_EPS, 1 - CLIP_EPS] for the
+        # logit-scale models; the count of clipped rows is in the block
+        "scores_clipped_for_logit",
+        # X2 under clustering: the log-delta O:E interval and the IRLS Wald intervals
+        # are refused and the cluster bootstrap rendered; the typed reason rides on the
+        # companion Number, these ride on the rendered one
+        "log_delta_refused_clustered",
+        "irls_wald_refused_clustered",
     }
 )
 

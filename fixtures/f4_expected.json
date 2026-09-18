@@ -1,0 +1,88 @@
+{
+  "fixture": "F4 calibration (R2 section 9)",
+  "produced": "build day 6, 2026-09-18, scratchpad make_f4.py; statsmodels 0.15.0, scikit-learn 1.9.0, numpy 2.5.1",
+  "r2_quoted": {
+    "brier": 0.1588,
+    "brier_ref": 0.24,
+    "ipa": 0.3385,
+    "oe": 1.1439,
+    "intercept_large": 0.4562,
+    "slope": 1.1945,
+    "intercept": 0.4998,
+    "ece_5_equal_width": 0.1255,
+    "ece_10": 0.1955,
+    "note": "R2's 'ECE(10)' equals both the ten equal-mass bins and the ten right-closed equal-width bins on these rows: with 20 scores at 0.05 steps the two schemes partition the rows identically. The 5-bin figure reproduces only with right-closed (lo, hi] equal-width bins, first bin closed at 0."
+  },
+  "statsmodels_glm_binomial_offset": {
+    "command": "sm.GLM(y, np.ones((20, 1)), family=sm.families.Binomial(), offset=np.log(p/(1-p))).fit(tol=1e-10)",
+    "intercept_large": 0.4562304654612093,
+    "se": 0.5536866236677364,
+    "deviance": 18.207926202461742,
+    "iterations": 4,
+    "default_fit_note": "statsmodels' default .fit() (deviance tol 1e-8) stops one IRLS iteration earlier and reports the Wald SE from the penultimate iteration's weights; at tol=1e-10 (and with method='newton') its SE equals the observed information at the MLE, which is what ProofPack's IRLS reports. Both are recorded.",
+    "default_fit_se": 0.5536866236677364,
+    "default_fit_intercept_large": 0.4562304654612093
+  },
+  "statsmodels_glm_binomial_joint": {
+    "command": "sm.GLM(y, np.column_stack([np.ones(20), np.log(p/(1-p))]), family=sm.families.Binomial()).fit(tol=1e-10)",
+    "intercept": 0.49977163424518545,
+    "slope": 1.1945124796435687,
+    "se_intercept": 0.5950556259960741,
+    "se_slope": 0.5617458139515542,
+    "deviance": 18.07627682073649,
+    "iterations": 6,
+    "default_fit_se_intercept": 0.5950464989969844,
+    "default_fit_se_slope": 0.5617258993045539,
+    "default_fit_intercept": 0.499771633481579,
+    "default_fit_slope": 1.1945124778153176
+  },
+  "sklearn_brier": {
+    "command": "sklearn.metrics.brier_score_loss(y, p)",
+    "brier": 0.158755
+  },
+  "hand": {
+    "oe": {
+      "formula": "sum(y) / sum(p)",
+      "value": 1.1439466158245948,
+      "O": 12.0,
+      "E": 10.49
+    },
+    "oe_log_delta_se": {
+      "formula": "sqrt((1 - O/N) / O)",
+      "value": 0.18257418583505536
+    },
+    "oe_ci_95": {
+      "formula": "exp(ln(O/E) -/+ 1.959963984540054 * sqrt((1 - O/N) / O))",
+      "lo": 0.7998311777760543,
+      "hi": 1.6361125900282716
+    },
+    "brier": {
+      "formula": "mean((p - y)**2)",
+      "value": 0.158755
+    },
+    "brier_ref": {
+      "formula": "pi (1 - pi), pi = mean(y)",
+      "value": 0.24
+    },
+    "ipa": {
+      "formula": "1 - brier / brier_ref",
+      "value": 0.33852083333333327
+    },
+    "ece_equal_width_10": {
+      "formula": "sum_b n_b/N |mean(y)_b - mean(p)_b|, bins (lo, hi] right-closed on arange(11)/10, first bin closed at 0",
+      "value": 0.1955
+    },
+    "ece_equal_mass_10": {
+      "formula": "same over 10 equal-mass bins by stable rank (array_split)",
+      "value": 0.1955
+    },
+    "ece_equal_width_5": {
+      "formula": "as equal_width_10 with arange(6)/5",
+      "value": 0.12549999999999994
+    }
+  },
+  "r_rms_val_prob": {
+    "status": "[pending]",
+    "note": "F13b: rms::val.prob capture on these rows is the day-9 R job (D1 section 3.1). Intercept, slope, Brier and the O:E from that capture are to be compared against the values above; nothing here has been checked against R yet."
+  }
+}

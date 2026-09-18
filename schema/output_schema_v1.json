@@ -54,10 +54,16 @@
         "indeterminate": { "type": "integer", "minimum": 0 },
         "analysed": { "type": "integer", "minimum": 0 },
         "n_cases": { "type": ["integer", "null"] },
-        "clustered": { "type": "boolean" }
+        "n_sites": { "type": ["integer", "null"] },
+        "clustered": { "type": "boolean" },
+        "clustering_route": { "enum": ["none", "declared", "detected"] }
       }
     },
-    "table1": { "type": ["object", "null"] },
+    "table1": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/table1Block" }] },
+    "missingness": {
+      "description": "Build day 6 (stats.descriptive): per mapped column, the count and share of rows missing after the missing-token normalisation. Counts are integers; no share is rounded here.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/missingnessBlock" }]
+    },
     "overall": {
       "type": ["object", "null"],
       "description": "One key per declared operating point id, plus 'threshold_free'.",
@@ -66,7 +72,11 @@
       },
       "additionalProperties": { "$ref": "#/$defs/operatingPointBlock" }
     },
-    "calibration": { "type": ["object", "null"] },
+    "calibration": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/calibrationBlock" }] },
+    "calibration_suppressed_reason": {
+      "description": "Build day 6. Where D1 section 4.2 puts suppressed_reason: null when the calibration block is present; when the block is null, the typed reason it was not computed (the score is not a probability of the positive class) with the declarations that decided it.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/calibrationSuppressedReason" }]
+    },
     "subgroups": { "type": ["array", "null"], "items": { "$ref": "#/$defs/subgroupRow" } },
     "subgroup_attributes": {
       "type": ["array", "null"],
@@ -107,7 +117,7 @@
       ]
     },
     "notEstimableReason": {
-      "description": "Typed reasons a quantity carries no interval. There is no untyped fallback. 'cases_span_both_groups' and 'insufficient_levels' were added on build day 5 (stats.subgroups).",
+      "description": "Typed reasons a quantity carries no interval. There is no untyped fallback. 'cases_span_both_groups' and 'insufficient_levels' were added on build day 5 (stats.subgroups). The six from 'score_not_probability' to 'fixed_by_outcome_stratification' were added on build day 6 (stats.calibration): two suppression reasons, three typed IRLS outcomes, and the reference Brier under an outcome-stratified resampler.",
       "enum": [
         "zero_denominator", "single_class", "insufficient_positives",
         "insufficient_negatives", "zero_cell_log_undefined",
@@ -115,17 +125,22 @@
         "analytic_ci_unavailable", "clustered_data_analytic_ci_invalid",
         "scipy_unavailable", "not_computed_this_run",
         "insufficient_clusters", "degenerate_resamples",
-        "cases_span_both_groups", "insufficient_levels"
+        "cases_span_both_groups", "insufficient_levels",
+        "score_not_probability", "score_not_positive_class_probability",
+        "irls_not_converged", "complete_separation", "constant_score",
+        "fixed_by_outcome_stratification"
       ]
     },
     "flag": {
-      "description": "Advisory annotations. The three added on build day 4 record the X2 clustered auto-switch and the small-class switch on the Number that is rendered; the typed reason itself rides on the companion analytic Number. 'newcombe_refused_clustered' (build day 5) rides on a subgroup difference computed by the two-sided cluster bootstrap because Newcombe method 10 was refused on clustered rows.",
+      "description": "Advisory annotations. The three added on build day 4 record the X2 clustered auto-switch and the small-class switch on the Number that is rendered; the typed reason itself rides on the companion analytic Number. 'newcombe_refused_clustered' (build day 5) rides on a subgroup difference computed by the two-sided cluster bootstrap because Newcombe method 10 was refused on clustered rows. The four from 'below_200_events_or_nonevents' (build day 6, stats.calibration): the 200/200 convention after Van Calster 2019 (an annotation, never a suppression - DEC-08), the boundary-score clip for the logit-scale models, and the X2 refusals of the log-delta O:E and the IRLS Wald intervals under clustering.",
       "enum": [
         "not_evaluable_shown_for_transparency", "very_low_precision", "imprecise",
         "wald_interval_exceeds_unit_range", "ci_pending_bootstrap",
         "continuity_corrected", "shown_alongside_wilson_at_boundary",
         "delong_refused_clustered", "wilson_refused_clustered", "newcombe_refused_clustered",
-        "analytic_ci_replaced_small_class"
+        "analytic_ci_replaced_small_class",
+        "below_200_events_or_nonevents", "scores_clipped_for_logit",
+        "log_delta_refused_clustered", "irls_wald_refused_clustered"
       ]
     },
 
@@ -954,6 +969,148 @@
             },
             "not_estimable_reason": {
               "const": "not_computed_this_run"
+            }
+          }
+        }
+      }
+    },
+    "calibrationSuppressedReason": {
+      "type": "object",
+      "required": ["reason", "score_type", "orientation"],
+      "additionalProperties": false,
+      "properties": {
+        "reason": { "enum": ["score_not_probability", "score_not_positive_class_probability"] },
+        "score_type": { "enum": ["probability", "logit", "other"] },
+        "orientation": { "enum": ["higher_is_positive", "lower_is_positive"] }
+      }
+    },
+    "eceEntry": {
+      "type": "object",
+      "description": "One ECE figure with its binning scheme stated (R2 section 1.4: ECE is bin-sensitive; both schemes are reported and labelled supplementary). No interval is emitted for it in v1; the Number carries not_computed_this_run and ci_not_computed_because says why.",
+      "required": ["number", "bins", "scheme", "edges", "note", "ci_not_computed_because"],
+      "additionalProperties": false,
+      "properties": {
+        "number": { "$ref": "#/$defs/Number" },
+        "bins": { "const": 10 },
+        "scheme": { "enum": ["equal_width", "equal_mass"] },
+        "edges": { "type": "array", "items": { "type": "number", "minimum": 0, "maximum": 1 } },
+        "note": { "type": "string", "pattern": "^supplementary" },
+        "ci_not_computed_because": { "type": "string" }
+      }
+    },
+    "decileBin": {
+      "type": "object",
+      "required": ["bin", "n", "events", "mean_pred", "score_min", "score_max", "observed"],
+      "additionalProperties": false,
+      "properties": {
+        "bin": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "n": { "type": "integer", "minimum": 0 },
+        "events": { "type": "integer", "minimum": 0 },
+        "mean_pred": { "type": ["number", "null"] },
+        "score_min": { "type": ["number", "null"] },
+        "score_max": { "type": ["number", "null"] },
+        "observed": { "$ref": "#/$defs/Cell" }
+      }
+    },
+    "curveFlag": {
+      "type": "object",
+      "description": "The 200/200 convention after Van Calster 2019 (R2 section 1.4): present when the analysed rows hold fewer than 200 events or fewer than 200 non-events. An annotation (DEC-08): the decile table, intercept, slope and O:E are still reported.",
+      "required": ["flag", "events", "nonevents", "minimum", "note"],
+      "additionalProperties": false,
+      "properties": {
+        "flag": { "const": "below_200_events_or_nonevents" },
+        "events": { "type": "integer", "minimum": 0 },
+        "nonevents": { "type": "integer", "minimum": 0 },
+        "minimum": { "const": 200 },
+        "note": { "type": "string", "pattern": "Van Calster 2019" },
+        "event_cases": { "type": "integer", "minimum": 0 },
+        "nonevent_cases": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "calibrationBlock": {
+      "type": "object",
+      "description": "D1 section 4.2 'calibration' (build day 6, stats.calibration), computed only for a score declared as a probability of the positive class. Each quantity is a day-4 Cell (the rendered Number plus its companion analytic Number and clustering audit). suppressed_reason is null inside a present block; the top-level calibration_suppressed_reason carries the reason when the block is null.",
+      "required": [
+        "n", "events", "nonevents", "n_cases", "clustering_route", "n_clipped", "clip_eps",
+        "oe", "intercept_large", "slope", "intercept", "brier", "brier_ref", "ipa",
+        "ece_equal_width_10", "ece_equal_mass_10", "decile_curve", "decile_tie_rule",
+        "curve_flag", "flags", "convention", "suppressed_reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "n": { "type": "integer", "minimum": 0 },
+        "events": { "type": "integer", "minimum": 0 },
+        "nonevents": { "type": "integer", "minimum": 0 },
+        "n_cases": { "type": ["integer", "null"] },
+        "clustering_route": { "enum": ["none", "declared", "detected"] },
+        "n_clipped": { "type": "integer", "minimum": 0 },
+        "clip_eps": { "type": "number", "exclusiveMinimum": 0 },
+        "oe": { "$ref": "#/$defs/Cell" },
+        "intercept_large": { "$ref": "#/$defs/Cell" },
+        "slope": { "$ref": "#/$defs/Cell" },
+        "intercept": { "$ref": "#/$defs/Cell" },
+        "brier": { "$ref": "#/$defs/Cell" },
+        "brier_ref": { "$ref": "#/$defs/Cell" },
+        "ipa": { "$ref": "#/$defs/Cell" },
+        "ece_equal_width_10": { "$ref": "#/$defs/eceEntry" },
+        "ece_equal_mass_10": { "$ref": "#/$defs/eceEntry" },
+        "decile_curve": {
+          "type": "array", "minItems": 10, "maxItems": 10,
+          "items": { "$ref": "#/$defs/decileBin" }
+        },
+        "decile_tie_rule": { "type": "string" },
+        "curve_flag": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/curveFlag" }] },
+        "flags": { "type": "array", "items": { "$ref": "#/$defs/flag" } },
+        "convention": { "const": "ProofPack convention after Van Calster 2019" },
+        "suppressed_reason": { "type": "null" }
+      }
+    },
+    "table1Levels": {
+      "type": "object",
+      "description": "attribute -> level -> {n, pct}. pct is the level's share of the rows tabulated (analysed test rows, or dev rows); the levels of one attribute sum to 1. Not rounded here.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "required": ["n", "pct"],
+          "additionalProperties": false,
+          "properties": {
+            "n": { "type": "integer", "minimum": 0 },
+            "pct": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+    "table1Block": {
+      "type": "object",
+      "description": "D1 section 4.2 'table1' (build day 6, stats.descriptive). dev is present only when the table carries dataset = dev rows; similarity and overlap are v1.1 and null, with the reason recorded in not_computed.",
+      "required": ["test", "n_test", "dev", "n_dev", "similarity", "overlap", "not_computed"],
+      "additionalProperties": false,
+      "properties": {
+        "test": { "$ref": "#/$defs/table1Levels" },
+        "n_test": { "type": "integer", "minimum": 0 },
+        "dev": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/table1Levels" }] },
+        "n_dev": { "type": ["integer", "null"] },
+        "similarity": { "type": "null" },
+        "overlap": { "type": "null" },
+        "not_computed": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "missingnessBlock": {
+      "type": "object",
+      "required": ["n_rows", "columns"],
+      "additionalProperties": false,
+      "properties": {
+        "n_rows": { "type": "integer", "minimum": 0 },
+        "columns": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["n_missing", "pct"],
+            "additionalProperties": false,
+            "properties": {
+              "n_missing": { "type": "integer", "minimum": 0 },
+              "pct": { "type": "number", "minimum": 0, "maximum": 1 }
             }
           }
         }
