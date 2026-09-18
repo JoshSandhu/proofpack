@@ -72,8 +72,12 @@ jobs:
           version: ${{ env.UV_VERSION }}
       - run: uv python install ${{ env.PYTHON_VERSION }}
       - run: uv sync --all-groups --locked
+      # --skip-editable: the local package is installed editable by uv sync
+      # and is not on PyPI; with --strict alone pip-audit exits 1 on it
+      # ('Dependency not found on PyPI and could not be audited: proofpack
+      # (0.1.0.dev1)', run 35005047083, 15 Sept) before auditing anything.
       - name: pip-audit against the locked environment
-        run: uv run pip-audit --strict --progress-spinner off
+        run: uv run pip-audit --strict --skip-editable --progress-spinner off
 
   wheel:
     name: wheel artefact
