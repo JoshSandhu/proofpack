@@ -141,7 +141,9 @@ def _ask(ask, prompt: str) -> str:
 
 def _confirm_interactive(m, ask=None, say=print) -> None:
     """Prompt once per non-high role: accept / edit (a canonical role or ignore) / abort;
-    when no role is below high, prompt once for the whole mapping (accept / abort).
+    when no role is below high, prompt once for the whole mapping (accept / abort; any
+    other answer re-prompts - at e92989b ``n`` was taken as accept, repair 2, RG-N1;
+    ``tests/test_mapping_repair2.py::test_all_high_prompt_reprompts_on_anything_but_a_or_q``).
 
     ``ask`` (default ``input``, resolved at call time) and ``say`` are injectable so the
     prompt is testable without a terminal. Raises H07 on abort. Mutates ``m`` in place
@@ -150,19 +152,41 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
     FA-N2; ``tests/test_mapping_repair1.py::test_all_high_table_asks_once_before_interactive``).
     Accept and edit leave ``confidence`` as computed (the build note's needs-from-Josh 1;
     ``test_accept_and_edit_keep_the_computed_confidence`` pins the literal values).
+
+    An accept or an edit that would give a role a second holder among the entries already
+    settled (high, or answered earlier in this loop) is refused at the prompt; entries
+    still to be asked are not counted, so the first of two ``case_id low`` headers can be
+    accepted and the second must be edited (repair 2, FA-B1: at e92989b ``a`` at both
+    prompts wrote two ``case_id`` holders; repair 1 checked edits only). An edited
+    ``attr_`` / ``rater_`` name must match the schema's identifier rule (at e92989b
+    ``attr_x y`` was written and ``validate`` later dropped it into ``unused_columns``,
+    FA-N5; ``::test_edit_prompt_refuses_bare_and_non_identifier_attr_names``).
     """
     from proofpack.io.mapping import IGNORE
-    from proofpack.io.schema import canonical_columns
+    from proofpack.io.schema import _IDENT, canonical_columns
 
     ask = ask or input
     allowed = set(canonical_columns()) | {IGNORE}
     pending = list(m.non_high)
     if not pending:
-        answer = _ask(ask, f"every role is high ({len(m.roles)} columns): [a]ccept / [q]uit? ")
-        if answer in ("q", "quit", "abort"):
-            raise HaltError("H07", "mapping aborted at the prompt; nothing written")
+        while True:
+            answer = _ask(ask, f"every role is high ({len(m.roles)} columns): [a]ccept / [q]uit? ")
+            if answer in ("a", "accept", ""):
+                break
+            if answer in ("q", "quit", "abort"):
+                raise HaltError("H07", "mapping aborted at the prompt; nothing written")
+            say("  answer a or q")
         m.decided_by = "interactive"
         return
+
+    def held_by(r, role):
+        after = next(i for i, x in enumerate(pending) if x is r) + 1
+        undecided = {id(x) for x in pending[after:]}
+        return next(
+            (o for o in m.roles if o is not r and id(o) not in undecided and o.role == role),
+            None,
+        )
+
     for r in pending:
         while True:
             answer = _ask(
@@ -170,20 +194,33 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
                 f"{r.original!r} -> {r.role_label} ({r.confidence}): [a]ccept / [e]dit / [q]uit? ",
             )
             if answer in ("a", "accept", ""):
+                holder = held_by(r, r.role) if r.role is not None else None
+                if holder is not None:
+                    say(
+                        f"  {r.role} is already held by {holder.original!r}: "
+                        "edit this one (e) to ignore or another role"
+                    )
+                    continue
                 r.notes.append("accepted interactively")
                 break
             if answer in ("q", "quit", "abort"):
                 raise HaltError("H07", "mapping aborted at the prompt; nothing written")
             if answer in ("e", "edit"):
                 new_role = _ask(ask, "canonical role name, or ignore: ")
-                if new_role not in allowed and not new_role.startswith(("attr_", "rater_")):
-                    say(f"  not a canonical role: choose one of {', '.join(sorted(allowed))}")
+                prefixed = _IDENT.match(new_role) and any(
+                    new_role.startswith(p) and len(new_role) > len(p) for p in ("attr_", "rater_")
+                )
+                if new_role not in allowed and not prefixed:
+                    say(
+                        f"  not a canonical role: choose one of {', '.join(sorted(allowed))}, "
+                        "or attr_<name> / rater_<name> in lower-case letters, digits and _"
+                    )
                     continue
                 holder = None
                 if new_role != IGNORE:
-                    holder = next((o for o in m.roles if o is not r and o.role == new_role), None)
+                    holder = held_by(r, new_role)
                 if holder is not None:
-                    # apply_mapping would halt H07 on it later (repair 1, FA-N4;
+                    # apply_mapping would halt on it later (repair 1, FA-N4;
                     # test_edit_to_a_role_another_column_holds_is_refused_at_the_prompt)
                     say(f"  {new_role} is already held by {holder.original!r}: choose another")
                     continue
@@ -213,29 +250,48 @@ def cmd_map(args: argparse.Namespace) -> int:
     from proofpack.io.schema import load_table
 
     _tolerant_console()
-    raw = load_table(args.input)
-    period = declare.load(args.criteria).period if args.criteria else None
-    fresh = mapping.map_headers(raw.headers, raw.columns)
-    mapping.check_h11(raw.headers, period, mapping=fresh)
-    table = fresh.table()
-    if args.yes:
-        m = mapping.check_h07(raw.headers, args.out, non_interactive=True, fresh=fresh)
-    else:
-        tty = _stdin_is_terminal()
-        # --quiet keeps the table off a non-terminal stdout; at a terminal the prompts
-        # follow, so the table they refer to is printed (repair 1, FA-N12;
-        # test_quiet_at_a_terminal_prints_the_table_the_prompt_refers_to)
-        if not args.json_log and (not args.quiet or tty):
-            print(table)
-        if not tty:
-            raise HaltError(
-                "H07",
-                "stdin is not a terminal: run interactively or pass --yes with a prior "
-                "mapping.json",
-                {"non_high_roles": len(fresh.non_high)},
-            )
-        m = fresh
-        _confirm_interactive(m)
+    out_dir = Path(args.out).resolve().parent
+    if not out_dir.is_dir():
+        # checked before the table and the prompts, so no answer is lost (repair 2,
+        # FA-N6: at e92989b this was exit 5 FileNotFoundError after the prompts;
+        # tests/test_mapping_repair2.py::
+        # test_out_into_a_missing_directory_halts_h07_before_any_prompt)
+        raise HaltError(
+            "H07",
+            "the directory for --out does not exist: create it or pass --out inside an "
+            "existing directory",
+            {"out_dir_exists": False},
+        )
+    try:
+        raw = load_table(args.input)
+        period = declare.load(args.criteria).period if args.criteria else None
+        fresh = mapping.map_headers(raw.headers, raw.columns)
+        mapping.check_h11(raw.headers, period, mapping=fresh)
+        table = fresh.table()
+        if args.yes:
+            m = mapping.check_h07(raw.headers, args.out, non_interactive=True, fresh=fresh)
+        else:
+            tty = _stdin_is_terminal()
+            # --quiet keeps the table off a non-terminal stdout; at a terminal the prompts
+            # follow, so the table they refer to is printed (repair 1, FA-N12;
+            # test_quiet_at_a_terminal_prints_the_table_the_prompt_refers_to)
+            if not args.json_log and (not args.quiet or tty):
+                print(table)
+            if not tty:
+                raise HaltError(
+                    "H07",
+                    "stdin is not a terminal: run interactively or pass --yes with a prior "
+                    "mapping.json",
+                    {"non_high_roles": len(fresh.non_high)},
+                )
+            m = fresh
+            _confirm_interactive(m)
+    except KeyboardInterrupt:
+        # a BaseException main()'s catch-all does not see; here it is the H07 abort _ask
+        # gives at a prompt (repair 2, FA-N10: at e92989b Ctrl-C raised from load_table
+        # left main() as a traceback; tests/test_mapping_repair2.py::
+        # test_ctrl_c_during_load_is_h07_not_a_traceback)
+        raise HaltError("H07", "mapping interrupted; nothing written") from None
     m.write(args.out)
     _emit(
         args,

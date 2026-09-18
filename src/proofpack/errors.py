@@ -43,8 +43,9 @@ SCHEMA_CODES: dict[str, str] = {
 #: 3 like the others. E01 is DEC-11 (Josh, 13 September 2026); its message ends "reduce
 #: your case key to one column". Raised by ``io.declare._check_dec11_case_key`` (a
 #: ``clustering.unit`` list of >= 2, a string splitting into >= 2 tokens, or a list of
-#: >= 2 under ``clustering.columns``/``key``/...) and by ``io.mapping.map_headers`` (two
-#: headers resolving to ``case_id`` by name). ``tests/test_mapping_full.py::
+#: >= 2 under ``clustering.columns``/``key``/...), by ``io.mapping.map_headers`` (two
+#: headers resolving to ``case_id`` by name) and by ``io.mapping.apply_mapping`` (two
+#: columns mapped to ``case_id``, whatever the source). ``tests/test_mapping_full.py::
 #: test_dec11_via_the_cli_run_and_map_exit_3_with_the_message_and_no_traceback`` runs
 #: ``run`` and ``map`` through ``main()`` and one subprocess and asserts exit 3, the first
 #: stderr line and no ``Traceback``.

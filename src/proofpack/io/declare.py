@@ -141,7 +141,7 @@ def _h08_from_schema_error(err: jsonschema.ValidationError) -> HaltError:
 #: test_separators_the_lens_listed_reach_e01`` and ``tests/test_mapping_full.py::
 #: test_composite_clustering_unit_halts_e01_before_the_schema_check`` list the literal
 #: strings fed and the count each one yields.
-_CASE_KEY_SEPARATORS = re.compile(r"\s+and\s+|[^A-Za-z0-9_]+")
+_CASE_KEY_SEPARATORS = re.compile(r"\s+[Aa][Nn][Dd]\s+|[^A-Za-z0-9_]+")
 #: ``clustering`` keys other than ``unit`` whose list value is read as a case key.
 _CASE_KEY_LIST_KEYS: tuple[str, ...] = ("columns", "column", "key", "keys", "units", "fields")
 
@@ -150,8 +150,12 @@ def _check_dec11_case_key(clustering: Any) -> None:
     """DEC-11: halt E01 (message ending ``reduce your case key to one column``) when
     ``clustering.unit`` is a list of two or more, or a string that splits into two or more
     tokens on :data:`_CASE_KEY_SEPARATORS`, or when one of :data:`_CASE_KEY_LIST_KEYS`
-    holds a list of two or more. Runs before the jsonschema step, which would otherwise
-    report the string as an H08 enum error naming no fix."""
+    holds a list of two or more or a string that splits into two or more tokens the same
+    way (repair 2, FA-N8: at e92989b ``columns: "subject_id, hadm_id"`` passed and
+    ``unit: "a AND b"`` counted three tokens;
+    ``tests/test_mapping_repair2.py::test_list_key_strings_and_upper_case_and_reach_e01``).
+    Runs before the jsonschema step, which would otherwise report the string as an H08
+    enum error naming no fix."""
     if not isinstance(clustering, dict):
         return
     unit = clustering.get("unit")
@@ -174,6 +178,14 @@ def _check_dec11_case_key(clustering: Any) -> None:
                 f"clustering.{key} lists {len(value)} columns; reduce your case key to one column",
                 {"n_case_key_columns": len(value), "key": key},
             )
+        if isinstance(value, str):
+            n = len([t for t in _CASE_KEY_SEPARATORS.split(value) if t])
+            if n >= 2:
+                raise HaltError(
+                    "E01",
+                    f"clustering.{key} names {n} columns; reduce your case key to one column",
+                    {"n_case_key_columns": n, "key": key},
+                )
 
 
 def validate_dict(data: dict[str, Any]) -> Declarations:

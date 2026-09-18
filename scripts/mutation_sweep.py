@@ -313,6 +313,7 @@ MUTANTS: tuple[Mutant, ...] = (
 )
 
 MAPPING = "src/proofpack/io/mapping.py"
+SCHEMA_IO = "src/proofpack/io/schema.py"
 PROFILE = "src/proofpack/io/profile.py"
 DECLARE = "src/proofpack/io/declare.py"
 CLI = "src/proofpack/cli.py"
@@ -387,8 +388,8 @@ MUTANTS_DAY6_A: tuple[Mutant, ...] = (
     Mutant(
         "tty_check_always_true",
         CLI,
-        r"        if not tty:\n            raise HaltError\(",
-        "        if False:\n            raise HaltError(",
+        r"            if not tty:\n                raise HaltError\(",
+        "            if False:\n                raise HaltError(",
         marker="day6",
         what="a non-terminal stdin is prompted instead of halting H07",
     ),
@@ -509,8 +510,8 @@ MUTANTS_DAY6_A: tuple[Mutant, ...] = (
     Mutant(
         "held_role_edit_accepted",
         CLI,
-        r"if holder is not None:",
-        "if holder is not None and False:",
+        r"holder = held_by\(r, new_role\)\n                if holder is not None:",
+        "holder = held_by(r, new_role)\n                if holder is not None and False:",
         marker="day6",
         what="an edit to a role another column holds is written (FA-N4)",
     ),
@@ -537,6 +538,95 @@ MUTANTS_DAY6_A: tuple[Mutant, ...] = (
         "if not args.json_log and not args.quiet:",
         marker="day6",
         what="--quiet at a terminal prompts with no table (FA-N12)",
+    ),
+    # repair 2 (the lens-2 findings; tests/test_mapping_repair2.py)
+    Mutant(
+        "apply_two_case_id_columns_h07_not_e01",
+        MAPPING,
+        r"if n_case >= 2:",
+        "if n_case >= 3:",
+        marker="day6",
+        what="patient_nbr + mrn_local through run is H07, not the DEC-11 E01 (FA-B1)",
+    ),
+    Mutant(
+        "partial_case_id_tokens_counted_by_map_headers_e01",
+        MAPPING,
+        r'if c and c\.role == "case_id" and c\.source != "partial"',
+        'if c and c.role == "case_id"',
+        marker="day6",
+        what="patient_weight + patient_height halt E01 in map_headers (lens-2 M05)",
+    ),
+    Mutant(
+        "accept_of_a_held_role_taken",
+        CLI,
+        r"holder = held_by\(r, r\.role\) if r\.role is not None else None",
+        "holder = None",
+        marker="day6",
+        what="'a' at both case_id prompts writes two holders (FA-B1)",
+    ),
+    Mutant(
+        "all_high_prompt_takes_any_answer",
+        CLI,
+        r'say\("  answer a or q"\)',
+        "break",
+        marker="day6",
+        what="'n' at the all-high prompt is an accept (RG-N1)",
+    ),
+    Mutant(
+        "attr_twins_not_single_holder",
+        MAPPING,
+        r'return role in SINGLE_HOLDER_ROLES or role\.startswith\(\("attr_", "rater_"\)\)',
+        "return role in SINGLE_HOLDER_ROLES",
+        marker="day6",
+        what="'Attr Site' beside attr_site are both high (FA-N7)",
+    ),
+    Mutant(
+        "prior_role_type_unchecked",
+        MAPPING,
+        r"if role is not None and not isinstance\(role, str\):",
+        "if False:",
+        marker="day6",
+        what="a prior with role 123 reaches run --yes as exit 5 (RG-B1)",
+    ),
+    Mutant(
+        "list_key_string_not_split",
+        DECLARE,
+        r"if isinstance\(value, str\):",
+        "if False:",
+        marker="day6",
+        what="clustering.columns: 'subject_id, hadm_id' passes silently (FA-N8)",
+    ),
+    Mutant(
+        "and_separator_lower_case_only",
+        DECLARE,
+        r"\[Aa\]\[Nn\]\[Dd\]",
+        "and",
+        marker="day6",
+        what="'a AND b' counts three tokens (RG-N3)",
+    ),
+    Mutant(
+        "dotted_date_shape_removed",
+        PROFILE,
+        r'^    re\.compile\(r"\^\\d\{1,2\}\\\.\\d\{1,2\}\\\.\\d\{4\}\$"\),\n',
+        "",
+        marker="day6",
+        what="15.03.2024 values are categorical again and pass H11 (FA-N2)",
+    ),
+    Mutant(
+        "out_dir_check_off",
+        CLI,
+        r"if not out_dir\.is_dir\(\):",
+        "if False:",
+        marker="day6",
+        what="--out into a missing directory is exit 5 after the prompts (FA-N6)",
+    ),
+    Mutant(
+        "hash_is_the_column_count",
+        SCHEMA_IO,
+        r'joined = "\\n"\.join\(sorted\(h\.strip\(\) for h in headers\)\)',
+        "joined = str(len(headers))",
+        marker="day6",
+        what="a header renamed at the same width keeps the hash (lens-2 M24)",
     ),
 )
 

@@ -33,7 +33,17 @@ Value signals (heuristics, from :mod:`proofpack.io.profile` summaries) are liste
 ``sex`` coded 1/2 or 0/1 is ``medium`` with the note ``no dictionary declared for ...``
 even though the header is an exact synonym: no dictionary is applied to the codes, so the
 levels stay the strings ``1`` and ``2`` (or ``0`` and ``1``) until a human confirms them.
-Two headers resolving to ``case_id`` halt with E01 (DEC-11), not ``low``.
+Two headers resolving to ``case_id`` by name (canonical, synonym or affix:
+``patient_id`` + ``subject_id``) halt with E01 (DEC-11) in :func:`map_headers`. Two
+headers that only carry a ``case_id`` token (``patient_nbr`` + ``mrn_local``) are both
+``low`` with the two notes, and a mapping that holds two columns on ``case_id`` when it
+reaches :func:`apply_mapping` halts E01 there, whatever the source (repair 2, FA-B1: at
+e92989b that pair halted H07 ``two columns map to the same canonical role`` through
+``proofpack run``, and the accept prompt took both;
+``tests/test_mapping_repair2.py::test_two_partial_case_id_headers_reach_e01_at_apply_not_h07``).
+The token claims are not counted by ``map_headers``'s E01 because ``patient_weight`` +
+``patient_height`` carry the same token and no case key
+(``::test_two_partial_case_id_tokens_are_not_counted_by_map_headers_e01``).
 
 Original headers are written to ``mapping.json`` and nowhere else by this module.
 ``tests/test_mapping_full.py::test_fixture_halts_and_two_constructed_ones_carry_no_header_or_value``
@@ -171,7 +181,9 @@ SEX_12 = frozenset({"1", "2"})
 SEX_01 = frozenset({"0", "1"})
 #: Age bands like ``[70-80)``, ``70-79``, ``70 - 79``, ``90+``.
 AGE_BAND = re.compile(r"^\[?\s*\d{1,3}\s*[-\u2013]\s*\d{1,3}\s*[\)\]]?$|^\d{1,3}\s*\+$")
-#: Roles for which a second name claim is a conflict (attr_/rater_ columns are their own).
+#: Roles for which a second name claim is a conflict; ``attr_*`` / ``rater_*`` are checked
+#: by prefix in :func:`_single_holder` (repair 2, FA-N7: at e92989b ``Attr Site`` beside
+#: ``attr_site`` were both ``attr_site high`` and ``run`` halted H07 on the pair).
 SINGLE_HOLDER_ROLES = frozenset(canonical_columns())
 IGNORE = "ignore"
 CONFIDENCES = ("high", "medium", "low")
@@ -293,14 +305,22 @@ class Mapping:
 
     @classmethod
     def read(cls, path: str | Path) -> Mapping:
-        """Read a prior ``mapping.json``; any shape or I/O failure is H07 ``could not be read``.
+        """Read a prior ``mapping.json``.
 
-        The shape checks (``header_set_sha256`` a string, each ``roles`` entry a mapping whose
-        ``original`` and ``confidence`` are strings; a non-mapping file or a non-list ``roles``
-        raises AttributeError/TypeError on its own) are there because at 555a5e1 a file with
-        ``"roles": "x"`` or ``"header_set_sha256": 123`` reached ``--yes`` as exit 5
-        ``internal error: AttributeError`` / ``TypeError`` (repair 1, FA-N6;
-        ``tests/test_mapping_repair1.py::test_malformed_prior_under_yes_halts_h07_not_exit_5``).
+        Inspected, each failure H07 ``could not be read``: the bytes decode as UTF-8 JSON;
+        ``header_set_sha256`` is a string; ``roles`` iterates and each entry is a mapping
+        with string ``original`` and ``confidence`` and a ``role`` that is a string or null;
+        ``value_summaries`` is a mapping or null; an OSError on the read. A non-mapping
+        file or a non-list ``roles`` raises AttributeError/TypeError on its own and is
+        caught the same way. Not inspected: the role name against the canonical list, the
+        confidence against ``high|medium|low``, ``notes`` entries, ``decided_by``'s type (cast
+        to str; ``check_h07`` reads it). At 555a5e1 ``"roles": "x"`` reached ``--yes`` as
+        exit 5 (repair 1, FA-N6;
+        ``tests/test_mapping_repair1.py::test_malformed_prior_under_yes_halts_h07_not_exit_5``
+        feeds seven files); at e92989b ``"role": 123`` and ``"role": ["a"]`` passed this
+        function and ``run --yes`` was exit 5 ``AttributeError`` / ``TypeError`` (repair 2,
+        RG-B1; ``tests/test_mapping_repair2.py::
+        test_prior_with_a_non_string_role_halts_h07_under_run_yes_and_map_yes`` feeds five).
         """
         try:
             raw = Path(path).read_bytes()
@@ -314,6 +334,8 @@ class Mapping:
                 role = r.get("role")
                 if not isinstance(r["original"], str) or not isinstance(r["confidence"], str):
                     raise TypeError("role entry fields")
+                if role is not None and not isinstance(role, str):
+                    raise TypeError("role")
                 roles.append(
                     RoleMapping(
                         r["original"],
@@ -323,12 +345,15 @@ class Mapping:
                         list(r.get("notes", [])),
                     )
                 )
+            summaries = data.get("value_summaries")
+            if summaries is not None and not isinstance(summaries, dict):
+                raise TypeError("value_summaries")
             m = cls(
                 header_set_sha256=data["header_set_sha256"],
                 roles=roles,
                 decided_by=str(data.get("decided_by", "file")),
                 timestamp=str(data.get("timestamp", "")),
-                value_summaries=data.get("value_summaries") or {},
+                value_summaries=summaries or {},
             )
             m.file_sha256 = hashlib.sha256(raw).hexdigest()
             return m
@@ -488,7 +513,8 @@ def map_headers(
     """Assign a role and a confidence to every header; summaries when ``columns`` is given.
 
     Raises H07 when two headers coincide after :func:`normalise_header`, and E01
-    (DEC-11) when two headers resolve to ``case_id`` by name.
+    (DEC-11) when two headers resolve to ``case_id`` by name (canonical, synonym or
+    affix; token claims are not counted - the module docstring names the pair why).
     """
     canon = set(canonical_columns())
     keys = [normalise_header(h) for h in headers]
@@ -571,8 +597,12 @@ def map_headers(
             notes = [note] if note else []
             if role == "case_id":
                 # a partial token is not a resolved case key (DEC-11 halts on name claims
-                # only); the values may repeat or not - the human decides
+                # only); the values may repeat or not - the human decides. A second
+                # token holder gets the count note too (repair 2, FA-B1: at e92989b the
+                # branch returned before it)
                 notes.append("header resembles a case identifier; confirm or ignore")
+                if n_partial >= 2:
+                    notes.append(f"{n_partial} headers carry a token for {role}; choose one")
                 conf = "low"
             elif n_partial >= 2:
                 notes.append(f"{n_partial} headers carry a token for {role}; choose one")
@@ -620,13 +650,18 @@ def map_headers(
     )
 
 
+def _single_holder(role: str) -> bool:
+    """Whether two columns on ``role`` are a conflict (every role except ``ignore``)."""
+    return role in SINGLE_HOLDER_ROLES or role.startswith(("attr_", "rater_"))
+
+
 def _decide_named(
     h: str, c: _Claim, s: ColumnSummary | None, name_holders: dict[str, list[str]]
 ) -> RoleMapping:
     role = c.role
     notes: list[str] = []
     holders = name_holders.get(role, [])
-    if role in SINGLE_HOLDER_ROLES and len(holders) >= 2:
+    if _single_holder(role) and len(holders) >= 2:
         notes.append(f"{len(holders)} headers claim {role}; choose one")
         return RoleMapping(h, role, "low", c.source, notes)
     if s is None:
@@ -652,7 +687,20 @@ def _decide_named(
 
 
 def apply_mapping(columns: dict[str, list], mapping: Mapping) -> dict[str, list]:
-    """Rename original headers to canonical roles. Ignored columns keep their name."""
+    """Rename original headers to canonical roles. Ignored columns keep their name.
+
+    Two columns on ``case_id`` are the DEC-11 composite key, E01 ending ``reduce your
+    case key to one column``; two columns on any other role are H07 (repair 2, FA-B1:
+    at e92989b ``patient_nbr`` + ``mrn_local`` were H07 here through ``proofpack run``).
+    """
+    n_case = sum(1 for original in columns if mapping.role_of(original) == "case_id")
+    if n_case >= 2:
+        raise HaltError(
+            "E01",
+            f"{n_case} columns are mapped to case_id (proofpack map: keep one, set the "
+            "others to ignore); reduce your case key to one column",
+            {"n_case_id_columns": n_case},
+        )
     out: dict[str, list] = {}
     for original, values in columns.items():
         role = mapping.role_of(original) or original

@@ -2,8 +2,9 @@
 
 Every test names the literal input it feeds and the figures it asserts. Each test that
 fixes a finding failed at 555a5e1 (the first ``E`` line is in the repair-1 note); the
-three tests marked "pins" passed there and are here to observe a rule a lens mutant
-changed without any test noticing (FA-N10).
+seven tests whose docstring begins "Pins" passed there and are here to observe a rule a
+lens mutant changed without any test noticing (FA-N10, FA-N3; the count is from lens 2,
+RG-N2).
 """
 
 from __future__ import annotations

@@ -79,20 +79,31 @@ What it does, in order:
    are not read by the mapper; `io.declare` reads them from `criteria.yaml`.
 3. Halts with a typed code and exit 3: H07 when two headers coincide after case-folding,
    trimming and NFC normalisation; E01 (DEC-11) when two headers resolve to `case_id`
-   by name, when `criteria.yaml`'s `clustering.unit` is a list of two or more, or a
-   string that splits into two or more tokens on ` and ` or any character outside
-   `[A-Za-z0-9_]` (`subject_id/hadm_id`, `patient_id, study_id`, `a b`; the hyphenated
-   single name `patient-id` also counts two), or when `clustering.columns` / `key` /
-   `keys` / `column` / `units` / `fields` lists two or more (message ends `reduce your
-   case key to one column`); H11 when a column is date-like by header or by values and
-   no `period` declaration covers it.
-4. Prints the table `original header -> role -> confidence -> value summary` (under
-   `--quiet` only when stdin is a terminal, because the prompts refer to it), then:
+   by name (canonical, synonym or affix - `patient_id` + `subject_id`; two headers that
+   only carry a token, `patient_nbr` + `mrn_local`, are both `case_id low` for the
+   prompt, and `proofpack run` on a mapping that still holds two `case_id` columns halts
+   E01 at apply time), when `criteria.yaml`'s `clustering.unit` is a list of two or
+   more, or a string that splits into two or more tokens on ` and ` (any case) or any
+   character outside `[A-Za-z0-9_]` (`subject_id/hadm_id`, `patient_id, study_id`,
+   `a b`; the hyphenated single name `patient-id` also counts two), or when
+   `clustering.columns` / `key` / `keys` / `column` / `units` / `fields` lists two or
+   more or is a string that splits into two or more the same way (message ends `reduce
+   your case key to one column`); H11 when a column is date-like by header (the H11
+   header regex) or typed `date` by values - every sampled value one of the six shapes in
+   `io.profile.DATE_PATTERNS` (ISO, `15/03/2024`, `2024/03/15`, `15-03-2024`,
+   `15.03.2024`, `17 Mar 2024`; two-digit years such as `3/17/24` are not among them) -
+   and no `period` declaration covers it.
+4. Halts H07 before the table when the directory of `--out` does not exist, then prints
+   the table `original header -> role -> confidence -> value summary` (under `--quiet`
+   only when stdin is a terminal, because the prompts refer to it), then:
    * stdin is a terminal and `--yes` is absent: prompts once per non-high role
-     (accept / edit to a canonical role or `ignore` / quit; an edit to a role another
-     column already holds is refused at the prompt), or once for the whole mapping
-     when every role is high, and writes `mapping.json` with `decided_by: interactive`.
-     Ctrl-C or a closed stdin at a prompt is H07 (`nothing written`);
+     (accept / edit to a canonical role, `attr_<name>` / `rater_<name>` in lower-case
+     letters, digits and `_`, or `ignore` / quit; an accept or an edit that would give a
+     role a second holder among the columns already settled is refused at the prompt),
+     or once for the whole mapping when every role is high (`a` or `q`; anything else
+     re-prompts), and writes `mapping.json` with `decided_by: interactive`. Ctrl-C
+     between the table load and the last prompt (the test raises it from `load_table`
+     and at two prompts), or a closed stdin at a prompt, is H07 (`nothing written`);
    * stdin is not a terminal and `--yes` is absent: halts H07 (`run interactively or
      pass --yes with a prior mapping.json`) before any prompt;
    * `--yes`: accepted only when a prior `mapping.json` at `--out` has the same

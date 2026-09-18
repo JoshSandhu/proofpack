@@ -24,8 +24,8 @@ repair-1 note); a date column lists no values. The summary is what ``mapping.jso
 Typing reuses :mod:`proofpack.io.schema`: the missing tokens are already applied by
 ``load_table`` / ``table_from_columns`` (a ``None`` cell is missing), ``float()`` is the
 numeric rule ``_to_float`` uses, and ``_ISO_DATE`` is the date prefix ``coarsen_date``
-accepts. Two slash-separated date shapes and one dash-separated shape are accepted in
-addition (recorded in :data:`DATE_PATTERNS`).
+accepts. Two slash-separated date shapes, a dash-separated, a dot-separated and an
+English month-name shape are accepted in addition (recorded in :data:`DATE_PATTERNS`).
 """
 
 from __future__ import annotations
@@ -53,15 +53,27 @@ SUPPRESSED = "<suppressed>"
 
 _INT = re.compile(r"^[+-]?\d+$")
 #: Date shapes the value sniff accepts: the schema's ISO prefix, then D/M/YYYY,
-#: YYYY/MM/DD and D-M-YYYY (the last added in repair 1, FA-N7: at 555a5e1 a ``visit``
-#: column of ``15-03-2024`` values was typed ``string`` and passed H11). A column is typed
-#: ``date`` only when every non-missing sampled value matches one of them; an integer
-#: column (Excel serials such as 45000, or 20240315) is typed ``int``.
+#: YYYY/MM/DD, D-M-YYYY (added in repair 1, FA-N7: at 555a5e1 a ``visit`` column of
+#: ``15-03-2024`` values was typed ``string`` and passed H11), D.M.YYYY and ``17 Mar 2024``
+#: / ``17 March 2024`` (added in repair 2, FA-N2: at e92989b ``15.03.2024`` x 60 printed as
+#: ``categorical`` with the value listed and passed H11). Two-digit years (``3/17/24``) are
+#: not among them: the century is a guess, and the column stays ``categorical`` (carried;
+#: ``tests/test_mapping_repair2.py::test_dotted_and_month_name_dates_are_typed_date``
+#: pins both sides). A column is typed ``date`` only when every non-missing sampled value
+#: matches one of them; an integer column (Excel serials such as 45000, or 20240315) is
+#: typed ``int``.
+_MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+_MONTH_NAME = (
+    "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|"
+    "sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
+)
 DATE_PATTERNS: tuple[re.Pattern[str], ...] = (
     _ISO_DATE,
     re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$"),
     re.compile(r"^\d{4}/\d{2}/\d{2}$"),
     re.compile(r"^\d{1,2}-\d{1,2}-\d{4}$"),
+    re.compile(r"^\d{1,2}\.\d{1,2}\.\d{4}$"),
+    re.compile(r"^\d{1,2}\s+(?:" + _MONTH_NAME + r")\s+\d{4}$", re.IGNORECASE),
 )
 
 
@@ -172,9 +184,12 @@ def _date_key(v: str) -> str:
     m = re.match(r"^(\d{4})/(\d{2})/\d{2}$", v)
     if m:
         return f"{m.group(1)}-{m.group(2)}"
-    m = re.match(r"^\d{1,2}[/-](\d{1,2})[/-](\d{4})$", v)
+    m = re.match(r"^\d{1,2}[/.-](\d{1,2})[/.-](\d{4})$", v)
     if m:
         return f"{m.group(2)}-{int(m.group(1)):02d}"
+    m = re.match(r"^\d{1,2}\s+([A-Za-z]+)\s+(\d{4})$", v)
+    if m:
+        return f"{m.group(2)}-{_MONTHS.index(m.group(1)[:3].lower()) + 1:02d}"
     return v  # unreachable for a value that passed DATE_PATTERNS
 
 
