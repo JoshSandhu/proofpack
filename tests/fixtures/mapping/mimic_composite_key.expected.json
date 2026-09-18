@@ -1,0 +1,11 @@
+{
+  "comment": "criteria.yaml declares clustering.unit as a two-column list -> E01 (DEC-11)",
+  "n_rows": 50,
+  "halt": {
+    "code": "E01",
+    "message_ends": "reduce your case key to one column"
+  },
+  "roles": null,
+  "notes": {},
+  "criteria": "mimic_composite_key.criteria.yaml"
+}

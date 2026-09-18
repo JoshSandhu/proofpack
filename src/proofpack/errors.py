@@ -39,6 +39,13 @@ SCHEMA_CODES: dict[str, str] = {
     "S04": "table could not be read",
 }
 
+#: Mapper halts that are neither one of the twelve gates nor a schema failure. They exit
+#: 3 like the others. E01 is DEC-11 (Josh, 13 September 2026): a composite case key is a
+#: typed halt whose message ends "reduce your case key to one column", never a traceback.
+MAPPING_CODES: dict[str, str] = {
+    "E01": "composite case key: two or more columns identify a case (DEC-11)",
+}
+
 #: Gates that produce a flag/warning rather than a HALT.
 FLAG_ONLY_CODES = frozenset({"H10"})
 
@@ -72,7 +79,11 @@ class HaltError(ProofPackError):
     detail: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if self.code not in HALT_CODES and self.code not in SCHEMA_CODES:
+        if (
+            self.code not in HALT_CODES
+            and self.code not in SCHEMA_CODES
+            and self.code not in MAPPING_CODES
+        ):
             raise ValueError(f"unknown HALT code {self.code!r}")
         super().__init__(f"{self.code}: {self.message}")
 

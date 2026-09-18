@@ -1,0 +1,10 @@
+{
+  "comment": "the same header in NFC and NFD -> HALT H07",
+  "n_rows": 50,
+  "halt": {
+    "code": "H07",
+    "message_contains": "unicode normalisation"
+  },
+  "roles": null,
+  "notes": {}
+}

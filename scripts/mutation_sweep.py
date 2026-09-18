@@ -22,7 +22,8 @@ because ``env_for`` overwrites ``PYTHONPATH`` and ``cwd`` is the copy.
 
 Usage::
 
-    python scripts/mutation_sweep.py --marker day5            # every declared mutant
+    python scripts/mutation_sweep.py --marker day5            # every mutant declared for day 5
+    python scripts/mutation_sweep.py --marker day6            # the day-6 A mapper list
     python scripts/mutation_sweep.py --marker day5 --only ref_largest_to_smallest
     python scripts/mutation_sweep.py --list
     python scripts/mutation_sweep.py --marker day5 --fail-on-survivor   # exit 1 if any survive
@@ -60,6 +61,7 @@ class Mutant:
     replacement: str
     count: int = 1  # how many matches the pattern must have (all are replaced)
     what: str = ""  # the behaviour it changes, for the report
+    marker: str = "day5"  # the pytest marker whose tests are meant to observe it
 
 
 #: The day-5 list. Every one changes behaviour; none is intended to be equivalent.
@@ -310,6 +312,154 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
 )
 
+MAPPING = "src/proofpack/io/mapping.py"
+PROFILE = "src/proofpack/io/profile.py"
+DECLARE = "src/proofpack/io/declare.py"
+CLI = "src/proofpack/cli.py"
+
+#: Day 6 A (the full mapper). Run with ``--marker day6``.
+MUTANTS_DAY6_A: tuple[Mutant, ...] = (
+    Mutant(
+        "synonym_label_to_y_pred",
+        MAPPING,
+        r'^    "label": "y_true",$',
+        '    "label": "y_pred",',
+        count=2,  # the synonym table and the partial-token table both carry the row
+        marker="day6",
+        what="synonym lookup: 'label' resolves to y_pred",
+    ),
+    Mutant(
+        "unit_interval_upper_bound_100",
+        PROFILE,
+        r"lo >= 0\.0 and hi <= 1\.0",
+        "lo >= 0.0 and hi <= 100.0",
+        marker="day6",
+        what="the [0, 1] score rule accepts values up to 100",
+    ),
+    Mutant(
+        "suppression_k_nine",
+        PROFILE,
+        r"^SUPPRESSION_K = 10$",
+        "SUPPRESSION_K = 9",
+        marker="day6",
+        what="the suppression floor drops to 9 (a count of 9 is shown)",
+    ),
+    Mutant(
+        "sample_rows_10001",
+        PROFILE,
+        r"^SAMPLE_ROWS = 10_000$",
+        "SAMPLE_ROWS = 10_001",
+        marker="day6",
+        what="the type-inference sample reads row 10,001",
+    ),
+    Mutant(
+        "every_role_high_becomes_any",
+        MAPPING,
+        r'return all\(r\.confidence == "high" for r in self\.roles if r\.role is not None\)',
+        'return any(r.confidence == "high" for r in self.roles if r.role is not None)',
+        marker="day6",
+        what="the every-role-high rule passes when any role is high",
+    ),
+    Mutant(
+        "hash_comparison_always_true",
+        MAPPING,
+        r"if prior is not None and prior\.header_set_sha256 == current:",
+        "if prior is not None:",
+        marker="day6",
+        what="a prior mapping.json is accepted whatever its header-set hash",
+    ),
+    Mutant(
+        "composite_key_needs_three",
+        MAPPING,
+        r"if len\(case_claims\) >= 2:",
+        "if len(case_claims) >= 3:",
+        marker="day6",
+        what="two headers resolving to case_id no longer halt E01",
+    ),
+    Mutant(
+        "composite_declaration_needs_three",
+        DECLARE,
+        r"    if n >= 2:\n        raise HaltError\(",
+        "    if n >= 3:\n        raise HaltError(",
+        marker="day6",
+        what="a two-column clustering.unit no longer halts E01",
+    ),
+    Mutant(
+        "tty_check_always_true",
+        CLI,
+        r"if not _stdin_is_terminal\(\):",
+        "if False:",
+        marker="day6",
+        what="a non-terminal stdin is prompted instead of halting H07",
+    ),
+    Mutant(
+        "binary_set_yes_no_removed",
+        MAPPING,
+        r'^    frozenset\(\{"yes", "no"\}\),$',
+        "",
+        marker="day6",
+        what="yes/no columns are no longer y_true candidates",
+    ),
+    Mutant(
+        "free_text_threshold_never",
+        PROFILE,
+        r"^FREE_TEXT_UNIQUE_SHARE = 0\.5$",
+        "FREE_TEXT_UNIQUE_SHARE = 5.0",
+        marker="day6",
+        what="a free-text column lists its values",
+    ),
+    Mutant(
+        "date_values_not_event_date",
+        MAPPING,
+        r'    if sig\.get\("date"\):\n        return "event_date"',
+        '    if sig.get("date"):\n        return None',
+        marker="day6",
+        what="a date-valued column is no longer an event_date candidate",
+    ),
+    Mutant(
+        "sex_12_is_high",
+        MAPPING,
+        r'return RoleMapping\(h, role, "medium", c\.source, notes\)',
+        'return RoleMapping(h, role, "high", c.source, notes)',
+        marker="day6",
+        what="sex coded 1/2 or 0/1 is high instead of medium",
+    ),
+    Mutant(
+        "e01_message_truncated",
+        MAPPING,
+        r'columns resolve to case_id; reduce your case key to one column"',
+        'columns resolve to case_id; reduce your case key"',
+        marker="day6",
+        what="the DEC-11 message no longer ends with the mandated sentence",
+    ),
+    Mutant(
+        "label_with_floats_stays_high",
+        MAPPING,
+        r's\.n_unique > 2:\n            return \(\n                "conflict",',
+        's.n_unique > 2:\n            return (\n                "consistent",',
+        marker="day6",
+        what="a label column holding continuous scores keeps high confidence",
+    ),
+    Mutant(
+        "duplicate_fold_check_removed",
+        MAPPING,
+        r"if len\(set\(folded\)\) != len\(folded\):",
+        "if False:",
+        marker="day6",
+        what="two headers identical after case-folding no longer halt H07",
+    ),
+    Mutant(
+        "binary_rule_case_sensitive",
+        MAPPING,
+        r"if len\(lowered\) == 2 and any\(lowered == b for b in BINARY_LABEL_SETS\):",
+        "if s.n_unique == 2 and any(lowered == b for b in BINARY_LABEL_SETS):",
+        marker="day6",
+        what="the two-valued label rule becomes case-sensitive",
+    ),
+)
+
+MUTANTS = MUTANTS + MUTANTS_DAY6_A
+
 
 def make_copy() -> Path:
     tmp = Path(tempfile.mkdtemp(prefix="proofpack-mutants-"))
@@ -377,10 +527,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--fail-on-survivor", action="store_true")
     args = ap.parse_args(argv)
-    chosen = [m for m in MUTANTS if not args.only or m.id in args.only]
+    # --only picks by id across every list; otherwise the marker picks its own list
+    chosen = [
+        m for m in MUTANTS if ((m.id in args.only) if args.only else (m.marker == args.marker))
+    ]
     if args.list:
         for m in MUTANTS:
-            print(f"{m.id:<36} {m.file:<36} {m.what}")
+            print(f"{m.marker:<5} {m.id:<36} {m.file:<36} {m.what}")
         return 0
     copy = make_copy()
     try:

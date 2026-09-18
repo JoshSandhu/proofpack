@@ -1,0 +1,124 @@
+{
+  "comment": "camel-case headers split on the case change; TimeInHospital is not date-like to H11's header regex (no separator before Time), and its token 'hospital' is out-ranked by the header that names site -> ignore",
+  "n_rows": 50,
+  "halt": null,
+  "roles": {
+    "EncounterId": [
+      "row_id",
+      "medium"
+    ],
+    "PatientNbr": [
+      "case_id",
+      "low"
+    ],
+    "race": [
+      "race",
+      "high"
+    ],
+    "gender": [
+      "sex",
+      "high"
+    ],
+    "age": [
+      "age_band",
+      "high"
+    ],
+    "weight": [
+      "ignore",
+      "high"
+    ],
+    "admission_type_id": [
+      "ignore",
+      "high"
+    ],
+    "discharge_disposition_id": [
+      "ignore",
+      "high"
+    ],
+    "admission_source_id": [
+      "ignore",
+      "high"
+    ],
+    "TimeInHospital": [
+      "ignore",
+      "high"
+    ],
+    "payer_code": [
+      "ignore",
+      "high"
+    ],
+    "medical_specialty": [
+      "ignore",
+      "high"
+    ],
+    "num_lab_procedures": [
+      "ignore",
+      "high"
+    ],
+    "num_procedures": [
+      "ignore",
+      "high"
+    ],
+    "num_medications": [
+      "ignore",
+      "high"
+    ],
+    "number_outpatient": [
+      "ignore",
+      "high"
+    ],
+    "number_emergency": [
+      "ignore",
+      "high"
+    ],
+    "number_inpatient": [
+      "ignore",
+      "high"
+    ],
+    "diag_1": [
+      "ignore",
+      "high"
+    ],
+    "number_diagnoses": [
+      "ignore",
+      "high"
+    ],
+    "max_glu_serum": [
+      "ignore",
+      "high"
+    ],
+    "A1Cresult": [
+      "ignore",
+      "high"
+    ],
+    "metformin": [
+      "ignore",
+      "high"
+    ],
+    "insulin": [
+      "ignore",
+      "high"
+    ],
+    "change": [
+      "ignore",
+      "high"
+    ],
+    "DiabetesMed": [
+      "ignore",
+      "high"
+    ],
+    "Readmitted": [
+      "y_true",
+      "high"
+    ],
+    "PredProb": [
+      "score",
+      "high"
+    ],
+    "hospital": [
+      "site",
+      "high"
+    ]
+  },
+  "notes": {}
+}

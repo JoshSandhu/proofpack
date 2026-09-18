@@ -11,6 +11,7 @@ The engine supplies no default for anything a customer must own.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -131,6 +132,30 @@ def _h08_from_schema_error(err: jsonschema.ValidationError) -> HaltError:
     )
 
 
+#: Separators that make a ``clustering.unit`` string name more than one column (DEC-11).
+_CASE_KEY_SEPARATORS = re.compile(r"\s*(?:,|\+|&|;|\||\s+and\s+)\s*")
+
+
+def _check_dec11_case_key(clustering: Any) -> None:
+    """DEC-11: ``clustering.unit`` naming two or more columns halts E01, before the schema
+    check would report it as an H08 type error."""
+    if not isinstance(clustering, dict):
+        return
+    unit = clustering.get("unit")
+    if isinstance(unit, (list, tuple)):
+        n = len(unit)
+    elif isinstance(unit, str):
+        n = len([t for t in _CASE_KEY_SEPARATORS.split(unit) if t.strip()])
+    else:
+        return
+    if n >= 2:
+        raise HaltError(
+            "E01",
+            f"clustering.unit names {n} columns; reduce your case key to one column",
+            {"n_case_key_columns": n},
+        )
+
+
 def validate_dict(data: dict[str, Any]) -> Declarations:
     """Validate a criteria mapping and return :class:`Declarations`.
 
@@ -177,6 +202,8 @@ def validate_dict(data: dict[str, Any]) -> Declarations:
         empty = [f for f in AUTHORED_FIELDS if not str(fairness.get(f) or "").strip()]
         if empty:
             raise HaltError("H08", "fairness block lacks " + ", ".join(empty), {"missing": empty})
+
+    _check_dec11_case_key(data.get("clustering"))
 
     schema = load_json_schema("criteria_schema.json")
     validator = jsonschema.Draft202012Validator(schema)

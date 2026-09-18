@@ -1,0 +1,124 @@
+{
+  "comment": "every header upper-cased",
+  "n_rows": 50,
+  "halt": null,
+  "roles": {
+    "ENCOUNTER_ID": [
+      "row_id",
+      "medium"
+    ],
+    "PATIENT_NBR": [
+      "case_id",
+      "low"
+    ],
+    "RACE": [
+      "race",
+      "high"
+    ],
+    "GENDER": [
+      "sex",
+      "high"
+    ],
+    "AGE": [
+      "age_band",
+      "high"
+    ],
+    "WEIGHT": [
+      "ignore",
+      "high"
+    ],
+    "ADMISSION_TYPE_ID": [
+      "ignore",
+      "high"
+    ],
+    "DISCHARGE_DISPOSITION_ID": [
+      "ignore",
+      "high"
+    ],
+    "ADMISSION_SOURCE_ID": [
+      "ignore",
+      "high"
+    ],
+    "TIME_IN_HOSPITAL": [
+      "event_date",
+      "low"
+    ],
+    "PAYER_CODE": [
+      "ignore",
+      "high"
+    ],
+    "MEDICAL_SPECIALTY": [
+      "ignore",
+      "high"
+    ],
+    "NUM_LAB_PROCEDURES": [
+      "ignore",
+      "high"
+    ],
+    "NUM_PROCEDURES": [
+      "ignore",
+      "high"
+    ],
+    "NUM_MEDICATIONS": [
+      "ignore",
+      "high"
+    ],
+    "NUMBER_OUTPATIENT": [
+      "ignore",
+      "high"
+    ],
+    "NUMBER_EMERGENCY": [
+      "ignore",
+      "high"
+    ],
+    "NUMBER_INPATIENT": [
+      "ignore",
+      "high"
+    ],
+    "DIAG_1": [
+      "ignore",
+      "high"
+    ],
+    "NUMBER_DIAGNOSES": [
+      "ignore",
+      "high"
+    ],
+    "MAX_GLU_SERUM": [
+      "ignore",
+      "high"
+    ],
+    "A1CRESULT": [
+      "ignore",
+      "high"
+    ],
+    "METFORMIN": [
+      "ignore",
+      "high"
+    ],
+    "INSULIN": [
+      "ignore",
+      "high"
+    ],
+    "CHANGE": [
+      "ignore",
+      "high"
+    ],
+    "DIABETESMED": [
+      "ignore",
+      "high"
+    ],
+    "READMITTED": [
+      "y_true",
+      "high"
+    ],
+    "PRED_PROB": [
+      "score",
+      "high"
+    ],
+    "HOSPITAL": [
+      "site",
+      "high"
+    ]
+  },
+  "notes": {}
+}

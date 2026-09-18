@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -38,14 +39,17 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("doctor", help="environment self-check", parents=[common])
 
-    m = sub.add_parser("map", help="header-only mapping (day 1 stub)", parents=[common])
+    m = sub.add_parser(
+        "map", help="map original headers to canonical roles (D1 section 5)", parents=[common]
+    )
     m.add_argument("--input", required=True)
     m.add_argument("--criteria")
     m.add_argument("--out", default="mapping.json")
     m.add_argument(
         "--yes",
         action="store_true",
-        help="non-interactive; requires prior mapping.json with the same header set",
+        help="non-interactive; accepted only when every role is high and a prior "
+        "mapping.json with the same header-set hash exists at --out",
     )
 
     r = sub.add_parser(
@@ -87,23 +91,106 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return EXIT_OK if doctor_ok(checks) else EXIT_INTERNAL
 
 
+def _stdin_is_terminal() -> bool:
+    """Whether a human can answer a prompt on stdin.
+
+    ``isatty()`` alone is not enough on Windows: with ``stdin=DEVNULL`` it returned True and
+    ``input()`` then raised EOFError (measured 18 September 2026, Python 3.14, Windows 11;
+    ``tests/test_mapping_full.py::test_non_tty_with_stdin_closed_exits_3_within_the_timeout``).
+    ``GetConsoleMode`` returned 0 for that handle. A real console handle was not measured
+    in that session [unverified]; ``_confirm_interactive`` maps EOFError to H07 as well.
+    """
+    try:
+        if not sys.stdin.isatty():
+            return False
+    except (AttributeError, ValueError):
+        return False
+    if os.name == "nt":
+        import ctypes
+        import msvcrt
+
+        try:
+            handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+            mode = ctypes.c_uint32()
+            return bool(ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode)))
+        except (OSError, ValueError, AttributeError):
+            return False
+    return True
+
+
+def _confirm_interactive(m, ask=None, say=print) -> None:
+    """Prompt once per non-high role: accept / edit (a canonical role or ignore) / abort.
+
+    ``ask`` (default ``input``, resolved at call time) and ``say`` are injectable so the
+    prompt is testable without a terminal. Raises H07 on abort. Mutates ``m`` in place
+    and sets ``decided_by`` to interactive.
+    """
+    from proofpack.io.mapping import IGNORE
+    from proofpack.io.schema import canonical_columns
+
+    ask = ask or input
+    allowed = set(canonical_columns()) | {IGNORE}
+    for r in m.non_high:
+        while True:
+            try:
+                answer = ask(
+                    f"{r.original!r} -> {r.role_label} ({r.confidence}): "
+                    "[a]ccept / [e]dit / [q]uit? "
+                )
+            except EOFError:
+                raise HaltError(
+                    "H07", "stdin closed at the prompt: run interactively or pass --yes"
+                ) from None
+            answer = (answer or "").strip().lower()
+            if answer in ("a", "accept", ""):
+                r.notes.append("accepted interactively")
+                break
+            if answer in ("q", "quit", "abort"):
+                raise HaltError("H07", "mapping aborted at the prompt; nothing written")
+            if answer in ("e", "edit"):
+                new_role = (ask("canonical role name, or ignore: ") or "").strip().lower()
+                if new_role not in allowed and not new_role.startswith(("attr_", "rater_")):
+                    say(f"  not a canonical role: choose one of {', '.join(sorted(allowed))}")
+                    continue
+                r.role = None if new_role == IGNORE else new_role
+                r.notes.append("edited interactively")
+                break
+            say("  answer a, e or q")
+    m.decided_by = "interactive"
+
+
 def cmd_map(args: argparse.Namespace) -> int:
     from proofpack.io import declare, mapping
     from proofpack.io.schema import load_table
 
     raw = load_table(args.input)
     period = declare.load(args.criteria).period if args.criteria else None
-    mapping.check_h11(raw.headers, period)
-    m = mapping.check_h07(raw.headers, args.out, non_interactive=args.yes)
+    fresh = mapping.map_headers(raw.headers, raw.columns)
+    mapping.check_h11(raw.headers, period, mapping=fresh)
+    table = fresh.table()
+    if args.yes:
+        m = mapping.check_h07(raw.headers, args.out, non_interactive=True, fresh=fresh)
+    else:
+        if not args.quiet and not args.json_log:
+            print(table)
+        if not _stdin_is_terminal():
+            raise HaltError(
+                "H07",
+                "stdin is not a terminal: run interactively or pass --yes with a prior "
+                "mapping.json",
+                {"non_high_roles": len(fresh.non_high)},
+            )
+        m = fresh
+        _confirm_interactive(m)
     m.write(args.out)
-    rows = "\n".join(
-        f"  {r.original!r:30} -> {r.role or '(unused)':16} {r.confidence}" for r in m.roles
-    )
     _emit(
         args,
-        {"mapping": m.to_dict()},
-        f"mapping written to {args.out} (decided_by={m.decided_by})\n{rows}\n"
-        "Next step: review the roles, then proofpack run --input ... --criteria ...",
+        {"mapping": m.to_dict(), "file_sha256": m.file_sha256},
+        f"mapping written to {args.out} (decided_by={m.decided_by}, "
+        f"sha256={m.file_sha256[:12]})\n"
+        + (table if args.yes else "")
+        + "\nNext step: proofpack run --input ... --criteria ... --mapping "
+        + str(args.out),
     )
     return EXIT_OK
 

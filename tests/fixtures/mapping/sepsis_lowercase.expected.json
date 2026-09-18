@@ -1,0 +1,84 @@
+{
+  "comment": "every header lower-cased (sepsislabel, predictedprobability, ...)",
+  "n_rows": 50,
+  "halt": null,
+  "roles": {
+    "patient": [
+      "case_id",
+      "low"
+    ],
+    "hr": [
+      "ignore",
+      "high"
+    ],
+    "o2sat": [
+      "ignore",
+      "high"
+    ],
+    "temp": [
+      "ignore",
+      "high"
+    ],
+    "sbp": [
+      "ignore",
+      "high"
+    ],
+    "map": [
+      "ignore",
+      "high"
+    ],
+    "dbp": [
+      "ignore",
+      "high"
+    ],
+    "resp": [
+      "ignore",
+      "high"
+    ],
+    "etco2": [
+      "ignore",
+      "high"
+    ],
+    "age": [
+      "age",
+      "high"
+    ],
+    "gender": [
+      "sex",
+      "high"
+    ],
+    "unit1": [
+      "ignore",
+      "high"
+    ],
+    "unit2": [
+      "ignore",
+      "high"
+    ],
+    "hospadmtime": [
+      "ignore",
+      "high"
+    ],
+    "iculos": [
+      "ignore",
+      "high"
+    ],
+    "sepsislabel": [
+      "y_true",
+      "high"
+    ],
+    "predictedprobability": [
+      "score",
+      "high"
+    ],
+    "predictedlabel": [
+      "y_pred",
+      "high"
+    ],
+    "hospital": [
+      "site",
+      "high"
+    ]
+  },
+  "notes": {}
+}

@@ -1,0 +1,86 @@
+{
+  "comment": "PredictedProbability holds only 0/1 -> score at low with a note",
+  "n_rows": 50,
+  "halt": null,
+  "roles": {
+    "patient": [
+      "case_id",
+      "low"
+    ],
+    "HR": [
+      "ignore",
+      "high"
+    ],
+    "O2Sat": [
+      "ignore",
+      "high"
+    ],
+    "Temp": [
+      "ignore",
+      "high"
+    ],
+    "SBP": [
+      "ignore",
+      "high"
+    ],
+    "MAP": [
+      "ignore",
+      "high"
+    ],
+    "DBP": [
+      "ignore",
+      "high"
+    ],
+    "Resp": [
+      "ignore",
+      "high"
+    ],
+    "EtCO2": [
+      "ignore",
+      "high"
+    ],
+    "Age": [
+      "age",
+      "high"
+    ],
+    "Gender": [
+      "sex",
+      "high"
+    ],
+    "Unit1": [
+      "ignore",
+      "high"
+    ],
+    "Unit2": [
+      "ignore",
+      "high"
+    ],
+    "HospAdmTime": [
+      "ignore",
+      "high"
+    ],
+    "ICULOS": [
+      "ignore",
+      "high"
+    ],
+    "SepsisLabel": [
+      "y_true",
+      "high"
+    ],
+    "PredictedProbability": [
+      "score",
+      "low"
+    ],
+    "PredictedLabel": [
+      "y_pred",
+      "high"
+    ],
+    "hospital": [
+      "site",
+      "high"
+    ]
+  },
+  "notes": {
+    "PredictedProbability": "only 0/1"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "comment": "hyphens in headers normalise to underscores",
+  "n_rows": 50,
+  "halt": null,
+  "roles": {
+    "subject-id": [
+      "case_id",
+      "high"
+    ],
+    "hadm-id": [
+      "row_id",
+      "medium"
+    ],
+    "gender": [
+      "sex",
+      "high"
+    ],
+    "anchor-age": [
+      "age",
+      "medium"
+    ],
+    "race": [
+      "race",
+      "high"
+    ],
+    "admittime": [
+      "event_date",
+      "low"
+    ],
+    "dischtime": [
+      "event_date",
+      "low"
+    ],
+    "label": [
+      "y_true",
+      "high"
+    ],
+    "probability": [
+      "score",
+      "high"
+    ]
+  },
+  "notes": {}
+}

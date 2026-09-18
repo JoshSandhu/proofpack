@@ -1,0 +1,40 @@
+{
+  "comment": "a single date-valued column named visit -> event_date medium",
+  "n_rows": 50,
+  "halt": null,
+  "roles": {
+    "subject_id": [
+      "case_id",
+      "high"
+    ],
+    "hadm_id": [
+      "row_id",
+      "medium"
+    ],
+    "gender": [
+      "sex",
+      "high"
+    ],
+    "anchor_age": [
+      "age",
+      "medium"
+    ],
+    "race": [
+      "race",
+      "high"
+    ],
+    "label": [
+      "y_true",
+      "high"
+    ],
+    "probability": [
+      "score",
+      "high"
+    ],
+    "visit": [
+      "event_date",
+      "medium"
+    ]
+  },
+  "notes": {}
+}

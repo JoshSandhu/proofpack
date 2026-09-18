@@ -1,0 +1,84 @@
+{
+  "comment": "every header upper-cased",
+  "n_rows": 50,
+  "halt": null,
+  "roles": {
+    "PATIENT": [
+      "case_id",
+      "low"
+    ],
+    "HR": [
+      "ignore",
+      "high"
+    ],
+    "O2SAT": [
+      "ignore",
+      "high"
+    ],
+    "TEMP": [
+      "ignore",
+      "high"
+    ],
+    "SBP": [
+      "ignore",
+      "high"
+    ],
+    "MAP": [
+      "ignore",
+      "high"
+    ],
+    "DBP": [
+      "ignore",
+      "high"
+    ],
+    "RESP": [
+      "ignore",
+      "high"
+    ],
+    "ETCO2": [
+      "ignore",
+      "high"
+    ],
+    "AGE": [
+      "age",
+      "high"
+    ],
+    "GENDER": [
+      "sex",
+      "high"
+    ],
+    "UNIT1": [
+      "ignore",
+      "high"
+    ],
+    "UNIT2": [
+      "ignore",
+      "high"
+    ],
+    "HOSPADMTIME": [
+      "ignore",
+      "high"
+    ],
+    "ICULOS": [
+      "ignore",
+      "high"
+    ],
+    "SEPSISLABEL": [
+      "y_true",
+      "high"
+    ],
+    "PREDICTEDPROBABILITY": [
+      "score",
+      "high"
+    ],
+    "PREDICTEDLABEL": [
+      "y_pred",
+      "high"
+    ],
+    "HOSPITAL": [
+      "site",
+      "high"
+    ]
+  },
+  "notes": {}
+}

@@ -1,0 +1,10 @@
+{
+  "comment": "SepsisLabel and sepsislabel: identical after case-folding -> HALT H07",
+  "n_rows": 50,
+  "halt": {
+    "code": "H07",
+    "message_contains": "identical after case-folding"
+  },
+  "roles": null,
+  "notes": {}
+}

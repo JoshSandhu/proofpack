@@ -32,11 +32,14 @@ uv run proofpack doctor --offline
 ```
 schema/                 JSON Schemas: input table v1, criteria.yaml, claims (skeleton), egress (skeleton)
 design/guidance_map_v1.csv   guidance references by internal id; section numbers are transcribed by hand
-src/proofpack/io/       schema (load + type + flow), declare (criteria.yaml), mapping (header-only stub)
+src/proofpack/io/       schema (load + type + flow), declare (criteria.yaml), mapping (roles, H07, H11),
+                        profile (value-level column summaries, suppressed)
 src/proofpack/gates.py  HALT gates H01-H12 and the ingest pipeline
 src/proofpack/doctor.py proofpack doctor
 src/proofpack/cli.py    doctor | map | run | compare
-tests/                  conftest.py seeded cohort factory; F12 gate tests; hypothesis schema fuzz
+tests/                  conftest.py seeded cohort factory; F12 gate tests; hypothesis schema fuzz;
+                        fixtures/mapping/ 35 header-variant CSVs with authored expectations
+scripts/                mutation_sweep.py (DEC-12 ii), coverage_bar.py, make_mapping_fixtures.py
 handoffs/               one note per build session
 ```
 
@@ -49,3 +52,67 @@ handoffs/               one note per build session
 * `import proofpack` never requires scipy.
 * Error messages and any future egress carry aggregates only: never original
   headers, cell values, free-text declaration fields or raw dates.
+
+## `proofpack map` (build day 6, lane A)
+
+`proofpack map --input test.csv [--criteria criteria.yaml] [--out mapping.json] [--yes]`
+
+What it does, in order:
+
+1. Reads the table (`io.schema.load_table`), then profiles every column from its first
+   10,000 rows after the header (`io.profile`): inferred type (int / float / date /
+   categorical / string), `n_unique`, the top <= 20 values with counts, min/max for
+   numeric and date columns (dates coarsened to `YYYY-MM`), missing % after the
+   missing-token normalisation, and for <= 2-unique columns the split. A value is
+   listed only when its count is >= 10 (the egress cell floor of D1 section 6, reused
+   here because D1 section 5 states no floor of its own); below that it prints as
+   `<suppressed>`. A categorical/string column with more than half of its non-missing
+   sample unique lists no values.
+2. Assigns a role and a confidence to every header (`io.mapping.map_headers`): exact
+   canonical name, the synonym table, an affix-stripped synonym (`pt_age`,
+   `label_v2`), a header token (`patient_nbr`), a date-like header, then the value
+   heuristics (two-valued label sets, floats within [0, 1], parseable dates, unique
+   integers). The confidence table is in the module docstring. Declarations (positive
+   class, orientation, threshold, reference-standard type, indeterminates, clustering)
+   are not read by the mapper; `io.declare` reads them from `criteria.yaml`.
+3. Halts with a typed code and exit 3: H07 when two headers coincide after case-folding,
+   trimming and NFC normalisation; E01 (DEC-11) when two headers resolve to `case_id`
+   by name, or when `criteria.yaml`'s `clustering.unit` names two or more columns
+   (message ends `reduce your case key to one column`); H11 when a column is date-like
+   by header or by values and no `period` declaration covers it.
+4. Prints the table `original header -> role -> confidence -> value summary`, then:
+   * stdin is a terminal and `--yes` is absent: prompts once per non-high role
+     (accept / edit to a canonical role or `ignore` / quit) and writes `mapping.json`
+     with `decided_by: interactive`;
+   * stdin is not a terminal and `--yes` is absent: halts H07 (`run interactively or
+     pass --yes with a prior mapping.json`) without reading stdin;
+   * `--yes`: accepted only when a prior `mapping.json` at `--out` has the same
+     `header_set_sha256` and every mapped role is `high` both in that file and in the
+     mapping computed from this table; otherwise H07. The prior file's roles are used
+     (`decided_by: file`).
+
+`mapping.json` (the one file this command writes original headers to) is written as:
+
+```json
+{
+  "header_set_sha256": "<sha256 of the sorted, trimmed header set>",
+  "roles": [
+    {"original": "SepsisLabel", "role": "y_true", "confidence": "high",
+     "source": "synonym", "notes": []},
+    {"original": "HR", "role": "ignore", "confidence": "high", "source": "ignore", "notes": []}
+  ],
+  "value_summaries": {"<original header>": {"inferred_type": "int", "n_sampled": 50,
+     "n_missing": 0, "missing_pct": 0.0, "n_unique": 2, "top": [["0", 35], ["1", 15]],
+     "n_suppressed_values": 0, "min": "0", "max": "1", "split": [["0", 35], ["1", 15]],
+     "free_text": false, "values_shown": true}},
+  "decided_by": "interactive | file | proposed",
+  "timestamp": "<UTC ISO 8601>"
+}
+```
+
+D1 section 5.5 lists `roles` and `confidences` as separate keys; the day-1 shape keeps
+both inside each `roles` entry and day 6 adds `source` and `notes` to it. The sha256 of
+the file's bytes is `Mapping.file_sha256` after `write()` or `read()`, for the E7
+manifest. `proofpack run` still maps with the same function and, without a prior
+`mapping.json` and without `--yes`, proceeds on the computed mapping (day-1 behaviour;
+the confirm step is `map`'s).

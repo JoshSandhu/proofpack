@@ -250,8 +250,11 @@ def ingest(
     non_interactive: bool = False,
 ) -> IngestResult:
     """Run mapping, typing and every HALT gate. Raises :class:`HaltError`; writes nothing."""
-    mapping_mod.check_h11(raw.headers, decl.period)
-    mapping = mapping_mod.check_h07(raw.headers, mapping_path, non_interactive=non_interactive)
+    fresh = mapping_mod.map_headers(raw.headers, raw.columns)
+    mapping_mod.check_h11(raw.headers, decl.period, mapping=fresh)
+    mapping = mapping_mod.check_h07(
+        raw.headers, mapping_path, non_interactive=non_interactive, fresh=fresh
+    )
     canonical_cols = mapping_mod.apply_mapping(raw.columns, mapping)
     raw_mapped = RawTable(
         headers=list(canonical_cols),

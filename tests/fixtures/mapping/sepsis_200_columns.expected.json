@@ -1,0 +1,808 @@
+{
+  "comment": "200 columns",
+  "n_rows": 50,
+  "halt": null,
+  "roles": {
+    "patient": [
+      "case_id",
+      "low"
+    ],
+    "HR": [
+      "ignore",
+      "high"
+    ],
+    "O2Sat": [
+      "ignore",
+      "high"
+    ],
+    "Temp": [
+      "ignore",
+      "high"
+    ],
+    "SBP": [
+      "ignore",
+      "high"
+    ],
+    "MAP": [
+      "ignore",
+      "high"
+    ],
+    "DBP": [
+      "ignore",
+      "high"
+    ],
+    "Resp": [
+      "ignore",
+      "high"
+    ],
+    "EtCO2": [
+      "ignore",
+      "high"
+    ],
+    "Age": [
+      "age",
+      "high"
+    ],
+    "Gender": [
+      "sex",
+      "high"
+    ],
+    "Unit1": [
+      "ignore",
+      "high"
+    ],
+    "Unit2": [
+      "ignore",
+      "high"
+    ],
+    "HospAdmTime": [
+      "ignore",
+      "high"
+    ],
+    "ICULOS": [
+      "ignore",
+      "high"
+    ],
+    "SepsisLabel": [
+      "y_true",
+      "high"
+    ],
+    "PredictedProbability": [
+      "score",
+      "high"
+    ],
+    "PredictedLabel": [
+      "y_pred",
+      "high"
+    ],
+    "hospital": [
+      "site",
+      "high"
+    ],
+    "lab_001": [
+      "ignore",
+      "high"
+    ],
+    "lab_002": [
+      "ignore",
+      "high"
+    ],
+    "lab_003": [
+      "ignore",
+      "high"
+    ],
+    "lab_004": [
+      "ignore",
+      "high"
+    ],
+    "lab_005": [
+      "ignore",
+      "high"
+    ],
+    "lab_006": [
+      "ignore",
+      "high"
+    ],
+    "lab_007": [
+      "ignore",
+      "high"
+    ],
+    "lab_008": [
+      "ignore",
+      "high"
+    ],
+    "lab_009": [
+      "ignore",
+      "high"
+    ],
+    "lab_010": [
+      "ignore",
+      "high"
+    ],
+    "lab_011": [
+      "ignore",
+      "high"
+    ],
+    "lab_012": [
+      "ignore",
+      "high"
+    ],
+    "lab_013": [
+      "ignore",
+      "high"
+    ],
+    "lab_014": [
+      "ignore",
+      "high"
+    ],
+    "lab_015": [
+      "ignore",
+      "high"
+    ],
+    "lab_016": [
+      "ignore",
+      "high"
+    ],
+    "lab_017": [
+      "ignore",
+      "high"
+    ],
+    "lab_018": [
+      "ignore",
+      "high"
+    ],
+    "lab_019": [
+      "ignore",
+      "high"
+    ],
+    "lab_020": [
+      "ignore",
+      "high"
+    ],
+    "lab_021": [
+      "ignore",
+      "high"
+    ],
+    "lab_022": [
+      "ignore",
+      "high"
+    ],
+    "lab_023": [
+      "ignore",
+      "high"
+    ],
+    "lab_024": [
+      "ignore",
+      "high"
+    ],
+    "lab_025": [
+      "ignore",
+      "high"
+    ],
+    "lab_026": [
+      "ignore",
+      "high"
+    ],
+    "lab_027": [
+      "ignore",
+      "high"
+    ],
+    "lab_028": [
+      "ignore",
+      "high"
+    ],
+    "lab_029": [
+      "ignore",
+      "high"
+    ],
+    "lab_030": [
+      "ignore",
+      "high"
+    ],
+    "lab_031": [
+      "ignore",
+      "high"
+    ],
+    "lab_032": [
+      "ignore",
+      "high"
+    ],
+    "lab_033": [
+      "ignore",
+      "high"
+    ],
+    "lab_034": [
+      "ignore",
+      "high"
+    ],
+    "lab_035": [
+      "ignore",
+      "high"
+    ],
+    "lab_036": [
+      "ignore",
+      "high"
+    ],
+    "lab_037": [
+      "ignore",
+      "high"
+    ],
+    "lab_038": [
+      "ignore",
+      "high"
+    ],
+    "lab_039": [
+      "ignore",
+      "high"
+    ],
+    "lab_040": [
+      "ignore",
+      "high"
+    ],
+    "lab_041": [
+      "ignore",
+      "high"
+    ],
+    "lab_042": [
+      "ignore",
+      "high"
+    ],
+    "lab_043": [
+      "ignore",
+      "high"
+    ],
+    "lab_044": [
+      "ignore",
+      "high"
+    ],
+    "lab_045": [
+      "ignore",
+      "high"
+    ],
+    "lab_046": [
+      "ignore",
+      "high"
+    ],
+    "lab_047": [
+      "ignore",
+      "high"
+    ],
+    "lab_048": [
+      "ignore",
+      "high"
+    ],
+    "lab_049": [
+      "ignore",
+      "high"
+    ],
+    "lab_050": [
+      "ignore",
+      "high"
+    ],
+    "lab_051": [
+      "ignore",
+      "high"
+    ],
+    "lab_052": [
+      "ignore",
+      "high"
+    ],
+    "lab_053": [
+      "ignore",
+      "high"
+    ],
+    "lab_054": [
+      "ignore",
+      "high"
+    ],
+    "lab_055": [
+      "ignore",
+      "high"
+    ],
+    "lab_056": [
+      "ignore",
+      "high"
+    ],
+    "lab_057": [
+      "ignore",
+      "high"
+    ],
+    "lab_058": [
+      "ignore",
+      "high"
+    ],
+    "lab_059": [
+      "ignore",
+      "high"
+    ],
+    "lab_060": [
+      "ignore",
+      "high"
+    ],
+    "lab_061": [
+      "ignore",
+      "high"
+    ],
+    "lab_062": [
+      "ignore",
+      "high"
+    ],
+    "lab_063": [
+      "ignore",
+      "high"
+    ],
+    "lab_064": [
+      "ignore",
+      "high"
+    ],
+    "lab_065": [
+      "ignore",
+      "high"
+    ],
+    "lab_066": [
+      "ignore",
+      "high"
+    ],
+    "lab_067": [
+      "ignore",
+      "high"
+    ],
+    "lab_068": [
+      "ignore",
+      "high"
+    ],
+    "lab_069": [
+      "ignore",
+      "high"
+    ],
+    "lab_070": [
+      "ignore",
+      "high"
+    ],
+    "lab_071": [
+      "ignore",
+      "high"
+    ],
+    "lab_072": [
+      "ignore",
+      "high"
+    ],
+    "lab_073": [
+      "ignore",
+      "high"
+    ],
+    "lab_074": [
+      "ignore",
+      "high"
+    ],
+    "lab_075": [
+      "ignore",
+      "high"
+    ],
+    "lab_076": [
+      "ignore",
+      "high"
+    ],
+    "lab_077": [
+      "ignore",
+      "high"
+    ],
+    "lab_078": [
+      "ignore",
+      "high"
+    ],
+    "lab_079": [
+      "ignore",
+      "high"
+    ],
+    "lab_080": [
+      "ignore",
+      "high"
+    ],
+    "lab_081": [
+      "ignore",
+      "high"
+    ],
+    "lab_082": [
+      "ignore",
+      "high"
+    ],
+    "lab_083": [
+      "ignore",
+      "high"
+    ],
+    "lab_084": [
+      "ignore",
+      "high"
+    ],
+    "lab_085": [
+      "ignore",
+      "high"
+    ],
+    "lab_086": [
+      "ignore",
+      "high"
+    ],
+    "lab_087": [
+      "ignore",
+      "high"
+    ],
+    "lab_088": [
+      "ignore",
+      "high"
+    ],
+    "lab_089": [
+      "ignore",
+      "high"
+    ],
+    "lab_090": [
+      "ignore",
+      "high"
+    ],
+    "lab_091": [
+      "ignore",
+      "high"
+    ],
+    "lab_092": [
+      "ignore",
+      "high"
+    ],
+    "lab_093": [
+      "ignore",
+      "high"
+    ],
+    "lab_094": [
+      "ignore",
+      "high"
+    ],
+    "lab_095": [
+      "ignore",
+      "high"
+    ],
+    "lab_096": [
+      "ignore",
+      "high"
+    ],
+    "lab_097": [
+      "ignore",
+      "high"
+    ],
+    "lab_098": [
+      "ignore",
+      "high"
+    ],
+    "lab_099": [
+      "ignore",
+      "high"
+    ],
+    "lab_100": [
+      "ignore",
+      "high"
+    ],
+    "lab_101": [
+      "ignore",
+      "high"
+    ],
+    "lab_102": [
+      "ignore",
+      "high"
+    ],
+    "lab_103": [
+      "ignore",
+      "high"
+    ],
+    "lab_104": [
+      "ignore",
+      "high"
+    ],
+    "lab_105": [
+      "ignore",
+      "high"
+    ],
+    "lab_106": [
+      "ignore",
+      "high"
+    ],
+    "lab_107": [
+      "ignore",
+      "high"
+    ],
+    "lab_108": [
+      "ignore",
+      "high"
+    ],
+    "lab_109": [
+      "ignore",
+      "high"
+    ],
+    "lab_110": [
+      "ignore",
+      "high"
+    ],
+    "lab_111": [
+      "ignore",
+      "high"
+    ],
+    "lab_112": [
+      "ignore",
+      "high"
+    ],
+    "lab_113": [
+      "ignore",
+      "high"
+    ],
+    "lab_114": [
+      "ignore",
+      "high"
+    ],
+    "lab_115": [
+      "ignore",
+      "high"
+    ],
+    "lab_116": [
+      "ignore",
+      "high"
+    ],
+    "lab_117": [
+      "ignore",
+      "high"
+    ],
+    "lab_118": [
+      "ignore",
+      "high"
+    ],
+    "lab_119": [
+      "ignore",
+      "high"
+    ],
+    "lab_120": [
+      "ignore",
+      "high"
+    ],
+    "lab_121": [
+      "ignore",
+      "high"
+    ],
+    "lab_122": [
+      "ignore",
+      "high"
+    ],
+    "lab_123": [
+      "ignore",
+      "high"
+    ],
+    "lab_124": [
+      "ignore",
+      "high"
+    ],
+    "lab_125": [
+      "ignore",
+      "high"
+    ],
+    "lab_126": [
+      "ignore",
+      "high"
+    ],
+    "lab_127": [
+      "ignore",
+      "high"
+    ],
+    "lab_128": [
+      "ignore",
+      "high"
+    ],
+    "lab_129": [
+      "ignore",
+      "high"
+    ],
+    "lab_130": [
+      "ignore",
+      "high"
+    ],
+    "lab_131": [
+      "ignore",
+      "high"
+    ],
+    "lab_132": [
+      "ignore",
+      "high"
+    ],
+    "lab_133": [
+      "ignore",
+      "high"
+    ],
+    "lab_134": [
+      "ignore",
+      "high"
+    ],
+    "lab_135": [
+      "ignore",
+      "high"
+    ],
+    "lab_136": [
+      "ignore",
+      "high"
+    ],
+    "lab_137": [
+      "ignore",
+      "high"
+    ],
+    "lab_138": [
+      "ignore",
+      "high"
+    ],
+    "lab_139": [
+      "ignore",
+      "high"
+    ],
+    "lab_140": [
+      "ignore",
+      "high"
+    ],
+    "lab_141": [
+      "ignore",
+      "high"
+    ],
+    "lab_142": [
+      "ignore",
+      "high"
+    ],
+    "lab_143": [
+      "ignore",
+      "high"
+    ],
+    "lab_144": [
+      "ignore",
+      "high"
+    ],
+    "lab_145": [
+      "ignore",
+      "high"
+    ],
+    "lab_146": [
+      "ignore",
+      "high"
+    ],
+    "lab_147": [
+      "ignore",
+      "high"
+    ],
+    "lab_148": [
+      "ignore",
+      "high"
+    ],
+    "lab_149": [
+      "ignore",
+      "high"
+    ],
+    "lab_150": [
+      "ignore",
+      "high"
+    ],
+    "lab_151": [
+      "ignore",
+      "high"
+    ],
+    "lab_152": [
+      "ignore",
+      "high"
+    ],
+    "lab_153": [
+      "ignore",
+      "high"
+    ],
+    "lab_154": [
+      "ignore",
+      "high"
+    ],
+    "lab_155": [
+      "ignore",
+      "high"
+    ],
+    "lab_156": [
+      "ignore",
+      "high"
+    ],
+    "lab_157": [
+      "ignore",
+      "high"
+    ],
+    "lab_158": [
+      "ignore",
+      "high"
+    ],
+    "lab_159": [
+      "ignore",
+      "high"
+    ],
+    "lab_160": [
+      "ignore",
+      "high"
+    ],
+    "lab_161": [
+      "ignore",
+      "high"
+    ],
+    "lab_162": [
+      "ignore",
+      "high"
+    ],
+    "lab_163": [
+      "ignore",
+      "high"
+    ],
+    "lab_164": [
+      "ignore",
+      "high"
+    ],
+    "lab_165": [
+      "ignore",
+      "high"
+    ],
+    "lab_166": [
+      "ignore",
+      "high"
+    ],
+    "lab_167": [
+      "ignore",
+      "high"
+    ],
+    "lab_168": [
+      "ignore",
+      "high"
+    ],
+    "lab_169": [
+      "ignore",
+      "high"
+    ],
+    "lab_170": [
+      "ignore",
+      "high"
+    ],
+    "lab_171": [
+      "ignore",
+      "high"
+    ],
+    "lab_172": [
+      "ignore",
+      "high"
+    ],
+    "lab_173": [
+      "ignore",
+      "high"
+    ],
+    "lab_174": [
+      "ignore",
+      "high"
+    ],
+    "lab_175": [
+      "ignore",
+      "high"
+    ],
+    "lab_176": [
+      "ignore",
+      "high"
+    ],
+    "lab_177": [
+      "ignore",
+      "high"
+    ],
+    "lab_178": [
+      "ignore",
+      "high"
+    ],
+    "lab_179": [
+      "ignore",
+      "high"
+    ],
+    "lab_180": [
+      "ignore",
+      "high"
+    ],
+    "lab_181": [
+      "ignore",
+      "high"
+    ]
+  },
+  "notes": {}
+}
