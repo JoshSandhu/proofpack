@@ -239,8 +239,9 @@ class RoleMapping:
     confidence: str  # high | medium | low
     source: str = "ignore"  # canonical | synonym | affix | partial | heuristic | ignore
     notes: list[str] = field(default_factory=list)
-    # True after ``a`` at the per-role prompt (DEC-28); an edit leaves it False. Read back
-    # from mapping.json as a bool (any other JSON type is H07 in :meth:`Mapping.read`).
+    # True after ``a`` (DEC-28) or ``e`` (DEC-42; at 4fbbf35 an edit left it False) at the
+    # per-role prompt: a human chose the role. Read back from mapping.json as a bool (any
+    # other JSON type is H07 in :meth:`Mapping.read`).
     confirmed: bool = False
 
     @property
@@ -794,6 +795,50 @@ def apply_mapping(columns: dict[str, list], mapping: Mapping) -> dict[str, list]
     return out
 
 
+#: The halt :func:`period_for_validate` raises: S03 because the declared period column
+#: does not reach the table ``validate`` types (it is parked as unused), which is what
+#: S03's line in ``errors.SCHEMA_CODES`` says; H11 names the opposite case (a date
+#: column with no declaration) and H07 the mapping hash [decision, repair 4 of A-P1].
+PERIOD_IGNORED = (
+    "the period declaration names a column mapping.json ignores; map it to event_date or "
+    "declare another column"
+)
+
+
+def period_for_validate(mapping: Mapping, period: dict | None) -> dict | None:
+    """The ``period`` block ``io.schema.validate`` reads, with ``column`` translated from an
+    original header to the key :func:`apply_mapping` gives that column.
+
+    ``validate`` reads ``period["column"]`` by name outside its header loop - the fourth
+    name it reads, beside the three :func:`read_as_a_role_by_validate` mirrors - so an
+    ignored column that keeps its name was the pack's period axis while counted in
+    ``n_unused_columns``. At 4fbbf35 ``make_cohort(60)`` plus ``visit`` =
+    ``["2024-03-15"] * 30 + ["2024-09-15"] * 30``, ``period: {column: visit, granularity:
+    quarter}``, ``map`` answered ``e ignore`` and then ``run --mapping`` was exit 0 with
+    ``table.period`` levels ``2024-Q1, 2024-Q3`` built from the ignored column and
+    ``n_unused_columns: 1``; a ``visit`` of one ISO date and 59 blanks, proposed ``ignore
+    high`` and never prompted, did the same through ``run`` without a prior (lens-2 FA-B1
+    of repair 3.2; ``tests/test_mapping_repair4.py::
+    test_an_ignored_visit_named_by_period_column_is_s03_on_both_routes`` feeds both, through
+    ``gates.ingest`` and through ``proofpack run``). Now: the name is an original
+    header whose role is ``ignore`` -> S03 :data:`PERIOD_IGNORED`; whose
+    role is ``R`` -> ``column`` becomes ``R`` (at 4fbbf35 ``visit -> event_date`` with
+    ``period.column: visit`` was S03 ``declared period column is not present in the
+    table``, lens-2 N4 - ``check_h11`` covered the header while ``validate`` wanted the
+    role); not an original header (``event_date``, ``period``, or a name ``validate``
+    will not find and halts S03 on) -> unchanged.
+    """
+    if period is None:
+        return None
+    pcol = period.get("column")
+    entry = mapping.entry(pcol) if isinstance(pcol, str) else None
+    if entry is None:
+        return period
+    if entry.role is None:
+        raise HaltError("S03", PERIOD_IGNORED, {"period_column_ignored": True})
+    return {**period, "column": entry.role}
+
+
 def ignore_collision(
     roles: list[RoleMapping], *, ignored: RoleMapping | None = None, role: str | None = None
 ) -> tuple[RoleMapping, str, RoleMapping] | None:
@@ -883,8 +928,12 @@ def _check_prior_against_table(prior: Mapping, headers: list[str]) -> None:
 def _summary_shape(summary: object) -> tuple[object, frozenset[str] | None] | None:
     """The (``inferred_type``, split values) of a stored value summary, or None when the
     summary is not a mapping. The split's counts are left out (a re-export with the same
-    two values in other proportions keeps the shape); a split that is not a list of
-    lists reads as no split."""
+    two values in other proportions keeps the shape); a split that is not a list (``"x"``
+    and ``{}`` were fed) reads as no split; a list whose items are not non-empty lists
+    (``[1, 2]``, ``[]``, ``[[]]``) reads as an empty split and differs from no split, so
+    a stored ``split: [1, 2]`` beside a fresh ``split: null`` halts ``--yes`` H07 (lens-2
+    RG-B1 of repair 3.2: at 4fbbf35 this sentence said the three read as no split;
+    ``tests/test_mapping_repair4.py::test_a_split_that_is_a_list_of_non_lists_is_an_empty_split``)."""
     if not isinstance(summary, dict):
         return None
     split = summary.get("split")
@@ -892,6 +941,21 @@ def _summary_shape(summary: object) -> tuple[object, frozenset[str] | None] | No
     if isinstance(split, list):
         values = frozenset(str(item[0]) for item in split if isinstance(item, list) and item)
     return summary.get("inferred_type"), values
+
+
+def _summaries_agree(prior: Mapping, fresh: Mapping, original: str) -> bool | None:
+    """True / False when both ``value_summaries`` hold ``original`` and their
+    :func:`_summary_shape` are equal / differ; None when either holds no summary for it
+    (a hand-authored ``file`` prior holds none; a ``fresh`` computed from headers alone
+    holds none; at 4fbbf35 ``value_summaries: {}`` and ``null`` in a confirmed prior on
+    the ten-string ``patient`` re-export passed ``map --yes`` and were not compared -
+    lens-2 FA-B3 / RG-N1 of repair 3.2, pinned as the choice by
+    ``tests/test_mapping_repair4.py::test_a_confirmed_prior_without_summaries_is_not_compared``)."""
+    if original not in prior.value_summaries or original not in fresh.value_summaries:
+        return None
+    return _summary_shape(prior.value_summaries[original]) == _summary_shape(
+        fresh.value_summaries[original]
+    )
 
 
 def _check_yes_rule(prior: Mapping, fresh: Mapping) -> None:
@@ -903,8 +967,18 @@ def _check_yes_rule(prior: Mapping, fresh: Mapping) -> None:
     unique`` stored, ``float; 10 unique`` fresh), passed ``map --yes`` and ``run --yes``
     with exit 0, and ``Gender`` re-exported as 0/1/2 did too
     (``tests/test_mapping_repair3_2.py::test_yes_halts_h07_when_a_confirmed_columns_values_changed``
-    feeds both). Compared only where both summaries hold the column (a ``fresh``
-    computed from headers alone has none)."""
+    feeds both). Compared only where both summaries hold the column
+    (:func:`_summaries_agree`).
+
+    DEC-42 (repair 4): a prior role that differs from the fresh one passes the role
+    comparison when the entry is ``confirmed`` (a human accepted or edited it at the
+    prompt) and both files hold a summary for the column; the summary comparison then
+    decides (equal -> the choice stands; differs -> the values-changed H07). When the
+    prior holds no summary for the column (a hand-authored ``file`` prior) it is the
+    role-difference H07 as before. At 4fbbf35 an edit left ``confirmed`` False and
+    the role difference halted the two edited files fed (``score -> attr_score_flag`` beside
+    ``prob -> score`` on ``row_id,label,score,prob``:
+    ``tests/test_mapping_repair4.py::test_an_edit_at_the_prompt_is_confirmed_and_passes_yes``)."""
     if not prior.all_high:
         unconfirmed = [
             r
@@ -922,21 +996,22 @@ def _check_yes_rule(prior: Mapping, fresh: Mapping) -> None:
     by_original = {p.original: p for p in prior.roles}
     for f in fresh.roles:
         p = by_original[f.original]
-        if p.role != f.role:
-            raise HaltError(
-                "H07",
-                f"mapping.json maps a column to {p.role_label} but the mapping computed from "
-                f"this table gives it {f.role_label}; run proofpack map again",
-                {"prior_role": p.role_label, "fresh_role": f.role_label},
-            )
+        if p.role == f.role:
+            continue
+        if p.confirmed and _summaries_agree(prior, fresh, f.original) is not None:
+            # DEC-42: a human chose the role at the prompt and the file holds the
+            # summary the human saw; the comparison below decides whether it still holds
+            continue
+        raise HaltError(
+            "H07",
+            f"mapping.json maps a column to {p.role_label} but the mapping computed from "
+            f"this table gives it {f.role_label}; run proofpack map again",
+            {"prior_role": p.role_label, "fresh_role": f.role_label},
+        )
     changed = sum(
         1
         for f in fresh.roles
-        if by_original[f.original].confirmed
-        and f.original in prior.value_summaries
-        and f.original in fresh.value_summaries
-        and _summary_shape(prior.value_summaries[f.original])
-        != _summary_shape(fresh.value_summaries[f.original])
+        if by_original[f.original].confirmed and _summaries_agree(prior, fresh, f.original) is False
     )
     if changed:
         raise HaltError(
@@ -986,9 +1061,10 @@ def check_h07(
     ``::test_yes_halts_h07_when_the_prior_role_differs_from_the_fresh_one``);
     each confirmed entry's stored value summary equal in type and split values to the
     fresh one (repair 3.2, FA-B2 of lens 1: ``_check_yes_rule``); every fresh non-high
-    role confirmed in the prior for that column. An edited entry (``role`` changed at
-    the prompt) is not ``confirmed`` and its fresh role differs, so it does not pass
-    ``--yes`` - open question 1 of the repair-3 note. The prior is returned with
+    role confirmed in the prior for that column. An entry edited at the prompt is
+    ``confirmed`` too (DEC-42, repair 4) and its differing role stands under the same
+    value-summary comparison; at 4fbbf35 it was not, and no edited file passed ``--yes``
+    (open question 1 of the repair-3 note). The prior is returned with
     ``decided_by`` set to ``file`` when it was ``interactive`` or ``file``; a
     ``proposed`` prior (interactive mode only; ``--yes`` halted on it above) keeps
     ``proposed``.

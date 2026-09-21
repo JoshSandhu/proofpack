@@ -183,15 +183,44 @@ def _extreme_or_suppressed(x: float, counts: Counter) -> str:
     return _fmt_num(x) if rows >= SUPPRESSION_K else SUPPRESSED
 
 
-def _date_key(v: str) -> str:
+#: The two-digit / two-digit / four-digit shape (slash, dot or dash) whose field order a
+#: column decides once, in :func:`_month_first`.
+_TWO_FIELDS_YEAR = re.compile(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$")
+
+
+def _month_first(values: list[str]) -> bool:
+    """Decide the day/month order ONCE PER COLUMN from the sampled slash/dot/dash values,
+    never per value: if any sampled slash/dot/dash value has a second field above 12 and
+    none a first field above 12, the column is month-first; if any has a first field
+    above 12, day-first; both or neither, day-first.
+
+    At 4fbbf35 the order was decided per value, so ``["03/15/2024"] * 9 +
+    ["04/03/2024"]`` keyed nine rows month-first (``2024-03``) and the tenth day-first
+    (``2024-03`` again) and printed ``min 2024-03`` for a month holding nine rows - the
+    DEC-39 leak lens-2 FA-B1 of repair 3 measured
+    (``tests/test_mapping_repair4.py::test_date_order_is_decided_once_per_column``
+    feeds that column, its ``.`` and ``-`` twins, the ten-row ``03/04/2024`` twin, and
+    ``["03/13/2024"] * 60`` / ``["12/15/2024"] * 60`` for the two boundaries).
+    """
+    first_above = second_above = False
+    for v in values:
+        m = _TWO_FIELDS_YEAR.match(v)
+        if m:
+            first_above = first_above or int(m.group(1)) > 12
+            second_above = second_above or int(m.group(2)) > 12
+    return second_above and not first_above
+
+
+def _date_key(v: str, *, month_first: bool = False) -> str:
     """``YYYY-MM`` for ordering and display; slash shapes are reduced by their digits.
 
-    A D/M/YYYY shape is read day-first; when that gives a month above 12 and the other
-    order does not, the digits are read month-first (``03/15/2024`` -> ``2024-03``; at
-    b0f60a6 it printed ``min 2024-15``, lens-1 FA-N4 of repair 3;
+    A two-field-and-year shape takes the month from its second field (day-first) unless
+    ``month_first`` is set by :func:`_month_first` for the whole column, in which case
+    from its first (``03/15/2024`` in a column whose second fields reach 15 ->
+    ``2024-03``; at b0f60a6 every such value printed ``2024-15``, lens-1 FA-N4 of repair 3;
     ``tests/test_mapping_repair3_2.py::test_us_shaped_slash_dates_key_to_a_real_month``).
-    ``13/15/2024`` is a month under neither order and keeps the day-first key
-    ``2024-15`` (the same test).
+    ``["13/15/2024"] * 60`` has a first field above 12, so the column is day-first and the
+    key is ``2024-15`` (the same test).
     """
     m = _ISO_DATE.match(v)
     if m:
@@ -199,10 +228,9 @@ def _date_key(v: str) -> str:
     m = re.match(r"^(\d{4})/(\d{2})/\d{2}$", v)
     if m:
         return f"{m.group(1)}-{m.group(2)}"
-    m = re.match(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$", v)
+    m = _TWO_FIELDS_YEAR.match(v)
     if m:
-        first, second = int(m.group(1)), int(m.group(2))
-        month = first if second > 12 and first <= 12 else second
+        month = int(m.group(1)) if month_first else int(m.group(2))
         return f"{m.group(3)}-{month:02d}"
     m = re.match(r"^\d{1,2}\s+([A-Za-z]+)\s+(\d{4})$", v)
     if m:
@@ -245,7 +273,11 @@ def profile_column(column: list[str | None], *, sample_rows: int = SAMPLE_ROWS) 
             shown_lo = _extreme_or_suppressed(lo, counts)
             shown_hi = _extreme_or_suppressed(hi, counts)
     elif kind == "date":
-        months = Counter(_date_key(v) for v in present)
+        # the day/month order is one decision for the column (_month_first), not one
+        # per value: at 4fbbf35 a per-value fallback mixed the two conventions in one
+        # column and the floor below counted the mixed keys (lens-2 FA-B1 of repair 3)
+        month_first = _month_first(present)
+        months = Counter(_date_key(v, month_first=month_first) for v in present)
         keys = sorted(months)
         # the month is printed only when >= SUPPRESSION_K sampled rows fall in it (DEC-39)
         shown_lo = keys[0] if months[keys[0]] >= SUPPRESSION_K else SUPPRESSED

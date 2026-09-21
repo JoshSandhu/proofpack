@@ -9,7 +9,10 @@ was not - lens-1 RG-B1 of repair 3); the five whose docstring begins "Observes" 
 there and are here so that one of the lens-3 mutants L08, L11, L13, L14 or L20
 (``scripts/mutation_sweep.py --marker day6``) fails a test. Repair 3.2 changed the
 DEC-31 refusal and halt lines (``DEC31_PRIOR`` and the prompt line) and the collision
-block of ``test_ignored_columns_otherwise_keep_their_name_at_apply_mapping``.
+block of ``test_ignored_columns_otherwise_keep_their_name_at_apply_mapping``. Repair 4
+(DEC-42) turned ``test_edit_does_not_record_confirmed_and_an_edited_prior_does_not_pass_yes``
+into ``test_an_edited_entry_is_confirmed_and_passes_yes_until_its_values_or_summary_go``
+and set the two ``confirmed`` assertions on edited entries to True.
 """
 
 from __future__ import annotations
@@ -166,7 +169,8 @@ def test_ignore_on_a_column_named_for_a_held_role_is_refused_at_the_prompt(
     assert DEC31_PROMPT.format(holder="prob") in lines
     written = json.loads(out.read_text(encoding="utf-8"))
     roles = {r["original"]: r for r in written["roles"]}
-    assert (roles["score"]["role"], roles["score"]["confirmed"]) == ("attr_score_flag", False)
+    # the edited entry is confirmed too since DEC-42 (repair 4; False at 4fbbf35)
+    assert (roles["score"]["role"], roles["score"]["confirmed"]) == ("attr_score_flag", True)
     assert (roles["prob"]["role"], roles["prob"]["confirmed"]) == ("score", True)
     rc = main(
         [
@@ -259,7 +263,7 @@ def test_accept_or_edit_to_a_role_an_ignored_column_is_named_for_is_refused():
     assert (m.entry("score").role, m.entry("prob").role, m.entry("prob").confirmed) == (
         None,
         "y_pred",
-        False,
+        True,  # DEC-42 (repair 4): an edit confirms the entry; False at 4fbbf35
     )
     assert [r.role for r in map_headers(canonical_columns() + ["attr_x", "rater_x"]).roles] == (
         canonical_columns() + ["attr_x", "rater_x"]
@@ -491,12 +495,15 @@ def test_interactive_accept_records_confirmed_and_yes_takes_it(tmp_path: Path, c
     assert '"low_or_medium": 1' in err
 
 
-def test_edit_does_not_record_confirmed_and_an_edited_prior_does_not_pass_yes(
+def test_an_edited_entry_is_confirmed_and_passes_yes_until_its_values_or_summary_go(
     tmp_path: Path, capsys, monkeypatch
 ):
-    """DEC-28 as built: ``Gender`` edited to ``attr_gender_code`` -> ``confirmed`` False, and
-    ``map --yes`` then halts on the unconfirmed medium in the prior (the first rule; the
-    role difference would halt it next - open question 1 of the note)."""
+    """DEC-42 (repair 4; until 4fbbf35 this test was
+    ``test_edit_does_not_record_confirmed_and_an_edited_prior_does_not_pass_yes`` and
+    asserted the reverse under DEC-28 alone): ``Gender`` edited to ``attr_gender_code`` ->
+    ``confirmed`` True and ``map --yes`` exit 0 on the unchanged table; ``Gender``
+    re-exported as 0/1/2 -> H07 values changed; the stored ``Gender`` summary deleted by
+    hand (the hand-authored shape) -> H07 on the role difference."""
     cols = _sepsis_shaped()
     csv_path = write_csv(tmp_path / "s.csv", cols)
     out = tmp_path / "m.json"
@@ -504,20 +511,30 @@ def test_edit_does_not_record_confirmed_and_an_edited_prior_does_not_pass_yes(
     assert main(["--quiet", "map", "--input", str(csv_path), "--out", str(out)]) == EXIT_OK
     data = json.loads(out.read_text(encoding="utf-8"))
     gender = next(r for r in data["roles"] if r["original"] == "Gender")
-    assert (gender["role"], gender["confirmed"], gender["notes"]) == (
+    assert (gender["role"], gender["confidence"], gender["confirmed"], gender["notes"]) == (
         "attr_gender_code",
-        False,
+        "medium",
+        True,
         ["no dictionary declared for 0/1", "edited interactively"],
     )
+    rc = main(["--quiet", "map", "--input", str(csv_path), "--out", str(out), "--yes"])
+    assert rc == EXIT_OK and capsys.readouterr().err == ""
+    after = json.loads(out.read_text(encoding="utf-8"))
+    assert next(r for r in after["roles"] if r["original"] == "Gender")["role"] == (
+        "attr_gender_code"
+    )
+    # the values the human saw changed (0/1 -> 0/1/2): the values-changed H07
+    write_csv(csv_path, {**cols, "Gender": ["0", "1", "2"] * 20})
     rc = main(["map", "--input", str(csv_path), "--out", str(out), "--yes"])
     err = capsys.readouterr().err
     assert rc == EXIT_HALT
     assert err.splitlines()[0] == (
-        "HALT H07: non-interactive mode requires every mapped role at high confidence in "
-        "mapping.json or confirmed at the prompt (confirmed: true)"
+        "HALT H07: the values of a column confirmed at the prompt changed since mapping.json "
+        "was written (inferred type or the two-valued split); run proofpack map again"
     )
-    # with the prior's confidence hand-edited to high the role difference is the halt
-    gender["confidence"] = "high"
+    # no stored summary for the edited column (a hand-authored prior): the role difference
+    write_csv(csv_path, cols)
+    del data["value_summaries"]["Gender"]
     out.write_text(json.dumps(data), encoding="utf-8")
     rc = main(["map", "--input", str(csv_path), "--out", str(out), "--yes"])
     err = capsys.readouterr().err

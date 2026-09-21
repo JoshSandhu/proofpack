@@ -50,7 +50,7 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="non-interactive; accepted only when a prior mapping.json with the same "
         "header-set hash exists at --out and every role in it is high or was accepted "
-        "at the prompt (confirmed: true)",
+        "or edited at the prompt (confirmed: true)",
     )
 
     r = sub.add_parser(
@@ -150,7 +150,7 @@ EDIT_ANSWERS = ("e", "edit")
 QUIT_ANSWERS = ("q", "quit", "abort")
 
 
-def _confirm_interactive(m, ask=None, say=print) -> None:
+def _confirm_interactive(m, ask=None, say=print, *, period_column: str | None = None) -> None:
     """Prompt once per non-high role: accept / edit (a canonical role or ignore) / abort;
     when no role is below high, prompt once for the whole mapping (``a`` or ``accept``
     accepts, ``q``, ``quit`` or ``abort`` aborts, after stripping and lower-casing; the
@@ -166,8 +166,19 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
     FA-N2; ``tests/test_mapping_repair1.py::test_all_high_table_asks_once_before_interactive``).
     Accept and edit leave ``confidence`` as computed (the build note's needs-from-Josh 1;
     ``test_accept_and_edit_keep_the_computed_confidence`` pins the literal values); an
-    accept sets ``confirmed`` on the entry, an edit does not (DEC-28;
-    ``tests/test_mapping_repair3.py::test_interactive_accept_records_confirmed_and_yes_takes_it``).
+    entry accepted or edited at the prompt gets ``confirmed: true`` (DEC-28 for the
+    accept, ``tests/test_mapping_repair3.py::
+    test_interactive_accept_records_confirmed_and_yes_takes_it``; DEC-42 for the edit -
+    at 4fbbf35 an edit left it ``false`` and the file the DEC-31 remedy ``e
+    attr_score_flag, a`` wrote was H07 under ``--yes`` on the unconfirmed low,
+    ``tests/test_mapping_repair4.py::test_an_edit_at_the_prompt_is_confirmed_and_passes_yes``).
+    ``period_column`` (the ``period.column`` of ``--criteria``, when given): an edit to
+    ``ignore`` on the entry whose original header equals it is refused with one line
+    (``refused: the period declaration names a column mapping.json ignores; ...``) and the
+    prompt repeats, because ``run`` halts S03 on such a file
+    (``io.mapping.period_for_validate``; ``tests/test_mapping_repair4.py::
+    test_an_ignored_visit_named_by_period_column_is_s03_on_both_routes`` feeds ``e ignore
+    a`` on ``visit``).
 
     An accept or an edit that would give a role a second holder among the entries already
     settled (high, or answered earlier in this loop) is refused at the prompt; entries
@@ -191,7 +202,7 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
     ``validate`` later dropped it into ``unused_columns``, FA-N5;
     ``::test_edit_prompt_refuses_bare_and_non_identifier_attr_names``).
     """
-    from proofpack.io.mapping import IGNORE, ignore_collision
+    from proofpack.io.mapping import IGNORE, PERIOD_IGNORED, ignore_collision
     from proofpack.io.schema import _IDENT, canonical_columns
 
     ask = ask or input
@@ -268,12 +279,18 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
                     # test_edit_to_a_role_another_column_holds_is_refused_at_the_prompt)
                     say(f"  {new_role} is already held by {holder.original!r}: choose another")
                     continue
+                if new_role == IGNORE and period_column is not None and r.original == period_column:
+                    # run would halt S03 on the file (io.mapping.period_for_validate);
+                    # refused here so the answers given so far are not lost
+                    say(f"  refused: {PERIOD_IGNORED}")
+                    continue
                 line = collision_line(r, None if new_role == IGNORE else new_role)
                 if line is not None:
                     say(line)
                     continue
                 r.role = None if new_role == IGNORE else new_role
                 r.notes.append("edited interactively")
+                r.confirmed = True  # DEC-42: a human chose the role, as at an accept
                 break
             say("  answer a, e or q")
     m.decided_by = "interactive"
@@ -333,8 +350,12 @@ def cmd_map(args: argparse.Namespace) -> int:
         fresh = mapping.map_headers(raw.headers, raw.columns)
         mapping.check_h11(raw.headers, period, mapping=fresh)
         table = fresh.table()
+        period_column = period.get("column") if period else None
         if args.yes:
             m = mapping.check_h07(raw.headers, args.out, non_interactive=True, fresh=fresh)
+            # the prior route at map: a prior ignoring the declared period column is
+            # S03 here as it is at run (repair 4 of A-P1; period_for_validate)
+            mapping.period_for_validate(m, period)
         else:
             tty = _stdin_is_terminal()
             # --quiet keeps the table off a non-terminal stdout; at a terminal the prompts
@@ -350,7 +371,11 @@ def cmd_map(args: argparse.Namespace) -> int:
                     {"non_high_roles": len(fresh.non_high)},
                 )
             m = fresh
-            _confirm_interactive(m)
+            _confirm_interactive(m, period_column=period_column)
+            # a column proposed ``ignore high`` is not among the prompted entries (the
+            # loop asks the non-high roles): the same S03 as run's
+            # when the period declaration names it (repair 4 of A-P1)
+            mapping.period_for_validate(m, period)
     except KeyboardInterrupt:
         # a BaseException main()'s catch-all does not see; here it is the H07 abort _ask
         # gives at a prompt (repair 2, FA-N10: at e92989b Ctrl-C raised from load_table

@@ -70,10 +70,15 @@ What it does, in order:
    that value; otherwise it prints as `<suppressed>` too (`["100"] * 41 + ["7"] * 9`
    prints `min <suppressed> max 100`). A date min or max month is printed only when
    >= 10 sampled rows fall in that month (DEC-39: `["2024-03-15"] * 49 +
-   ["1999-01-01"]` prints `min <suppressed> max 2024-03`); a slash, dot or dash date
-   is read day-first, and month-first only when day-first gives a month above 12 and
-   month-first does not (`03/15/2024` is `2024-03`; at b0f60a6 it printed `2024-15`;
-   `13/15/2024` keeps `2024-15`). A categorical/string column
+   ["1999-01-01"]` prints `min <suppressed> max 2024-03`); the day/month order of a
+   slash, dot or dash date is decided once per column from the sampled values, never
+   per value: if any sampled value has a second field above 12 and none a first field
+   above 12, the column is month-first; if any has a first field above 12, day-first;
+   both or neither, day-first (`["03/15/2024"] * 9 + ["04/03/2024"]` is nine rows of
+   March and one of April and prints `min <suppressed> max <suppressed>`; at 4fbbf35
+   the order was decided per value and it printed `min 2024-03` for a nine-row month;
+   `["03/15/2024"] * 9 + ["03/04/2024"]` prints `2024-03` for both; `["13/15/2024"] *
+   60` keeps `2024-15`). A categorical/string column
    with more than half of its non-missing sample unique lists no values.
 2. Assigns a role and a confidence to every header (`io.mapping.map_headers`): exact
    canonical name, the synonym table, an affix-stripped synonym (`pt_age`,
@@ -104,13 +109,25 @@ What it does, in order:
    header -> role -> confidence -> value summary` (under `--quiet` only when stdin is a
    terminal, because the prompts refer to it), then:
    * stdin is a terminal and `--yes` is absent: prompts once per non-high role. The
-     answer is stripped of surrounding spaces and lower-cased; `a` or `accept` accepts
-     (the entry gains `confirmed: true`, DEC-28), `e` or `edit` asks for a canonical
-     role, `attr_<name>` / `rater_<name>` in lower-case letters, digits and `_`, or
-     `ignore` (the entry stays `confirmed: false`), `q`, `quit` or `abort` halts H07;
-     the empty answer (Enter alone) and any other word print `answer a, e or q` and
-     ask again. An accept or an edit that would give a role a second holder among the
-     columns already settled is refused at the prompt. An edit to `ignore` on a column
+     answer is stripped of surrounding spaces and lower-cased; `a` or `accept` accepts,
+     `e` or `edit` asks for a canonical role, `attr_<name>` / `rater_<name>` in
+     lower-case letters, digits and `_`, or `ignore`; an entry accepted or edited at the
+     prompt gains `confirmed: true` (DEC-28 for the accept, DEC-42 for the edit: at
+     4fbbf35 an edit left it `false` and the two edited files fed were H07 under
+     `--yes`); `q`, `quit` or `abort` halts H07; the empty answer (Enter alone) and any
+     other word print `answer a, e or q` and ask again. An accept or an edit that would give a role a second
+     holder among the columns already settled is refused at the prompt. An edit to
+     `ignore` on the column `--criteria`'s `period.column` names is refused with one
+     line (`refused: the period declaration names a column mapping.json ignores; map it
+     to event_date or declare another column`), and a mapping that ignores that column
+     (one proposed `ignore high` is not among the prompted entries, which are the
+     non-high roles: `visit` holding one ISO date and 59 blanks) halts S03 with the same
+     sentence here and at `proofpack run`, with or without a prior; at 4fbbf35 `run --mapping` on such a file built the pack's period
+     axis from the ignored column while counting it in `n_unused_columns`
+     (`tests/test_mapping_repair4.py::test_an_ignored_visit_named_by_period_column_is_s03_on_both_routes`).
+     A `period.column` naming an original header mapped to a role is read under that
+     role at `proofpack run` (at 4fbbf35 `visit -> event_date` with `period.column:
+     visit` was S03 `declared period column is not present in the table`). An edit to `ignore` on a column
      whose header, after BOM stripping, trimming, NFC and case-folding, equals a role
      that any other column currently holds is refused with one line naming both
      headers and the role (DEC-31: `score` holding 0/1 beside `prob`, both proposed
@@ -147,17 +164,24 @@ What it does, in order:
      file is `high` or `confirmed: true`, the file's role for each column equals the
      role computed from this table (a prior `age` on a column now holding `[70-80)`
      bands halts: `maps a column to age but the mapping computed from this table
-     gives it age_band`), each `confirmed` entry's stored value summary equal to the
+     gives it age_band`) unless the entry is `confirmed` and its stored value summary
+     equals the fresh one (DEC-42: the role a human chose at the prompt stands on the
+     values the human saw; `score -> attr_score_flag` edited beside `prob -> score`
+     accepted, on `row_id,label,score,prob`, passes `--yes` - at 4fbbf35 it was H07 for
+     ever, `tests/test_mapping_repair4.py::test_an_edit_at_the_prompt_is_confirmed_and_passes_yes`),
+     each `confirmed` entry's stored value summary equal to the
      one computed from this table in `inferred_type` and in the values of a
-     two-valued `split` (counts are not compared; at b0f60a6 the `patient` column
+     two-valued `split`, where the file holds a summary for that column (a
+     hand-authored `file` prior holds none and is not compared: `value_summaries: {}`
+     or `null` in a confirmed prior passes on a re-exported column,
+     `tests/test_mapping_repair4.py::test_a_confirmed_prior_without_summaries_is_not_compared`;
+     counts are not compared; at b0f60a6 the `patient` column
      confirmed as `categorical; 20 unique` and re-exported as the ten strings `0.0`
      .. `0.9` passed, and `Gender` confirmed as 0/1 and re-exported as 0/1/2 passed;
      now H07 `the values of a column confirmed at the prompt changed`,
      `tests/test_mapping_repair3_2.py::test_yes_halts_h07_when_a_confirmed_columns_values_changed`),
      and every non-high role computed from this table is `confirmed: true` in the
-     file (DEC-28); otherwise H07. An entry edited at the prompt is not `confirmed`
-     and its computed role differs, so a mapping with an edit does not pass `--yes`
-     (repair-3 note, open question 1). The prior file's roles are used
+     file (DEC-28); otherwise H07. The prior file's roles are used
      (`decided_by: file`). A prior file with a leading UTF-8 BOM (PowerShell 5.1
      `Out-File`) is read; the file is written back without it.
 
@@ -187,11 +211,15 @@ file-level `header_set_sha256`, `value_summaries`, `decided_by` and `timestamp`.
 }
 ```
 
-The mapper sets `confirmed: true` only when `a` is answered at the per-role prompt (an
-edit and the all-high accept leave it `false`); `--yes` reads the flag, cannot verify
-who set it, and writes the file back with whatever `confirmed` values it held
-(`confirmed: true` planted by hand on a high entry survives `map --yes`:
-`tests/test_mapping_repair3_2.py::test_the_mapper_sets_confirmed_only_on_an_accept_and_yes_writes_back_what_it_read`).
+The mapper sets `confirmed: true` only on an entry accepted or edited at the per-role
+prompt (the all-high accept leaves every entry `false`; at 4fbbf35 an edit did too);
+`--yes` reads the flag, cannot verify who set it, and writes the file back with
+whatever `confirmed` values it held (`confirmed: true` planted by hand on a high entry
+survives `map --yes`:
+`tests/test_mapping_repair3_2.py::test_the_mapper_sets_confirmed_only_on_an_accept_or_an_edit_and_yes_writes_back_what_it_read`).
+A hand-authored `file` prior carrying `confirmed: true` on an entry whose role differs
+from the computed one holds no value summary to compare and is refused on the role
+difference as before.
 `Mapping.read` takes `true`, `false` or the key absent (read as `false`) and halts H07
 on any other JSON type. `decided_by` is `interactive` after the prompts, `file` after
 `--yes` or `proofpack run --mapping` re-used an `interactive` or `file` prior, and

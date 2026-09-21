@@ -27,6 +27,7 @@ from proofpack.io.mapping import (
     RoleMapping,
     apply_mapping,
     map_headers,
+    period_for_validate,
     read_as_a_role_by_validate,
 )
 from proofpack.io.profile import profile_column
@@ -180,7 +181,11 @@ def test_ignored_role_names_are_the_names_validate_reads():
     """``read_as_a_role_by_validate`` agrees with ``validate``'s header loop on the 19
     canonical names, ``attr_x``, ``attr_X``, ``attr_``, ``rater_1``, ``rater_`` and
     ``notes``: a name is keyed ``ignored:`` at ``apply_mapping`` exactly when ``validate``
-    would not park it in ``unused_columns``."""
+    would not park it in ``unused_columns``. The fourth name ``validate`` reads, by
+    ``period["column"]`` outside that loop, is the last block (repair 4, lens-2 FA-B2 of
+    repair 3.2): an ignored ``visit`` keeps its name at ``apply_mapping`` and ``validate``
+    alone builds the period from it while parking it; ``period_for_validate`` halts S03
+    on that mapping before ``validate`` runs."""
     names = canonical_columns() + ["attr_x", "attr_X", "attr_", "rater_1", "rater_", "notes"]
     # the bare ``attr_`` matches _IDENT, so validate reads it as an attribute (day-1
     # validate; the mapper's own role check refuses the bare prefix as a role)
@@ -215,6 +220,28 @@ def test_ignored_role_names_are_the_names_validate_reads():
         )
         keys = list(apply_mapping(cols, m))
         assert keys[2] == (name if parked else f"ignored:{name}"), name
+    # the fourth name: period["column"], read by name outside the header loop
+    cols = _cols(y_true=["0", "1"] * 5, score=["0.2", "0.8"] * 5)
+    cols["visit"] = ["2024-03-15", "2024-09-15"] * 5
+    m = Mapping(
+        header_set_sha256(list(cols)),
+        [
+            RoleMapping("y_true", "y_true", "high"),
+            RoleMapping("score", "score", "high"),
+            RoleMapping("visit", None, "high"),
+        ],
+        "file",
+        "",
+    )
+    period = {"column": "visit", "granularity": "quarter"}
+    mapped = apply_mapping(cols, m)
+    assert list(mapped) == ["y_true", "score", "visit"]
+    table = validate(table_from_columns(mapped), period=period)
+    assert table.unused_columns == ["visit"]
+    assert sorted(set(table.period.tolist())) == ["2024-Q1", "2024-Q3"]  # what 4fbbf35 shipped
+    with pytest.raises(HaltError) as ei:
+        period_for_validate(m, period)
+    assert (ei.value.code, ei.value.detail) == ("S03", {"period_column_ignored": True})
 
 
 def test_a_header_spelled_like_the_ignored_key_is_h07_without_the_header(tmp_path: Path, capsys):
@@ -308,20 +335,22 @@ def test_yes_halts_h07_when_a_confirmed_columns_values_changed(tmp_path: Path, c
 # --------------------------------------------------------------------------- FA-B3 / RG-N7
 
 
-def test_the_mapper_sets_confirmed_only_on_an_accept_and_yes_writes_back_what_it_read(
+def test_the_mapper_sets_confirmed_only_on_an_accept_or_an_edit_and_yes_writes_back_what_it_read(
     tmp_path: Path, capsys, monkeypatch
 ):
     """Passes at b0f60a6: the counter-example the README sentence "confirmed is true only on
     an entry answered a" needed (lens-1 FA-B3 / RG-N7). ``confirmed: true`` planted by hand
     on ``SepsisLabel`` (high, never prompted) survives ``map --yes``; the prompt itself sets
-    it on ``patient`` and ``Gender`` (answered ``a``) and on nothing else."""
+    it on ``patient`` and ``Gender`` (answered ``a``, or edited: DEC-42, repair 4 - until
+    4fbbf35 this test asserted ``["patient"]`` after ``a e attr_gender_code``) and on
+    nothing else."""
     cols = _sepsis_shaped()
     csv_path = write_csv(tmp_path / "s.csv", cols)
     out = tmp_path / "m.json"
     _drive(monkeypatch, ["a", "e", "attr_gender_code"])
     assert main(["--quiet", "map", "--input", str(csv_path), "--out", str(out)]) == EXIT_OK
     data = json.loads(out.read_text(encoding="utf-8"))
-    assert [r["original"] for r in data["roles"] if r["confirmed"]] == ["patient"]
+    assert [r["original"] for r in data["roles"] if r["confirmed"]] == ["patient", "Gender"]
     _drive(monkeypatch, ["a", "a"])
     assert main(["--quiet", "map", "--input", str(csv_path), "--out", str(out)]) == EXIT_OK
     data = json.loads(out.read_text(encoding="utf-8"))

@@ -255,6 +255,9 @@ def ingest(
     mapping = mapping_mod.check_h07(
         raw.headers, mapping_path, non_interactive=non_interactive, fresh=fresh
     )
+    # both routes pass here: the prior check_h07 returned, and the computed mapping it
+    # returned when no prior matched (repair 4 of A-P1, lens-2 FA-B1 of repair 3.2)
+    period = mapping_mod.period_for_validate(mapping, decl.period)
     canonical_cols = mapping_mod.apply_mapping(raw.columns, mapping)
     raw_mapped = RawTable(
         headers=list(canonical_cols),
@@ -263,7 +266,7 @@ def ingest(
         source=raw.source,
         header_set_sha256=raw.header_set_sha256,
     )
-    table = schema_mod.validate(raw_mapped, period=decl.period)
+    table = schema_mod.validate(raw_mapped, period=period)
     gate_h02(table, decl)
     gate_h03(table, decl)
     gate_h05(table, decl)
