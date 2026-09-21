@@ -341,7 +341,10 @@ class Mapping:
         except OSError as exc:
             raise HaltError("H07", "mapping.json could not be read") from exc
         try:
-            data = json.loads(raw.decode("utf-8"))
+            # utf-8-sig: a leading BOM (PowerShell 5.1 Out-File's default) is dropped; at
+            # b0f60a6 such a file was H07 "could not be decoded" (repair 3.2, FA-N5;
+            # tests/test_mapping_repair3_2.py::test_a_prior_with_a_utf8_bom_is_read)
+            data = json.loads(raw.decode("utf-8-sig"))
         except (ValueError, RecursionError) as exc:
             raise HaltError("H07", "the prior mapping.json could not be decoded") from exc
         try:
@@ -717,18 +720,50 @@ def _decide_named(
 # --------------------------------------------------------------------------- apply, H07, H11
 
 
+#: The key an ignored column takes at :func:`apply_mapping` when its original header is
+#: a name ``io.schema.validate`` reads as a role (repair 3.2, FA-B1).
+IGNORED_PREFIX = "ignored:"
+
+
+def read_as_a_role_by_validate(name: str) -> bool:
+    """The three header names ``io.schema.validate`` reads as a role rather than parking
+    in ``unused_columns``: a canonical name, an ``attr_`` name matching :data:`_IDENT`
+    (the bare ``attr_`` matches it), or any ``rater_`` prefix - the three branches of
+    its header loop, mirrored here
+    (``tests/test_mapping_repair3_2.py::test_ignored_role_names_are_the_names_validate_reads``
+    feeds the 19 canonical names, ``attr_x``, ``attr_X``, ``attr_``, ``rater_1``,
+    ``rater_`` and ``notes`` to both: ``attr_X`` and ``notes`` are the two parked)."""
+    return (
+        name in canonical_columns()
+        or (name.startswith("attr_") and _IDENT.match(name) is not None)
+        or name.startswith("rater_")
+    )
+
+
 def apply_mapping(columns: dict[str, list], mapping: Mapping) -> dict[str, list]:
-    """Rename original headers to canonical roles. Ignored columns keep their name.
+    """Rename original headers to canonical roles.
+
+    An ignored column keeps its name unless that name is one ``validate`` reads as a
+    role (:func:`read_as_a_role_by_validate`), in which case it is keyed
+    ``ignored:<original>`` so ``validate`` parks it in ``unused_columns``. At b0f60a6 an
+    ignored column kept its name whatever it was, and ``validate`` read it by that
+    name: ``sex`` (1/2/9) answered ``e ignore`` at the prompt reached the pack as the
+    ``sex`` attribute (``ingest_report.json`` ``attributes: ["sex", "site"]``,
+    ``n_unused_columns: 0``), and ``score`` (0/1) ignored beside ``prob`` edited to
+    ``attr_prob_raw`` was read as the score (lens-1 FA-B1 of repair 3;
+    ``tests/test_mapping_repair3_2.py::test_an_ignored_column_named_for_a_role_does_not_reach_validate_under_that_name``
+    feeds both tables through ``map`` and ``run --mapping``). ``notes`` ignored keeps
+    its name (``tests/test_mapping_repair3.py::
+    test_ignored_columns_otherwise_keep_their_name_at_apply_mapping``).
 
     Two columns on ``case_id`` are the DEC-11 composite key, E01 ending ``reduce your
     case key to one column``; two columns on any other role are H07 (repair 2, FA-B1:
     at e92989b ``patient_nbr`` + ``mrn_local`` were H07 here through ``proofpack run``).
-    An ignored column named for a role another column holds is the DEC-31 collision:
-    the prompt refuses it and :func:`check_h07` halts a prior that carries it before
-    this function runs (:func:`ignore_collision`); this function is unchanged by that,
-    and the hand-built pair ``score -> ignore`` beside ``prob -> score`` fed to it
-    directly halts the H07 above with ``{"role": "score"}``
-    (``tests/test_mapping_repair3.py::test_ignored_columns_otherwise_keep_their_name_at_apply_mapping``).
+    The DEC-31 pair ``score -> ignore`` beside ``prob -> score`` is refused at the prompt
+    and halted on a prior by :func:`check_h07` before this function runs
+    (:func:`ignore_collision`); fed to this function directly it now returns the keys
+    ``row_id, score, ignored:score`` (at b0f60a6 it was the H07 above with
+    ``{"role": "score"}``; the same test).
     """
     n_case = sum(1 for original in columns if mapping.role_of(original) == "case_id")
     if n_case >= 2:
@@ -740,8 +775,20 @@ def apply_mapping(columns: dict[str, list], mapping: Mapping) -> dict[str, list]
         )
     out: dict[str, list] = {}
     for original, values in columns.items():
-        role = mapping.role_of(original) or original
+        role = mapping.role_of(original)
+        if role is None:
+            role = IGNORED_PREFIX + original if read_as_a_role_by_validate(original) else original
         if role in out:
+            if role.startswith(IGNORED_PREFIX):
+                # a header spelled ``ignored:score`` beside an ignored ``score``: the
+                # detail carries a count, not that header
+                # (tests/test_mapping_repair3_2.py::
+                # test_a_header_spelled_like_the_ignored_key_is_h07_without_the_header)
+                raise HaltError(
+                    "H07",
+                    "a column's header equals the ignored: key of another column; rename one",
+                    {"n_ignored_key_collisions": 1},
+                )
             raise HaltError("H07", "two columns map to the same canonical role", {"role": role})
         out[role] = values
     return out
@@ -751,11 +798,12 @@ def ignore_collision(
     roles: list[RoleMapping], *, ignored: RoleMapping | None = None, role: str | None = None
 ) -> tuple[RoleMapping, str, RoleMapping] | None:
     """DEC-31: the first (ignored entry, role, holder) where an ignored column's folded
-    header equals a role another column holds - at ``apply_mapping`` the ignored column
-    keeps its name and the two would collide (lens-3 FA-B2: at 1354758 the table
+    header equals a role another column holds (lens-3 FA-B2: at 1354758 the table
     ``row_id,label,score,prob`` answered ``e ignore a`` wrote ``score -> ignore``,
     ``prob -> score`` and ``proofpack run --mapping`` halted H07 ``two columns map to the
-    same canonical role``; ``tests/test_mapping_repair3.py::
+    same canonical role``, because ``apply_mapping`` then kept an ignored column's name;
+    since repair 3.2 it keys such a column ``ignored:<original>``, and the refusal
+    stays as DEC-31 decided it; ``tests/test_mapping_repair3.py::
     test_ignore_on_a_column_named_for_a_held_role_is_refused_at_the_prompt``).
 
     With ``ignored`` and ``role`` given, the check is made as if that entry held ``role``
@@ -826,14 +874,37 @@ def _check_prior_against_table(prior: Mapping, headers: list[str]) -> None:
         raise HaltError(
             "H07",
             f"mapping.json ignores the column whose header is the role name {role} and maps "
-            f"another column to {role}: an ignored column keeps its name and the two would "
-            "collide; run proofpack map again and give one of them another role",
+            f"another column to {role} (DEC-31); run proofpack map again and give one of "
+            "them another role",
             {"role": role},
         )
 
 
+def _summary_shape(summary: object) -> tuple[object, frozenset[str] | None] | None:
+    """The (``inferred_type``, split values) of a stored value summary, or None when the
+    summary is not a mapping. The split's counts are left out (a re-export with the same
+    two values in other proportions keeps the shape); a split that is not a list of
+    lists reads as no split."""
+    if not isinstance(summary, dict):
+        return None
+    split = summary.get("split")
+    values = None
+    if isinstance(split, list):
+        values = frozenset(str(item[0]) for item in split if isinstance(item, list) and item)
+    return summary.get("inferred_type"), values
+
+
 def _check_yes_rule(prior: Mapping, fresh: Mapping) -> None:
-    """DEC-28 with the carried-7 role comparison, for ``--yes`` on a matching prior."""
+    """DEC-28 with the carried-7 role comparison, for ``--yes`` on a matching prior, and
+    (repair 3.2, FA-B2) for each ``confirmed`` entry the prior's stored value summary
+    against the fresh one: ``inferred_type`` and the values of a two-valued ``split``.
+    At b0f60a6 the Sepsis-shaped cohort confirmed ``a a``, then re-exported with the
+    ``patient`` column holding the ten strings ``0.0`` .. ``0.9`` (``categorical; 20
+    unique`` stored, ``float; 10 unique`` fresh), passed ``map --yes`` and ``run --yes``
+    with exit 0, and ``Gender`` re-exported as 0/1/2 did too
+    (``tests/test_mapping_repair3_2.py::test_yes_halts_h07_when_a_confirmed_columns_values_changed``
+    feeds both). Compared only where both summaries hold the column (a ``fresh``
+    computed from headers alone has none)."""
     if not prior.all_high:
         unconfirmed = [
             r
@@ -858,6 +929,22 @@ def _check_yes_rule(prior: Mapping, fresh: Mapping) -> None:
                 f"this table gives it {f.role_label}; run proofpack map again",
                 {"prior_role": p.role_label, "fresh_role": f.role_label},
             )
+    changed = sum(
+        1
+        for f in fresh.roles
+        if by_original[f.original].confirmed
+        and f.original in prior.value_summaries
+        and f.original in fresh.value_summaries
+        and _summary_shape(prior.value_summaries[f.original])
+        != _summary_shape(fresh.value_summaries[f.original])
+    )
+    if changed:
+        raise HaltError(
+            "H07",
+            "the values of a column confirmed at the prompt changed since mapping.json was "
+            "written (inferred type or the two-valued split); run proofpack map again",
+            {"confirmed_columns_changed": changed},
+        )
     if not fresh.all_high:
         unconfirmed = [f for f in fresh.non_high if not by_original[f.original].confirmed]
         if unconfirmed:
@@ -897,9 +984,14 @@ def check_h07(
     at 1354758 a prior ``age high`` on a column now holding bands passed ``map --yes`` and
     was rewritten, lens-3 FA-N2;
     ``::test_yes_halts_h07_when_the_prior_role_differs_from_the_fresh_one``);
-    every fresh non-high role confirmed in the prior for that column. An edited entry
-    (``role`` changed at the prompt) is not ``confirmed`` and its fresh role differs, so
-    it does not pass ``--yes`` - open question 1 of the repair-3 note.
+    each confirmed entry's stored value summary equal in type and split values to the
+    fresh one (repair 3.2, FA-B2 of lens 1: ``_check_yes_rule``); every fresh non-high
+    role confirmed in the prior for that column. An edited entry (``role`` changed at
+    the prompt) is not ``confirmed`` and its fresh role differs, so it does not pass
+    ``--yes`` - open question 1 of the repair-3 note. The prior is returned with
+    ``decided_by`` set to ``file`` when it was ``interactive`` or ``file``; a
+    ``proposed`` prior (interactive mode only; ``--yes`` halted on it above) keeps
+    ``proposed``.
     """
     current = header_set_sha256(headers)
     fresh = fresh or map_headers(headers)
@@ -919,7 +1011,14 @@ def check_h07(
         _check_prior_against_table(prior, headers)
         if non_interactive:
             _check_yes_rule(prior, fresh)
-        prior.decided_by = "file"
+        if prior.decided_by in CONFIRMED_DECIDED_BY:
+            # a ``proposed`` prior keeps that word: at b0f60a6 ``run --mapping`` on the
+            # file ``run`` had written without a prompt relabelled it ``file`` on the way
+            # into the pack, and ``--yes`` then took it (lens-1 RG-N5 of repair 3;
+            # tests/test_mapping_repair3_2.py::
+            # test_a_proposed_prior_is_not_relabelled_file_by_run_mapping).
+            # DEC-26 (E7, cmd_run) is the halt on the ``proposed`` file itself.
+            prior.decided_by = "file"
         return prior
 
     if non_interactive:

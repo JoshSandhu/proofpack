@@ -184,16 +184,26 @@ def _extreme_or_suppressed(x: float, counts: Counter) -> str:
 
 
 def _date_key(v: str) -> str:
-    """``YYYY-MM`` for ordering and display; slash shapes are reduced by their digits."""
+    """``YYYY-MM`` for ordering and display; slash shapes are reduced by their digits.
+
+    A D/M/YYYY shape is read day-first; when that gives a month above 12 and the other
+    order does not, the digits are read month-first (``03/15/2024`` -> ``2024-03``; at
+    b0f60a6 it printed ``min 2024-15``, lens-1 FA-N4 of repair 3;
+    ``tests/test_mapping_repair3_2.py::test_us_shaped_slash_dates_key_to_a_real_month``).
+    ``13/15/2024`` is a month under neither order and keeps the day-first key
+    ``2024-15`` (the same test).
+    """
     m = _ISO_DATE.match(v)
     if m:
         return f"{m.group(1)}-{m.group(2)}"
     m = re.match(r"^(\d{4})/(\d{2})/\d{2}$", v)
     if m:
         return f"{m.group(1)}-{m.group(2)}"
-    m = re.match(r"^\d{1,2}[/.-](\d{1,2})[/.-](\d{4})$", v)
+    m = re.match(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$", v)
     if m:
-        return f"{m.group(2)}-{int(m.group(1)):02d}"
+        first, second = int(m.group(1)), int(m.group(2))
+        month = first if second > 12 and first <= 12 else second
+        return f"{m.group(3)}-{month:02d}"
     m = re.match(r"^\d{1,2}\s+([A-Za-z]+)\s+(\d{4})$", v)
     if m:
         return f"{m.group(2)}-{_MONTHS.index(m.group(1)[:3].lower()) + 1:02d}"

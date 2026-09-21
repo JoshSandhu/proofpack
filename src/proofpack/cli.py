@@ -176,8 +176,17 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
     prompts wrote two ``case_id`` holders; repair 1 checked edits only). An edit to
     ``ignore`` on a column whose folded header equals a role any other entry currently
     holds (settled or pending) is refused with one line naming both headers and the
-    role, and so is an accept or an edit to a role that an already-ignored column is
-    named for (DEC-31; ``io.mapping.ignore_collision``). An edited ``attr_`` / ``rater_``
+    role (DEC-31; ``io.mapping.ignore_collision``;
+    ``tests/test_mapping_repair3.py::test_ignore_on_a_column_named_for_a_held_role_is_refused_at_the_prompt``
+    feeds ``e ignore`` on ``score`` while ``prob`` is proposed ``score``). The accept
+    arm and the edit arm run the same check for a role an already-ignored entry is
+    named for; ``map_headers`` proposes ``ignore`` on no header that is a role name (it
+    ignores an empty or unmapped header only), so that direction is reached by a
+    hand-built ``Mapping`` (``score -> ignore high`` beside ``prob -> score low``,
+    answered ``a`` then ``e y_pred``:
+    ``::test_accept_or_edit_to_a_role_an_ignored_column_is_named_for_is_refused``) and
+    not from ``proofpack map`` as measured on the 19 canonical names plus ``attr_x`` and
+    ``rater_x`` (lens-1 RG-N1 of repair 3). An edited ``attr_`` / ``rater_``
     name must match the schema's identifier rule (at e92989b ``attr_x y`` was written and
     ``validate`` later dropped it into ``unused_columns``, FA-N5;
     ``::test_edit_prompt_refuses_bare_and_non_identifier_attr_names``).
@@ -205,8 +214,8 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
             return None
         ignored, name, holder = pair
         return (
-            f"  refused: the ignored column {ignored.original!r} keeps its name, which is "
-            f"the role {name} that {holder.original!r} would hold; give one of them another role"
+            f"  refused: the ignored column {ignored.original!r} is named for the role "
+            f"{name} that {holder.original!r} would hold (DEC-31); give one of them another role"
         )
 
     def held_by(r, role):
@@ -295,11 +304,15 @@ def cmd_map(args: argparse.Namespace) -> int:
         # ``PermissionError`` with the full local path (lens-3 FA-N1; carried 6;
         # tests/test_mapping_repair3.py::
         # test_out_naming_an_existing_directory_halts_h07_before_any_prompt)
+        # ``C:/`` resolves to a name of "" (lens-1 RG-N6 of repair 3: the message printed
+        # "()" and "/mapping.json"; tests/test_mapping_repair3_2.py::
+        # test_out_naming_a_drive_root_says_so)
         name = out_path.resolve().name or out_path.name
+        shown = name or "a drive root"
+        example = f"{name}/mapping.json" if name else "mapping.json inside a directory"
         raise HaltError(
             "H07",
-            f"--out names an existing directory ({name}); pass a file path such as "
-            f"{name}/mapping.json",
+            f"--out names an existing directory ({shown}); pass a file path such as {example}",
             {"out_is_dir": True},
         )
     out_dir = out_path.resolve().parent
@@ -346,6 +359,17 @@ def cmd_map(args: argparse.Namespace) -> int:
         raise HaltError("H07", "mapping interrupted; nothing written") from None
     try:
         m.write(args.out)
+    except OSError:
+        # at b0f60a6 a read-only --out under --yes was exit 5 ``internal error:
+        # PermissionError: [Errno 13] Permission denied: '<--out as typed>'`` (lens-1
+        # FA-N1 of repair 3; tests/test_mapping_repair3_2.py::
+        # test_read_only_out_is_h07_without_the_path). The path is not printed.
+        raise HaltError(
+            "H07",
+            "--out could not be written (permission or a device in the way); pass a "
+            "writable file path",
+            {"out_written": False},
+        ) from None
     except KeyboardInterrupt:
         # at 1354758 Ctrl-C raised from write() after the last prompt left main() as a
         # traceback (lens-3 FA-N7; carried 12; tests/test_mapping_repair3.py::

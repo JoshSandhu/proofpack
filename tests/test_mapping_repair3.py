@@ -3,9 +3,13 @@ DEC-31, DEC-39 and carried 6, 11, 12; one test per fix.
 
 Every test names the literal input it feeds and the figures it asserts. Each test whose
 docstring begins "At 1354758" failed at that sha (the first ``E`` line is in the repair-3
-note); the five whose docstring begins "Observes" pass there and are here so that one of
-the lens-3 mutants L08, L11, L13, L14 or L20 (``scripts/mutation_sweep.py --marker day6``)
-fails a test.
+note), except ``test_sixty_distinct_two_digit_year_dates_are_not_typed_date``, which
+passed there (its docstring says so: the sentence in ``profile.py`` was wrong, the code
+was not - lens-1 RG-B1 of repair 3); the five whose docstring begins "Observes" pass
+there and are here so that one of the lens-3 mutants L08, L11, L13, L14 or L20
+(``scripts/mutation_sweep.py --marker day6``) fails a test. Repair 3.2 changed the
+DEC-31 refusal and halt lines (``DEC31_PRIOR`` and the prompt line) and the collision
+block of ``test_ignored_columns_otherwise_keep_their_name_at_apply_mapping``.
 """
 
 from __future__ import annotations
@@ -36,8 +40,11 @@ pytestmark = pytest.mark.day6
 FIXTURES = Path(__file__).parent / "fixtures" / "mapping"
 DEC31_PRIOR = (
     "HALT H07: mapping.json ignores the column whose header is the role name score and maps "
-    "another column to score: an ignored column keeps its name and the two would collide; "
-    "run proofpack map again and give one of them another role"
+    "another column to score (DEC-31); run proofpack map again and give one of them another role"
+)
+DEC31_PROMPT = (
+    "  refused: the ignored column 'score' is named for the role score that {holder!r} would "
+    "hold (DEC-31); give one of them another role"
 )
 
 
@@ -156,10 +163,7 @@ def test_ignore_on_a_column_named_for_a_held_role_is_refused_at_the_prompt(
     assert prompts[0] == prompts[2] and prompts[0].startswith("'score' -> score (low)")
     assert prompts[4].startswith("'prob' -> score (low)")
     lines = captured.out.splitlines()
-    assert (
-        "  refused: the ignored column 'score' keeps its name, which is the role score that "
-        "'prob' would hold; give one of them another role"
-    ) in lines
+    assert DEC31_PROMPT.format(holder="prob") in lines
     written = json.loads(out.read_text(encoding="utf-8"))
     roles = {r["original"]: r for r in written["roles"]}
     assert (roles["score"]["role"], roles["score"]["confirmed"]) == ("attr_score_flag", False)
@@ -236,12 +240,30 @@ def test_accept_or_edit_to_a_role_an_ignored_column_is_named_for_is_refused():
     said: list[str] = []
     answers = iter(["e", "ignore", "e", "score", "e", "ignore"])
     _confirm_interactive(m, ask=lambda p: next(answers), say=said.append)
-    assert said == [
-        "  refused: the ignored column 'score' keeps its name, which is the role score that "
-        "'outcome' would hold; give one of them another role"
-    ]
+    assert said == [DEC31_PROMPT.format(holder="outcome")]
     assert (m.entry("score").role, m.entry("outcome").role) == (None, None)
     assert ignore_collision(m.roles) is None
+    # the accept direction, reached by a hand-built Mapping only (map_headers proposes
+    # ignore on no header that is a role name): score already ignored, prob proposed
+    # score low; "a" on prob is refused, "e y_pred" is taken (lens-1 RG-N1 of repair 3)
+    m = Mapping(
+        header_set_sha256(["score", "prob"]),
+        [RoleMapping("score", None, "high"), RoleMapping("prob", "score", "low", "synonym")],
+        "proposed",
+        "",
+    )
+    said = []
+    answers = iter(["a", "e", "y_pred"])
+    _confirm_interactive(m, ask=lambda p: next(answers), say=said.append)
+    assert said == [DEC31_PROMPT.format(holder="prob")]
+    assert (m.entry("score").role, m.entry("prob").role, m.entry("prob").confirmed) == (
+        None,
+        "y_pred",
+        False,
+    )
+    assert [r.role for r in map_headers(canonical_columns() + ["attr_x", "rater_x"]).roles] == (
+        canonical_columns() + ["attr_x", "rater_x"]
+    )
     # the helper on a hand-built pair, and a folded header ('Score', ' SCORE ')
     for header in ("Score", " SCORE "):
         pair = ignore_collision(
@@ -274,7 +296,9 @@ def test_ignored_columns_otherwise_keep_their_name_at_apply_mapping():
         "",
     )
     assert list(apply_mapping(cols, m)) == ["row_id", "score", "notes"]
-    # the colliding pair fed to apply_mapping directly (check_h07 halts it first on a prior)
+    # the DEC-31 pair fed to apply_mapping directly (check_h07 halts it first on a prior):
+    # at b0f60a6 this was H07 "two columns map to the same canonical role"; since repair
+    # 3.2 the ignored score is keyed ignored:score (lens-1 FA-B1 of repair 3)
     cols = _cols(row_id=["1", "2"], prob=["0.1", "0.9"], score=["1", "0"])
     m = Mapping(
         header_set_sha256(list(cols)),
@@ -286,13 +310,9 @@ def test_ignored_columns_otherwise_keep_their_name_at_apply_mapping():
         "file",
         "",
     )
-    with pytest.raises(HaltError) as ei:
-        apply_mapping(cols, m)
-    assert (ei.value.code, ei.value.message, ei.value.detail) == (
-        "H07",
-        "two columns map to the same canonical role",
-        {"role": "score"},
-    )
+    out = apply_mapping(cols, m)
+    assert list(out) == ["row_id", "score", "ignored:score"]
+    assert out["score"] == ["0.1", "0.9"] and out["ignored:score"] == ["1", "0"]
 
 
 # --------------------------------------------------------------------------- blocker 3
@@ -548,18 +568,23 @@ def test_yes_halts_h07_on_an_original_outside_the_header_set(tmp_path: Path, cap
         "HALT H07: mapping.json has no entry for a column of this table; run proofpack map again"
     )
     assert '"columns_without_entry": 6' in err
-    # two entries for one header (the second says ignore): entry set != header set
+    # two entries for one header: the site entry appended a second time unchanged (at
+    # 8530f90 this shape passed map --yes with exit 0 and the file was rewritten with 7
+    # entries - lens-1 RG-N2 of repair 3; the ignore variant below was already DEC-31's H07)
     csv_path, prior, data = _confirmed_prior(tmp_path, make_cohort())
     site = next(r for r in data["roles"] if r["original"] == "site")
-    data["roles"].append({**site, "role": "ignore"})
-    prior.write_text(json.dumps(data), encoding="utf-8")
-    rc = main(["map", "--input", str(csv_path), "--out", str(prior), "--yes"])
-    err = capsys.readouterr().err
-    assert rc == EXIT_HALT
-    assert err.splitlines()[0] == (
-        "HALT H07: mapping.json holds two entries for one column; run proofpack map again"
-    )
-    assert '"duplicate_entries": 1' in err
+    for twin in (dict(site), {**site, "role": "ignore"}):
+        data["roles"].append(twin)
+        prior.write_text(json.dumps(data), encoding="utf-8")
+        before = prior.read_bytes()
+        rc = main(["map", "--input", str(csv_path), "--out", str(prior), "--yes"])
+        err = capsys.readouterr().err
+        assert rc == EXIT_HALT, twin
+        assert err.splitlines()[0] == (
+            "HALT H07: mapping.json holds two entries for one column; run proofpack map again"
+        )
+        assert '"duplicate_entries": 1' in err and prior.read_bytes() == before
+        assert data["roles"].pop() is twin
 
 
 @pytest.mark.parametrize("bad_role", ["SECRET_ROLE_NAME", "attr_", "attr_x y", "Score", "rater_"])
