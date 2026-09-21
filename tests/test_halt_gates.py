@@ -12,7 +12,14 @@ from pathlib import Path
 
 import pytest
 
-from conftest import make_cohort, make_criteria, write_csv, write_yaml
+from conftest import (
+    confirmed_mapping,
+    ephemeral_registry,
+    make_cohort,
+    make_criteria,
+    write_csv,
+    write_yaml,
+)
 from proofpack.cli import main
 from proofpack.errors import EXIT_HALT, EXIT_OK, EXIT_WARNINGS, HALT_CODES, HaltError
 from proofpack.gates import check_paired, ingest
@@ -146,8 +153,10 @@ def test_h10_is_flag_only(tmp_path: Path):
     csv_path = write_csv(tmp_path / "test.csv", cols)
     yml = write_yaml(tmp_path / "criteria.yaml", crit)
     out = tmp_path / "pack"
+    confirmed_mapping(csv_path)  # DEC-26 (build day 7): run needs a confirmed mapping
     rc = main(
-        ["--quiet", "run", "--input", str(csv_path), "--criteria", str(yml), "--out", str(out)]
+        ["--quiet", "run", "--input", str(csv_path), "--criteria", str(yml), "--out", str(out)],
+        registry=ephemeral_registry(),
     )
     assert rc == EXIT_WARNINGS
     report = json.loads((out / "ingest_report.json").read_text())
@@ -375,6 +384,7 @@ def test_halt_detail_never_carries_headers_or_values():
 
 
 def test_clean_run_exit_0_and_report(tmp_path: Path, cohort_csv, criteria_yaml, out_dir):
+    confirmed_mapping(cohort_csv)  # DEC-26 (build day 7): run needs a confirmed mapping
     rc = main(
         [
             "--quiet",
@@ -385,12 +395,14 @@ def test_clean_run_exit_0_and_report(tmp_path: Path, cohort_csv, criteria_yaml, 
             str(criteria_yaml),
             "--out",
             str(out_dir),
-        ]
+        ],
+        registry=ephemeral_registry(),
     )
     assert rc == EXIT_OK
     report = json.loads((out_dir / "ingest_report.json").read_text())
     assert report["flow"]["included"] == 400
     assert report["declared"]["positive"] == "1"
-    assert (out_dir / "mapping.json").exists()
+    # DEC-26: run writes no mapping.json into the pack; the document is run.json
+    assert not (out_dir / "mapping.json").exists() and (out_dir / "run.json").exists()
     raw = load_table(cohort_csv)
     assert raw.header_set_sha256 == report["header_set_sha256"]

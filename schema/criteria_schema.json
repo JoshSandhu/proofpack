@@ -84,8 +84,11 @@
             "type": { "type": "string", "enum": ["point", "paired_difference_vs_prior"] },
             "operating_point": { "type": "string" },
             "scope": { "$ref": "#/$defs/scope" },
-            "statistic": { "type": "string", "enum": ["ci_lower_bound", "point_estimate"] },
-            "comparator": { "type": "string", "enum": [">=", ">", "<=", "<"] },
+            "statistic": {
+              "type": "string", "enum": ["ci_lower_bound", "ci_upper_bound", "point_estimate"],
+              "description": "The end of the Number read, literally: ci_lower_bound is ci_lo, ci_upper_bound is ci_hi, point_estimate is est. The engine never swaps ends for a comparator (E7, build day 7); ci_upper_bound is an E7 addition to D1 section 2's two values."
+            },
+            "comparator": { "type": "string", "enum": [">=", ">", "<=", "<"], "description": "Applied as <statistic> <comparator> <value>; no default." },
             "value": { "type": "number" }
           },
           "required": ["id", "metric", "statistic", "comparator", "value"]
@@ -177,14 +180,19 @@
               "enum": ["tpr_gap", "fpr_gap", "ppv_gap", "npv_gap", "auroc_gap", "calibration_by_group"]
             },
             "attribute": { "type": "string" },
-            "bound": { "type": ["number", "null"] }
+            "bound": { "type": ["number", "null"], "description": "Optional numeric bound -> met / not met / not assessable rows in criteria_results (E7); absent or null -> descriptive only, no row. A present bound requires statistic and comparator beside it; no default exists." },
+            "statistic": { "type": "string", "enum": ["ci_lower_bound", "ci_upper_bound", "point_estimate"] },
+            "comparator": { "type": "string", "enum": [">=", ">", "<=", "<"] }
           },
-          "required": ["criterion_of_interest", "attribute"]
+          "required": ["criterion_of_interest", "attribute"],
+          "if": { "properties": { "bound": { "type": "number" } }, "required": ["bound"] },
+          "then": { "required": ["statistic", "comparator"] }
         }
       ]
     },
     "ledger": {
       "type": "object",
+      "description": "Customer-set; no default. When present, io.ledger counts the runs with a criteria block on this test set (SHA-256 of the analysed y_true and score bytes) and warns W14 when the count exceeds warn_after_acceptance_runs. Absent -> no warning ever (E7).",
       "properties": { "warn_after_acceptance_runs": { "type": "integer", "minimum": 1 } },
       "required": ["warn_after_acceptance_runs"]
     },

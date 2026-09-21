@@ -219,7 +219,7 @@ class DiscriminationResult:
     se: float | None
     n_pos: int
     n_neg: int
-    roc: list[list[float]]
+    roc: list[list[float | None]]
     clustered: bool = False
     n_cases: int | None = None
 
@@ -538,10 +538,13 @@ def unpaired_delong(
 # ------------------------------------------------------------------------- ROC arrays
 
 
-def roc_curve(scores: np.ndarray, positives: np.ndarray) -> list[list[float]]:
+def roc_curve(scores: np.ndarray, positives: np.ndarray) -> list[list[float | None]]:
     """ROC coordinates as ``[[fpr, tpr, threshold], ...]``, ordered by falling threshold.
 
-    One point per distinct score value, plus the origin at ``threshold = +inf``.
+    One point per distinct score value, plus the origin, whose threshold is ``None``:
+    no finite threshold calls zero rows positive, and the document is canonical JSON
+    that refuses a non-finite float (build day 7; until then the origin carried
+    ``float("inf")``, which ``json.dumps(allow_nan=False)`` rejects).
     A prediction is positive when ``score >= threshold`` (the engine's default rule;
     the declared rule is applied by :func:`locate_operating_points`).
     """
@@ -557,7 +560,7 @@ def roc_curve(scores: np.ndarray, positives: np.ndarray) -> list[list[float]]:
     fp = np.cumsum(~p)
     # Keep only the last index of each run of equal scores.
     last = np.r_[np.flatnonzero(np.diff(s) != 0), s.shape[0] - 1]
-    out = [[0.0, 0.0, float("inf")]]
+    out: list[list[float | None]] = [[0.0, 0.0, None]]
     for i in last:
         out.append([float(fp[i]) / n_neg, float(tp[i]) / n_pos, float(s[i])])
     return out

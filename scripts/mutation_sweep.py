@@ -26,6 +26,7 @@ Usage::
 
     python scripts/mutation_sweep.py --marker day5            # the day-5 list against -m day5
     python scripts/mutation_sweep.py --marker day6            # both day-6 lists (E and A)
+    python scripts/mutation_sweep.py --marker day7            # the day-7 list (E7)
     python scripts/mutation_sweep.py --marker day5 --only ref_largest_to_smallest
     python scripts/mutation_sweep.py --list
     python scripts/mutation_sweep.py --marker day5 --fail-on-survivor   # exit 1 if any survive
@@ -1252,7 +1253,189 @@ MUTANTS_DAY6_A: tuple[Mutant, ...] = (
     ),
 )
 
-MUTANTS = MUTANTS + MUTANTS_DAY6_A
+CRITERIA = "src/proofpack/criteria.py"
+ATTAINABILITY = "src/proofpack/stats/attainability.py"
+LEDGER = "src/proofpack/io/ledger.py"
+MANIFEST = "src/proofpack/manifest.py"
+LICENCE_VERIFY = "src/proofpack/licence/verify.py"
+RUN = "src/proofpack/run.py"
+DESCRIPTIVE = "src/proofpack/stats/descriptive.py"
+BOOTSTRAP = "src/proofpack/stats/bootstrap.py"
+
+#: The day-7 list (E7: criteria engine, attainability, ledger, manifest, licence verify,
+#: the DEC-26 gate in run, the three carried items). ``--marker day7``.
+MUTANTS_DAY7: tuple[Mutant, ...] = (
+    Mutant(
+        "comparator_ge_to_gt",
+        CRITERIA,
+        r"return statistic_value >= value",
+        "return statistic_value > value",
+        day=7,
+        what="the >= comparator reads as >",
+    ),
+    Mutant(
+        "ci_lower_bound_reads_upper",
+        CRITERIA,
+        r'return number\.get\("ci_lo"\)',
+        'return number.get("ci_hi")',
+        day=7,
+        what="ci_lower_bound reads ci_hi (the ci index)",
+    ),
+    Mutant(
+        "point_estimate_reads_lower",
+        CRITERIA,
+        r'return number\.get\("est"\)',
+        'return number.get("ci_lo")',
+        day=7,
+        what="point_estimate reads ci_lo",
+    ),
+    Mutant(
+        "fairness_bound_none_still_evaluated",
+        CRITERIA,
+        r'if f is None or f\.get\("bound"\) is None:',
+        "if f is None:",
+        day=7,
+        what="a fairness block without a bound is evaluated (float(None))",
+    ),
+    Mutant(
+        "attainability_upper_bound",
+        ATTAINABILITY,
+        r"return wilson_bounds\(n, n, level\)\[0\]",
+        "return wilson_bounds(n, n, level)[1]",
+        day=7,
+        what="the k = n Wilson UPPER bound (1.0) instead of the lower",
+    ),
+    Mutant(
+        "attainable_ge_to_gt",
+        ATTAINABILITY,
+        r"return bound >= value",
+        "return bound > value",
+        day=7,
+        what="attainable_at_n for >= uses a strict comparison",
+    ),
+    Mutant(
+        "ledger_increment_by_two",
+        LEDGER,
+        r"counts\[key\] = counts\.get\(key, 0\) \+ 1",
+        "counts[key] = counts.get(key, 0) + 2",
+        day=7,
+        what="the ledger increment counts two per run",
+    ),
+    Mutant(
+        "ledger_warn_at_limit",
+        LEDGER,
+        r"and count > limit:",
+        "and count >= limit:",
+        day=7,
+        what="the warning fires at the limit instead of above it",
+    ),
+    Mutant(
+        "manifest_criteria_hash_of_input",
+        MANIFEST,
+        r'"criteria_sha256": sha256_file\(criteria_path\),',
+        '"criteria_sha256": sha256_file(input_path),',
+        day=7,
+        what="criteria_sha256 hashes the input file",
+    ),
+    Mutant(
+        "canonical_json_unsorted",
+        MANIFEST,
+        r"doc, sort_keys=True, indent=1,",
+        "doc, sort_keys=False, indent=1,",
+        day=7,
+        what="canonical JSON without sorted keys",
+    ),
+    Mutant(
+        "signature_over_payload_bytes",
+        LICENCE_VERIFY,
+        r'\.verify\(signature, segment\.encode\("ascii"\)\)',
+        ".verify(signature, payload_bytes)",
+        day=7,
+        what="the signature is checked over the decoded payload, not the segment",
+    ),
+    Mutant(
+        "expires_compared_to_grace_end",
+        LICENCE_VERIFY,
+        r"if now <= effective \+ CLOCK_SKEW:",
+        "if now <= grace_end + CLOCK_SKEW:",
+        day=7,
+        what="ok until the end of grace (the expires comparison)",
+    ),
+    Mutant(
+        "skew_sign_flipped",
+        LICENCE_VERIFY,
+        r"if now <= effective \+ CLOCK_SKEW:",
+        "if now <= effective - CLOCK_SKEW:",
+        day=7,
+        what="the 24 h clock-skew tolerance subtracted instead of added",
+    ),
+    Mutant(
+        "unknown_key_id_falls_back",
+        LICENCE_VERIFY,
+        r"public_key = registry\.lookup\(key_id\)$",
+        "public_key = registry.lookup(key_id) or next(iter(registry.keys.values()))",
+        day=7,
+        what="an unknown key_id falls back to the registry's first key",
+    ),
+    Mutant(
+        "trial_takes_the_later_expiry",
+        LICENCE_VERIFY,
+        r"effective = min\(expires, issued \+ timedelta\(days=TRIAL_DAYS\)\)",
+        "effective = max(expires, issued + timedelta(days=TRIAL_DAYS))",
+        day=7,
+        what="a trial's 30-day rule takes the later of the two dates",
+    ),
+    Mutant(
+        "run_h07_gate_dropped",
+        RUN,
+        r"    p = default_mapping_path\(input_path\)\n    if not p\.exists\(\):",
+        "    p = default_mapping_path(input_path)\n    if False:",
+        day=7,
+        what="run without a mapping falls through to ingest (no 'run proofpack map first')",
+    ),
+    Mutant(
+        "refused_licence_no_watermark",
+        RUN,
+        r'watermark = licence\.watermark if licence\.status != "refused" else WATERMARK_EXPIRED',
+        "watermark = licence.watermark",
+        day=7,
+        what="a refused licence leaves the watermark null",
+    ),
+    Mutant(
+        "licence_exit_code_ok",
+        RUN,
+        r"if not self\.licence\.usable:\n            return EXIT_LICENCE",
+        "if not self.licence.usable:\n            return EXIT_OK",
+        day=7,
+        what="an unusable licence exits 0",
+    ),
+    Mutant(
+        "blank_case_id_needs_four",
+        SCHEMA_IO,
+        r"        if blank:\n            raise HaltError\(",
+        "        if blank > 3:\n            raise HaltError(",
+        day=7,
+        what="S05 fires only above three blank ids (carried 26)",
+    ),
+    Mutant(
+        "dev_rows_counts_test",
+        DESCRIPTIVE,
+        r'int\(sum\(1 for v in table\.dataset\.tolist\(\) if v == "dev"\)\)',
+        'int(sum(1 for v in table.dataset.tolist() if v == "test"))',
+        day=7,
+        what="flow.dev_rows counts the test rows (carried 27)",
+    ),
+    Mutant(
+        "resample_sd_inf_kept",
+        BOOTSTRAP,
+        r"return None, RESAMPLE_SD_NOT_FINITE",
+        "return sd, RESAMPLE_SD_NOT_FINITE",
+        day=7,
+        what="a non-finite resample sd is written as inf (carried 25)",
+    ),
+)
+
+MUTANTS = MUTANTS + MUTANTS_DAY6_A + MUTANTS_DAY7
 
 
 def make_copy() -> Path:

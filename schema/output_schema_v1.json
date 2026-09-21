@@ -4,12 +4,23 @@
   "title": "ProofPack output document v1",
   "description": "D1 section 4. The document the renderer consumes. Sections not yet produced by the engine (calibration, robustness, comparison, drift, claims) are declared here with their shape so the schema is stable, but are permitted to be null or absent until their build day lands. The subgroups, subgroup_attributes and fairness blocks landed on build day 5 (stats.subgroups).",
   "type": "object",
-  "required": ["schema_version", "manifest", "declarations", "halts", "warnings", "flow"],
+  "required": [
+    "schema_version", "manifest", "declarations", "halts", "warnings", "flow",
+    "table1", "missingness", "overall", "calibration", "calibration_suppressed_reason",
+    "subgroups", "subgroup_attributes", "fairness", "criteria_results", "suppression_log",
+    "guidance_refs"
+  ],
   "properties": {
     "schema_version": { "const": 1 },
     "manifest": {
       "type": "object",
-      "required": ["run_id", "engine_version", "python", "numpy", "seed", "started"],
+      "description": "Build day 7 (E7, proofpack.manifest): every key present; run_id, started and duration_s are the only ones that differ between two runs of the same inputs on one platform (F17). watermark is the licence state the footer prints (D4 section 3): null, TRIAL, or 'LICENCE EXPIRED - not for submission'.",
+      "required": [
+        "run_id", "engine_version", "platform", "python", "numpy", "scipy", "input_sha256",
+        "criteria_sha256", "mapping_sha256", "seed", "B", "started", "duration_s",
+        "reference_platform", "licence_id", "tier", "ledger_count", "watermark"
+      ],
+      "additionalProperties": false,
       "properties": {
         "run_id": { "type": "string" },
         "engine_version": { "type": "string" },
@@ -27,7 +38,8 @@
         "reference_platform": { "type": "boolean" },
         "licence_id": { "type": ["string", "null"] },
         "tier": { "type": ["string", "null"] },
-        "ledger_count": { "type": ["integer", "null"] }
+        "ledger_count": { "type": ["integer", "null"] },
+        "watermark": { "enum": [null, "TRIAL", "LICENCE EXPIRED - not for submission"] }
       }
     },
     "declarations": { "type": "object" },
@@ -46,9 +58,10 @@
     },
     "flow": {
       "type": "object",
-      "required": ["rows_read", "analysed"],
+      "required": ["rows_read", "dev_rows", "excluded_missing_label", "excluded_missing_score", "indeterminate", "analysed"],
       "properties": {
         "rows_read": { "type": "integer", "minimum": 0 },
+        "dev_rows": { "type": "integer", "minimum": 0, "description": "Build day 7 (carried item 27): rows whose dataset column reads dev, never analysed; rows_read = dev_rows + excluded_missing_label + excluded_missing_score + indeterminate + analysed." },
         "excluded_missing_label": { "type": "integer", "minimum": 0 },
         "excluded_missing_score": { "type": "integer", "minimum": 0 },
         "indeterminate": { "type": "integer", "minimum": 0 },
@@ -88,13 +101,76 @@
     "robustness": { "type": ["object", "null"] },
     "comparison": { "type": ["object", "null"] },
     "drift": { "type": ["object", "null"] },
-    "criteria_results": { "type": ["array", "null"], "items": { "type": "object" } },
+    "ledger": {
+      "type": "object",
+      "description": "Build day 7 (E7, io.ledger; D4 section 11 item 6): the analysed test set's SHA-256, the acceptance runs recorded on it in the local ledger (including this run, when it carried criteria), the customer's declared limit (null when no ledger block was declared), and whether the count could be read.",
+      "required": ["test_set_sha256", "acceptance_runs", "warn_limit", "counted"],
+      "additionalProperties": false,
+      "properties": {
+        "test_set_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "acceptance_runs": { "type": ["integer", "null"], "minimum": 0 },
+        "warn_limit": { "type": ["integer", "null"], "minimum": 1 },
+        "counted": { "type": "boolean" }
+      }
+    },
+    "criteria_results": {
+      "type": "array",
+      "description": "Build day 7 (E7, proofpack.criteria). One row per criterion per level in scope, plus one per level for a fairness bound (criterion_id 'fairness:<criterion_of_interest>'). The only place in the document the words met / not_met / not_assessable appear. Every bound, statistic and comparator is the customer's; attainable_at_n / max_lower_bound_at_n are stats.attainability's Wilson bound at k = n, filled for ci_lower_bound criteria on proportion metrics only.",
+      "items": { "$ref": "#/$defs/criterionResult" }
+    },
     "claims": { "type": ["array", "null"], "items": { "type": "object" } },
-    "suppression_log": { "type": ["array", "null"], "items": { "type": "object" } },
-    "guidance_refs": { "type": ["array", "null"], "items": { "type": "object" } }
+    "suppression_log": { "type": "array", "items": { "type": "object" }, "description": "Empty at launch: k-suppression applies on egress only (A-P2)." },
+    "guidance_refs": { "type": "array", "items": { "type": "object" }, "description": "Empty until the renderer resolves anchors (E9)." }
   },
 
   "$defs": {
+    "criterionResult": {
+      "type": "object",
+      "required": [
+        "criterion_id", "metric", "operating_point", "scope", "statistic", "comparator", "value",
+        "metric_ref", "compared_value", "n", "method", "attainable_at_n", "max_lower_bound_at_n",
+        "status", "reason_code", "detail"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "criterion_id": { "type": "string" },
+        "metric": { "anyOf": [ { "$ref": "#/$defs/metricId" }, { "const": "calibration_by_group" } ] },
+        "operating_point": { "type": ["string", "null"] },
+        "scope": {
+          "oneOf": [
+            { "const": "overall" },
+            { "type": "object", "required": ["attribute", "level"], "additionalProperties": false,
+              "properties": { "attribute": { "type": "string" }, "level": { "type": "string" } } }
+          ]
+        },
+        "statistic": { "enum": ["ci_lower_bound", "ci_upper_bound", "point_estimate"] },
+        "comparator": { "enum": [">=", ">", "<=", "<"] },
+        "value": { "type": "number" },
+        "metric_ref": { "type": ["string", "null"], "description": "JSON path of the Number read, e.g. subgroups[3].metrics.op1.sensitivity.number; null when nothing could be read." },
+        "compared_value": { "type": ["number", "null"] },
+        "n": { "type": ["integer", "null"] },
+        "method": { "oneOf": [ { "type": "null" }, { "$ref": "#/$defs/method" } ] },
+        "attainable_at_n": { "type": ["boolean", "null"] },
+        "max_lower_bound_at_n": { "type": ["number", "null"] },
+        "status": { "enum": ["met", "not_met", "not_assessable"] },
+        "reason_code": {
+          "enum": [
+            "statistic_compared", "no_interval", "suppressed", "metric_not_computed",
+            "metric_not_computed_for_scope", "calibration_suppressed", "no_calibration_block",
+            "level_absent", "level_is_reference", "gap_requires_fairness_attribute",
+            "no_fairness_block", "requires_compare", "overall_not_computed",
+            "not_estimable_this_run"
+          ]
+        },
+        "detail": { "type": "object" }
+      },
+      "allOf": [
+        { "if": { "properties": { "status": { "enum": ["met", "not_met"] } } },
+          "then": { "properties": { "reason_code": { "const": "statistic_compared" }, "compared_value": { "type": "number" } } } },
+        { "if": { "properties": { "status": { "const": "not_assessable" } } },
+          "then": { "properties": { "reason_code": { "not": { "const": "statistic_compared" } }, "compared_value": { "type": "null" } } } }
+      ]
+    },
     "metricId": {
       "enum": [
         "sensitivity", "specificity", "ppa", "npa", "ppv", "npv", "accuracy",
@@ -291,7 +367,7 @@
           "type": "array",
           "items": {
             "type": "array",
-            "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }],
+            "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": ["number", "null"], "description": "null at the origin (build day 7: no finite threshold calls zero rows positive; canonical JSON refuses inf)" }],
             "minItems": 3,
             "maxItems": 3
           }
@@ -979,7 +1055,7 @@
       "required": ["reason", "score_type", "orientation"],
       "additionalProperties": false,
       "properties": {
-        "reason": { "enum": ["score_not_probability", "score_not_positive_class_probability"] },
+        "reason": { "enum": ["score_not_probability", "score_not_positive_class_probability", "no_score_column"] },
         "score_type": { "enum": ["probability", "logit", "other"] },
         "orientation": { "enum": ["higher_is_positive", "lower_is_positive"] }
       }

@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import make_cohort, make_criteria, write_csv, write_yaml
+from conftest import ephemeral_registry, make_cohort, make_criteria, write_csv, write_yaml
 from proofpack import gates
 from proofpack.cli import main
 from proofpack.errors import EXIT_HALT, EXIT_OK
@@ -73,7 +73,8 @@ def _run(csv_path: Path, yml: Path, mapping: Path | None, out: Path, *flags: str
     argv = ["run", "--input", str(csv_path), "--criteria", str(yml), "--out", str(out), *flags]
     if mapping is not None:
         argv += ["--mapping", str(mapping)]
-    return main(argv)
+    # build day 7: run verifies a licence (the session's ephemeral one, via the registry)
+    return main(argv, registry=ephemeral_registry())
 
 
 def _edit(path: Path, *, original: str, role: str, decided_by: str | None, **entry) -> bytes:
@@ -120,7 +121,10 @@ def test_a_confirmed_file_prior_is_h07_on_a_role_difference_with_or_without_a_su
     cols = make_cohort(n=200)
     csv_path = write_csv(tmp_path / "t.csv", cols)
     yml = write_yaml(tmp_path / "c.yaml", make_criteria(subgroups=SITE_ONLY))
-    assert _run(csv_path, yml, None, tmp_path / "p1") == EXIT_OK
+    # the file run wrote until build day 7 is what map_headers computes (DEC-26: run
+    # proposes nothing now); written here with its six summaries
+    (tmp_path / "p1").mkdir()
+    map_headers(list(cols), cols).write(tmp_path / "p1" / "mapping.json")
     written = json.loads((tmp_path / "p1" / "mapping.json").read_text(encoding="utf-8"))
     assert written["decided_by"] == "proposed"
     assert sorted(written["value_summaries"]) == ["age", "row_id", "score", "sex", "site", "y_true"]
@@ -197,7 +201,8 @@ def test_decided_by_interactive_typed_by_hand_is_read_on_a_non_high_entry_only(
     cols = make_cohort(n=200)
     csv_path = write_csv(tmp_path / "t.csv", cols)
     yml = write_yaml(tmp_path / "c.yaml", make_criteria(subgroups=SITE_ONLY))
-    assert _run(csv_path, yml, None, tmp_path / "p1") == EXIT_OK
+    (tmp_path / "p1").mkdir()  # DEC-26 (build day 7): the computed file, written here
+    map_headers(list(cols), cols).write(tmp_path / "p1" / "mapping.json")
     hand = tmp_path / "hand.json"
     for entry in ({}, {"confidence": "medium"}):
         hand.write_bytes((tmp_path / "p1" / "mapping.json").read_bytes())
@@ -298,10 +303,15 @@ def test_yes_and_run_mapping_keep_decided_by_interactive(tmp_path: Path, capsys,
     out = tmp_path / "sp.json"
     _drive(monkeypatch, ["e", "attr_score_flag", "a"])
     assert main(["--quiet", "map", "--input", str(csv_path), "--out", str(out)]) == EXIT_OK
+    before = out.read_bytes()
     for flags, pack in (((), "p1"), (("--yes",), "p2")):
         rc = _run(csv_path, yml, out, tmp_path / pack, *flags)
         assert rc == 2, capsys.readouterr().err
-        copy = json.loads((tmp_path / pack / "mapping.json").read_text(encoding="utf-8"))
+        # DEC-26 (build day 7): run copies no mapping.json into the pack and leaves the
+        # prior's bytes (its decided_by word among them) exactly as read
+        assert not (tmp_path / pack / "mapping.json").exists(), flags
+        assert out.read_bytes() == before, flags
+        copy = json.loads(out.read_text(encoding="utf-8"))
         assert copy["decided_by"] == "interactive", flags
         assert {r["original"]: r["role"] for r in copy["roles"]}["score"] == "attr_score_flag"
     # a prior saying file keeps that word too

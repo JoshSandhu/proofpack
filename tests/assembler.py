@@ -22,6 +22,7 @@ from typing import Any
 import numpy as np
 
 from conftest import make_criteria
+from proofpack import criteria as criteria_mod
 from proofpack.io import schema as schema_mod
 from proofpack.io.declare import Declarations, validate_dict
 from proofpack.stats.bootstrap import BootstrapPolicy, plan_clustering, policy_from_declarations
@@ -91,17 +92,27 @@ def assemble(
     finding = plan.finding()
     if finding is not None:
         warnings.append({"code": finding.code, "text_id": None, "params": dict(finding.detail)})
-    return {
+    doc = {
         "schema_version": 1,
         "manifest": {
             "run_id": "test-only-assembler",
             "engine_version": "0.1.0.dev1",
+            "platform": "test",
             "python": "3",
             "numpy": str(np.__version__),
+            "scipy": None,
+            "input_sha256": None,
+            "criteria_sha256": None,
+            "mapping_sha256": None,
             "seed": pol.seed,
             "B": pol.n_resamples,
             "started": "2026-09-18T00:00:00Z",
+            "duration_s": None,
             "reference_platform": False,
+            "licence_id": None,
+            "tier": None,
+            "ledger_count": None,
+            "watermark": None,
         },
         "declarations": decl.raw,
         "halts": [],
@@ -112,4 +123,9 @@ def assemble(
         "overall": None if plan.clustered else _overall(table, decl, mask),
         **cal.as_document(),
         **sub.as_dict(),
+        "suppression_log": [],
+        "guidance_refs": [],
     }
+    # build day 7: the criteria engine reads the assembled blocks (E7, proofpack.criteria)
+    doc["criteria_results"] = criteria_mod.evaluate(decl, doc)
+    return doc

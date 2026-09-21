@@ -68,12 +68,17 @@ def test_two_partial_case_id_headers_reach_e01_at_apply_not_h07(tmp_path: Path, 
         "ignore); reduce your case key to one column"
     )
     assert ei.value.detail == {"n_case_id_columns": 2}
-    # through main(): no prior, no --yes, clustering.unit case_id
+    # through main(): a confirmed file prior holding both (DEC-26, build day 7: run reads
+    # <input>.mapping.json and proposes nothing itself), clustering.unit case_id
     csv_path = write_csv(tmp_path / "it.csv", cols)
     yml = write_yaml(
         tmp_path / "c.yaml",
         make_criteria(clustering={"unit": "case_id", "declared_by": "t"}),
     )
+    for r in m.non_high:
+        r.confirmed = True
+    m.decided_by = "file"
+    m.write(tmp_path / "it.csv.mapping.json")
     rc = main(
         ["run", "--input", str(csv_path), "--criteria", str(yml), "--out", str(tmp_path / "p")]
     )

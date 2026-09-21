@@ -1003,7 +1003,9 @@ def calibration_from_table(
     if reason is not None:
         return CalibrationResult(None, reason, decl.score_type, decl.orientation)
     if table.score is None:
-        raise ValueError("calibration needs a score column")
+        # E7, carried item 28: a y_pred-only table (allowed by S01) has nothing to
+        # calibrate; typed, where the caller writes suppressed_reason, not a raise
+        return CalibrationResult(None, "no_score_column", decl.score_type, decl.orientation)
     yt = table.y_true[mask]
     pos = np.array([v == decl.positive for v in yt.tolist()], dtype=bool)
     score = np.asarray(table.score[mask], dtype=np.float64)

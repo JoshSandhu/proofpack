@@ -6,8 +6,11 @@ Every value is produced by a seeded numpy Generator; nothing is hand-typed.
 
 from __future__ import annotations
 
+import base64
 import copy
 import csv
+import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -136,6 +139,22 @@ def write_yaml(path: Path, data: dict[str, Any]) -> Path:
     return path
 
 
+def confirmed_mapping(csv_path: Path, decided_by: str = "file") -> Path:
+    """Build day 7 (DEC-26): ``run`` needs a confirmed ``mapping.json``. This writes the
+    computed mapping of ``csv_path`` beside it as ``<input>.mapping.json`` with
+    ``decided_by`` set (``file`` = a hand-supplied prior the customer vouches for) - the
+    non-interactive way to what ``proofpack map`` writes after the prompts."""
+    from proofpack.io.mapping import map_headers
+    from proofpack.io.schema import load_table
+
+    raw = load_table(csv_path)
+    m = map_headers(raw.headers, raw.columns)
+    m.decided_by = decided_by
+    target = csv_path.with_name(csv_path.name + ".mapping.json")
+    m.write(target)
+    return target
+
+
 #: Node ids collected in this run that carry no ``dayN`` marker. Filled at collection
 #: time (before ``-m`` deselection) so the assertion in ``test_invariants.py`` sees the
 #: whole suite even when CI runs a single day's marker.
@@ -173,3 +192,102 @@ def criteria_yaml(tmp_path: Path, criteria) -> Path:
 @pytest.fixture
 def out_dir(tmp_path: Path) -> Path:
     return tmp_path / "pack"
+
+
+# ------------------------------------------------------------------ licences (build day 7)
+#
+# Tests never hold the production signing key. An Ed25519 pair is generated here, once per
+# session, and verification against it goes through the named ``registry`` parameter of
+# ``proofpack.cli.main`` / ``proofpack.licence.verify`` (the shipped constant is never
+# rebound). ``test_licence.py`` additionally verifies a file signed here against the SHIPPED
+# key and asserts it is refused (wrong key).
+
+TEST_KEY_ID = "test-ephemeral"
+
+
+def _ephemeral_pair():
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    private = Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(
+        serialization.Encoding.Raw, serialization.PublicFormat.Raw
+    )
+    return private, public
+
+
+TEST_PRIVATE_KEY, TEST_PUBLIC_KEY = _ephemeral_pair()
+TEST_PUBLIC_KEY_B64 = base64.b64encode(TEST_PUBLIC_KEY).decode("ascii")
+
+
+def ephemeral_registry():
+    from proofpack.licence.keys import KeyRegistry
+
+    return KeyRegistry.of(TEST_KEY_ID, TEST_PUBLIC_KEY)
+
+
+def iso_utc(dt: datetime) -> str:
+    return dt.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def licence_payload(
+    *,
+    tier: str = "annual",
+    issued: datetime | None = None,
+    expires: datetime | None = None,
+    grace_days: int = 30,
+    key_id: str = TEST_KEY_ID,
+    licence_id: str = "lic_test0000000000000000000000000001",
+    **extra: Any,
+) -> dict[str, Any]:
+    issued = issued if issued is not None else datetime(2026, 9, 1, tzinfo=UTC)
+    expires = expires if expires is not None else issued + timedelta(days=365)
+    payload = {
+        "licence_id": licence_id,
+        "licensee": "Test Licensee Ltd",
+        "company_no": "00000000",
+        "tier": tier,
+        "models": 1,
+        "features": ["T1", "T2", "T7", "T8", "T9", "T12", "compare", "monitor"],
+        "issued": iso_utc(issued),
+        "expires": iso_utc(expires),
+        "grace_days": grace_days,
+        "key_id": key_id,
+    }
+    payload.update(extra)
+    return payload
+
+
+def sign_licence(payload: dict[str, Any], private_key=None) -> str:
+    """The site's format: base64(JSON payload) '.' base64(signature over the ASCII bytes
+    of the first segment)."""
+    private_key = private_key if private_key is not None else TEST_PRIVATE_KEY
+    segment = base64.b64encode(json.dumps(payload).encode("utf-8")).decode("ascii")
+    sig = private_key.sign(segment.encode("ascii"))
+    return segment + "." + base64.b64encode(sig).decode("ascii")
+
+
+def write_licence(path: Path, payload: dict[str, Any] | None = None, **kw: Any) -> Path:
+    payload = payload if payload is not None else licence_payload(**kw)
+    path.write_text(sign_licence(payload), encoding="ascii")
+    return path
+
+
+@pytest.fixture(scope="session")
+def session_home(tmp_path_factory) -> Path:
+    """One per-user directory for the whole session with a valid ephemeral-signed annual
+    licence installed, so ``run`` through ``main(..., registry=ephemeral_registry())`` exits
+    0 / 2 rather than 4. Tests that need no licence, or their own ledger, point
+    ``PROOFPACK_HOME`` elsewhere with ``monkeypatch``."""
+    home = tmp_path_factory.mktemp("proofpack-home")
+    write_licence(home / "proofpack.lic")
+    return home
+
+
+@pytest.fixture(autouse=True)
+def _isolated_home(session_home: Path, monkeypatch):
+    """Every test reads the session home, never the machine's real per-user directory
+    (its licence and ledger must not be touched or counted by a test run)."""
+    monkeypatch.setenv("PROOFPACK_HOME", str(session_home))
+    monkeypatch.delenv("PROOFPACK_LICENCE", raising=False)
+    yield

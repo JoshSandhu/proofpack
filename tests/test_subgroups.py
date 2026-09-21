@@ -1106,6 +1106,10 @@ def fairness_criteria(**fair: Any) -> dict[str, Any]:
         "criterion_of_interest": "tpr_gap",
         "attribute": "sex",
         "bound": 0.05,
+        # build day 7 (E7): a bound is compared with the statistic and comparator the
+        # customer writes beside it; the schema requires both when a bound is present
+        "statistic": "ci_upper_bound",
+        "comparator": "<=",
         "author": "Dr F.",
         "date": "2026-02-02",
         "justification": "intended-use population",
@@ -1180,21 +1184,49 @@ def test_fairness_gaps_cover_every_non_reference_level_including_unknown():
 
 
 def _document(rep) -> dict[str, Any]:
+    """The day-5 blocks inside a document carrying every top-level key the schema requires
+    (the required set grew on build day 7, E7: the other blocks are null or empty here)."""
     return {
         "schema_version": 1,
         "manifest": {
             "run_id": "t",
             "engine_version": "0",
+            "platform": "t",
             "python": "3",
             "numpy": "2",
+            "scipy": None,
+            "input_sha256": None,
+            "criteria_sha256": None,
+            "mapping_sha256": None,
             "seed": 1,
+            "B": 1,
             "started": "t",
+            "duration_s": None,
             "reference_platform": False,
+            "licence_id": None,
+            "tier": None,
+            "ledger_count": None,
+            "watermark": None,
         },
         "declarations": {},
         "halts": [],
         "warnings": [],
-        "flow": {"rows_read": 1, "analysed": 1},
+        "flow": {
+            "rows_read": 1,
+            "dev_rows": 0,
+            "excluded_missing_label": 0,
+            "excluded_missing_score": 0,
+            "indeterminate": 0,
+            "analysed": 1,
+        },
+        "table1": None,
+        "missingness": None,
+        "overall": None,
+        "calibration": None,
+        "calibration_suppressed_reason": None,
+        "criteria_results": [],
+        "suppression_log": [],
+        "guidance_refs": [],
         **rep.as_dict(),
     }
 

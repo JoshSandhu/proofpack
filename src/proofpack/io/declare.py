@@ -40,6 +40,13 @@ def metric_ids() -> frozenset[str]:
     return frozenset(load_json_schema("criteria_schema.json")["$defs"]["metric_id"]["enum"])
 
 
+def metric_needs_operating_point(metric: str) -> bool:
+    """Whether a criterion on ``metric`` is read at an operating point (E7, ``criteria``)."""
+    from proofpack.criteria import needs_operating_point
+
+    return needs_operating_point(metric)
+
+
 @dataclass
 class OperatingPoint:
     id: str
@@ -234,6 +241,16 @@ def validate_dict(data: dict[str, Any]) -> Declarations:
         empty = [f for f in AUTHORED_FIELDS if not str(fairness.get(f) or "").strip()]
         if empty:
             raise HaltError("H08", "fairness block lacks " + ", ".join(empty), {"missing": empty})
+        if fairness.get("bound") is not None:
+            # E7: a bound is compared the way a criterion is, with the statistic and the
+            # comparator the customer wrote beside it; the engine supplies neither
+            lacking = [f for f in ("statistic", "comparator") if fairness.get(f) is None]
+            if lacking:
+                raise HaltError(
+                    "H08",
+                    "fairness block declares a bound but lacks " + ", ".join(lacking),
+                    {"missing": lacking},
+                )
 
     _check_dec11_case_key(data.get("clustering"))
 
@@ -271,6 +288,23 @@ def validate_dict(data: dict[str, Any]) -> Declarations:
                 "H09",
                 f"criterion {c['id']} references unknown operating point",
                 {"criterion": str(c["id"]), "field": "operating_point"},
+            )
+        # E7: a threshold metric is read at one operating point and a threshold-free one
+        # (auroc, brier, ...) at none; the pairing is checked here, at declaration time,
+        # rather than surfacing as a not_assessable row (D1 section 5 H09: "unknown
+        # metric/operating point")
+        threshold = metric_needs_operating_point(c["metric"])
+        if threshold and op_ref is None:
+            raise HaltError(
+                "H09",
+                f"criterion {c['id']} names a threshold metric without an operating point",
+                {"criterion": str(c["id"]), "field": "operating_point", "metric": c["metric"]},
+            )
+        if not threshold and op_ref is not None:
+            raise HaltError(
+                "H09",
+                f"criterion {c['id']} names an operating point for a threshold-free metric",
+                {"criterion": str(c["id"]), "field": "operating_point", "metric": c["metric"]},
             )
 
     pos, neg = _label(data["classes"]["positive"]), _label(data["classes"]["negative"])

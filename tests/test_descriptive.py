@@ -66,6 +66,7 @@ def test_flow_counts_are_exactly_the_exclusions_planted():
     f = flow_block(table, mask, flow, decl)
     assert f == {
         "rows_read": 60,
+        "dev_rows": 0,  # build day 7, carried item 27
         "excluded_missing_label": 3,
         "excluded_missing_score": 2,
         "indeterminate": 4,

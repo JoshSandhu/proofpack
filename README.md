@@ -10,8 +10,12 @@ accepted, approved or endorsed it (see `src/proofpack/scope.py`).
 
 ## Status
 
-Build day 1 (E1, 2026-09-07): validated ingest and declarations. Statistics,
-templates, narrative and licensing land on later build days. See `handoffs/`.
+Build day 7 (E7, 2026-09-21): `proofpack run` writes the assembled document
+(`run.json`: manifest, declarations echo, flow, Table 1, missingness, overall,
+calibration, subgroups, fairness, criteria results, ledger) from a confirmed mapping;
+`proofpack licence show | verify | install` verifies an Ed25519 licence against the
+shipped public key. Templates, narrative and egress land on later build days. See
+`handoffs/`.
 
 ## Develop
 
@@ -252,14 +256,54 @@ on any other JSON type. `decided_by` is `interactive` after the prompts and stay
 `interactive` through `--yes` and `proofpack run --mapping` (until 9cfbdd5 both
 rewrote it `file`; `tests/test_mapping_repair4_2.py::test_yes_and_run_mapping_keep_decided_by_interactive`),
 `file` when a prior says so or has no `decided_by` key, and
-`proposed` on the file `proofpack run` writes into `--out` when it maps without a
-prior (still written at this commit; DEC-26 makes `run` halt H07 `run proofpack map
-first` instead, an E7 change). `proofpack run --mapping` on a `proposed` file (no
-`--yes`) writes the pack's copy as `proposed` too: at b0f60a6 it relabelled it `file`
-and `--yes` then took the copy
+`proposed` on the file `map_headers` computes before any confirm step (until build
+day 7 `proofpack run` wrote that file into `--out`; DEC-26 ended it). `proofpack run`
+on a `proposed` file, with or without `--yes`, halts H07 `this one was not confirmed`
+and copies nothing into the pack
 (`tests/test_mapping_repair3_2.py::test_a_proposed_prior_is_not_relabelled_file_by_run_mapping`).
 The sha256 of the file's bytes is `Mapping.file_sha256` after `write()` or `read()`,
-for the E7 manifest. `proofpack run` still maps with the same function and, without a
-prior `mapping.json` and without `--yes`, proceeds on the computed mapping (day-1
-behaviour; the confirm step is `map`'s); with `--mapping` it applies the DEC-29 and
-DEC-31 checks on the prior before `apply_mapping`.
+and the same bytes are `manifest.mapping_sha256` in `run.json` (DEC-27).
+
+## `proofpack run` (build day 7, lane E)
+
+`proofpack run --input test.csv --criteria criteria.yaml [--mapping mapping.json]
+[--out ./pack] [--offline]`
+
+* **A confirmed mapping is required (DEC-26).** `--mapping FILE`, or
+  `<input>.mapping.json` beside the input (`test.csv` -> `test.csv.mapping.json`);
+  neither present, or a file that fails the `--yes` rule above (`decided_by`
+  `interactive` or `file`, the header-set hash equal, every role high or confirmed),
+  is `HALT H07: run proofpack map first ...` before any statistics. `run` never
+  proposes a mapping and never writes one anywhere.
+* **What is written:** `<out>/run.json`, the D1 section 4.2 document as canonical JSON
+  (sorted keys, one-space indent, UTF-8, no `NaN` or `Infinity` - a non-finite float
+  raises and nothing is written), plus the day-1 `ingest_report.json`. Nothing is
+  written on a HALT.
+* **Criteria** (`src/proofpack/criteria.py`): every `criteria.yaml` criterion and the
+  fairness bound is one of `met` / `not_met` / `not_assessable` with a machine
+  `reason_code`, comparing the statistic the customer named (`ci_lower_bound` =
+  `ci_lo`, `ci_upper_bound` = `ci_hi`, `point_estimate` = `est`, read literally
+  whatever the comparator) with the customer's comparator and value. A Number with no
+  interval is `not_assessable`, never `not_met`. `attainable_at_n` /
+  `max_lower_bound_at_n` (the Wilson lower bound at `k = n`, `stats.attainability`)
+  are filled for `ci_lower_bound` criteria on proportion metrics. No default bound,
+  statistic or comparator exists; a fairness `bound` needs `statistic` and
+  `comparator` beside it (H08 otherwise).
+* **Ledger** (`io/ledger.py`): `ledger.json` in the per-user directory
+  (`PROOFPACK_HOME`, else `%LOCALAPPDATA%\proofpack` on Windows, `~/.proofpack`
+  elsewhere) counts runs with a `criteria` block per test set (SHA-256 of the
+  analysed `y_true` and `score` bytes); `W14` when the count exceeds
+  `ledger.warn_after_acceptance_runs`; no `ledger` block, no warning.
+* **Licence** (`src/proofpack/licence/`): the file at `PROOFPACK_LICENCE`, else the
+  per-user `proofpack.lic`, else `./proofpack.lic`, verified against the shipped
+  public key (`pp-2026-09`, the key published on `/trust`). `ok` and `grace` are full
+  runs (exit 0 / 2; `grace` puts `LICENCE EXPIRED - not for submission` in
+  `manifest.watermark`); expired past grace, refused or absent still computes and
+  writes `run.json` with that watermark and exits 4 with the one-line fix (D1
+  section 7: after grace `run` / `compare` emit JSON only; `doctor` / `map` /
+  `fixtures` always work). A trial carries `TRIAL` and expires 30 days after issue.
+* `proofpack licence show` (the installed file, no signature printed),
+  `proofpack licence verify FILE` (exit 0 for `ok` / `grace`, 4 otherwise) and
+  `proofpack licence install FILE` (verifies, then copies to the per-user location;
+  a refused file is not installed).
+* Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal.

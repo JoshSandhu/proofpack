@@ -182,16 +182,16 @@ def test_slash_composite_unit_via_the_cli_is_e01_not_h08(tmp_path: Path, capsys)
 
 
 def test_yes_refuses_a_proposed_prior(tmp_path: Path, capsys):
-    """``run`` writes ``decided_by: proposed``; at 555a5e1 ``map --yes`` then accepted it."""
+    """A ``decided_by: proposed`` file (what ``map_headers`` computes before any confirm
+    step; until build day 7 ``run`` wrote one into the pack, DEC-26 ended that): at
+    555a5e1 ``map --yes`` accepted it."""
     cols = make_cohort()
     csv_path = write_csv(tmp_path / "t.csv", cols)
-    yml = write_yaml(tmp_path / "c.yaml", make_criteria())
-    pack = tmp_path / "pack"
-    rc = main(
-        ["--quiet", "run", "--input", str(csv_path), "--criteria", str(yml), "--out", str(pack)]
-    )
-    assert rc == EXIT_OK
-    prior = pack / "mapping.json"
+    from proofpack.io.mapping import map_headers
+
+    prior = tmp_path / "pack" / "mapping.json"
+    prior.parent.mkdir()
+    map_headers(list(cols), cols).write(prior)
     before = prior.read_bytes()
     assert json.loads(before)["decided_by"] == "proposed"
     rc = main(["map", "--input", str(csv_path), "--out", str(prior), "--yes"])

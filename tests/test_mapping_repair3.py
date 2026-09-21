@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import make_cohort, make_criteria, write_csv, write_yaml
+from conftest import ephemeral_registry, make_cohort, make_criteria, write_csv, write_yaml
 from proofpack.cli import _confirm_interactive, main
 from proofpack.errors import EXIT_HALT, EXIT_OK, EXIT_WARNINGS, HaltError
 from proofpack.io.mapping import (
@@ -184,7 +184,8 @@ def test_ignore_on_a_column_named_for_a_held_role_is_refused_at_the_prompt(
             str(out),
             "--out",
             str(tmp_path / "p"),
-        ]
+        ],
+        registry=ephemeral_registry(),
     )
     # exit 2 = warnings only: W10, the table's prevalence 0.5 against the declared 0.3
     assert rc == EXIT_WARNINGS and (tmp_path / "p" / "ingest_report.json").exists()
@@ -463,7 +464,8 @@ def test_interactive_accept_records_confirmed_and_yes_takes_it(tmp_path: Path, c
             "--out",
             str(tmp_path / "p"),
             "--yes",
-        ]
+        ],
+        registry=ephemeral_registry(),
     )
     assert rc == EXIT_OK, capsys.readouterr().err
     assert (tmp_path / "p" / "ingest_report.json").exists()

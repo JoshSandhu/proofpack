@@ -1,7 +1,11 @@
-"""``proofpack`` command line (D1 section 7). Day 1 surface: doctor, map, run (ingest only).
+"""``proofpack`` command line (D1 section 7): doctor, map, run, compare, licence.
 
 Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal.
-On HALT nothing is written to ``--out``.
+On HALT nothing is written to ``--out``. ``run`` (build day 7, E7: :mod:`proofpack.run`)
+needs a confirmed mapping (DEC-26) and writes ``run.json`` - the assembled document -
+under ``--out``; on a licence that is expired past grace, refused or absent it still
+writes the JSON with the expired watermark and exits 4 (D1 section 7: "after grace
+run/compare emit JSON only; doctor, map, fixtures always work").
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ from proofpack import __version__
 from proofpack.errors import (
     EXIT_HALT,
     EXIT_INTERNAL,
+    EXIT_LICENCE,
     EXIT_OK,
     EXIT_WARNINGS,
     HaltError,
@@ -54,13 +59,23 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     r = sub.add_parser(
-        "run", help="ingest + HALT gates (statistics land on later days)", parents=[common]
+        "run",
+        help="ingest, HALT gates, statistics, criteria and manifest -> <out>/run.json",
+        parents=[common],
     )
     r.add_argument("--input", required=True)
     r.add_argument("--criteria", required=True)
-    r.add_argument("--mapping")
+    r.add_argument(
+        "--mapping",
+        help="a confirmed mapping.json (proofpack map); default <input>.mapping.json beside "
+        "the input (DEC-26: run never proposes a mapping itself)",
+    )
     r.add_argument("--out", default="./pack")
-    r.add_argument("--yes", action="store_true")
+    r.add_argument(
+        "--yes",
+        action="store_true",
+        help="accepted for compatibility; run is always non-interactive since build day 7",
+    )
 
     c = sub.add_parser(
         "compare", help="paired ingest of new vs prior (gate H12 only on day 1)", parents=[common]
@@ -72,6 +87,14 @@ def _build_parser() -> argparse.ArgumentParser:
     c.add_argument("--out", default="./pack")
     c.add_argument("--yes", action="store_true")
     c.add_argument("--allow-unpaired", action="store_true")
+
+    lic = sub.add_parser("licence", help="show | verify FILE | install FILE", parents=[common])
+    lic_sub = lic.add_subparsers(dest="licence_command", required=True)
+    lic_sub.add_parser("show", help="status of the installed licence (no signature printed)")
+    v = lic_sub.add_parser("verify", help="verify FILE against the shipped public key")
+    v.add_argument("file")
+    i = lic_sub.add_parser("install", help="verify FILE and copy it to the per-user location")
+    i.add_argument("file")
     return p
 
 
@@ -419,27 +442,91 @@ def cmd_map(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    from proofpack.gates import ingest
-    from proofpack.io import declare
-    from proofpack.io.schema import load_table
+    from proofpack.run import LICENCE_FIX, assemble_run, write_run
 
-    decl = declare.load(args.criteria)
-    raw = load_table(args.input)
-    result = ingest(raw, decl, mapping_path=args.mapping, non_interactive=args.yes)
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    report = result.report()
-    (out / "ingest_report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    result.mapping.write(out / "mapping.json")
-    warn_lines = "".join(f"\n  [{w.code}] {w.message}" for w in result.warnings)
+    _tolerant_console()
+    outcome = assemble_run(args.input, args.criteria, mapping=args.mapping, registry=args.registry)
+    target = write_run(outcome, args.out)
+    doc = outcome.document
+    manifest = doc["manifest"]
+    statuses = [r["status"] for r in doc["criteria_results"]]
+    warn_lines = "".join(f"\n  [{w.code}] {w.message}" for w in outcome.warnings)
+    lic = outcome.licence
+    lic_line = f"licence {lic.status} ({lic.reason_code})" + (
+        f"; watermark: {manifest['watermark']}" if manifest["watermark"] else ""
+    )
+    counts = {s: statuses.count(s) for s in ("met", "not_met", "not_assessable")}
+    summary = (
+        f"run written: {target} (run_id {manifest['run_id']})\n"
+        f"  analysed {doc['flow']['analysed']} of {doc['flow']['rows_read']} rows; "
+        f"criteria rows: {counts['met']} met, {counts['not_met']} not met, "
+        f"{counts['not_assessable']} not assessable\n"
+        f"  {lic_line}{warn_lines}\n"
+    )
+    if not lic.usable:
+        summary += f"  {LICENCE_FIX}\n"
+    summary += "Next step: proofpack licence show, then the T1/T7/T8 renderers (docs: /docs/run)"
     _emit(
         args,
-        {"run": report},
-        f"ingest ok: {report['flow']['included']} rows included of {report['n_rows']}"
-        f"{warn_lines}\nwritten: {out / 'ingest_report.json'}\n"
-        "Next step: statistics and templates land on later build days.",
+        {
+            "run": {
+                "written": str(target),
+                "run_id": manifest["run_id"],
+                "exit_code": outcome.exit_code,
+                "licence_status": lic.status,
+                "watermark": manifest["watermark"],
+                "criteria_status_counts": counts,
+                "warnings": [w.code for w in outcome.warnings],
+            }
+        },
+        summary,
     )
-    return result.exit_code
+    return outcome.exit_code
+
+
+def cmd_licence(args: argparse.Namespace) -> int:
+    from proofpack import licence as licence_mod
+
+    reissue = "Next step: ask licences@globalphoenix.co.uk for a re-issue (docs: /docs/licence)"
+    run_next = "Next step: proofpack run --input ... --criteria ... (docs: /docs/run)"
+    if args.licence_command == "show":
+        path = licence_mod.installed_path()
+        result = licence_mod.resolve(registry=args.registry)
+        where = "none found" if path is None else str(path)
+        hint = (
+            "Next step: proofpack licence install FILE (docs: /docs/licence)"
+            if result.status == "refused"
+            else run_next
+        )
+    elif args.licence_command == "verify":
+        result = licence_mod.verify(args.file, registry=args.registry)
+        where = str(args.file)
+        hint = (
+            f"Next step: proofpack licence install {args.file} (docs: /docs/licence)"
+            if result.status != "refused"
+            else reissue
+        )
+    else:
+        result = licence_mod.install(args.file, registry=args.registry)
+        installed = result.status != "refused"
+        where = str(licence_mod.install_location()) if installed else "not installed"
+        hint = run_next if installed else reissue
+    d = result.as_dict()
+    lines = [f"licence: {where}", f"  status: {d['status']} ({d['reason_code']})"]
+    if d["licence_id"] is not None:
+        lines += [
+            f"  licence_id: {d['licence_id']}",
+            f"  licensee: {d['licensee']}",
+            f"  tier: {d['tier']}",
+            f"  expires: {d['expires']} (days_left {d['days_left']})",
+            f"  watermark: {d['watermark']}",
+            f"  key_id: {d['key_id']}",
+        ]
+    elif d["detail"]:
+        lines.append(f"  detail: {json.dumps(d['detail'])}")
+    lines.append(hint)
+    _emit(args, {"licence": d, "path": where}, "\n".join(lines))
+    return EXIT_OK if result.usable else EXIT_LICENCE
 
 
 def cmd_compare(args: argparse.Namespace) -> int:
@@ -475,12 +562,21 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return EXIT_WARNINGS if warnings else EXIT_OK
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, registry=None) -> int:
+    """Entry point. ``registry`` (a :class:`proofpack.licence.keys.KeyRegistry`) is the
+    test-only hook for licence verification against an ephemeral key pair: the shipped
+    key is never rebound; a caller that wants another key names it here. The console
+    script and ``python -m proofpack.cli`` always pass ``None`` (the shipped registry)."""
     parser = _build_parser()
     args = parser.parse_args(argv)
-    handler = {"doctor": cmd_doctor, "map": cmd_map, "run": cmd_run, "compare": cmd_compare}[
-        args.command
-    ]
+    args.registry = registry
+    handler = {
+        "doctor": cmd_doctor,
+        "map": cmd_map,
+        "run": cmd_run,
+        "compare": cmd_compare,
+        "licence": cmd_licence,
+    }[args.command]
     try:
         return handler(args)
     except HaltError as exc:

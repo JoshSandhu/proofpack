@@ -37,6 +37,12 @@ SCHEMA_CODES: dict[str, str] = {
     "S02": "column value cannot be coerced to its declared type",
     "S03": "declared period column not present in the table",
     "S04": "table could not be read",
+    # E7 (carried item 26 of the day-6 handoff): a blank case_id (empty, NA, null) in any
+    # row. Every consumer of the case column (flow, calibration, subgroups) sorts its
+    # values, and None beside str raised TypeError there; a blank id would otherwise be
+    # read as one case shared by every blank row or as a case of its own, and neither is
+    # what the customer declared. The count of blank ids is the detail; no id is printed.
+    "S05": "case_id is blank in one or more rows",
 }
 
 #: Mapper halts that are neither one of the twelve gates nor a schema failure. They exit
@@ -53,8 +59,9 @@ MAPPING_CODES: dict[str, str] = {
     "E01": "composite case key: two or more columns identify a case (DEC-11)",
 }
 
-#: Gates that produce a flag/warning rather than a HALT.
-FLAG_ONLY_CODES = frozenset({"H10"})
+#: Gates that produce a flag/warning rather than a HALT. W14 is the ledger's limit
+#: warning (E7): the run completes and the document carries the count and the limit.
+FLAG_ONLY_CODES = frozenset({"H10", "W14"})
 
 #: Non-fatal warning codes, closed the way :data:`HALT_CODES` is. ``Finding.code`` used
 #: to be free text, so a typo or a collision between two lanes could not be caught, and
@@ -65,6 +72,11 @@ WARN_CODES: dict[str, str] = {
     "W10": "observed prevalence differs from declared intended-use prevalence by > 0.10",
     "W12": "unmatched row_ids in a paired compare; unpaired methods used",
     "W13": "clustering detected from repeated case_id although clustering.unit is 'none'",
+    # E7, io.ledger: the customer's warn_after_acceptance_runs is exceeded on this test set
+    # (D4 section 11 item 6, the T2 ledger banner); W15 when the ledger file could not be
+    # read or written and the count is unknown.
+    "W14": "acceptance runs on this test set exceed the declared ledger limit",
+    "W15": "the local ledger could not be read or written; acceptance runs not counted",
 }
 
 

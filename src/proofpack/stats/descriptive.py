@@ -91,8 +91,16 @@ def flow_block(
     if "site" in table.attributes:
         levels = {str(v) for v in table.attributes["site"][mask].tolist()} - {UNKNOWN_LEVEL}
         n_sites = len(levels)
+    # E7, carried item 27: rows whose ``dataset`` reads ``dev`` are never analysed and were
+    # counted nowhere in the flow, so the flow did not reconcile to rows_read on a table
+    # carrying them; they are their own entry, and rows_read = dev_rows + the two
+    # exclusions + indeterminate + analysed (``tests/test_run_cli.py`` asserts the sum)
+    dev_rows = (
+        0 if table.dataset is None else int(sum(1 for v in table.dataset.tolist() if v == "dev"))
+    )
     return {
         "rows_read": int(flow.n_rows),
+        "dev_rows": dev_rows,
         "excluded_missing_label": int(flow.excluded_missing_y_true),
         "excluded_missing_score": int(flow.excluded_missing_score),
         "indeterminate": int(flow.indeterminate),

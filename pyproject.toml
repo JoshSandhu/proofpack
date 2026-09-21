@@ -10,6 +10,9 @@ dependencies = [
     "numpy>=2.0",
     "pyyaml>=6.0",
     "jsonschema>=4.23",
+    # Ed25519 licence verification (D1 section 7, build day 7). Imported inside
+    # proofpack.licence.verify only: `import proofpack` works without it.
+    "cryptography>=42",
 ]
 
 [project.optional-dependencies]

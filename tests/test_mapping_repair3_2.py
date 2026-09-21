@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import make_cohort, make_criteria, write_csv, write_yaml
+from conftest import ephemeral_registry, make_cohort, make_criteria, write_csv, write_yaml
 from proofpack.cli import main
 from proofpack.errors import EXIT_HALT, EXIT_OK, EXIT_WARNINGS, HaltError
 from proofpack.gates import ingest
@@ -80,7 +80,8 @@ def _run(csv_path: Path, yml: Path, mapping: Path, out: Path, *flags: str) -> in
             "--out",
             str(out),
             *flags,
-        ]
+        ],
+        registry=ephemeral_registry(),  # build day 7: run verifies a licence; the session's
     )
 
 
@@ -264,12 +265,16 @@ def test_a_header_spelled_like_the_ignored_key_is_h07_without_the_header(tmp_pat
         "a column's header equals the ignored: key of another column; rename one",
         {"n_ignored_key_collisions": 1},
     )
-    # apply_mapping runs before the subgroup gates, so the default criteria serve
+    # apply_mapping runs before the subgroup gates, so the default criteria serve. Since
+    # build day 7 (DEC-26) run applies the --yes rule to every prior before apply_mapping,
+    # and this hand-built file's ``prob -> y_pred`` (unconfirmed, low) is refused there
+    # first; the header is still absent from stderr on that route
     yml = write_yaml(tmp_path / "c.yaml", make_criteria())
     rc = _run(csv_path, yml, prior, tmp_path / "p")
     err = capsys.readouterr().err
-    assert rc == EXIT_HALT and "ignored:score" not in err
-    assert err.splitlines()[0].startswith("HALT H07: a column's header equals the ignored: key")
+    assert rc == EXIT_HALT and "ignored:score" not in err and "prob" not in err
+    assert err.splitlines()[0].startswith("HALT H07: ")
+    assert not (tmp_path / "p").exists()
 
 
 # --------------------------------------------------------------------------- FA-B2
@@ -436,32 +441,35 @@ def test_a_prior_with_a_utf8_bom_is_read(tmp_path: Path, capsys):
 def test_a_proposed_prior_is_not_relabelled_file_by_run_mapping(tmp_path: Path, capsys):
     """At b0f60a6 ``run --mapping p1/mapping.json`` (the ``proposed`` file ``run`` wrote,
     no ``--yes``) wrote ``p2/mapping.json`` with ``decided_by: file`` and ``map --yes`` on
-    that file was exit 0 (lens-1 RG-N5; ``cmd_run`` untouched, DEC-26 is E7's)."""
+    that file was exit 0 (lens-1 RG-N5). Since build day 7 (DEC-26) ``run`` writes no
+    mapping.json at all and refuses a ``proposed`` prior with or without ``--yes``; the
+    ``proposed`` file here is what ``map_headers`` computes, written by the test. An
+    ``interactive`` prior is read as it is and its bytes are untouched by ``run``."""
     cols = make_cohort()
     csv_path = write_csv(tmp_path / "t.csv", cols)
     yml = write_yaml(tmp_path / "c.yaml", make_criteria())
-    rc = main(
-        ["run", "--input", str(csv_path), "--criteria", str(yml), "--out", str(tmp_path / "p1")]
-    )
     p1 = tmp_path / "p1" / "mapping.json"
-    assert rc == EXIT_OK and json.loads(p1.read_text(encoding="utf-8"))["decided_by"] == "proposed"
-    rc = _run(csv_path, yml, p1, tmp_path / "p2")
-    p2 = tmp_path / "p2" / "mapping.json"
-    assert rc == EXIT_OK and json.loads(p2.read_text(encoding="utf-8"))["decided_by"] == "proposed"
-    for flags in (["map", "--input", str(csv_path), "--out", str(p2), "--yes"],):
-        rc = main(flags)
+    p1.parent.mkdir()
+    map_headers(list(cols), cols).write(p1)
+    assert json.loads(p1.read_text(encoding="utf-8"))["decided_by"] == "proposed"
+    for flags in ((), ("--yes",)):
+        rc = _run(csv_path, yml, p1, tmp_path / "p2", *flags)
         err = capsys.readouterr().err
-        assert rc == EXIT_HALT and "this one was not confirmed" in err.splitlines()[0]
-    rc = _run(csv_path, yml, p2, tmp_path / "p3", "--yes")
-    assert rc == EXIT_HALT and "this one was not confirmed" in capsys.readouterr().err
-    # an interactive prior keeps its word on the way into the pack (relabelled file until
-    # 9cfbdd5; repair 4.2 of A-P1, tests/test_mapping_repair4_2.py)
+        assert rc == EXIT_HALT and "this one was not confirmed" in err.splitlines()[0], flags
+        assert not (tmp_path / "p2").exists()
+    rc = main(["map", "--input", str(csv_path), "--out", str(p1), "--yes"])
+    err = capsys.readouterr().err
+    assert rc == EXIT_HALT and "this one was not confirmed" in err.splitlines()[0]
+    # an interactive prior keeps its word (relabelled file until 9cfbdd5; repair 4.2 of
+    # A-P1, tests/test_mapping_repair4_2.py) and run leaves the file's bytes alone
     data = json.loads(p1.read_text(encoding="utf-8"))
     data["decided_by"] = "interactive"
     p1.write_text(json.dumps(data), encoding="utf-8")
+    before = p1.read_bytes()
     assert _run(csv_path, yml, p1, tmp_path / "p4") == EXIT_OK
-    p4 = tmp_path / "p4" / "mapping.json"
-    assert json.loads(p4.read_text(encoding="utf-8"))["decided_by"] == "interactive"
+    assert p1.read_bytes() == before
+    assert not (tmp_path / "p4" / "mapping.json").exists()
+    assert (tmp_path / "p4" / "run.json").exists()
 
 
 # --------------------------------------------------------------------------- RG-N6

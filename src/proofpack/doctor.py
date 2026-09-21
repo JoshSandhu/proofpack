@@ -103,17 +103,21 @@ def run_checks(*, offline: bool = False, cwd: str | Path | None = None) -> list[
     except OSError as exc:
         checks.append(Check("write access", False, f"{type(exc).__name__} in {target}"))
 
-    lic = Path(os.environ.get("PROOFPACK_LICENCE", "proofpack.lic"))
-    checks.append(
-        Check(
-            "licence",
-            True,
-            f"file present at {lic} (verification lands with fixture F20)"
-            if lic.exists()
-            else "no licence file found - doctor/map/fixtures always work; run/compare need one",
-            essential=False,
-        )
-    )
+    # build day 7 (E7): the file the CLI would read, verified against the shipped key
+    # (proofpack.licence: PROOFPACK_LICENCE, the per-user location, then ./proofpack.lic)
+    from proofpack import licence as licence_mod
+
+    lic = licence_mod.installed_path()
+    if lic is None:
+        lic_text = "no licence file found - doctor/map/fixtures always work; run/compare need one"
+    else:
+        result = licence_mod.verify(lic)
+        lic_text = f"{lic}: {result.status} ({result.reason_code})"
+        if result.tier:
+            lic_text += f", tier {result.tier}, expires {result.expires}"
+        if result.watermark:
+            lic_text += f", watermark {result.watermark}"
+    checks.append(Check("licence", True, lic_text, essential=False))
     checks.append(
         Check(
             "network",

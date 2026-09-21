@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import make_cohort, make_criteria, write_csv, write_yaml
+from conftest import ephemeral_registry, make_cohort, make_criteria, write_csv, write_yaml
 from proofpack.cli import main
 from proofpack.errors import EXIT_HALT, EXIT_OK, HaltError
 from proofpack.gates import ingest
@@ -91,7 +91,8 @@ def _run(csv_path: Path, yml: Path, mapping: Path | None, out: Path, *flags: str
     argv = ["run", "--input", str(csv_path), "--criteria", str(yml), "--out", str(out), *flags]
     if mapping is not None:
         argv += ["--mapping", str(mapping)]
-    return main(argv)
+    # build day 7: run verifies a licence (the session's ephemeral one, via the registry)
+    return main(argv, registry=ephemeral_registry())
 
 
 # --------------------------------------------------------------------------- FA-B1 (DEC-39)
@@ -215,6 +216,10 @@ def test_an_ignored_visit_named_by_period_column_is_s03_on_both_routes(
     csv_path = write_csv(tmp_path / "t2.csv", cols)
     fresh = map_headers(list(cols), cols)
     assert (fresh.entry("visit").role, fresh.entry("visit").confidence) == (None, "high")
+    # since build day 7 (DEC-26) run reads <input>.mapping.json and computes no mapping of
+    # its own; the same file, confirmed, reaches the same S03 through run
+    fresh.decided_by = "file"
+    fresh.write(csv_path.with_name(csv_path.name + ".mapping.json"))
     rc = _run(csv_path, yml, None, tmp_path / "p2")
     err = capsys.readouterr().err
     assert rc == EXIT_HALT and err.splitlines()[0] == PERIOD_HALT

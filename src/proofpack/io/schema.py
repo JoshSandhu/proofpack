@@ -337,6 +337,16 @@ def validate(raw: RawTable, period: dict | None = None) -> Table:
     indet = _to_int01(cols["indeterminate"], "indeterminate") if "indeterminate" in cols else None
     row_id = _to_obj(cols["row_id"]) if "row_id" in cols else None
     case_id = _to_obj(cols["case_id"]) if "case_id" in cols else None
+    if case_id is not None:
+        # E7, carried item 26: a blank id (None after the missing-token normalisation) is
+        # S05, not a case of its own and not a case shared by every blank row
+        blank = int(sum(1 for v in case_id.tolist() if v is None))
+        if blank:
+            raise HaltError(
+                "S05",
+                f"case_id is blank in {blank} row(s); fill every case id or drop the column",
+                {"role": "case_id", "count": blank},
+            )
     age = _to_float(cols["age"], "age") if "age" in cols else None
 
     attributes: dict[str, np.ndarray] = {}

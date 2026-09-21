@@ -317,7 +317,8 @@ def test_paired_delong_requires_the_same_cases():
 
 def test_roc_curve_starts_at_the_origin_and_is_monotone():
     roc = roc_curve(F3_S1, F3_Y)
-    assert roc[0] == [0.0, 0.0, float("inf")]
+    # the origin's threshold is None since build day 7 (canonical JSON refuses inf)
+    assert roc[0] == [0.0, 0.0, None]
     assert roc[-1][:2] == [1.0, 1.0]
     fprs = [p[0] for p in roc]
     tprs = [p[1] for p in roc]
