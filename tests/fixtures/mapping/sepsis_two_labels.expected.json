@@ -1,0 +1,91 @@
+{
+  "comment": "SepsisLabel and outcome both name y_true -> both low, --yes refused",
+  "n_rows": 50,
+  "halt": null,
+  "roles": {
+    "patient": [
+      "case_id",
+      "low"
+    ],
+    "HR": [
+      "ignore",
+      "high"
+    ],
+    "O2Sat": [
+      "ignore",
+      "high"
+    ],
+    "Temp": [
+      "ignore",
+      "high"
+    ],
+    "SBP": [
+      "ignore",
+      "high"
+    ],
+    "MAP": [
+      "ignore",
+      "high"
+    ],
+    "DBP": [
+      "ignore",
+      "high"
+    ],
+    "Resp": [
+      "ignore",
+      "high"
+    ],
+    "EtCO2": [
+      "ignore",
+      "high"
+    ],
+    "Age": [
+      "age",
+      "high"
+    ],
+    "Gender": [
+      "sex",
+      "high"
+    ],
+    "Unit1": [
+      "ignore",
+      "high"
+    ],
+    "Unit2": [
+      "ignore",
+      "high"
+    ],
+    "HospAdmTime": [
+      "ignore",
+      "high"
+    ],
+    "ICULOS": [
+      "ignore",
+      "high"
+    ],
+    "SepsisLabel": [
+      "y_true",
+      "low"
+    ],
+    "PredictedProbability": [
+      "score",
+      "high"
+    ],
+    "PredictedLabel": [
+      "y_pred",
+      "high"
+    ],
+    "hospital": [
+      "site",
+      "high"
+    ],
+    "outcome": [
+      "y_true",
+      "low"
+    ]
+  },
+  "notes": {
+    "SepsisLabel": "2 headers claim y_true",
+    "outcome": "2 headers claim y_true"
+  }
+}

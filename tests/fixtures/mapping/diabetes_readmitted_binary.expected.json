@@ -1,0 +1,124 @@
+{
+  "comment": "readmitted as 0/1",
+  "n_rows": 50,
+  "halt": null,
+  "roles": {
+    "encounter_id": [
+      "row_id",
+      "medium"
+    ],
+    "patient_nbr": [
+      "case_id",
+      "low"
+    ],
+    "race": [
+      "race",
+      "high"
+    ],
+    "gender": [
+      "sex",
+      "high"
+    ],
+    "age": [
+      "age_band",
+      "high"
+    ],
+    "weight": [
+      "ignore",
+      "high"
+    ],
+    "admission_type_id": [
+      "ignore",
+      "high"
+    ],
+    "discharge_disposition_id": [
+      "ignore",
+      "high"
+    ],
+    "admission_source_id": [
+      "ignore",
+      "high"
+    ],
+    "time_in_hospital": [
+      "event_date",
+      "low"
+    ],
+    "payer_code": [
+      "ignore",
+      "high"
+    ],
+    "medical_specialty": [
+      "ignore",
+      "high"
+    ],
+    "num_lab_procedures": [
+      "ignore",
+      "high"
+    ],
+    "num_procedures": [
+      "ignore",
+      "high"
+    ],
+    "num_medications": [
+      "ignore",
+      "high"
+    ],
+    "number_outpatient": [
+      "ignore",
+      "high"
+    ],
+    "number_emergency": [
+      "ignore",
+      "high"
+    ],
+    "number_inpatient": [
+      "ignore",
+      "high"
+    ],
+    "diag_1": [
+      "ignore",
+      "high"
+    ],
+    "number_diagnoses": [
+      "ignore",
+      "high"
+    ],
+    "max_glu_serum": [
+      "ignore",
+      "high"
+    ],
+    "A1Cresult": [
+      "ignore",
+      "high"
+    ],
+    "metformin": [
+      "ignore",
+      "high"
+    ],
+    "insulin": [
+      "ignore",
+      "high"
+    ],
+    "change": [
+      "ignore",
+      "high"
+    ],
+    "diabetesMed": [
+      "ignore",
+      "high"
+    ],
+    "readmitted": [
+      "y_true",
+      "high"
+    ],
+    "pred_prob": [
+      "score",
+      "high"
+    ],
+    "hospital": [
+      "site",
+      "high"
+    ]
+  },
+  "notes": {}
+}

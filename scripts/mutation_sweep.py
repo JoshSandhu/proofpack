@@ -10,7 +10,8 @@ it in the handoff note with the reason.
 Why a copy and not a worktree: the sweep must run against the *working tree* (the code
 being handed off, committed or not), and a git worktree can only check out a commit. The
 copy holds ``src``, ``tests``, ``schema``, ``fixtures``, ``design``, ``scripts`` (the
-day-6 sentences test reads ``scripts/coverage_calibration.py``) and ``pyproject.toml``;
+day-6 sentences test reads ``scripts/coverage_calibration.py``), ``pyproject.toml`` and
+``README.md`` (repair 4.2 of A-P1: ``tests/test_mapping_repair4_2.py`` reads it);
 ``PYTHONPATH`` is forced to the copy's ``src`` for every subprocess.
 What is inspected before any mutant runs: one ``python -c "import proofpack"``
 subprocess with that environment and the copy as its working directory, whose
@@ -24,7 +25,7 @@ because ``env_for`` overwrites ``PYTHONPATH`` and ``cwd`` is the copy.
 Usage::
 
     python scripts/mutation_sweep.py --marker day5            # the day-5 list against -m day5
-    python scripts/mutation_sweep.py --marker day6            # the day-6 list against -m day6
+    python scripts/mutation_sweep.py --marker day6            # both day-6 lists (E and A)
     python scripts/mutation_sweep.py --marker day5 --only ref_largest_to_smallest
     python scripts/mutation_sweep.py --list
     python scripts/mutation_sweep.py --marker day5 --fail-on-survivor   # exit 1 if any survive
@@ -48,7 +49,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-COPIED = ("src", "tests", "schema", "fixtures", "design", "scripts", "pyproject.toml")
+#: README.md joined the copy in repair 4.2 of A-P1: tests/test_mapping_repair4_2.py reads
+#: it (a test that cannot open it would fail against every mutant and count each killed);
+#: scripts joined it on day 6 E (the sentences test reads scripts/coverage_calibration.py).
+COPIED = ("src", "tests", "schema", "fixtures", "design", "scripts", "pyproject.toml", "README.md")
 SUBGROUPS = "src/proofpack/stats/subgroups.py"
 DISCRIMINATION = "src/proofpack/stats/discrimination.py"
 CALIBRATION = "src/proofpack/stats/calibration.py"
@@ -598,6 +602,658 @@ MUTANTS: tuple[Mutant, ...] = (
     ),
 )
 
+MAPPING = "src/proofpack/io/mapping.py"
+SCHEMA_IO = "src/proofpack/io/schema.py"
+PROFILE = "src/proofpack/io/profile.py"
+DECLARE = "src/proofpack/io/declare.py"
+CLI = "src/proofpack/cli.py"
+
+#: Day 6 A (the full mapper). Run with ``--marker day6``.
+MUTANTS_DAY6_A: tuple[Mutant, ...] = (
+    Mutant(
+        "synonym_label_to_y_pred",
+        MAPPING,
+        r'^    "label": "y_true",$',
+        '    "label": "y_pred",',
+        count=2,  # the synonym table and the partial-token table both carry the row
+        day=6,
+        what="synonym lookup: 'label' resolves to y_pred",
+    ),
+    Mutant(
+        "unit_interval_upper_bound_100",
+        PROFILE,
+        r"lo >= 0\.0 and hi <= 1\.0",
+        "lo >= 0.0 and hi <= 100.0",
+        day=6,
+        what="the [0, 1] score rule accepts values up to 100",
+    ),
+    Mutant(
+        "suppression_k_nine",
+        PROFILE,
+        r"^SUPPRESSION_K = 10$",
+        "SUPPRESSION_K = 9",
+        day=6,
+        what="the suppression floor drops to 9 (a count of 9 is shown)",
+    ),
+    Mutant(
+        "sample_rows_10001",
+        PROFILE,
+        r"^SAMPLE_ROWS = 10_000$",
+        "SAMPLE_ROWS = 10_001",
+        day=6,
+        what="the type-inference sample reads row 10,001",
+    ),
+    Mutant(
+        "every_role_high_becomes_any",
+        MAPPING,
+        r'return all\(r\.confidence == "high" for r in self\.roles if r\.role is not None\)',
+        'return any(r.confidence == "high" for r in self.roles if r.role is not None)',
+        day=6,
+        what="the every-role-high rule passes when any role is high",
+    ),
+    Mutant(
+        "hash_comparison_always_true",
+        MAPPING,
+        r"if prior is not None and prior\.header_set_sha256 == current:",
+        "if prior is not None:",
+        day=6,
+        what="a prior mapping.json is accepted whatever its header-set hash",
+    ),
+    Mutant(
+        "composite_key_needs_three",
+        MAPPING,
+        r"if len\(case_claims\) >= 2:",
+        "if len(case_claims) >= 3:",
+        day=6,
+        what="two headers resolving to case_id no longer halt E01",
+    ),
+    Mutant(
+        "composite_declaration_needs_three",
+        DECLARE,
+        r"    if n >= 2:\n        raise HaltError\(",
+        "    if n >= 3:\n        raise HaltError(",
+        day=6,
+        what="a two-column clustering.unit no longer halts E01",
+    ),
+    Mutant(
+        "tty_check_always_true",
+        CLI,
+        r"            if not tty:\n                raise HaltError\(",
+        "            if False:\n                raise HaltError(",
+        day=6,
+        what="a non-terminal stdin is prompted instead of halting H07",
+    ),
+    Mutant(
+        "binary_set_yes_no_removed",
+        MAPPING,
+        r'^    frozenset\(\{"yes", "no"\}\),$',
+        "",
+        day=6,
+        what="yes/no columns are no longer y_true candidates",
+    ),
+    Mutant(
+        "free_text_threshold_never",
+        PROFILE,
+        r"^FREE_TEXT_UNIQUE_SHARE = 0\.5$",
+        "FREE_TEXT_UNIQUE_SHARE = 5.0",
+        day=6,
+        what="a free-text column lists its values",
+    ),
+    Mutant(
+        "date_values_not_event_date",
+        MAPPING,
+        r'    if sig\.get\("date"\):\n        return "event_date"',
+        '    if sig.get("date"):\n        return None',
+        day=6,
+        what="a date-valued column is no longer an event_date candidate",
+    ),
+    Mutant(
+        "sex_12_is_high",
+        MAPPING,
+        r'return RoleMapping\(h, role, "medium", c\.source, notes\)',
+        'return RoleMapping(h, role, "high", c.source, notes)',
+        day=6,
+        what="sex coded 1/2 or 0/1 is high instead of medium",
+    ),
+    Mutant(
+        "e01_message_truncated",
+        MAPPING,
+        r'columns resolve to case_id; reduce your case key to one column"',
+        'columns resolve to case_id; reduce your case key"',
+        day=6,
+        what="the DEC-11 message no longer ends with the mandated sentence",
+    ),
+    Mutant(
+        "label_with_floats_stays_high",
+        MAPPING,
+        r's\.n_unique > 2:\n            return \(\n                "conflict",',
+        's.n_unique > 2:\n            return (\n                "consistent",',
+        day=6,
+        what="a label column holding continuous scores keeps high confidence",
+    ),
+    Mutant(
+        "duplicate_fold_check_removed",
+        MAPPING,
+        r"if len\(set\(folded\)\) != len\(folded\):",
+        "if False:",
+        day=6,
+        what="two headers identical after case-folding no longer halt H07",
+    ),
+    Mutant(
+        "binary_rule_case_sensitive",
+        MAPPING,
+        r"if len\(lowered\) == 2 and any\(lowered == b for b in BINARY_LABEL_SETS\):",
+        "if s.n_unique == 2 and any(lowered == b for b in BINARY_LABEL_SETS):",
+        day=6,
+        what="the two-valued label rule becomes case-sensitive",
+    ),
+    # Day 6 A repair 1: the lens's eight survivors are observed by tests/test_mapping_repair1.py
+    # (pins); the ten below change the repair's own gates.
+    Mutant(
+        "min_max_floor_removed",
+        PROFILE,
+        r"return _fmt_num\(x\) if rows >= SUPPRESSION_K else SUPPRESSED",
+        "return _fmt_num(x)",
+        day=6,
+        what="a numeric min/max held by fewer than k rows is printed (FA-B1)",
+    ),
+    Mutant(
+        "min_max_floor_off_by_one",
+        PROFILE,
+        r"if rows >= SUPPRESSION_K else SUPPRESSED",
+        "if rows >= SUPPRESSION_K - 1 else SUPPRESSED",
+        day=6,
+        what="a min/max held by 9 rows is printed",
+    ),
+    Mutant(
+        "proposed_prior_accepted_by_yes",
+        MAPPING,
+        r'CONFIRMED_DECIDED_BY = frozenset\(\{"interactive", "file"\}\)',
+        'CONFIRMED_DECIDED_BY = frozenset({"interactive", "file", "proposed"})',
+        day=6,
+        what="--yes accepts a mapping.json that proofpack run wrote unconfirmed (FA-N1)",
+    ),
+    Mutant(
+        "slash_no_longer_splits_the_case_key",
+        DECLARE,
+        r'\[\^A-Za-z0-9_\]\+"\)',
+        '[^A-Za-z0-9_/]+")',
+        day=6,
+        what="subject_id/hadm_id falls through to the schema's H08 enum halt (FA-B2)",
+    ),
+    Mutant(
+        "clustering_list_keys_need_three",
+        DECLARE,
+        r"if isinstance\(value, \(list, tuple\)\) and len\(value\) >= 2:",
+        "if isinstance(value, (list, tuple)) and len(value) >= 3:",
+        day=6,
+        what="clustering.columns: [a, b] passes silently",
+    ),
+    Mutant(
+        "all_high_prompt_removed",
+        CLI,
+        r"^    if not pending:$",
+        "    if not pending and False:",
+        day=6,
+        what="an all-high table is written as interactive with no keypress (FA-N2)",
+    ),
+    Mutant(
+        "held_role_edit_accepted",
+        CLI,
+        r"holder = held_by\(r, new_role\)\n                if holder is not None:",
+        "holder = held_by(r, new_role)\n                if holder is not None and False:",
+        day=6,
+        what="an edit to a role another column holds is written (FA-N4)",
+    ),
+    Mutant(
+        "dash_date_shape_removed",
+        PROFILE,
+        r'^    re\.compile\(r"\^\\d\{1,2\}-\\d\{1,2\}-\\d\{4\}\$"\),\n',
+        "",
+        day=6,
+        what="15-03-2024 values are free text again and pass H11 (FA-N7)",
+    ),
+    Mutant(
+        "console_not_tolerant",
+        CLI,
+        r'stream\.reconfigure\(errors="backslashreplace"\)',
+        "pass",
+        day=6,
+        what="a CJK header on a cp1252 stdout is exit 5 again (FA-N8)",
+    ),
+    Mutant(
+        "quiet_hides_the_table_at_a_terminal",
+        CLI,
+        r"if not args\.json_log and \(not args\.quiet or tty\):",
+        "if not args.json_log and not args.quiet:",
+        day=6,
+        what="--quiet at a terminal prompts with no table (FA-N12)",
+    ),
+    # repair 2 (the lens-2 findings; tests/test_mapping_repair2.py)
+    Mutant(
+        "apply_two_case_id_columns_h07_not_e01",
+        MAPPING,
+        r"if n_case >= 2:",
+        "if n_case >= 3:",
+        day=6,
+        what="patient_nbr + mrn_local through run is H07, not the DEC-11 E01 (FA-B1)",
+    ),
+    Mutant(
+        "partial_case_id_tokens_counted_by_map_headers_e01",
+        MAPPING,
+        r'if c and c\.role == "case_id" and c\.source != "partial"',
+        'if c and c.role == "case_id"',
+        day=6,
+        what="patient_weight + patient_height halt E01 in map_headers (lens-2 M05)",
+    ),
+    Mutant(
+        "accept_of_a_held_role_taken",
+        CLI,
+        r"holder = held_by\(r, r\.role\) if r\.role is not None else None",
+        "holder = None",
+        day=6,
+        what="'a' at both case_id prompts writes two holders (FA-B1)",
+    ),
+    Mutant(
+        "all_high_prompt_takes_any_answer",
+        CLI,
+        r'say\("  answer a or q"\)',
+        "break",
+        day=6,
+        what="'n' at the all-high prompt is an accept (RG-N1)",
+    ),
+    Mutant(
+        "attr_twins_not_single_holder",
+        MAPPING,
+        r'return role in SINGLE_HOLDER_ROLES or role\.startswith\(\("attr_", "rater_"\)\)',
+        "return role in SINGLE_HOLDER_ROLES",
+        day=6,
+        what="'Attr Site' beside attr_site are both high (FA-N7)",
+    ),
+    Mutant(
+        "prior_role_type_unchecked",
+        MAPPING,
+        r"if role is not None and not isinstance\(role, str\):",
+        "if False:",
+        day=6,
+        what="a prior with role 123 reaches run --yes as exit 5 (RG-B1)",
+    ),
+    Mutant(
+        "list_key_string_not_split",
+        DECLARE,
+        r"if isinstance\(value, str\):",
+        "if False:",
+        day=6,
+        what="clustering.columns: 'subject_id, hadm_id' passes silently (FA-N8)",
+    ),
+    Mutant(
+        "and_separator_lower_case_only",
+        DECLARE,
+        r"\[Aa\]\[Nn\]\[Dd\]",
+        "and",
+        day=6,
+        what="'a AND b' counts three tokens (RG-N3)",
+    ),
+    Mutant(
+        "dotted_date_shape_removed",
+        PROFILE,
+        r'^    re\.compile\(r"\^\\d\{1,2\}\\\.\\d\{1,2\}\\\.\\d\{4\}\$"\),\n',
+        "",
+        day=6,
+        what="15.03.2024 values are categorical again and pass H11 (FA-N2)",
+    ),
+    Mutant(
+        "out_dir_check_off",
+        CLI,
+        r"if not out_dir\.is_dir\(\):",
+        "if False:",
+        day=6,
+        what="--out into a missing directory is exit 5 after the prompts (FA-N6)",
+    ),
+    Mutant(
+        "hash_is_the_column_count",
+        SCHEMA_IO,
+        r'joined = "\\n"\.join\(sorted\(h\.strip\(\) for h in headers\)\)',
+        "joined = str(len(headers))",
+        day=6,
+        what="a header renamed at the same width keeps the hash (lens-2 M24)",
+    ),
+    # repair 3: the four lens-3 survivors (L08, L11, L13, L14; L20 was a dead clause and
+    # is deleted) and one observer per new gate.
+    Mutant(
+        "date_type_on_any_value",
+        PROFILE,
+        r"if all\(any\(p\.match\(v\) for p in DATE_PATTERNS\) for v in values\):",
+        "if any(any(p.match(v) for p in DATE_PATTERNS) for v in values):",
+        day=6,
+        what="one date among sixty cells types the column date (lens-3 L08)",
+    ),
+    Mutant(
+        "affix_case_id_claims_not_counted",
+        MAPPING,
+        r'if c and c\.role == "case_id" and c\.source != "partial"',
+        'if c and c.role == "case_id" and c.source in ("canonical", "synonym")',
+        day=6,
+        what="patient_id + pt_subject_id is not E01 in map_headers (lens-3 L11)",
+    ),
+    Mutant(
+        "fold_header_without_strip",
+        MAPPING,
+        r'header\.replace\("\\ufeff", ""\)\)\.strip\(\)\.casefold\(\)',
+        'header.replace("\\\\ufeff", "")).casefold()',  # a re.sub template: \\ is one \
+        day=6,
+        what="' Label ' and 'label' are two headers after folding (lens-3 L13)",
+    ),
+    Mutant(
+        "apply_e01_counts_non_high_case_id_only",
+        MAPPING,
+        r'if mapping\.role_of\(original\) == "case_id"\)',
+        'if mapping.role_of(original) == "case_id"\n'
+        '        and mapping.entry(original).confidence != "high")',
+        day=6,
+        what="two high case_id columns pass apply_mapping (lens-3 L14)",
+    ),
+    Mutant(
+        "empty_answer_accepts",
+        CLI,
+        r'^ACCEPT_ANSWERS = \("a", "accept"\)$',
+        'ACCEPT_ANSWERS = ("a", "accept", "")',
+        day=6,
+        what="Enter alone accepts at both prompts (lens-3 FA-B1)",
+    ),
+    Mutant(
+        "ignore_collision_unchecked_on_a_prior",
+        MAPPING,
+        r"pair = ignore_collision\(prior\.roles\)",
+        "pair = None",
+        day=6,
+        what="a prior ignoring 'score' beside prob -> score reaches apply_mapping (DEC-31)",
+    ),
+    Mutant(
+        "accept_does_not_record_confirmed",
+        CLI,
+        r"^                r\.confirmed = True$",
+        "                r.confirmed = False",
+        day=6,
+        what="'a' leaves confirmed False so --yes refuses the file (DEC-28)",
+    ),
+    Mutant(
+        "date_month_floor_removed",
+        PROFILE,
+        r"shown_lo = keys\[0\] if months\[keys\[0\]\] >= SUPPRESSION_K else SUPPRESSED",
+        "shown_lo = keys[0]",
+        day=6,
+        what="a month held by one row prints as min (DEC-39)",
+    ),
+    Mutant(
+        "yes_role_difference_unchecked",
+        MAPPING,
+        r"^        if p\.role == f\.role:$",
+        "        if True:",
+        day=6,
+        what="a prior 'age' on a column now holding bands passes --yes (carried 7)",
+    ),
+    Mutant(
+        "roles_list_check_removed",
+        MAPPING,
+        r'if not isinstance\(data\["roles"\], list\):',
+        "if False:",
+        day=6,
+        what="roles: {} reads as an empty list again (lens-3 RG-B1)",
+    ),
+    Mutant(
+        "originals_not_checked_against_the_table",
+        MAPPING,
+        r"unknown = sum\(1 for r in prior\.roles if r\.original not in header_set\)",
+        "unknown = 0",
+        day=6,
+        what="original: NOT_A_HEADER passes --yes (DEC-29)",
+    ),
+    Mutant(
+        "out_is_dir_check_off",
+        CLI,
+        r"if out_path\.is_dir\(\):",
+        "if False:",
+        day=6,
+        what="--out naming a directory reaches the prompt (carried 6)",
+    ),
+    Mutant(
+        "recursion_error_not_caught",
+        MAPPING,
+        r"except \(ValueError, RecursionError\) as exc:",
+        "except ValueError as exc:",
+        day=6,
+        what="100,000 nested '[' is exit 5 again (lens-3 FA-B4)",
+    ),
+    # repair 3.2: one observer per new check, plus the five lens-1 survivors (M03, M05,
+    # M11, M15, M20 of the repair-3 fresh-attack note) now that a test feeds each input.
+    Mutant(
+        "ignored_role_name_kept_at_apply",
+        MAPPING,
+        r"role = IGNORED_PREFIX \+ original if read_as_a_role_by_validate\(original\) else \w+",
+        "role = original",
+        day=6,
+        what="an ignored 'sex' column reaches validate as the sex attribute (lens-1 FA-B1)",
+    ),
+    Mutant(
+        "yes_confirmed_values_unchecked",
+        MAPPING,
+        r"^    if changed:$",
+        "    if False:",
+        day=6,
+        what="a confirmed column whose values changed passes --yes (lens-1 FA-B2)",
+    ),
+    Mutant(
+        "yes_split_counts_compared",
+        MAPPING,
+        r"values = frozenset\(str\(item\[0\]\) for item in split",
+        "values = frozenset(str(item) for item in split",
+        day=6,
+        what="the same two values in other proportions halt --yes (FA-B2's control)",
+    ),
+    Mutant(
+        "bom_prior_not_decoded",
+        MAPPING,
+        r'raw\.decode\("utf-8-sig"\)',
+        'raw.decode("utf-8")',
+        day=6,
+        what="a prior with a UTF-8 BOM is H07 could not be decoded (lens-1 FA-N5)",
+    ),
+    Mutant(
+        "proposed_prior_relabelled_file",
+        MAPPING,
+        r"        return prior\n\n    if non_interactive:\n        if prior is None:",
+        '        prior.decided_by = "file"\n        return prior\n\n'
+        "    if non_interactive:\n        if prior is None:",
+        day=6,
+        # re-anchored in repair 4.2: the conditional rewrite it flipped is gone
+        what="every matching prior is relabelled file on the way out (lens-1 RG-N5 of repair 3)",
+    ),
+    Mutant(
+        "write_oserror_not_caught",
+        CLI,
+        r"    except OSError:\n        # at b0f60a6 a read-only --out",
+        "    except MemoryError:\n        # at b0f60a6 a read-only --out",
+        day=6,
+        what="a read-only --out is exit 5 PermissionError with the path (lens-1 FA-N1)",
+    ),
+    Mutant(
+        "us_shaped_slash_date_month_fifteen",
+        PROFILE,
+        r"month = int\(m\.group\(1\)\) if month_first else int\(m\.group\(2\)\)",
+        "month = int(m.group(2))",
+        day=6,
+        what="03/15/2024 keys to 2024-15 (lens-1 FA-N4)",
+    ),
+    Mutant(
+        "yes_role_difference_skipped_for_ignore",
+        MAPPING,
+        r"^        if p\.role == f\.role:$",
+        "        if p.role is None or p.role == f.role:",
+        day=6,
+        what="a file prior ignoring a high column passes --yes (lens-1 M03)",
+    ),
+    Mutant(
+        "duplicate_entry_check_removed",
+        MAPPING,
+        r"^    if duplicated:$",
+        "    if False:",
+        day=6,
+        what="the site entry appended a second time unchanged passes --yes (lens-1 RG-N2)",
+    ),
+    Mutant(
+        "one_missing_entry_tolerated",
+        MAPPING,
+        r"    if missing:\n",
+        "    if missing > 1:\n",
+        day=6,
+        what="a prior missing one entry passes the entry-set check (lens-1 M05)",
+    ),
+    Mutant(
+        "accept_arm_collision_unchecked",
+        CLI,
+        r"                line = collision_line\(r, r\.role\)\n",
+        "                line = None\n",
+        day=6,
+        what="'a' on prob -> score beside an ignored 'score' is taken (lens-1 M11)",
+    ),
+    Mutant(
+        "date_min_month_floor_at_nine",
+        PROFILE,
+        r"shown_lo = keys\[0\] if months\[keys\[0\]\] >= SUPPRESSION_K else SUPPRESSED",
+        "shown_lo = keys[0] if months[keys[0]] >= SUPPRESSION_K - 1 else SUPPRESSED",
+        day=6,
+        what="a min month held by nine rows prints (lens-1 M15)",
+    ),
+    Mutant(
+        "fresh_non_high_confirmed_anywhere",
+        MAPPING,
+        r"if not by_original\[f\.original\]\.confirmed\]",
+        "if not any(p.confirmed for p in prior.roles)]",
+        day=6,
+        what="confirmed on any prior entry covers every fresh non-high role (lens-1 M20)",
+    ),
+    # repair 4 of A-P1 (lens-2 round 2 on 4fbbf35; DEC-42)
+    Mutant(
+        "date_order_decided_per_value",
+        PROFILE,
+        r"_date_key\(v, month_first=month_first\)",
+        "_date_key(v, month_first=_month_first([v]))",
+        day=6,
+        what="the day/month order decided per value: nine March rows print (lens-2 FA-B1)",
+    ),
+    Mutant(
+        "month_first_never",
+        PROFILE,
+        r"return second_above and not first_above",
+        "return False",
+        day=6,
+        what="every two-field date read day-first: 03/15/2024 keys to 2024-15",
+    ),
+    Mutant(
+        "second_field_boundary_thirteen",
+        PROFILE,
+        r"second_above = second_above or int\(m\.group\(2\)\) > 12",
+        "second_above = second_above or int(m.group(2)) > 13",
+        day=6,
+        what="03/13/2024 x60 keys to 2024-13 (lens-2 M09)",
+    ),
+    Mutant(
+        "first_field_boundary_twelve",
+        PROFILE,
+        r"first_above = first_above or int\(m\.group\(1\)\) > 12",
+        "first_above = first_above or int(m.group(1)) >= 12",
+        day=6,
+        what="12/15/2024 x60 keys to 2024-15 (lens-2 M21)",
+    ),
+    Mutant(
+        "period_ignored_halt_removed",
+        MAPPING,
+        r'raise HaltError\("S03", PERIOD_IGNORED, \{"period_column_ignored": True\}\)',
+        "return period",
+        day=6,
+        what="an ignored column named by period.column is the period axis (lens-2 FA-B2)",
+    ),
+    Mutant(
+        "period_translation_removed",
+        MAPPING,
+        r'return \{\*\*period, "column": entry\.role\}',
+        "return period",
+        day=6,
+        what="period.column naming a header mapped to event_date is S03 not present (lens-2 N4)",
+    ),
+    Mutant(
+        "period_prompt_refusal_removed",
+        CLI,
+        r"if new_role == IGNORE and period_column is not None and r\.original == period_column:",
+        "if False:",
+        day=6,
+        what="e ignore on the period column is taken at the prompt and halts after the answers",
+    ),
+    Mutant(
+        "edit_does_not_record_confirmed",
+        CLI,
+        r"r\.confirmed = True  # DEC-42.*$",
+        "r.confirmed = False",
+        day=6,
+        what="an edit leaves confirmed False so the edited file never passes --yes (DEC-42)",
+    ),
+    Mutant(
+        "yes_confirmed_role_difference_without_a_summary",
+        MAPPING,
+        r'and f\.confidence != "high"\n            and _summaries_agree\(prior, fresh, '
+        r"f\.original\) is not None\n        \):",
+        'and f.confidence != "high"\n        ):',
+        day=6,
+        # re-anchored in repair 4.2 (the condition gained two clauses)
+        what="an interactive prior's edited Gender with its stored summary deleted passes --yes",
+    ),
+    # repair 4.2 of A-P1 (lens-1 round 1 on 9cfbdd5; DEC-42 narrowed)
+    Mutant(
+        "interactive_prior_relabelled_file",
+        MAPPING,
+        r"        return prior\n\n    if non_interactive:\n        if prior is None:",
+        '        if prior.decided_by == "interactive":\n            prior.decided_by = "file"\n'
+        "        return prior\n\n    if non_interactive:\n        if prior is None:",
+        day=6,
+        what="an interactive prior is written back file, so a second --yes on an edit is H07",
+    ),
+    Mutant(
+        "yes_exemption_reads_file_as_interactive",
+        MAPPING,
+        r'prior\.decided_by == "interactive"\n            and p\.confirmed',
+        "prior.decided_by in CONFIRMED_DECIDED_BY\n            and p.confirmed",
+        day=6,
+        what="a file prior confirmed on Gender -> attr_gender_code passes --yes (lens-1 B1)",
+    ),
+    Mutant(
+        "yes_exemption_reads_the_stored_confidence",
+        MAPPING,
+        r'and f\.confidence != "high"\n            and _summaries_agree',
+        'and p.confidence != "high"\n            and _summaries_agree',
+        day=6,
+        what="confidence: medium typed on age beside interactive and confirmed passes --yes",
+    ),
+    Mutant(
+        "yes_exemption_ignores_the_confidence",
+        MAPPING,
+        r'and f\.confidence != "high"\n            and _summaries_agree',
+        "and _summaries_agree",
+        day=6,
+        what="decided_by: interactive typed beside confirmed on age (high) passes --yes",
+    ),
+    Mutant(
+        "yes_missing_summary_compared",
+        MAPPING,
+        r"if original not in prior\.value_summaries or original not in fresh\.value_summaries:",
+        "if original not in prior.value_summaries and original not in fresh.value_summaries:",
+        day=6,
+        what="a confirmed prior without a summary for the column is exit 5 KeyError (lens-2 M06)",
+    ),
+)
+
+MUTANTS = MUTANTS + MUTANTS_DAY6_A
+
 
 def make_copy() -> Path:
     tmp = Path(tempfile.mkdtemp(prefix="proofpack-mutants-"))
@@ -674,6 +1330,7 @@ def main(argv: list[str] | None = None) -> int:
     day = args.day
     if day is None and args.marker.startswith("day") and args.marker[3:].isdigit():
         day = int(args.marker[3:])
+    # --only picks by id within the day (a day-6 id needs --marker day6 beside it)
     chosen = [
         m for m in MUTANTS if (not args.only or m.id in args.only) and (day is None or m.day == day)
     ]

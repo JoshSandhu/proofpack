@@ -39,6 +39,20 @@ SCHEMA_CODES: dict[str, str] = {
     "S04": "table could not be read",
 }
 
+#: Mapper halts that are neither one of the twelve gates nor a schema failure. They exit
+#: 3 like the others. E01 is DEC-11 (Josh, 13 September 2026); its message ends "reduce
+#: your case key to one column". Raised by ``io.declare._check_dec11_case_key`` (a
+#: ``clustering.unit`` list of >= 2, a string splitting into >= 2 tokens, or a list of
+#: >= 2 under ``clustering.columns``/``key``/...), by ``io.mapping.map_headers`` (two
+#: headers resolving to ``case_id`` by name) and by ``io.mapping.apply_mapping`` (two
+#: columns mapped to ``case_id``, whatever the source). ``tests/test_mapping_full.py::
+#: test_dec11_via_the_cli_run_and_map_exit_3_with_the_message_and_no_traceback`` runs
+#: ``run`` and ``map`` through ``main()`` and one subprocess and asserts exit 3, the first
+#: stderr line and no ``Traceback``.
+MAPPING_CODES: dict[str, str] = {
+    "E01": "composite case key: two or more columns identify a case (DEC-11)",
+}
+
 #: Gates that produce a flag/warning rather than a HALT.
 FLAG_ONLY_CODES = frozenset({"H10"})
 
@@ -72,7 +86,11 @@ class HaltError(ProofPackError):
     detail: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if self.code not in HALT_CODES and self.code not in SCHEMA_CODES:
+        if (
+            self.code not in HALT_CODES
+            and self.code not in SCHEMA_CODES
+            and self.code not in MAPPING_CODES
+        ):
             raise ValueError(f"unknown HALT code {self.code!r}")
         super().__init__(f"{self.code}: {self.message}")
 

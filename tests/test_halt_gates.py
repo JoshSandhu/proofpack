@@ -240,6 +240,7 @@ def test_h06_single_class_site_is_warning():
 def test_h07_accepts_yes_with_matching_high_mapping(tmp_path: Path):
     cols = make_cohort()
     m = map_headers(list(cols))
+    m.decided_by = "interactive"  # day 6 repair 1: --yes refuses a 'proposed' prior (FA-N1)
     m.write(tmp_path / "mapping.json")
     res = ingest(
         table_from_columns(cols),
@@ -247,7 +248,8 @@ def test_h07_accepts_yes_with_matching_high_mapping(tmp_path: Path):
         mapping_path=tmp_path / "mapping.json",
         non_interactive=True,
     )
-    assert res.mapping.decided_by == "file"
+    # "file" until 9cfbdd5: check_h07 returns decided_by as read (day 6 A repair 4.2)
+    assert res.mapping.decided_by == "interactive"
 
 
 def test_h07_rejects_yes_when_headers_change(tmp_path: Path):

@@ -1,0 +1,338 @@
+"""``io.profile`` - value-level column summaries for the mapper (D1 section 5 step 1).
+
+One :class:`ColumnSummary` per column, computed from the first :data:`SAMPLE_ROWS`
+rows after the header (a prefix sample; no seed is involved). It holds the inferred
+type, ``n_unique``, the top <= :data:`TOP_VALUES` values with counts, min/max for
+numeric and date columns, the missing percentage after the schema's missing-token
+normalisation, and for <= 2-unique-value columns the split (candidate labels).
+
+The floor :data:`SUPPRESSION_K` is applied to three fields of the summary: a value is
+listed in ``top`` / ``split`` only when its count in the sample is >= the floor, below
+that it is replaced by the literal ``<suppressed>`` and counted in
+``n_suppressed_values``; and a numeric ``min`` / ``max`` is printed only when the sampled
+rows holding that extreme value number >= the floor, otherwise the field holds the same
+literal (repair 1, FA-B1: at 555a5e1 ``["100"] * 41 + ["7"] * 9`` printed ``min 7`` while
+listing ``7`` as ``<suppressed>``;
+``tests/test_mapping_repair1.py::test_numeric_min_max_below_the_floor_print_as_suppressed``
+feeds that column and four others). Free-text-looking columns (more than
+:data:`FREE_TEXT_UNIQUE_SHARE` of the non-missing sample is unique and the type is not
+numeric or date) list no values at all. Date min/max are coarsened to ``YYYY-MM`` and,
+since repair 3 (DEC-39), a month is printed only when >= the floor of sampled rows fall
+in it, otherwise the literal (at 1354758 ``["2024-03-15"] * 49 + ["1999-01-01"]``
+printed ``min 1999-01`` - one row's month; lens-2 RG-NB-4, carried 23;
+``tests/test_mapping_repair3.py::test_date_min_max_below_the_floor_print_as_suppressed``);
+a date column lists no values. The summary is what ``mapping.json``'s
+``value_summaries`` holds and what the printed table shows.
+
+Typing reuses :mod:`proofpack.io.schema`: the missing tokens are already applied by
+``load_table`` / ``table_from_columns`` (a ``None`` cell is missing), ``float()`` is the
+numeric rule ``_to_float`` uses, and ``_ISO_DATE`` is the date prefix ``coarsen_date``
+accepts. Two slash-separated date shapes, a dash-separated, a dot-separated and an
+English month-name shape are accepted in addition (recorded in :data:`DATE_PATTERNS`).
+"""
+
+from __future__ import annotations
+
+import math
+import re
+from collections import Counter
+from dataclasses import dataclass, field
+
+from proofpack.io.schema import _ISO_DATE, _norm_cell, missing_tokens
+
+#: Rows inspected per column: the first 10,000 after the header (D1 section 5 step 1).
+SAMPLE_ROWS = 10_000
+#: Suppression floor for a listed value. D1 section 5 states no floor of its own, so the
+#: egress ``n < 10`` cell rule of D1 section 6 is used [decision, day 6 A].
+SUPPRESSION_K = 10
+#: Top values listed per column (D1 section 5 step 1: "top <= 20").
+TOP_VALUES = 20
+#: A categorical/string column whose unique share of the non-missing sample exceeds
+#: this is treated as free text and lists no values. Columns with <= 2 unique values are
+#: exempt so the label split still shows [decision, day 6 A].
+FREE_TEXT_UNIQUE_SHARE = 0.5
+#: The literal that replaces a suppressed value.
+SUPPRESSED = "<suppressed>"
+
+_INT = re.compile(r"^[+-]?\d+$")
+#: Date shapes the value sniff accepts: the schema's ISO prefix, then D/M/YYYY,
+#: YYYY/MM/DD, D-M-YYYY (added in repair 1, FA-N7: at 555a5e1 a ``visit`` column of
+#: ``15-03-2024`` values was typed ``string`` and passed H11), D.M.YYYY and ``17 Mar 2024``
+#: / ``17 March 2024`` (added in repair 2, FA-N2: at e92989b ``15.03.2024`` x 60 printed as
+#: ``categorical`` with the value listed and passed H11). Two-digit years (``3/17/24``) are
+#: not among them: the century is a guess, and such a column is not typed ``date``
+#: (``["3/17/24"] * 60`` is ``categorical``, sixty distinct ``d/m/24`` strings are
+#: ``string`` - at 1354758 this comment said "stays categorical", lens-3 FA-B3;
+#: ``tests/test_mapping_repair2.py::test_dotted_and_month_name_dates_are_typed_date`` and
+#: ``tests/test_mapping_repair3.py::test_sixty_distinct_two_digit_year_dates_are_not_typed_date``).
+#: A column is typed ``date`` only when every non-missing sampled value matches one of
+#: them (``any`` in place of ``all`` is lens-3 mutant L08;
+#: ``::test_one_non_date_cell_among_fifty_nine_iso_dates_is_not_typed_date``); an integer
+#: column (Excel serials such as 45000, or 20240315) is typed ``int``.
+_MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+_MONTH_NAME = (
+    "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|"
+    "sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
+)
+DATE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    _ISO_DATE,
+    re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$"),
+    re.compile(r"^\d{4}/\d{2}/\d{2}$"),
+    re.compile(r"^\d{1,2}-\d{1,2}-\d{4}$"),
+    re.compile(r"^\d{1,2}\.\d{1,2}\.\d{4}$"),
+    # ASCII: under Unicode IGNORECASE the letter classes also match U+017F (long s)
+    # and U+0131 (dotless i), so "17 ſep 2024" was typed date and reached
+    # _date_key's fallback, which returned the day-level value (lens-2 FA-B2 of
+    # repair 4, 21 September; tests/test_mapping_repair5.py).
+    re.compile(r"^\d{1,2}\s+(?:" + _MONTH_NAME + r")\s+\d{4}$", re.IGNORECASE | re.ASCII),
+)
+
+
+@dataclass
+class ColumnSummary:
+    """Counts, the inferred type and the floor-filtered extremes and values of one column.
+
+    ``top`` and ``split`` hold ``[value_or_<suppressed>, count]`` pairs; ``min`` / ``max``
+    hold a formatted number, a ``YYYY-MM`` month, the ``<suppressed>`` literal, or None.
+    """
+
+    inferred_type: str  # int | float | date | categorical | string | empty
+    n_sampled: int
+    n_missing: int
+    missing_pct: float
+    n_unique: int
+    top: list[list] = field(default_factory=list)
+    n_suppressed_values: int = 0
+    min: str | None = None
+    max: str | None = None
+    split: list[list] | None = None
+    free_text: bool = False
+    values_shown: bool = True
+    # value signals the mapper's heuristics read (aggregates; not part of to_dict())
+    signals: dict = field(default_factory=dict)
+
+    @property
+    def n_nonmissing(self) -> int:
+        return self.n_sampled - self.n_missing
+
+    def to_dict(self) -> dict:
+        return {
+            "inferred_type": self.inferred_type,
+            "n_sampled": self.n_sampled,
+            "n_missing": self.n_missing,
+            "missing_pct": self.missing_pct,
+            "n_unique": self.n_unique,
+            "top": self.top,
+            "n_suppressed_values": self.n_suppressed_values,
+            "min": self.min,
+            "max": self.max,
+            "split": self.split,
+            "free_text": self.free_text,
+            "values_shown": self.values_shown,
+        }
+
+    def render(self) -> str:
+        """One line for the printed mapping table."""
+        parts = [
+            self.inferred_type,
+            f"{self.n_unique} unique",
+            f"{self.missing_pct:.1f}% missing",
+        ]
+        if self.min is not None:
+            parts.append(f"min {self.min} max {self.max}")
+        if not self.values_shown:
+            reason = "free text" if self.free_text else "dates"
+            parts.append(f"values not shown ({reason})")
+        elif self.top:
+            shown = ", ".join(
+                f"{v} ({c} distinct below k={SUPPRESSION_K})" if v == SUPPRESSED else f"{v} ({c})"
+                for v, c in self.top
+            )
+            parts.append("values: " + shown)
+        return "; ".join(parts)
+
+
+def _infer_type(values: list[str]) -> str:
+    if not values:
+        return "empty"
+    if all(_INT.match(v) for v in values):
+        return "int"
+    try:
+        for v in values:
+            float(v)
+    except ValueError:
+        pass
+    else:
+        return "float"
+    if all(any(p.match(v) for p in DATE_PATTERNS) for v in values):
+        return "date"
+    return "categorical" if len(set(values)) <= TOP_VALUES else "string"
+
+
+def _fmt_num(x: float) -> str:
+    if math.isfinite(x) and x == int(x) and abs(x) < 1e15:
+        return str(int(x))
+    return f"{x:g}"
+
+
+def _extreme_or_suppressed(x: float, counts: Counter) -> str:
+    """The formatted extreme when the sampled rows holding it number >= the floor."""
+    rows = 0
+    for value, count in counts.items():
+        try:
+            if float(value) == x:
+                rows += count
+        except ValueError:  # pragma: no cover - counts come from an int/float column
+            continue
+    return _fmt_num(x) if rows >= SUPPRESSION_K else SUPPRESSED
+
+
+#: The two-digit / two-digit / four-digit shape (slash, dot or dash) whose field order a
+#: column decides once, in :func:`_month_first`.
+_TWO_FIELDS_YEAR = re.compile(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$")
+
+
+def _month_first(values: list[str]) -> bool:
+    """Decide the day/month order ONCE PER COLUMN from the sampled slash/dot/dash values,
+    never per value: if any sampled slash/dot/dash value has a second field above 12 and
+    none a first field above 12, the column is month-first; if any has a first field
+    above 12, day-first; both or neither, day-first.
+
+    At 4fbbf35 the order was decided per value, so ``["03/15/2024"] * 9 +
+    ["04/03/2024"]`` keyed nine rows month-first (``2024-03``) and the tenth day-first
+    (``2024-03`` again) and printed ``min 2024-03`` for a month holding nine rows - the
+    DEC-39 leak lens-2 FA-B1 of repair 3 measured
+    (``tests/test_mapping_repair4.py::test_date_order_is_decided_once_per_column``
+    feeds that column, its ``.`` and ``-`` twins, the ten-row ``03/04/2024`` twin, and
+    ``["03/13/2024"] * 60`` / ``["12/15/2024"] * 60`` for the two boundaries).
+    """
+    first_above = second_above = False
+    for v in values:
+        m = _TWO_FIELDS_YEAR.match(v)
+        if m:
+            first_above = first_above or int(m.group(1)) > 12
+            second_above = second_above or int(m.group(2)) > 12
+    return second_above and not first_above
+
+
+def _date_key(v: str, *, month_first: bool = False) -> str:
+    """``YYYY-MM`` for ordering and display; slash shapes are reduced by their digits.
+
+    A two-field-and-year shape takes the month from its second field (day-first) unless
+    ``month_first`` is set by :func:`_month_first` for the whole column, in which case
+    from its first (``03/15/2024`` in a column whose second fields reach 15 ->
+    ``2024-03``; at b0f60a6 every such value printed ``2024-15``, lens-1 FA-N4 of repair 3;
+    ``tests/test_mapping_repair3_2.py::test_us_shaped_slash_dates_key_to_a_real_month``).
+    ``["13/15/2024"] * 60`` has a first field above 12, so the column is day-first and the
+    key is ``2024-15`` (the same test).
+    """
+    m = _ISO_DATE.match(v)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    m = re.match(r"^(\d{4})/(\d{2})/\d{2}$", v)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    m = _TWO_FIELDS_YEAR.match(v)
+    if m:
+        month = int(m.group(1)) if month_first else int(m.group(2))
+        return f"{m.group(3)}-{month:02d}"
+    m = re.match(r"^\d{1,2}\s+([A-Za-z]+)\s+(\d{4})$", v, re.ASCII)
+    if m:
+        return f"{m.group(2)}-{_MONTHS.index(m.group(1)[:3].lower()) + 1:02d}"
+    # A value this function cannot key is withheld, never returned as itself: at
+    # f108f17 this line returned ``v`` and "17 ſep 2024" (long s, matched by the
+    # Unicode IGNORECASE month pattern of the time) was printed day-level as the
+    # column's min and max (lens-2 FA-B2 of repair 4).
+    return SUPPRESSED
+
+
+def profile_column(column: list[str | None], *, sample_rows: int = SAMPLE_ROWS) -> ColumnSummary:
+    """Summarise one raw column (``None`` = missing) from its first ``sample_rows`` values."""
+    sample = column[:sample_rows]
+    if any(not (v is None or isinstance(v, str)) for v in sample):
+        # in-memory callers (tests, the demo) may pass typed cells; apply the schema's
+        # missing-token normalisation exactly as table_from_columns does
+        missing = missing_tokens()
+        sample = [
+            v if (v is None or isinstance(v, str)) else _norm_cell(v, missing) for v in sample
+        ]
+    n = len(sample)
+    present = [v for v in sample if v is not None]
+    n_missing = n - len(present)
+    counts = Counter(present)
+    kind = _infer_type(present)
+    n_unique = len(counts)
+    missing_pct = (100.0 * n_missing / n) if n else 0.0
+
+    lo = hi = None
+    shown_lo: str | None = None
+    shown_hi: str | None = None
+    signals: dict = {"n_rows": n, "n_nonmissing": len(present)}
+    if kind in ("int", "float"):
+        nums = [f for f in (float(v) for v in present) if not math.isnan(f)]
+        lo, hi = (min(nums), max(nums)) if nums else (None, None)
+        signals["numeric"] = True
+        signals["min"], signals["max"] = lo, hi
+        signals["unit_interval"] = lo is not None and lo >= 0.0 and hi <= 1.0
+        signals["all_unique"] = len(present) >= 2 and n_unique == len(present) == n
+        if lo is not None:
+            # the extreme is printed only when >= SUPPRESSION_K sampled rows hold it
+            # (summed over the strings that parse to that number, e.g. "1" and "1.0")
+            shown_lo = _extreme_or_suppressed(lo, counts)
+            shown_hi = _extreme_or_suppressed(hi, counts)
+    elif kind == "date":
+        # the day/month order is one decision for the column (_month_first), not one
+        # per value: at 4fbbf35 a per-value fallback mixed the two conventions in one
+        # column and the floor below counted the mixed keys (lens-2 FA-B1 of repair 3)
+        month_first = _month_first(present)
+        months = Counter(_date_key(v, month_first=month_first) for v in present)
+        keys = sorted(months)
+        # the month is printed only when >= SUPPRESSION_K sampled rows fall in it (DEC-39)
+        shown_lo = keys[0] if months[keys[0]] >= SUPPRESSION_K else SUPPRESSED
+        shown_hi = keys[-1] if months[keys[-1]] >= SUPPRESSION_K else SUPPRESSED
+        signals["date"] = True
+
+    lowered = {v.casefold() for v in counts}
+    signals["lowered_values"] = lowered
+    signals["n_unique"] = n_unique
+
+    free_text = (
+        kind in ("categorical", "string")
+        and n_unique > 2
+        and len(present) > 0
+        and n_unique > FREE_TEXT_UNIQUE_SHARE * len(present)
+    )
+    values_shown = not free_text and kind != "date"
+
+    top: list[list] = []
+    n_suppressed = 0
+    if values_shown:
+        # the top <= 20 by count, listed only at or above the floor; the suppressed count
+        # is over every distinct value below the floor, not only the inspected twenty
+        for value, count in counts.most_common(TOP_VALUES):
+            if count >= SUPPRESSION_K:
+                top.append([value, count])
+        n_suppressed = sum(1 for c in counts.values() if c < SUPPRESSION_K)
+        if n_suppressed:
+            top.append([SUPPRESSED, n_suppressed])
+    split = list(top) if (values_shown and 1 <= n_unique <= 2) else None
+
+    return ColumnSummary(
+        inferred_type=kind,
+        n_sampled=n,
+        n_missing=n_missing,
+        missing_pct=round(missing_pct, 2),
+        n_unique=n_unique,
+        top=top,
+        n_suppressed_values=n_suppressed,
+        min=shown_lo,
+        max=shown_hi,
+        split=split,
+        free_text=free_text,
+        values_shown=values_shown,
+        signals=signals,
+    )
+
+
+def profile_columns(columns: dict[str, list], *, sample_rows: int = SAMPLE_ROWS) -> dict:
+    return {h: profile_column(v, sample_rows=sample_rows) for h, v in columns.items()}

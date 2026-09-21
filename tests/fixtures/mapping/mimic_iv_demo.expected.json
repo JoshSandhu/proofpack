@@ -1,0 +1,46 @@
+{
+  "comment": "MIMIC-IV demo patients+admissions headers; admittime/dischtime are datetimes -> two value-only event_date candidates at low",
+  "n_rows": 50,
+  "halt": null,
+  "roles": {
+    "subject_id": [
+      "case_id",
+      "high"
+    ],
+    "hadm_id": [
+      "row_id",
+      "medium"
+    ],
+    "gender": [
+      "sex",
+      "high"
+    ],
+    "anchor_age": [
+      "age",
+      "medium"
+    ],
+    "race": [
+      "race",
+      "high"
+    ],
+    "admittime": [
+      "event_date",
+      "low"
+    ],
+    "dischtime": [
+      "event_date",
+      "low"
+    ],
+    "label": [
+      "y_true",
+      "high"
+    ],
+    "probability": [
+      "score",
+      "high"
+    ]
+  },
+  "notes": {
+    "admittime": "2 columns look like event_date"
+  }
+}

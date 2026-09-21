@@ -1,0 +1,10 @@
+{
+  "comment": "patient_id and subject_id both name case_id -> E01 (DEC-11)",
+  "n_rows": 50,
+  "halt": {
+    "code": "E01",
+    "message_ends": "reduce your case key to one column"
+  },
+  "roles": null,
+  "notes": {}
+}
