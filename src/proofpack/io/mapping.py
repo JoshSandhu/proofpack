@@ -794,6 +794,14 @@ def _check_prior_against_table(prior: Mapping, headers: list[str]) -> None:
             "mapping.json has no entry for a column of this table; run proofpack map again",
             {"columns_without_entry": missing},
         )
+    duplicated = len(prior.roles) - len(originals)
+    if duplicated:
+        # ``entry()`` takes the first and ``_check_yes_rule`` would take the last
+        raise HaltError(
+            "H07",
+            "mapping.json holds two entries for one column; run proofpack map again",
+            {"duplicate_entries": duplicated},
+        )
     canon = set(canonical_columns())
     bad = sum(
         1

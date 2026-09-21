@@ -548,6 +548,18 @@ def test_yes_halts_h07_on_an_original_outside_the_header_set(tmp_path: Path, cap
         "HALT H07: mapping.json has no entry for a column of this table; run proofpack map again"
     )
     assert '"columns_without_entry": 6' in err
+    # two entries for one header (the second says ignore): entry set != header set
+    csv_path, prior, data = _confirmed_prior(tmp_path, make_cohort())
+    site = next(r for r in data["roles"] if r["original"] == "site")
+    data["roles"].append({**site, "role": "ignore"})
+    prior.write_text(json.dumps(data), encoding="utf-8")
+    rc = main(["map", "--input", str(csv_path), "--out", str(prior), "--yes"])
+    err = capsys.readouterr().err
+    assert rc == EXIT_HALT
+    assert err.splitlines()[0] == (
+        "HALT H07: mapping.json holds two entries for one column; run proofpack map again"
+    )
+    assert '"duplicate_entries": 1' in err
 
 
 @pytest.mark.parametrize("bad_role", ["SECRET_ROLE_NAME", "attr_", "attr_x y", "Score", "rater_"])
