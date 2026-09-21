@@ -32,15 +32,23 @@ criteria or verdicts"):
   test_point_estimate_criteria_on_f1_and_mcc_read_method_none_as_not_assessable`` (the
   synthetic run's ``overall.op1.f1`` and ``mcc``, ``analytic_ci_unavailable``). At
   ``ab729d3`` both were compared on ``est`` (lens 1 of 21 September, B1);
-* ``attainable_at_n`` / ``max_lower_bound_at_n`` (``stats.attainability``) are filled for a
-  ``ci_lower_bound`` criterion on a proportion metric whose Number carries ``n`` **and
-  whose ``method`` is ``wilson``** - the interval the k = n figure is a case of. On any
-  other method (``cluster_bootstrap_percentile``, ``none``) both are ``null`` and
-  ``detail.attainability_not_computed`` is ``method_not_wilson``: a cluster-bootstrap
-  lower bound is not bounded by the Wilson k = n figure (``tests/test_criteria.py::
-  test_a_cluster_bootstrap_cell_gets_no_attainability_flag``: at ``ab729d3`` a ``met``
-  row on ``ci_lo 0.9`` carried ``attainable_at_n false`` against ``0.8865`` at n = 30).
-  No sample-size advice.
+* ``attainable_at_n`` / ``max_lower_bound_at_n`` (``stats.attainability``) are touched
+  only for a ``ci_lower_bound`` criterion on a proportion metric (``PROPORTION_METRICS``);
+  under any other statistic or metric both are ``null`` and ``detail`` carries no
+  attainability key. For that criterion, :func:`_row` inspects the Number's ``method``
+  and ``n``: both fields are filled when ``method`` is ``wilson`` (the interval the k = n
+  figure is a case of) and ``n`` is an ``int`` above 0; when ``method`` is anything else
+  (``cluster_bootstrap_percentile``, ``none``) both are ``null`` and
+  ``detail.attainability_not_computed`` is ``method_not_wilson``, whatever ``n`` (0 and
+  ``null`` included); a ``wilson`` Number whose ``n`` is not an ``int`` above 0 leaves
+  both ``null`` with no annotation (the guard as written: ``isinstance(n, int) and
+  n > 0``). Inspected by ``tests/test_criteria.py::
+  test_a_cluster_bootstrap_cell_gets_no_attainability_flag`` (at ``ab729d3`` a ``met``
+  row on ``ci_lo 0.9`` carried ``attainable_at_n false`` against ``0.8865`` at n = 30: a
+  cluster-bootstrap lower bound is not bounded by the Wilson k = n figure) and
+  ``::test_a_method_none_number_at_n_zero_or_n_null_is_annotated_method_not_wilson``
+  (at ``02d00c5`` the annotation sat under ``n > 0``, so a ``zero_denominator`` Number at
+  n = 0 carried none). No sample-size advice.
 
 Which field each criterion reads
 --------------------------------
@@ -341,11 +349,13 @@ def _row(
     out["method"] = method
     n = number.get("n")
     out["n"] = n
-    if statistic == "ci_lower_bound" and metric in PROPORTION_METRICS and isinstance(n, int):
-        if n > 0 and method == ATTAINABILITY_METHOD:
+    if statistic == "ci_lower_bound" and metric in PROPORTION_METRICS:
+        if method == ATTAINABILITY_METHOD and isinstance(n, int) and n > 0:
             out["max_lower_bound_at_n"] = max_lower_bound_at_n(n, level)
             out["attainable_at_n"] = attainable(value, n, comparator, level)
-        elif n > 0:
+        elif method != ATTAINABILITY_METHOD:
+            # whatever n: at 02d00c5 this sat under `n > 0`, so a zero_denominator Number
+            # (n 0) carried no annotation (lens 2 of 21 September, FA-N1 / RG-N1)
             out["detail"]["attainability_not_computed"] = "method_not_wilson"
     if number.get("suppressed"):
         out["reason_code"] = "suppressed"

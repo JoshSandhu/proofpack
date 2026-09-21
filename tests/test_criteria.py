@@ -255,6 +255,52 @@ def test_a_number_with_method_none_is_not_assessable_under_each_of_the_three_sta
         assert "attainability_not_computed" not in row["detail"]
 
 
+@pytest.mark.parametrize(
+    "n, reason",
+    [
+        (0, "zero_denominator"),  # lens 2 of 21 September FA-N1 / RG-N1: the literal input
+        (None, "insufficient_positives"),
+    ],
+)
+def test_a_method_none_number_at_n_zero_or_n_null_is_annotated_method_not_wilson(n, reason):
+    """Repair 2 of 21 September (lens 2 FA-N1 = RG-N1). At 02d00c5 the annotation branch
+    sat under `n > 0`, so this Number (est None, ci (None, None), method none, n 0,
+    zero_denominator) under sensitivity ci_lower_bound >= 0.9 came back with detail
+    {'not_estimable_reason': 'zero_denominator'} and no attainability_not_computed key,
+    while the docstrings said 'on any other method ... method_not_wilson'. The status was
+    and is not_assessable / no_interval. A Wilson Number under ci_upper_bound and
+    point_estimate carries detail {} and both fields null (the second half)."""
+    decl = _decl_with([_criterion(id="se", value=0.9)], fairness=None)
+    doc = _doc_with_overall(sensitivity=_num(None, None, None, n=n, reason=reason))
+    [row] = crit_mod.evaluate(decl, doc)
+    assert (row["status"], row["reason_code"], row["n"]) == ("not_assessable", "no_interval", n)
+    assert row["method"] == "none" and row["compared_value"] is None
+    assert row["attainable_at_n"] is None and row["max_lower_bound_at_n"] is None
+    assert row["detail"] == {
+        "not_estimable_reason": reason,
+        "attainability_not_computed": "method_not_wilson",
+    }
+    wilson = _num(1.0, 0.8864866068260313, 1.0, n=30)
+    other = (("ci_upper_bound", "<=", 1.0), ("point_estimate", ">=", 0.9))
+    for statistic, comparator, value in other:
+        decl = _decl_with(
+            [
+                _criterion(
+                    id="sp",
+                    metric="specificity",
+                    statistic=statistic,
+                    comparator=comparator,
+                    value=value,
+                )
+            ],
+            fairness=None,
+        )
+        [row] = crit_mod.evaluate(decl, _doc_with_overall(specificity=wilson))
+        assert (row["status"], row["method"]) == ("met", "wilson"), statistic
+        assert row["attainable_at_n"] is None and row["max_lower_bound_at_n"] is None
+        assert row["detail"] == {}, statistic
+
+
 CLUSTER_CELL = {
     # the S3 specificity cell of the B2 construction as measured at ab729d3 through
     # proofpack run: 29 of 30 negatives right, 15 two-row cases, B 200, seed 20240101

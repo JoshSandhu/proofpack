@@ -4,11 +4,14 @@ Every field is a fact about the run, never a judgement: what was hashed, on what
 which seed, by which engine, under which licence. F17 (D1 section 3.2): two runs of the
 same inputs on the same platform give identical hashes. ``tests/test_manifest.py::
 test_f17_two_runs_in_one_process_differ_only_in_run_id_started_duration_s_and_the_ledger_count``
-runs the whole command twice in one process and diffs the bytes: the manifest keys that
-differed were ``run_id``, ``started``, ``duration_s`` (:data:`VOLATILE_KEYS`) and
-``ledger_count`` (:data:`HISTORY_KEYS`, with ``ledger.acceptance_runs`` in the body), the
-three SHA-256 fields were equal, and the JSON was byte-identical once those keys were
-blanked.
+runs the whole command twice in one process and diffs the bytes. It asserts that ``run_id``
+and ``ledger_count`` differ, that no manifest key outside ``run_id``, ``started``,
+``duration_s`` (:data:`VOLATILE_KEYS`) and ``ledger_count`` (:data:`HISTORY_KEYS`) differs,
+that ``ledger.acceptance_runs`` in the body reads 1 then 2, that the three SHA-256 fields
+are equal, and that the JSON is byte-identical once those keys are blanked. ``started``
+(whole seconds) and ``duration_s`` may or may not differ between two runs; the test does
+not assert either way (lens 2 of 21 September, FA-N2: an earlier form of this sentence
+listed ``started`` as a key that differed, which the test never measured).
 
 Canonical JSON (:func:`canonical_json`): ``sort_keys=True``, ``indent=1``, separators
 ``(",", ": ")``, ``ensure_ascii=False``, ``allow_nan=False`` - so a document holding a

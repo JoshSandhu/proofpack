@@ -1445,10 +1445,19 @@ MUTANTS_DAY7: tuple[Mutant, ...] = (
     Mutant(
         "attainability_on_any_method",
         CRITERIA,
-        r"if n > 0 and method == ATTAINABILITY_METHOD:",
-        "if n > 0:",
+        r"if method == ATTAINABILITY_METHOD and isinstance\(n, int\) and n > 0:",
+        "if isinstance(n, int) and n > 0:",
         day=7,
         what="attainable_at_n filled on a cluster-bootstrap cell (B2)",
+    ),
+    # repair 2 of 21 September (lens 2 FA-N1 / RG-N1)
+    Mutant(
+        "attainability_annotation_needs_positive_n",
+        CRITERIA,
+        r"elif method != ATTAINABILITY_METHOD:",
+        "elif method != ATTAINABILITY_METHOD and isinstance(n, int) and n > 0:",
+        day=7,
+        what="the 02d00c5 guard: no method_not_wilson annotation at n 0 or n null",
     ),
     Mutant(
         "grace_overflow_raises",

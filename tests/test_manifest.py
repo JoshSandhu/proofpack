@@ -1,10 +1,13 @@
 """Build day 7 (E7): the manifest and canonical JSON; F17 determinism.
 
-F17 (D1 section 3.2): the same inputs run twice in one process give identical hashes and
-byte-identical JSON except ``run_id``, ``started`` and ``duration_s``. The two runs here go
-through ``proofpack.cli.main`` end to end (mapping, ingest, statistics, criteria, ledger,
-manifest, the file write), and the bytes of the two ``run.json`` files are compared after
-those three keys are blanked.
+F17 (D1 section 3.2): the same inputs run twice in one process give identical hashes.
+The two runs here go through ``proofpack.cli.main`` end to end (mapping, ingest,
+statistics, criteria, ledger, manifest, the file write); the bytes of the two ``run.json``
+files are compared after the four manifest keys ``run_id``, ``started``, ``duration_s``
+and ``ledger_count`` and the body's ``ledger.acceptance_runs`` are blanked, and the set of
+manifest keys that differ is asserted to hold ``run_id`` and ``ledger_count`` and nothing
+outside those four (lens 2 of 21 September, FA-N2: this docstring earlier named three keys
+while the body blanked five).
 """
 
 from __future__ import annotations
@@ -151,7 +154,7 @@ def test_f17_two_runs_in_one_process_differ_only_in_run_id_started_duration_s_an
     mapping = confirmed_mapping(csv_path)
     first = _run(tmp_path, "p1", csv_path, yml)
     second = _run(tmp_path, "p2", csv_path, yml)
-    assert first != second  # run_id and started differ
+    assert first != second  # run_id differs (asserted below); started may or may not
     a, doc_a = _blank_volatile(first)
     b, doc_b = _blank_volatile(second)
     assert a == b

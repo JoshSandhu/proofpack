@@ -10,21 +10,28 @@ second with a ``Z`` (``isoUtc`` in the issuer).
 Every outcome :func:`verify` returns is a :class:`LicenceResult` with a status from
 :data:`STATUSES` and a reason from :data:`REASON_CODES`. What ``tests/test_licence.py``
 feeds and reads back as ``refused`` without an exception: 300 random byte blobs of 0-199
-bytes, three truncations of a signed file, eight malformed spellings, every required field
-removed or mistyped in turn, and signed payloads with ``grace_days`` 3 000 000 and 10**9,
-``expires`` ``9999-12-31T23:59:59Z``, ``expires`` ``0001-01-01T00:00:00+05:00`` and a trial
-``issued`` ``9999-12-31T00:00:00Z``
+bytes, a signed file with its signature segment cut by eight characters, with its payload
+segment cut by four, and with its signature segment replaced by ``A`` repeated to the same
+length, eight malformed spellings, every required field removed or mistyped in turn, and
+signed payloads with ``grace_days`` 3 000 000 and 10**9, ``expires``
+``9999-12-31T23:59:59Z``, ``expires`` ``0001-01-01T00:00:00+05:00``, ``expires``
+``9999-12-31T23:59:59-05:00`` and a trial ``issued`` ``9999-12-31T00:00:00Z``
 (``test_extreme_dates_and_grace_days_are_refused_expires_unparsable``) - at ``ab729d3``
-those five raised ``OverflowError`` out of the date arithmetic (lens 1 of 21 September, N3).
+the first five of those six raised ``OverflowError`` out of the date arithmetic (lens 1 of
+21 September, N3; the sixth was added by repair 2 to pin the empty ``detail`` below).
 
 * ``refused`` - the file cannot be trusted: not exactly two dot-separated segments; a
   segment that is not canonical base64 (base64url, unpadded and trailing-bit spellings are
   refused, not canonicalised - the four spellings are in ``tests/test_licence.py``); a
   payload that is not a JSON object; a required field missing or of the wrong type; a
   ``key_id`` the registry does not hold; ``cryptography``'s ``InvalidSignature``;
-  ``expires`` or ``issued`` unparsable, or a date, the trial end or the grace end outside
-  Python's ``datetime`` range (``expires_unparsable`` with ``detail.field``);
-  ``cryptography`` not importable.
+  ``expires`` or ``issued`` unparsable, or carried outside Python's ``datetime`` range by
+  its own offset (``expires_unparsable``, ``detail`` empty: ``parse_utc`` returns ``None``
+  before a field is attributed - the two offset payloads above); the trial end, ``expires``
+  plus the 24 h skew, or the grace end outside that range (``expires_unparsable`` with
+  ``detail.field`` ``issued`` / ``expires`` / ``grace_days``: the term whose sum
+  overflowed, not the value that is extreme - a ``grace_days`` of 30 is named when
+  ``expires`` is 9999-12-30, lens 2 RG-N4); ``cryptography`` not importable.
 * ``ok`` - the signature verifies and ``now <= expires + 24 h`` (the clock-skew tolerance,
   D1 section 7, applied on the customer's side only: a licence is never refused for a
   clock up to a day behind the issuer's). A trial's effective expiry is the earlier of the
@@ -77,8 +84,9 @@ REASON_CODES: dict[str, str] = {
     "unknown_key_id": "the payload's key_id is not a key this engine ships",
     "signature_invalid": "the Ed25519 signature does not verify against the key_id's key",
     "expires_unparsable": (
-        "expires or issued is not an ISO-8601 UTC timestamp, or a date, the trial end or "
-        "the grace end lies outside the datetime range (detail.field)"
+        "expires or issued is not an ISO-8601 timestamp with an offset, or its offset carries "
+        "it outside the datetime range (detail empty); or the trial end, expires + 24 h or "
+        "the grace end overflows the datetime range (detail.field names the term summed)"
     ),
     "cryptography_unavailable": "the cryptography package is not installed",
 }

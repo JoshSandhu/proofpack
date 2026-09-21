@@ -23,10 +23,17 @@ which is the closed form the oracle test recomputes by hand (``tests/test_criter
 states the figure and, for a ``>=`` / ``>`` criterion, whether ``value`` is at or below it;
 nothing else.
 
-The figure is the Wilson bound and belongs beside a Wilson interval only. ``criteria._row``
+The figure is the Wilson bound and belongs beside a Wilson interval only. For a
+``ci_lower_bound`` criterion on a metric in :data:`PROPORTION_METRICS`, ``criteria._row``
 fills ``attainable_at_n`` / ``max_lower_bound_at_n`` when the Number's ``method`` is
-``wilson`` (``criteria.ATTAINABILITY_METHOD``) and leaves both ``null`` with
-``detail.attainability_not_computed: method_not_wilson`` otherwise. Measured at
+``wilson`` (``criteria.ATTAINABILITY_METHOD``) and its ``n`` is an ``int`` above 0, and
+leaves both ``null`` with ``detail.attainability_not_computed: method_not_wilson`` when
+the ``method`` is anything else, whatever ``n`` (``tests/test_criteria.py::
+test_a_method_none_number_at_n_zero_or_n_null_is_annotated_method_not_wilson``: at
+``02d00c5`` a ``zero_denominator`` Number at n = 0 carried no annotation). Under a
+``ci_upper_bound`` or ``point_estimate`` criterion, or on a metric outside the set, both
+are ``null`` and ``detail`` has no attainability key (the same test, a Wilson Number
+under each). Measured at
 ``ab729d3`` (lens 1 of 21 September, B2): a cluster-bootstrap percentile interval on 30
 negatives in 15 two-row cases with one wrong row (``k`` 29, ``n_cases`` 15) had ``ci_lo``
 0.9 - the wrong row's case is absent from about a third of the resamples - against the

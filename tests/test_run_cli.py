@@ -195,6 +195,51 @@ def test_b2_a_met_clustered_cell_carries_no_attainability_flag_through_run(
     jsonschema.validate(doc, load_json_schema("output_schema_v1.json"))
 
 
+def test_a_zero_denominator_site_row_is_annotated_method_not_wilson_through_run(
+    tmp_path: Path, monkeypatch
+):
+    """Repair 2 of 21 September (lens 2 FA-N1), the CLI route: 400 rows, the 30 S3 rows
+    all y_true 0, criterion sensitivity ci_lower_bound >= 0.8 at {site, S3}. At 02d00c5
+    the row read n 0, method none, not_assessable / no_interval, detail
+    {'not_estimable_reason': 'zero_denominator'} with no attainability_not_computed key."""
+    _own_home(tmp_path, monkeypatch)
+    cols = cohort_with_a_thirty_row_site()
+    for i in range(30):
+        cols["y_true"][i] = "0"
+    crit = make_criteria(
+        criteria=[
+            {
+                "id": "se_S3",
+                "metric": "sensitivity",
+                "operating_point": "op1",
+                "scope": {"attribute": "site", "level": "S3"},
+                "statistic": "ci_lower_bound",
+                "comparator": ">=",
+                "value": 0.8,
+                "author": "Dr A.",
+                "date": "2026-01-01",
+                "justification": "test fixture",
+            }
+        ],
+        fairness=None,
+    )
+    csv_path, yml = _prepare(tmp_path, cols, crit)
+    out = tmp_path / "pack"
+    assert _run(csv_path, yml, out, "--offline") in (EXIT_OK, EXIT_WARNINGS)
+    doc = json.loads((out / "run.json").read_text(encoding="utf-8"))
+    [row] = doc["criteria_results"]
+    assert (row["criterion_id"], row["n"], row["method"]) == ("se_S3", 0, "none")
+    assert (row["status"], row["reason_code"]) == ("not_assessable", "no_interval")
+    assert row["compared_value"] is None
+    assert row["attainable_at_n"] is None and row["max_lower_bound_at_n"] is None
+    assert row["detail"] == {
+        "not_estimable_reason": "zero_denominator",
+        "attainability_not_computed": "method_not_wilson",
+    }
+    assert_no_met_row_is_marked_unattainable(doc["criteria_results"])
+    jsonschema.validate(doc, load_json_schema("output_schema_v1.json"))
+
+
 def test_the_manifest_fields_and_the_licence_echo(run_document):
     doc, _, _ = run_document
     m = doc["manifest"]

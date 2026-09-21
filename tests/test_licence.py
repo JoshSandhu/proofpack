@@ -248,21 +248,25 @@ def test_random_and_hostile_bytes_never_raise():
         ("grace_days", {"grace_days": 3_000_000}),
         ("grace_days", {"grace_days": 10**9}),
         ("expires", {"expires": "9999-12-31T23:59:59Z"}),
-        ("expires", {"expires": "0001-01-01T00:00:00+05:00"}),
+        (None, {"expires": "0001-01-01T00:00:00+05:00"}),
         ("issued", {"tier": "trial", "issued": "9999-12-31T00:00:00Z"}),
+        (None, {"expires": "9999-12-31T23:59:59-05:00"}),  # repair 2: year 10000 after astimezone
     ],
 )
 def test_extreme_dates_and_grace_days_are_refused_expires_unparsable(field, extra):
-    """Lens 1 of 21 September, FA-N3: at ab729d3 each of these signed payloads raised
-    OverflowError out of verify() ('date value out of range', 'days=1000000000; must have
-    magnitude <= 999999999', and the year-0 offset in parse_utc). Each is now refused
-    expires_unparsable; the field is named except for the fourth, which parse_utc refuses
-    (an offset carrying year 1 below the range) before any field is attributed."""
+    """Lens 1 of 21 September, FA-N3: at ab729d3 the first five of these signed payloads
+    raised OverflowError out of verify() ('date value out of range', 'days=1000000000;
+    must have magnitude <= 999999999', and the year-0 offset in parse_utc). Each is
+    refused expires_unparsable. detail.field names the term whose sum overflowed for the
+    three sums (grace_days, expires + 24 h, the trial's issued + 30 d); the two payloads
+    whose own offset carries expires past the range (field None here) are refused by
+    parse_utc with an empty detail (lens 2 of 21 September, FA-N3: the docstring said
+    'with detail.field' of these too)."""
     payload = licence_payload()
     payload.update(extra)
     r = verify(sign_licence(payload).encode("ascii"), now=NOW, registry=ephemeral_registry())
     assert (r.status, r.reason_code) == ("refused", "expires_unparsable"), extra
-    if extra.get("expires") == "0001-01-01T00:00:00+05:00":
+    if field is None:
         assert r.detail == {}
     else:
         assert r.detail == {"field": field}

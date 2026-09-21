@@ -291,8 +291,11 @@ and the same bytes are `manifest.mapping_sha256` in `run.json` (DEC-27).
   at `ab729d3` `point_estimate` was compared on `est`). `attainable_at_n` /
   `max_lower_bound_at_n` (the Wilson lower bound at `k = n`, `stats.attainability`)
   are filled for `ci_lower_bound` criteria on proportion metrics whose Number's
-  `method` is `wilson`; on any other method (a cluster bootstrap, `none`) both are
-  `null` and `detail.attainability_not_computed` reads `method_not_wilson`. No default
+  `method` is `wilson` and whose `n` is an integer above 0; on any other method (a
+  cluster bootstrap, `none`) both are `null` and `detail.attainability_not_computed`
+  reads `method_not_wilson`, at `n` 0 and `null` too
+  (`tests/test_criteria.py::test_a_method_none_number_at_n_zero_or_n_null_is_annotated_method_not_wilson`;
+  at `02d00c5` a `zero_denominator` row at `n` 0 carried no annotation). No default
   bound, statistic or comparator exists; a fairness `bound` needs `statistic` and
   `comparator` beside it (H08 otherwise).
 * **Ledger** (`io/ledger.py`): `ledger.json` in the per-user directory
