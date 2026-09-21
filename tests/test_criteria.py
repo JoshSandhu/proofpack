@@ -218,6 +218,9 @@ def test_attainability_fields_are_filled_for_a_lower_bound_proportion_criterion_
     assert lb["attainable_at_n"] is False and lb["status"] == "not_met" and lb["n"] == 30
     for cid in ("PT", "UB", "F1"):
         assert rows[cid]["attainable_at_n"] is None and rows[cid]["max_lower_bound_at_n"] is None
+        # lens 3 of 21 September (regression N2): the docstring in stats/attainability.py cites
+        # this test for "detail has no attainability key" on these three; assert it here
+        assert not any(k.startswith("attainability") for k in rows[cid].get("detail") or {}), cid
     # '<=' on the lower bound: the figure is reported, the question does not arise
     assert rows["LE"]["max_lower_bound_at_n"] is not None and rows["LE"]["attainable_at_n"] is None
     assert "f1" not in PROPORTION_METRICS and "sensitivity" in PROPORTION_METRICS

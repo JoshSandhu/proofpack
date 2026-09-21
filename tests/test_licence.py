@@ -254,8 +254,8 @@ def test_random_and_hostile_bytes_never_raise():
     ],
 )
 def test_extreme_dates_and_grace_days_are_refused_expires_unparsable(field, extra):
-    """Lens 1 of 21 September, FA-N3: at ab729d3 the first five of these signed payloads
-    raised OverflowError out of verify() ('date value out of range', 'days=1000000000;
+    """Lens 1 of 21 September, FA-N3: at ab729d3 all six of these signed payloads raised
+    OverflowError out of verify() ('date value out of range', 'days=1000000000;
     must have magnitude <= 999999999', and the year-0 offset in parse_utc). Each is
     refused expires_unparsable. detail.field names the term whose sum overflowed for the
     three sums (grace_days, expires + 24 h, the trial's issued + 30 d); the two payloads

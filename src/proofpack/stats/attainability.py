@@ -32,8 +32,10 @@ the ``method`` is anything else, whatever ``n`` (``tests/test_criteria.py::
 test_a_method_none_number_at_n_zero_or_n_null_is_annotated_method_not_wilson``: at
 ``02d00c5`` a ``zero_denominator`` Number at n = 0 carried no annotation). Under a
 ``ci_upper_bound`` or ``point_estimate`` criterion, or on a metric outside the set, both
-are ``null`` and ``detail`` has no attainability key (the same test, a Wilson Number
-under each). Measured at
+are ``null`` and ``detail`` has no attainability key (``tests/test_criteria.py::
+test_attainability_fields_are_filled_for_a_lower_bound_proportion_criterion_only``: a
+Wilson ``sensitivity`` under ``point_estimate`` and ``ci_upper_bound``, and a Wilson
+``f1``, each with an empty ``detail``). Measured at
 ``ab729d3`` (lens 1 of 21 September, B2): a cluster-bootstrap percentile interval on 30
 negatives in 15 two-row cases with one wrong row (``k`` 29, ``n_cases`` 15) had ``ci_lo``
 0.9 - the wrong row's case is absent from about a third of the resamples - against the

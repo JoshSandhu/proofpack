@@ -17,8 +17,9 @@ signed payloads with ``grace_days`` 3 000 000 and 10**9, ``expires``
 ``9999-12-31T23:59:59Z``, ``expires`` ``0001-01-01T00:00:00+05:00``, ``expires``
 ``9999-12-31T23:59:59-05:00`` and a trial ``issued`` ``9999-12-31T00:00:00Z``
 (``test_extreme_dates_and_grace_days_are_refused_expires_unparsable``) - at ``ab729d3``
-the first five of those six raised ``OverflowError`` out of the date arithmetic (lens 1 of
-21 September, N3; the sixth was added by repair 2 to pin the empty ``detail`` below).
+all six raised ``OverflowError`` out of the date arithmetic (lens 1 of 21 September, N3,
+measured the first five; lens 3 measured the sixth, which joined the test in repair 2 to
+pin the empty ``detail`` below).
 
 * ``refused`` - the file cannot be trusted: not exactly two dot-separated segments; a
   segment that is not canonical base64 (base64url, unpadded and trailing-bit spellings are
