@@ -80,7 +80,11 @@ DATE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^\d{4}/\d{2}/\d{2}$"),
     re.compile(r"^\d{1,2}-\d{1,2}-\d{4}$"),
     re.compile(r"^\d{1,2}\.\d{1,2}\.\d{4}$"),
-    re.compile(r"^\d{1,2}\s+(?:" + _MONTH_NAME + r")\s+\d{4}$", re.IGNORECASE),
+    # ASCII: under Unicode IGNORECASE the letter classes also match U+017F (long s)
+    # and U+0131 (dotless i), so "17 ſep 2024" was typed date and reached
+    # _date_key's fallback, which returned the day-level value (lens-2 FA-B2 of
+    # repair 4, 21 September; tests/test_mapping_repair5.py).
+    re.compile(r"^\d{1,2}\s+(?:" + _MONTH_NAME + r")\s+\d{4}$", re.IGNORECASE | re.ASCII),
 )
 
 
@@ -232,10 +236,14 @@ def _date_key(v: str, *, month_first: bool = False) -> str:
     if m:
         month = int(m.group(1)) if month_first else int(m.group(2))
         return f"{m.group(3)}-{month:02d}"
-    m = re.match(r"^\d{1,2}\s+([A-Za-z]+)\s+(\d{4})$", v)
+    m = re.match(r"^\d{1,2}\s+([A-Za-z]+)\s+(\d{4})$", v, re.ASCII)
     if m:
         return f"{m.group(2)}-{_MONTHS.index(m.group(1)[:3].lower()) + 1:02d}"
-    return v  # unreachable for a value that passed DATE_PATTERNS
+    # A value this function cannot key is withheld, never returned as itself: at
+    # f108f17 this line returned ``v`` and "17 ſep 2024" (long s, matched by the
+    # Unicode IGNORECASE month pattern of the time) was printed day-level as the
+    # column's min and max (lens-2 FA-B2 of repair 4).
+    return SUPPRESSED
 
 
 def profile_column(column: list[str | None], *, sample_rows: int = SAMPLE_ROWS) -> ColumnSummary:

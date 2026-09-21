@@ -177,9 +177,12 @@ What it does, in order:
      paragraph under the JSON below names the files fed),
      each `confirmed` entry's stored value summary equal to the
      one computed from this table in `inferred_type` and in the values of a
-     two-valued `split`, where the file holds a summary for that column (a
-     hand-authored `file` prior holds none and is not compared: `value_summaries: {}`
-     or `null` in a confirmed prior passes on a re-exported column,
+     two-valued `split`, where the file holds a summary for that column (a prior
+     that holds no summary for a column is not compared for that column, whoever wrote
+     it: `value_summaries: {}` or `null` in a confirmed prior passes on a re-exported
+     column; a hand-authored `file` prior that does hold a summary line for a
+     confirmed column is compared like an engine-written one,
+     `tests/test_mapping_repair5.py::test_a_file_prior_with_a_typed_summary_is_compared`;
      `tests/test_mapping_repair4.py::test_a_confirmed_prior_without_summaries_is_not_compared`;
      counts are not compared; at b0f60a6 the `patient` column
      confirmed as `categorical; 20 unique` and re-exported as the ten strings `0.0`
