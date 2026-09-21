@@ -210,7 +210,8 @@ def test_yes_refuses_a_proposed_prior(tmp_path: Path, capsys):
     assert (
         main(["--quiet", "map", "--input", str(csv_path), "--out", str(prior), "--yes"]) == EXIT_OK
     )
-    assert Mapping.read(prior).decided_by == "file"
+    # "file" until 9cfbdd5: --yes writes decided_by back as read (repair 4.2 of A-P1)
+    assert Mapping.read(prior).decided_by == "interactive"
     # a day-1 file with no decided_by key reads as "file" and is accepted
     data = json.loads(prior.read_text(encoding="utf-8"))
     del data["decided_by"]

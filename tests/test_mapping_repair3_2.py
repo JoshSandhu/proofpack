@@ -366,7 +366,8 @@ def test_the_mapper_sets_confirmed_only_on_an_accept_or_an_edit_and_yes_writes_b
         "Gender",
         "SepsisLabel",
     ]
-    assert after["decided_by"] == "file" and capsys.readouterr().err == ""
+    # "file" until 9cfbdd5: --yes writes decided_by back as read (repair 4.2 of A-P1)
+    assert after["decided_by"] == "interactive" and capsys.readouterr().err == ""
 
 
 # --------------------------------------------------------------------------- FA-N1
@@ -453,13 +454,14 @@ def test_a_proposed_prior_is_not_relabelled_file_by_run_mapping(tmp_path: Path, 
         assert rc == EXIT_HALT and "this one was not confirmed" in err.splitlines()[0]
     rc = _run(csv_path, yml, p2, tmp_path / "p3", "--yes")
     assert rc == EXIT_HALT and "this one was not confirmed" in capsys.readouterr().err
-    # an interactive prior is still relabelled file on the way into the pack
+    # an interactive prior keeps its word on the way into the pack (relabelled file until
+    # 9cfbdd5; repair 4.2 of A-P1, tests/test_mapping_repair4_2.py)
     data = json.loads(p1.read_text(encoding="utf-8"))
     data["decided_by"] = "interactive"
     p1.write_text(json.dumps(data), encoding="utf-8")
     assert _run(csv_path, yml, p1, tmp_path / "p4") == EXIT_OK
     p4 = tmp_path / "p4" / "mapping.json"
-    assert json.loads(p4.read_text(encoding="utf-8"))["decided_by"] == "file"
+    assert json.loads(p4.read_text(encoding="utf-8"))["decided_by"] == "interactive"
 
 
 # --------------------------------------------------------------------------- RG-N6

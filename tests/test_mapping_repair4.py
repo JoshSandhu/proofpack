@@ -8,6 +8,14 @@ Every test names the literal input it feeds and the figures it asserts. Each tes
 docstring begins "At 4fbbf35" failed at that sha (the first ``E`` line is in the repair-4
 note); those whose docstring begins "Passes at 4fbbf35" did not: they pin a choice, or
 feed the input a sentence or a mutant needed.
+
+Repair 4.2 (lens-1 B1 of repair 4) changed two things here, recorded in its note:
+``test_an_edit_at_the_prompt_is_confirmed_and_passes_yes`` is renamed
+``test_e_attr_score_flag_beside_prob_score_passes_yes_and_e_attr_patient_code_too`` (its
+last block, the flag planted in a file ``map_headers`` wrote, asserted exit 0 and now
+asserts H07: the planted entry is ``high`` as computed and the file says ``file``), and
+two ``decided_by`` assertions read ``interactive`` where they read ``file`` (the
+``--yes`` rewrite to ``file`` is gone: ``tests/test_mapping_repair4_2.py``).
 """
 
 from __future__ import annotations
@@ -237,7 +245,8 @@ def test_a_confirmed_prior_without_summaries_is_not_compared(tmp_path: Path, cap
     """Passes at 4fbbf35: the choice lens-2 FA-B3 / RG-N1 asked to pin. The Sepsis-shaped
     cohort confirmed ``a a``, ``value_summaries`` replaced by ``{}`` and by ``null``, then
     ``patient`` re-exported as the ten strings ``0.0`` .. ``0.9`` -> ``map --yes`` exit 0 and
-    the file rewritten ``decided_by: file`` (with the summaries intact the same re-export is
+    the file rewritten with ``decided_by: interactive`` kept (``file`` until 9cfbdd5; repair
+    4.2) (with the summaries intact the same re-export is
     H07: ``tests/test_mapping_repair3_2.py::
     test_yes_halts_h07_when_a_confirmed_columns_values_changed``).
     With ``or`` -> ``and`` in ``_summaries_agree`` (lens-2 M06) this is exit 5 ``KeyError``."""
@@ -254,7 +263,7 @@ def test_a_confirmed_prior_without_summaries_is_not_compared(tmp_path: Path, cap
         rc = main(["--quiet", "map", "--input", str(csv_path), "--out", str(out), "--yes"])
         assert rc == EXIT_OK and capsys.readouterr().err == "", summaries
         after = json.loads(out.read_text(encoding="utf-8"))
-        assert after["decided_by"] == "file" and after["value_summaries"] == {}
+        assert after["decided_by"] == "interactive" and after["value_summaries"] == {}
 
 
 # --------------------------------------------------------------------------- RG-B1
@@ -298,7 +307,9 @@ def test_a_split_that_is_a_list_of_non_lists_is_an_empty_split(tmp_path: Path, c
 # --------------------------------------------------------------------------- DEC-42
 
 
-def test_an_edit_at_the_prompt_is_confirmed_and_passes_yes(tmp_path: Path, capsys, monkeypatch):
+def test_e_attr_score_flag_beside_prob_score_passes_yes_and_e_attr_patient_code_too(
+    tmp_path: Path, capsys, monkeypatch
+):
     """At 4fbbf35 the DEC-31 remedy on ``row_id,label,score,prob,site`` (``e attr_score_flag``
     for ``score``, ``a`` for ``prob``) wrote ``score`` unconfirmed and ``map --yes`` was H07
     ``requires every mapped role at high confidence in mapping.json or confirmed at the
@@ -307,8 +318,11 @@ def test_an_edit_at_the_prompt_is_confirmed_and_passes_yes(tmp_path: Path, capsy
     ``patient`` (low)
     edited to ``attr_patient_code`` passes too. A ``file`` prior with ``confirmed: true`` on
     ``site -> ignore`` and no stored summary for ``site`` is refused on the role difference;
-    the same flag planted in a file ``map_headers`` wrote (summaries intact) passes - the
-    flag is read and not verified (the README sentence)."""
+    the same flag planted in a file ``map_headers`` wrote (summaries intact, ``decided_by``
+    set ``file``) is refused too since repair 4.2 (``site`` is ``high`` as computed and the
+    file does not say ``interactive``; at 9cfbdd5 this block asserted exit 0 - lens-1 B1 of
+    repair 4, ``tests/test_mapping_repair4_2.py``). Until repair 4.2 this test was
+    ``test_an_edit_at_the_prompt_is_confirmed_and_passes_yes``."""
     cols = _lens_table()
     csv_path = write_csv(tmp_path / "sp.csv", cols)
     yml = write_yaml(tmp_path / "c.yaml", make_criteria(subgroups=SITE_ONLY))
@@ -320,7 +334,7 @@ def test_an_edit_at_the_prompt_is_confirmed_and_passes_yes(tmp_path: Path, capsy
     assert rc == EXIT_OK and capsys.readouterr().err == ""
     after = json.loads(out.read_text(encoding="utf-8"))
     roles = {r["original"]: r for r in after["roles"]}
-    assert after["decided_by"] == "file"
+    assert after["decided_by"] == "interactive"  # "file" until 9cfbdd5 (repair 4.2)
     assert (roles["score"]["role"], roles["score"]["confidence"], roles["score"]["confirmed"]) == (
         "attr_score_flag",
         "low",
@@ -366,12 +380,20 @@ def test_an_edit_at_the_prompt_is_confirmed_and_passes_yes(tmp_path: Path, capsy
         "HALT H07: mapping.json maps a column to ignore but the mapping computed from this "
         "table gives it site; run proofpack map again"
     )
-    # the flag planted in a file map_headers wrote: the stored site summary equals the
-    # fresh one, so the ignore stands (the flag cannot be verified)
+    # the flag planted in a file map_headers wrote (the stored site summary equals the
+    # fresh one): at 9cfbdd5 the ignore stood (exit 0); since repair 4.2 the file says
+    # "file" and site is high as computed, so it is the same role-difference H07
     planted = map_headers(list(cols), cols)
     planted.entry("site").role = None
     planted.entry("site").confirmed = True
     planted.decided_by = "file"
     planted.write(prior)
-    rc = main(["--quiet", "map", "--input", str(csv_path), "--out", str(prior), "--yes"])
-    assert rc == EXIT_OK and capsys.readouterr().err == ""
+    before = prior.read_bytes()
+    rc = main(["map", "--input", str(csv_path), "--out", str(prior), "--yes"])
+    err = capsys.readouterr().err
+    assert rc == EXIT_HALT
+    assert err.splitlines()[0] == (
+        "HALT H07: mapping.json maps a column to ignore but the mapping computed from this "
+        "table gives it site; run proofpack map again"
+    )
+    assert prior.read_bytes() == before

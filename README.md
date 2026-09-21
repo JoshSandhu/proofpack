@@ -164,11 +164,17 @@ What it does, in order:
      file is `high` or `confirmed: true`, the file's role for each column equals the
      role computed from this table (a prior `age` on a column now holding `[70-80)`
      bands halts: `maps a column to age but the mapping computed from this table
-     gives it age_band`) unless the entry is `confirmed` and its stored value summary
-     equals the fresh one (DEC-42: the role a human chose at the prompt stands on the
-     values the human saw; `score -> attr_score_flag` edited beside `prob -> score`
-     accepted, on `row_id,label,score,prob`, passes `--yes` - at 4fbbf35 it was H07 for
-     ever, `tests/test_mapping_repair4.py::test_an_edit_at_the_prompt_is_confirmed_and_passes_yes`),
+     gives it age_band`) unless the file's `decided_by` is `interactive`, the entry is
+     `confirmed`, the mapping computed from this table gives the column `medium` or
+     `low` (the per-role prompt iterates the `medium` and `low` entries) and its stored value
+     summary equals the fresh one (DEC-42: the role a human chose at the prompt stands
+     on the values the human saw; `score -> attr_score_flag` edited beside `prob ->
+     score` accepted, on `row_id,label,score,prob`, passes `--yes` - at 4fbbf35 it was
+     H07 for ever,
+     `tests/test_mapping_repair4.py::test_e_attr_score_flag_beside_prob_score_passes_yes_and_e_attr_patient_code_too`;
+     `decided_by`, `confirmed` and the stored summary are read from the file and the
+     confidence is computed from the table; who typed the file is not verified - the
+     paragraph under the JSON below names the files fed),
      each `confirmed` entry's stored value summary equal to the
      one computed from this table in `inferred_type` and in the values of a
      two-valued `split`, where the file holds a summary for that column (a
@@ -181,8 +187,9 @@ What it does, in order:
      now H07 `the values of a column confirmed at the prompt changed`,
      `tests/test_mapping_repair3_2.py::test_yes_halts_h07_when_a_confirmed_columns_values_changed`),
      and every non-high role computed from this table is `confirmed: true` in the
-     file (DEC-28); otherwise H07. The prior file's roles are used
-     (`decided_by: file`). A prior file with a leading UTF-8 BOM (PowerShell 5.1
+     file (DEC-28); otherwise H07. The prior file's roles are used and its `decided_by`
+     is written back as read (`interactive` stays `interactive`; until 9cfbdd5 it was
+     rewritten `file`). A prior file with a leading UTF-8 BOM (PowerShell 5.1
      `Out-File`) is read; the file is written back without it.
 
 `mapping.json` (the one file this command writes original headers to) is written as
@@ -217,12 +224,31 @@ prompt (the all-high accept leaves every entry `false`; at 4fbbf35 an edit did t
 whatever `confirmed` values it held (`confirmed: true` planted by hand on a high entry
 survives `map --yes`:
 `tests/test_mapping_repair3_2.py::test_the_mapper_sets_confirmed_only_on_an_accept_or_an_edit_and_yes_writes_back_what_it_read`).
-A hand-authored `file` prior carrying `confirmed: true` on an entry whose role differs
-from the computed one holds no value summary to compare and is refused on the role
-difference as before.
+A prior whose `decided_by` is `file` (or absent) and which carries `confirmed: true` on
+an entry whose role differs from the computed one is H07 on the role difference
+whether or not it holds a value summary for that column: at 9cfbdd5 the file
+`proofpack run` writes without a prompt, copied with `decided_by: file`, `age ->
+attr_age_years` and `confirmed: true` typed in, passed `map --yes` and `run --yes` and
+the pack listed `attr_age_years` (lens-1 fresh-attack B1 of repair 4), and a hand-built
+prior with `site -> ignore`, `confirmed: true` and the one line `"site":
+{"inferred_type": "categorical", "split": null}` under `value_summaries` passed too
+(lens-1 regression B1); both are exit 3 now, with `value_summaries: {}` as at 4fbbf35
+(`tests/test_mapping_repair4_2.py::test_a_confirmed_file_prior_is_h07_on_a_role_difference_with_or_without_a_summary`).
+`decided_by: interactive` typed by hand into that copy beside `confirmed: true` on
+`age` is H07 too, because the mapping computed from the table gives `age` `high` and
+the prompt asks about `medium` and `low` entries only; typed beside `confirmed: true`
+on `Gender` (`medium`, 0/1) with the engine's summary intact it passes, and so does the
+file the prompt wrote after `a a` with `patient -> sex` and `Gender -> case_id` swapped
+by hand (`map --yes` exit 0; `run --yes` then halts H05 on the duplicate `case_id`
+rows); that swapped file and the one the prompt writes for `e sex`, `e case_id` differ
+in the two `notes` strings (`accepted interactively` / `edited interactively`) and the
+timestamp only, and `--yes` reads neither
+(`tests/test_mapping_repair4_2.py::test_decided_by_interactive_typed_by_hand_is_read_on_a_non_high_entry_only`).
 `Mapping.read` takes `true`, `false` or the key absent (read as `false`) and halts H07
-on any other JSON type. `decided_by` is `interactive` after the prompts, `file` after
-`--yes` or `proofpack run --mapping` re-used an `interactive` or `file` prior, and
+on any other JSON type. `decided_by` is `interactive` after the prompts and stays
+`interactive` through `--yes` and `proofpack run --mapping` (until 9cfbdd5 both
+rewrote it `file`; `tests/test_mapping_repair4_2.py::test_yes_and_run_mapping_keep_decided_by_interactive`),
+`file` when a prior says so or has no `decided_by` key, and
 `proposed` on the file `proofpack run` writes into `--out` when it maps without a
 prior (still written at this commit; DEC-26 makes `run` halt H07 `run proofpack map
 first` instead, an E7 change). `proofpack run --mapping` on a `proposed` file (no

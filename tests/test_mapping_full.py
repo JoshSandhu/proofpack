@@ -555,9 +555,11 @@ def test_yes_with_matching_all_high_prior_is_accepted(tmp_path: Path, capsys):
     rc = main(["map", "--input", str(csv_path), "--out", str(prior), "--yes"])
     out = capsys.readouterr().out
     assert rc == EXIT_OK
-    assert "decided_by=file" in out and "original header" in out
+    # "decided_by=file" until 9cfbdd5: --yes writes decided_by back as read (repair 4.2
+    # of A-P1; tests/test_mapping_repair4_2.py)
+    assert "decided_by=interactive" in out and "original header" in out
     written = Mapping.read(prior)
-    assert written.decided_by == "file"
+    assert written.decided_by == "interactive"
     assert written.file_sha256 == hashlib.sha256(prior.read_bytes()).hexdigest()
 
 

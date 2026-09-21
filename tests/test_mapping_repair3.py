@@ -436,7 +436,7 @@ def test_interactive_accept_records_confirmed_and_yes_takes_it(tmp_path: Path, c
     rc = main(["--quiet", "map", "--input", str(csv_path), "--out", str(out), "--yes"])
     assert rc == EXIT_OK and capsys.readouterr().err == ""
     after = json.loads(out.read_text(encoding="utf-8"))
-    assert after["decided_by"] == "file"
+    assert after["decided_by"] == "interactive"  # "file" until 9cfbdd5 (repair 4.2)
     assert {r["original"]: r["confirmed"] for r in after["roles"]} == {
         k: v[2] for k, v in flags.items()
     }

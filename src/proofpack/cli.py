@@ -171,7 +171,8 @@ def _confirm_interactive(m, ask=None, say=print, *, period_column: str | None = 
     test_interactive_accept_records_confirmed_and_yes_takes_it``; DEC-42 for the edit -
     at 4fbbf35 an edit left it ``false`` and the file the DEC-31 remedy ``e
     attr_score_flag, a`` wrote was H07 under ``--yes`` on the unconfirmed low,
-    ``tests/test_mapping_repair4.py::test_an_edit_at_the_prompt_is_confirmed_and_passes_yes``).
+    ``tests/test_mapping_repair4.py::
+    test_e_attr_score_flag_beside_prob_score_passes_yes_and_e_attr_patient_code_too``).
     ``period_column`` (the ``period.column`` of ``--criteria``, when given): an edit to
     ``ignore`` on the entry whose original header equals it is refused with one line
     (``refused: the period declaration names a column mapping.json ignores; ...``) and the

@@ -9,8 +9,8 @@ it in the handoff note with the reason.
 
 Why a copy and not a worktree: the sweep must run against the *working tree* (the code
 being handed off, committed or not), and a git worktree can only check out a commit. The
-copy holds ``src``, ``tests``, ``schema``, ``fixtures``, ``design`` and
-``pyproject.toml``; ``PYTHONPATH`` is forced to the copy's ``src`` for every subprocess.
+copy holds ``src``, ``tests``, ``schema``, ``fixtures``, ``design``, ``pyproject.toml``
+and ``README.md``; ``PYTHONPATH`` is forced to the copy's ``src`` for every subprocess.
 What is inspected before any mutant runs: one ``python -c "import proofpack"``
 subprocess with that environment and the copy as its working directory, whose
 ``proofpack.__file__`` must resolve under the copy's ``src`` or the sweep exits. That is
@@ -47,7 +47,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-COPIED = ("src", "tests", "schema", "fixtures", "design", "pyproject.toml")
+#: README.md joined the copy in repair 4.2 of A-P1: tests/test_mapping_repair4_2.py reads
+#: it (a test that cannot open it would fail against every mutant and count each killed).
+COPIED = ("src", "tests", "schema", "fixtures", "design", "pyproject.toml", "README.md")
 SUBGROUPS = "src/proofpack/stats/subgroups.py"
 DISCRIMINATION = "src/proofpack/stats/discrimination.py"
 OUTPUT_SCHEMA = "schema/output_schema_v1.json"
@@ -772,10 +774,12 @@ MUTANTS_DAY6_A: tuple[Mutant, ...] = (
     Mutant(
         "proposed_prior_relabelled_file",
         MAPPING,
-        r"if prior\.decided_by in CONFIRMED_DECIDED_BY:\n",
-        "if True:\n",
+        r"        return prior\n\n    if non_interactive:\n        if prior is None:",
+        '        prior.decided_by = "file"\n        return prior\n\n'
+        "    if non_interactive:\n        if prior is None:",
         marker="day6",
-        what="run --mapping on a proposed file writes the pack copy as file (lens-1 RG-N5)",
+        # re-anchored in repair 4.2: the conditional rewrite it flipped is gone
+        what="every matching prior is relabelled file on the way out (lens-1 RG-N5 of repair 3)",
     ),
     Mutant(
         "write_oserror_not_caught",
@@ -909,10 +913,46 @@ MUTANTS_DAY6_A: tuple[Mutant, ...] = (
     Mutant(
         "yes_confirmed_role_difference_without_a_summary",
         MAPPING,
-        r"if p\.confirmed and _summaries_agree\(prior, fresh, f\.original\) is not None:",
-        "if p.confirmed:",
+        r'and f\.confidence != "high"\n            and _summaries_agree\(prior, fresh, '
+        r"f\.original\) is not None\n        \):",
+        'and f.confidence != "high"\n        ):',
         marker="day6",
-        what="a file prior's confirmed: true on site -> ignore with no summary passes --yes",
+        # re-anchored in repair 4.2 (the condition gained two clauses)
+        what="an interactive prior's edited Gender with its stored summary deleted passes --yes",
+    ),
+    # repair 4.2 of A-P1 (lens-1 round 1 on 9cfbdd5; DEC-42 narrowed)
+    Mutant(
+        "interactive_prior_relabelled_file",
+        MAPPING,
+        r"        return prior\n\n    if non_interactive:\n        if prior is None:",
+        '        if prior.decided_by == "interactive":\n            prior.decided_by = "file"\n'
+        "        return prior\n\n    if non_interactive:\n        if prior is None:",
+        marker="day6",
+        what="an interactive prior is written back file, so a second --yes on an edit is H07",
+    ),
+    Mutant(
+        "yes_exemption_reads_file_as_interactive",
+        MAPPING,
+        r'prior\.decided_by == "interactive"\n            and p\.confirmed',
+        "prior.decided_by in CONFIRMED_DECIDED_BY\n            and p.confirmed",
+        marker="day6",
+        what="a file prior confirmed on Gender -> attr_gender_code passes --yes (lens-1 B1)",
+    ),
+    Mutant(
+        "yes_exemption_reads_the_stored_confidence",
+        MAPPING,
+        r'and f\.confidence != "high"\n            and _summaries_agree',
+        'and p.confidence != "high"\n            and _summaries_agree',
+        marker="day6",
+        what="confidence: medium typed on age beside interactive and confirmed passes --yes",
+    ),
+    Mutant(
+        "yes_exemption_ignores_the_confidence",
+        MAPPING,
+        r'and f\.confidence != "high"\n            and _summaries_agree',
+        "and _summaries_agree",
+        marker="day6",
+        what="decided_by: interactive typed beside confirmed on age (high) passes --yes",
     ),
     Mutant(
         "yes_missing_summary_compared",

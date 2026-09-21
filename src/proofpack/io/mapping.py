@@ -817,8 +817,9 @@ def period_for_validate(mapping: Mapping, period: dict | None) -> dict | None:
     quarter}``, ``map`` answered ``e ignore`` and then ``run --mapping`` was exit 0 with
     ``table.period`` levels ``2024-Q1, 2024-Q3`` built from the ignored column and
     ``n_unused_columns: 1``; a ``visit`` of one ISO date and 59 blanks, proposed ``ignore
-    high`` and never prompted, did the same through ``run`` without a prior (lens-2 FA-B1
-    of repair 3.2; ``tests/test_mapping_repair4.py::
+    high`` and never prompted, did the same through ``run`` without a prior (lens-2 FA-B2
+    of repair 3.2 - FA-B1 there is the DEC-39 date order, a wrong cross-reference until
+    9cfbdd5, lens-1 regression N3 of repair 4; ``tests/test_mapping_repair4.py::
     test_an_ignored_visit_named_by_period_column_is_s03_on_both_routes`` feeds both, through
     ``gates.ingest`` and through ``proofpack run``). Now: the name is an original
     header whose role is ``ignore`` -> S03 :data:`PERIOD_IGNORED`; whose
@@ -946,7 +947,10 @@ def _summary_shape(summary: object) -> tuple[object, frozenset[str] | None] | No
 def _summaries_agree(prior: Mapping, fresh: Mapping, original: str) -> bool | None:
     """True / False when both ``value_summaries`` hold ``original`` and their
     :func:`_summary_shape` are equal / differ; None when either holds no summary for it
-    (a hand-authored ``file`` prior holds none; a ``fresh`` computed from headers alone
+    (the hand-built prior of ``tests/test_mapping_repair4.py::
+    test_a_confirmed_file_prior_is_h07_on_a_role_difference_with_or_without_a_summary``
+    holds none, and a one-line summary typed into the same file is compared like any other
+    - lens-1 regression B1 of repair 4; a ``fresh`` computed from headers alone
     holds none; at 4fbbf35 ``value_summaries: {}`` and ``null`` in a confirmed prior on
     the ten-string ``patient`` re-export passed ``map --yes`` and were not compared -
     lens-2 FA-B3 / RG-N1 of repair 3.2, pinned as the choice by
@@ -970,15 +974,30 @@ def _check_yes_rule(prior: Mapping, fresh: Mapping) -> None:
     feeds both). Compared only where both summaries hold the column
     (:func:`_summaries_agree`).
 
-    DEC-42 (repair 4): a prior role that differs from the fresh one passes the role
-    comparison when the entry is ``confirmed`` (a human accepted or edited it at the
-    prompt) and both files hold a summary for the column; the summary comparison then
-    decides (equal -> the choice stands; differs -> the values-changed H07). When the
-    prior holds no summary for the column (a hand-authored ``file`` prior) it is the
-    role-difference H07 as before. At 4fbbf35 an edit left ``confirmed`` False and
-    the role difference halted the two edited files fed (``score -> attr_score_flag`` beside
-    ``prob -> score`` on ``row_id,label,score,prob``:
-    ``tests/test_mapping_repair4.py::test_an_edit_at_the_prompt_is_confirmed_and_passes_yes``)."""
+    DEC-42 (repair 4, narrowed in repair 4.2): a prior role that differs from the fresh
+    one passes the role comparison when four things read true at once - the prior's
+    ``decided_by`` is ``interactive`` (the word the prompt writes; ``file`` and a missing
+    key are the row's "hand-authored ``file`` prior" and take the role-difference H07),
+    the entry is ``confirmed``, the fresh mapping gives the column ``medium`` or ``low``
+    (``cli._confirm_interactive`` iterates ``m.non_high`` and its all-high path sets no
+    flag: ``tests/test_mapping_repair3_2.py::
+    test_the_mapper_sets_confirmed_only_on_an_accept_or_an_edit_and_yes_writes_back_what_it_read``
+    reads the flags after ``a a`` and ``a e attr_gender_code``; the stored ``confidence``
+    is not read here),
+    and both files hold a summary for the column; the summary comparison then decides
+    (equal -> the choice stands; differs -> the values-changed H07). At 9cfbdd5 the
+    first and third conditions were absent: ``run``'s ``proposed`` file copied with
+    ``decided_by: file``, ``age -> attr_age_years`` and ``confirmed: true`` typed in
+    passed ``map --yes`` and the file was rewritten (lens-1 fresh-attack B1 of repair
+    4; ``tests/test_mapping_repair4_2.py::
+    test_a_confirmed_file_prior_is_h07_on_a_role_difference_with_or_without_a_summary``
+    feeds that file and three more;
+    ``::test_decided_by_interactive_typed_by_hand_is_read_on_a_non_high_entry_only`` feeds
+    ``interactive`` typed on ``age`` (high) and on ``Gender`` (medium)). At 4fbbf35
+    an edit left ``confirmed`` False and the role difference halted the two edited
+    files fed (``score -> attr_score_flag`` beside ``prob -> score`` on
+    ``row_id,label,score,prob``: ``tests/test_mapping_repair4.py::
+    test_e_attr_score_flag_beside_prob_score_passes_yes_and_e_attr_patient_code_too``)."""
     if not prior.all_high:
         unconfirmed = [
             r
@@ -998,15 +1017,28 @@ def _check_yes_rule(prior: Mapping, fresh: Mapping) -> None:
         p = by_original[f.original]
         if p.role == f.role:
             continue
-        if p.confirmed and _summaries_agree(prior, fresh, f.original) is not None:
-            # DEC-42: a human chose the role at the prompt and the file holds the
-            # summary the human saw; the comparison below decides whether it still holds
+        if (
+            prior.decided_by == "interactive"
+            and p.confirmed
+            and f.confidence != "high"
+            and _summaries_agree(prior, fresh, f.original) is not None
+        ):
+            # DEC-42: the file says the prompt wrote it, the entry is one the prompt asks
+            # about (non-high as computed now) and the file holds the summary the human
+            # saw; the comparison below decides whether it still holds. The three words
+            # are read from the file, not verified (README, mapping.json paragraph).
             continue
         raise HaltError(
             "H07",
             f"mapping.json maps a column to {p.role_label} but the mapping computed from "
             f"this table gives it {f.role_label}; run proofpack map again",
-            {"prior_role": p.role_label, "fresh_role": f.role_label},
+            {
+                "prior_role": p.role_label,
+                "fresh_role": f.role_label,
+                "confirmed": p.confirmed,
+                "decided_by": prior.decided_by[:16],
+                "fresh_confidence": f.confidence,
+            },
         )
     changed = sum(
         1
@@ -1063,11 +1095,17 @@ def check_h07(
     fresh one (repair 3.2, FA-B2 of lens 1: ``_check_yes_rule``); every fresh non-high
     role confirmed in the prior for that column. An entry edited at the prompt is
     ``confirmed`` too (DEC-42, repair 4) and its differing role stands under the same
-    value-summary comparison; at 4fbbf35 it was not, and no edited file passed ``--yes``
-    (open question 1 of the repair-3 note). The prior is returned with
-    ``decided_by`` set to ``file`` when it was ``interactive`` or ``file``; a
-    ``proposed`` prior (interactive mode only; ``--yes`` halted on it above) keeps
-    ``proposed``.
+    value-summary comparison when the file's ``decided_by`` is ``interactive`` and the
+    fresh mapping gives the column ``medium`` or ``low`` (repair 4.2, lens-1 B1 of
+    repair 4: ``_check_yes_rule``); at 4fbbf35 it was not, and the two edited files
+    ``tests/test_mapping_repair4.py::
+    test_e_attr_score_flag_beside_prob_score_passes_yes_and_e_attr_patient_code_too``
+    feeds were H07 there (``assert (3 == 0)``, the repair-4 note). The prior is returned
+    with the ``decided_by`` it was read with (``interactive``, ``file`` or, in
+    interactive mode only, ``proposed``); until 9cfbdd5 ``interactive`` and ``file`` were
+    both rewritten ``file`` here, so a second ``map --yes`` on a file the prompt wrote
+    would have lost the word the DEC-42 exemption now reads
+    (``tests/test_mapping_repair4_2.py::test_yes_and_run_mapping_keep_decided_by_interactive``).
     """
     current = header_set_sha256(headers)
     fresh = fresh or map_headers(headers)
@@ -1087,14 +1125,14 @@ def check_h07(
         _check_prior_against_table(prior, headers)
         if non_interactive:
             _check_yes_rule(prior, fresh)
-        if prior.decided_by in CONFIRMED_DECIDED_BY:
-            # a ``proposed`` prior keeps that word: at b0f60a6 ``run --mapping`` on the
-            # file ``run`` had written without a prompt relabelled it ``file`` on the way
-            # into the pack, and ``--yes`` then took it (lens-1 RG-N5 of repair 3;
-            # tests/test_mapping_repair3_2.py::
-            # test_a_proposed_prior_is_not_relabelled_file_by_run_mapping).
-            # DEC-26 (E7, cmd_run) is the halt on the ``proposed`` file itself.
-            prior.decided_by = "file"
+        # ``decided_by`` is returned as read. A ``proposed`` prior keeps that word: at
+        # b0f60a6 ``run --mapping`` on the file ``run`` had written without a prompt
+        # relabelled it ``file`` on the way into the pack, and ``--yes`` then took it
+        # (lens-1 RG-N5 of repair 3; tests/test_mapping_repair3_2.py::
+        # test_a_proposed_prior_is_not_relabelled_file_by_run_mapping). An
+        # ``interactive`` prior keeps that word too (repair 4.2): ``_check_yes_rule``
+        # reads it for the DEC-42 exemption, and until 9cfbdd5 this line rewrote it
+        # ``file``. DEC-26 (E7, cmd_run) is the halt on the ``proposed`` file itself.
         return prior
 
     if non_interactive:
