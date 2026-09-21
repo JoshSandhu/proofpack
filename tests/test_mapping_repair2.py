@@ -209,8 +209,13 @@ def test_attr_twins_are_low_with_the_note_and_reach_the_prompt():
 # --------------------------------------------------------------------------- RG-N1
 
 
-def test_all_high_prompt_reprompts_on_anything_but_a_or_q():
-    """At e92989b ``n`` at the all-high prompt was taken as accept (``decided_by`` interactive)."""
+def test_all_high_prompt_reprompts_on_n_no_e_x_and_takes_a():
+    """At e92989b ``n`` at the all-high prompt was taken as accept (``decided_by`` interactive).
+
+    Until 1354758 this test was named ``..._on_anything_but_a_or_q``; it feeds the five
+    answers ``n no e x a`` and asserts four ``answer a or q`` lines (the empty answer is
+    ``tests/test_mapping_repair3.py::test_empty_answer_reprompts_at_both_prompts``).
+    """
     cols = make_cohort()
     m = map_headers(list(cols), cols)
     assert m.non_high == []

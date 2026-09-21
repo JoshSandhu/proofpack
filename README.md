@@ -68,8 +68,10 @@ What it does, in order:
    here because D1 section 5 states no floor of its own); below that it prints as
    `<suppressed>`. A numeric min or max is printed only when >= 10 sampled rows hold
    that value; otherwise it prints as `<suppressed>` too (`["100"] * 41 + ["7"] * 9`
-   prints `min <suppressed> max 100`). A categorical/string column with more than half
-   of its non-missing sample unique lists no values.
+   prints `min <suppressed> max 100`). A date min or max month is printed only when
+   >= 10 sampled rows fall in that month (DEC-39: `["2024-03-15"] * 49 +
+   ["1999-01-01"]` prints `min <suppressed> max 2024-03`). A categorical/string column
+   with more than half of its non-missing sample unique lists no values.
 2. Assigns a role and a confidence to every header (`io.mapping.map_headers`): exact
    canonical name, the synonym table, an affix-stripped synonym (`pt_age`,
    `label_v2`), a header token (`patient_nbr`), a date-like header, then the value
@@ -93,34 +95,66 @@ What it does, in order:
    `io.profile.DATE_PATTERNS` (ISO, `15/03/2024`, `2024/03/15`, `15-03-2024`,
    `15.03.2024`, `17 Mar 2024`; two-digit years such as `3/17/24` are not among them) -
    and no `period` declaration covers it.
-4. Halts H07 before the table when the directory of `--out` does not exist, then prints
-   the table `original header -> role -> confidence -> value summary` (under `--quiet`
-   only when stdin is a terminal, because the prompts refer to it), then:
-   * stdin is a terminal and `--yes` is absent: prompts once per non-high role
-     (accept / edit to a canonical role, `attr_<name>` / `rater_<name>` in lower-case
-     letters, digits and `_`, or `ignore` / quit; an accept or an edit that would give a
-     role a second holder among the columns already settled is refused at the prompt),
-     or once for the whole mapping when every role is high (`a` or `q`; anything else
-     re-prompts), and writes `mapping.json` with `decided_by: interactive`. Ctrl-C
-     between the table load and the last prompt (the test raises it from `load_table`
-     and at two prompts), or a closed stdin at a prompt, is H07 (`nothing written`);
+4. Halts H07 before the table when `--out` names an existing directory (the message
+   carries the last path component only: `--out names an existing directory (pack)`)
+   or when the directory of `--out` does not exist, then prints the table `original
+   header -> role -> confidence -> value summary` (under `--quiet` only when stdin is a
+   terminal, because the prompts refer to it), then:
+   * stdin is a terminal and `--yes` is absent: prompts once per non-high role. The
+     answer is stripped of surrounding spaces and lower-cased; `a` or `accept` accepts
+     (the entry gains `confirmed: true`, DEC-28), `e` or `edit` asks for a canonical
+     role, `attr_<name>` / `rater_<name>` in lower-case letters, digits and `_`, or
+     `ignore` (the entry stays `confirmed: false`), `q`, `quit` or `abort` halts H07;
+     the empty answer (Enter alone) and any other word print `answer a, e or q` and
+     ask again. An accept or an edit that would give a role a second holder among the
+     columns already settled is refused at the prompt. An edit to `ignore` on a column
+     whose header, after BOM stripping, trimming, NFC and case-folding, equals a role
+     that any other column currently holds is refused with one line naming both
+     headers and the role (DEC-31: `score` holding 0/1 beside `prob`, both proposed
+     as `score low`, cannot be set to `ignore` while `prob` holds `score`, because an
+     ignored column keeps its name at `proofpack run` and the two would collide; give
+     `score` another role, `attr_score_flag` or `y_pred`, or `prob` another role), and
+     so is an accept or an edit to a role that an already-ignored column is named for.
+     When every role is high the prompt is once for the whole mapping: `a` or
+     `accept` accepts, `q`, `quit` or `abort` halts, the empty answer and any other
+     word print `answer a or q` and ask again. The file is written with `decided_by:
+     interactive`. Ctrl-C between the table load and the last prompt (the test raises
+     it from `load_table` and at two prompts), or a closed stdin at a prompt, is H07
+     (`nothing written`); Ctrl-C during the write is H07 `mapping interrupted while
+     writing --out` (the file may be partial);
    * stdin is not a terminal and `--yes` is absent: halts H07 (`run interactively or
      pass --yes with a prior mapping.json`) before any prompt;
    * `--yes`: accepted only when a prior `mapping.json` at `--out` has the same
      `header_set_sha256`, its `decided_by` is `interactive` or `file` (a `proposed`
-     file written by `proofpack run` is refused), and every mapped role is `high` both
-     in that file and in the mapping computed from this table; otherwise H07. The prior
-     file's roles are used (`decided_by: file`).
+     file written by `proofpack run` is refused), its entries name exactly this
+     table's headers and every role in it is a canonical role or an `attr_` /
+     `rater_` name (DEC-29), no ignored entry is named for a role another entry holds
+     (DEC-31, the same H07 as `proofpack run --mapping`), every mapped role in the
+     file is `high` or `confirmed: true`, the file's role for each column equals the
+     role computed from this table (a prior `age` on a column now holding `[70-80)`
+     bands halts: `maps a column to age but the mapping computed from this table
+     gives it age_band`), and every non-high role computed from this table is
+     `confirmed: true` in the file (DEC-28); otherwise H07. An entry edited at the
+     prompt is not `confirmed` and its computed role differs, so a mapping with an
+     edit does not pass `--yes` (repair-3 note, open question 1). The prior file's
+     roles are used (`decided_by: file`).
 
-`mapping.json` (the one file this command writes original headers to) is written as:
+`mapping.json` (the one file this command writes original headers to) is written as
+below. This is the shape DEC-27 fixes for the E7 manifest hash: a list of entries, each
+carrying `original`, `role`, `confidence`, `source`, `notes` and `confirmed`, with the
+file-level `header_set_sha256`, `value_summaries`, `decided_by` and `timestamp`.
 
 ```json
 {
   "header_set_sha256": "<sha256 of the sorted, trimmed header set>",
   "roles": [
     {"original": "SepsisLabel", "role": "y_true", "confidence": "high",
-     "source": "synonym", "notes": []},
-    {"original": "HR", "role": "ignore", "confidence": "high", "source": "ignore", "notes": []}
+     "source": "synonym", "notes": [], "confirmed": false},
+    {"original": "Gender", "role": "sex", "confidence": "medium", "source": "synonym",
+     "notes": ["no dictionary declared for 0/1", "accepted interactively"],
+     "confirmed": true},
+    {"original": "HR", "role": "ignore", "confidence": "high", "source": "ignore",
+     "notes": [], "confirmed": false}
   ],
   "value_summaries": {"<original header>": {"inferred_type": "int", "n_sampled": 50,
      "n_missing": 0, "missing_pct": 0.0, "n_unique": 2, "top": [["0", 35], ["1", 15]],
@@ -131,9 +165,14 @@ What it does, in order:
 }
 ```
 
-D1 section 5.5 lists `roles` and `confidences` as separate keys; the day-1 shape keeps
-both inside each `roles` entry and day 6 adds `source` and `notes` to it. The sha256 of
-the file's bytes is `Mapping.file_sha256` after `write()` or `read()`, for the E7
-manifest. `proofpack run` still maps with the same function and, without a prior
-`mapping.json` and without `--yes`, proceeds on the computed mapping (day-1 behaviour;
-the confirm step is `map`'s).
+`confirmed` is `true` only on an entry answered `a` at the per-role prompt (an edit, an
+all-high accept and `--yes` leave it as it was); `Mapping.read` takes `true`, `false` or
+the key absent (read as `false`) and halts H07 on any other JSON type. `decided_by` is
+`interactive` after the prompts, `file` after `--yes` re-used a prior, and `proposed`
+on the file `proofpack run` writes into `--out` when it maps without a prior (still
+written at this commit; DEC-26 makes `run` halt H07 `run proofpack map first` instead,
+an E7 change). The sha256 of the file's bytes is `Mapping.file_sha256` after `write()`
+or `read()`, for the E7 manifest. `proofpack run` still maps with the same function
+and, without a prior `mapping.json` and without `--yes`, proceeds on the computed
+mapping (day-1 behaviour; the confirm step is `map`'s); with `--mapping` it applies
+the DEC-29 and DEC-31 checks on the prior before `apply_mapping`.

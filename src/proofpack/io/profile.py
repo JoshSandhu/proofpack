@@ -16,9 +16,12 @@ listing ``7`` as ``<suppressed>``;
 ``tests/test_mapping_repair1.py::test_numeric_min_max_below_the_floor_print_as_suppressed``
 feeds that column and four others). Free-text-looking columns (more than
 :data:`FREE_TEXT_UNIQUE_SHARE` of the non-missing sample is unique and the type is not
-numeric or date) list no values at all. Date min/max are coarsened to ``YYYY-MM`` and are
-not put through the floor (D1 section 1's rule on raw dates; open question 1 of the
-repair-1 note); a date column lists no values. The summary is what ``mapping.json``'s
+numeric or date) list no values at all. Date min/max are coarsened to ``YYYY-MM`` and,
+since repair 3 (DEC-39), a month is printed only when >= the floor of sampled rows fall
+in it, otherwise the literal (at 1354758 ``["2024-03-15"] * 49 + ["1999-01-01"]``
+printed ``min 1999-01`` - one row's month; lens-2 RG-NB-4, carried 23;
+``tests/test_mapping_repair3.py::test_date_min_max_below_the_floor_print_as_suppressed``);
+a date column lists no values. The summary is what ``mapping.json``'s
 ``value_summaries`` holds and what the printed table shows.
 
 Typing reuses :mod:`proofpack.io.schema`: the missing tokens are already applied by
@@ -57,11 +60,15 @@ _INT = re.compile(r"^[+-]?\d+$")
 #: ``15-03-2024`` values was typed ``string`` and passed H11), D.M.YYYY and ``17 Mar 2024``
 #: / ``17 March 2024`` (added in repair 2, FA-N2: at e92989b ``15.03.2024`` x 60 printed as
 #: ``categorical`` with the value listed and passed H11). Two-digit years (``3/17/24``) are
-#: not among them: the century is a guess, and the column stays ``categorical`` (carried;
-#: ``tests/test_mapping_repair2.py::test_dotted_and_month_name_dates_are_typed_date``
-#: pins both sides). A column is typed ``date`` only when every non-missing sampled value
-#: matches one of them; an integer column (Excel serials such as 45000, or 20240315) is
-#: typed ``int``.
+#: not among them: the century is a guess, and such a column is not typed ``date``
+#: (``["3/17/24"] * 60`` is ``categorical``, sixty distinct ``d/m/24`` strings are
+#: ``string`` - at 1354758 this comment said "stays categorical", lens-3 FA-B3;
+#: ``tests/test_mapping_repair2.py::test_dotted_and_month_name_dates_are_typed_date`` and
+#: ``tests/test_mapping_repair3.py::test_sixty_distinct_two_digit_year_dates_are_not_typed_date``).
+#: A column is typed ``date`` only when every non-missing sampled value matches one of
+#: them (``any`` in place of ``all`` is lens-3 mutant L08;
+#: ``::test_one_non_date_cell_among_fifty_nine_iso_dates_is_not_typed_date``); an integer
+#: column (Excel serials such as 45000, or 20240315) is typed ``int``.
 _MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 _MONTH_NAME = (
     "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|"
@@ -228,8 +235,11 @@ def profile_column(column: list[str | None], *, sample_rows: int = SAMPLE_ROWS) 
             shown_lo = _extreme_or_suppressed(lo, counts)
             shown_hi = _extreme_or_suppressed(hi, counts)
     elif kind == "date":
-        keys = sorted(_date_key(v) for v in present)
-        shown_lo, shown_hi = keys[0], keys[-1]
+        months = Counter(_date_key(v) for v in present)
+        keys = sorted(months)
+        # the month is printed only when >= SUPPRESSION_K sampled rows fall in it (DEC-39)
+        shown_lo = keys[0] if months[keys[0]] >= SUPPRESSION_K else SUPPRESSED
+        shown_hi = keys[-1] if months[keys[-1]] >= SUPPRESSION_K else SUPPRESSED
         signals["date"] = True
 
     lowered = {v.casefold() for v in counts}

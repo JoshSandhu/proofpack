@@ -88,10 +88,15 @@ def test_numeric_min_max_below_the_floor_print_as_suppressed(tmp_path: Path):
     assert "20.04" not in written and "84.65" not in written
 
 
-def test_date_min_max_are_months_and_not_put_through_the_floor():
-    """Pins the date rule as it stands (D1 section 1 coarsening): three rows, two months."""
+def test_date_min_max_are_months_and_withheld_below_ten_rows():
+    """Three rows, two months: both months are below the floor and print as the literal
+    (DEC-39, repair 3; until 1354758 this test was
+    ``test_date_min_max_are_months_and_not_put_through_the_floor`` and asserted
+    ``("2024-03", "2025-11")`` on the same three rows). Ten rows per month print."""
     s = profile_column(["2024-03-15", "2024-03-16", "2025-11-02"])
-    assert (s.min, s.max) == ("2024-03", "2025-11") and s.values_shown is False
+    assert (s.min, s.max) == ("<suppressed>", "<suppressed>") and s.values_shown is False
+    s = profile_column(["2024-03-15"] * 5 + ["2024-03-16"] * 5 + ["2025-11-02"] * 10)
+    assert (s.min, s.max) == ("2024-03", "2025-11")
 
 
 # --------------------------------------------------------------------------- FA-B2 / RG-NB-2

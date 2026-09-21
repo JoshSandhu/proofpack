@@ -48,8 +48,9 @@ def _build_parser() -> argparse.ArgumentParser:
     m.add_argument(
         "--yes",
         action="store_true",
-        help="non-interactive; accepted only when every role is high and a prior "
-        "mapping.json with the same header-set hash exists at --out",
+        help="non-interactive; accepted only when a prior mapping.json with the same "
+        "header-set hash exists at --out and every role in it is high or was accepted "
+        "at the prompt (confirmed: true)",
     )
 
     r = sub.add_parser(
@@ -139,11 +140,24 @@ def _ask(ask, prompt: str) -> str:
         raise HaltError("H07", "mapping interrupted at the prompt; nothing written") from None
 
 
+#: The answers each prompt takes, after ``_ask`` strips surrounding whitespace and
+#: lower-cases (``  A  `` and ``Accept`` read as ``a``). An empty answer (Enter alone)
+#: re-prompts at both prompts: at 1354758 it was in the accept tuple and a stray Enter
+#: wrote ``decided_by: interactive`` (lens-3 FA-B1;
+#: ``tests/test_mapping_repair3.py::test_empty_answer_reprompts_at_both_prompts``).
+ACCEPT_ANSWERS = ("a", "accept")
+EDIT_ANSWERS = ("e", "edit")
+QUIT_ANSWERS = ("q", "quit", "abort")
+
+
 def _confirm_interactive(m, ask=None, say=print) -> None:
     """Prompt once per non-high role: accept / edit (a canonical role or ignore) / abort;
-    when no role is below high, prompt once for the whole mapping (accept / abort; any
-    other answer re-prompts - at e92989b ``n`` was taken as accept, repair 2, RG-N1;
-    ``tests/test_mapping_repair2.py::test_all_high_prompt_reprompts_on_anything_but_a_or_q``).
+    when no role is below high, prompt once for the whole mapping (``a`` or ``accept``
+    accepts, ``q``, ``quit`` or ``abort`` aborts, after stripping and lower-casing; the
+    answers ``n``, ``no``, ``e``, ``x`` and the empty answer print ``answer a or q`` and
+    ask again - at e92989b ``n`` was taken as accept, repair 2, RG-N1;
+    ``tests/test_mapping_repair2.py::test_all_high_prompt_reprompts_on_n_no_e_x_and_takes_a``;
+    the empty answer is lens-3 FA-B1, :data:`ACCEPT_ANSWERS`).
 
     ``ask`` (default ``input``, resolved at call time) and ``say`` are injectable so the
     prompt is testable without a terminal. Raises H07 on abort. Mutates ``m`` in place
@@ -151,18 +165,24 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
     an all-high table asked nothing and was still written as ``interactive`` - repair 1,
     FA-N2; ``tests/test_mapping_repair1.py::test_all_high_table_asks_once_before_interactive``).
     Accept and edit leave ``confidence`` as computed (the build note's needs-from-Josh 1;
-    ``test_accept_and_edit_keep_the_computed_confidence`` pins the literal values).
+    ``test_accept_and_edit_keep_the_computed_confidence`` pins the literal values); an
+    accept sets ``confirmed`` on the entry, an edit does not (DEC-28;
+    ``tests/test_mapping_repair3.py::test_interactive_accept_records_confirmed_and_yes_takes_it``).
 
     An accept or an edit that would give a role a second holder among the entries already
     settled (high, or answered earlier in this loop) is refused at the prompt; entries
     still to be asked are not counted, so the first of two ``case_id low`` headers can be
     accepted and the second must be edited (repair 2, FA-B1: at e92989b ``a`` at both
-    prompts wrote two ``case_id`` holders; repair 1 checked edits only). An edited
-    ``attr_`` / ``rater_`` name must match the schema's identifier rule (at e92989b
-    ``attr_x y`` was written and ``validate`` later dropped it into ``unused_columns``,
-    FA-N5; ``::test_edit_prompt_refuses_bare_and_non_identifier_attr_names``).
+    prompts wrote two ``case_id`` holders; repair 1 checked edits only). An edit to
+    ``ignore`` on a column whose folded header equals a role any other entry currently
+    holds (settled or pending) is refused with one line naming both headers and the
+    role, and so is an accept or an edit to a role that an already-ignored column is
+    named for (DEC-31; ``io.mapping.ignore_collision``). An edited ``attr_`` / ``rater_``
+    name must match the schema's identifier rule (at e92989b ``attr_x y`` was written and
+    ``validate`` later dropped it into ``unused_columns``, FA-N5;
+    ``::test_edit_prompt_refuses_bare_and_non_identifier_attr_names``).
     """
-    from proofpack.io.mapping import IGNORE
+    from proofpack.io.mapping import IGNORE, ignore_collision
     from proofpack.io.schema import _IDENT, canonical_columns
 
     ask = ask or input
@@ -171,13 +191,23 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
     if not pending:
         while True:
             answer = _ask(ask, f"every role is high ({len(m.roles)} columns): [a]ccept / [q]uit? ")
-            if answer in ("a", "accept", ""):
+            if answer in ACCEPT_ANSWERS:
                 break
-            if answer in ("q", "quit", "abort"):
+            if answer in QUIT_ANSWERS:
                 raise HaltError("H07", "mapping aborted at the prompt; nothing written")
             say("  answer a or q")
         m.decided_by = "interactive"
         return
+
+    def collision_line(r, role):
+        pair = ignore_collision(m.roles, ignored=r, role=role)
+        if pair is None:
+            return None
+        ignored, name, holder = pair
+        return (
+            f"  refused: the ignored column {ignored.original!r} keeps its name, which is "
+            f"the role {name} that {holder.original!r} would hold; give one of them another role"
+        )
 
     def held_by(r, role):
         after = next(i for i, x in enumerate(pending) if x is r) + 1
@@ -193,7 +223,7 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
                 ask,
                 f"{r.original!r} -> {r.role_label} ({r.confidence}): [a]ccept / [e]dit / [q]uit? ",
             )
-            if answer in ("a", "accept", ""):
+            if answer in ACCEPT_ANSWERS:
                 holder = held_by(r, r.role) if r.role is not None else None
                 if holder is not None:
                     say(
@@ -201,11 +231,16 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
                         "edit this one (e) to ignore or another role"
                     )
                     continue
+                line = collision_line(r, r.role)
+                if line is not None:
+                    say(line)
+                    continue
                 r.notes.append("accepted interactively")
+                r.confirmed = True
                 break
-            if answer in ("q", "quit", "abort"):
+            if answer in QUIT_ANSWERS:
                 raise HaltError("H07", "mapping aborted at the prompt; nothing written")
-            if answer in ("e", "edit"):
+            if answer in EDIT_ANSWERS:
                 new_role = _ask(ask, "canonical role name, or ignore: ")
                 prefixed = _IDENT.match(new_role) and any(
                     new_role.startswith(p) and len(new_role) > len(p) for p in ("attr_", "rater_")
@@ -223,6 +258,10 @@ def _confirm_interactive(m, ask=None, say=print) -> None:
                     # apply_mapping would halt on it later (repair 1, FA-N4;
                     # test_edit_to_a_role_another_column_holds_is_refused_at_the_prompt)
                     say(f"  {new_role} is already held by {holder.original!r}: choose another")
+                    continue
+                line = collision_line(r, None if new_role == IGNORE else new_role)
+                if line is not None:
+                    say(line)
                     continue
                 r.role = None if new_role == IGNORE else new_role
                 r.notes.append("edited interactively")
@@ -250,7 +289,20 @@ def cmd_map(args: argparse.Namespace) -> int:
     from proofpack.io.schema import load_table
 
     _tolerant_console()
-    out_dir = Path(args.out).resolve().parent
+    out_path = Path(args.out)
+    if out_path.is_dir():
+        # at 1354758 ``--out ./pack`` was answered at the prompts and then exit 5
+        # ``PermissionError`` with the full local path (lens-3 FA-N1; carried 6;
+        # tests/test_mapping_repair3.py::
+        # test_out_naming_an_existing_directory_halts_h07_before_any_prompt)
+        name = out_path.resolve().name or out_path.name
+        raise HaltError(
+            "H07",
+            f"--out names an existing directory ({name}); pass a file path such as "
+            f"{name}/mapping.json",
+            {"out_is_dir": True},
+        )
+    out_dir = out_path.resolve().parent
     if not out_dir.is_dir():
         # checked before the table and the prompts, so no answer is lost (repair 2,
         # FA-N6: at e92989b this was exit 5 FileNotFoundError after the prompts;
@@ -292,7 +344,18 @@ def cmd_map(args: argparse.Namespace) -> int:
         # left main() as a traceback; tests/test_mapping_repair2.py::
         # test_ctrl_c_during_load_is_h07_not_a_traceback)
         raise HaltError("H07", "mapping interrupted; nothing written") from None
-    m.write(args.out)
+    try:
+        m.write(args.out)
+    except KeyboardInterrupt:
+        # at 1354758 Ctrl-C raised from write() after the last prompt left main() as a
+        # traceback (lens-3 FA-N7; carried 12; tests/test_mapping_repair3.py::
+        # test_ctrl_c_during_write_is_h07_not_a_traceback). The file at --out may be
+        # partial, so the message does not say "nothing written".
+        raise HaltError(
+            "H07",
+            "mapping interrupted while writing --out; run proofpack map again",
+            {"out_may_be_partial": True},
+        ) from None
     _emit(
         args,
         {"mapping": m.to_dict(), "file_sha256": m.file_sha256},

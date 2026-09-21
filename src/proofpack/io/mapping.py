@@ -64,6 +64,7 @@ from pathlib import Path
 from proofpack.errors import HaltError
 from proofpack.io.profile import SAMPLE_ROWS, ColumnSummary, profile_column
 from proofpack.io.schema import (
+    _IDENT,
     DATE_LIKE_HEADER,
     canonical_columns,
     date_like_headers,
@@ -238,6 +239,9 @@ class RoleMapping:
     confidence: str  # high | medium | low
     source: str = "ignore"  # canonical | synonym | affix | partial | heuristic | ignore
     notes: list[str] = field(default_factory=list)
+    # True after ``a`` at the per-role prompt (DEC-28); an edit leaves it False. Read back
+    # from mapping.json as a bool (any other JSON type is H07 in :meth:`Mapping.read`).
+    confirmed: bool = False
 
     @property
     def role_label(self) -> str:
@@ -286,6 +290,7 @@ class Mapping:
                     "confidence": r.confidence,
                     "source": r.source,
                     "notes": list(r.notes),
+                    "confirmed": bool(r.confirmed),
                 }
                 for r in self.roles
             ],
@@ -307,15 +312,24 @@ class Mapping:
     def read(cls, path: str | Path) -> Mapping:
         """Read a prior ``mapping.json``.
 
-        Inspected, each failure H07 ``could not be read``: the bytes decode as UTF-8 JSON;
-        ``header_set_sha256`` is a string; ``roles`` iterates and each entry is a mapping
-        with string ``original`` and ``confidence`` and a ``role`` that is a string or null;
-        ``value_summaries`` is a mapping or null; an OSError on the read. A non-mapping
-        file or a non-list ``roles`` raises AttributeError/TypeError on its own and is
-        caught the same way. Not inspected: the role name against the canonical list, the
-        confidence against ``high|medium|low``, ``notes`` entries, ``decided_by``'s type (cast
-        to str; ``check_h07`` reads it). At 555a5e1 ``"roles": "x"`` reached ``--yes`` as
-        exit 5 (repair 1, FA-N6;
+        Inspected, each failure H07 ``the prior mapping.json could not be decoded`` or
+        ``could not be read``: an OSError on the read; ``json.loads`` on the UTF-8 decoded
+        bytes raising ``ValueError`` (``JSONDecodeError``, ``UnicodeDecodeError``) or
+        ``RecursionError`` (at 1354758 a file of 100,000 nested ``[`` was exit 5
+        ``internal error: RecursionError`` - lens-3 FA-B4;
+        ``tests/test_mapping_repair3.py::test_prior_of_nested_brackets_is_h07_not_exit_5``);
+        the top level is a mapping (``data.get`` raises AttributeError on a list, str, int,
+        null or bool); ``header_set_sha256`` is a string; ``roles`` is a JSON list
+        (``isinstance`` - at 1354758 ``"roles": {}`` and ``"roles": ""`` iterated as empty and
+        ``map --yes`` exit 0 and rewrote the file, lens-3 RG-B1;
+        ``::test_prior_with_a_non_list_roles_is_h07_and_the_file_is_unchanged`` feeds both);
+        each entry is a mapping with string ``original`` and ``confidence``, a ``role``
+        that is a string or null, and a ``confirmed`` that is absent or a bool;
+        ``value_summaries`` is a mapping or null. Not inspected here: the role name, the
+        original against the header set, the confidence against ``high|medium|low``,
+        ``notes`` entries, ``decided_by``'s type (cast to str) - ``check_h07`` inspects the
+        first two and ``decided_by``. At 555a5e1 ``"roles": "x"`` reached ``--yes`` as exit 5
+        (repair 1, FA-N6;
         ``tests/test_mapping_repair1.py::test_malformed_prior_under_yes_halts_h07_not_exit_5``
         feeds seven files); at e92989b ``"role": 123`` and ``"role": ["a"]`` passed this
         function and ``run --yes`` was exit 5 ``AttributeError`` / ``TypeError`` (repair 2,
@@ -324,18 +338,29 @@ class Mapping:
         """
         try:
             raw = Path(path).read_bytes()
+        except OSError as exc:
+            raise HaltError("H07", "mapping.json could not be read") from exc
+        try:
             data = json.loads(raw.decode("utf-8"))
+        except (ValueError, RecursionError) as exc:
+            raise HaltError("H07", "the prior mapping.json could not be decoded") from exc
+        try:
             if not isinstance(data.get("header_set_sha256"), str):
                 raise TypeError("header_set_sha256")
+            if not isinstance(data["roles"], list):
+                raise TypeError("roles")
             roles = []
             for r in data["roles"]:
-                if not isinstance(r, dict):  # a string's characters or a list's ints
+                if not isinstance(r, dict):  # a list's ints, strings, lists or nulls
                     raise TypeError("role entry")
                 role = r.get("role")
                 if not isinstance(r["original"], str) or not isinstance(r["confidence"], str):
                     raise TypeError("role entry fields")
                 if role is not None and not isinstance(role, str):
                     raise TypeError("role")
+                confirmed = r.get("confirmed", False)
+                if not isinstance(confirmed, bool):
+                    raise TypeError("confirmed")
                 roles.append(
                     RoleMapping(
                         r["original"],
@@ -343,6 +368,7 @@ class Mapping:
                         r["confidence"],
                         r.get("source", "ignore" if role in (None, IGNORE) else "file"),
                         list(r.get("notes", [])),
+                        confirmed,
                     )
                 )
             summaries = data.get("value_summaries")
@@ -357,7 +383,7 @@ class Mapping:
             )
             m.file_sha256 = hashlib.sha256(raw).hexdigest()
             return m
-        except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
             raise HaltError("H07", "mapping.json could not be read") from exc
 
     def table(self) -> str:
@@ -389,8 +415,13 @@ class _Claim:
 def _name_claim(original: str, key: str, canon: set[str]) -> _Claim | None:
     if key == "":
         return _Claim(IGNORE, "empty")
-    if key in canon or original in canon:
-        return _Claim(key if key in canon else original, "canonical")
+    if key in canon:
+        # ``original in canon`` implies ``key in canon`` (every canonical name is lower-case
+        # letters, digits and ``_``, which normalise_header maps to itself), so the clause
+        # ``or original in canon`` that stood here until 1354758 was never the deciding
+        # one (lens-3 L20); tests/test_mapping_repair3.py::
+        # test_every_canonical_name_normalises_to_itself feeds the whole list.
+        return _Claim(key, "canonical")
     if key.startswith(("attr_", "rater_")):
         return _Claim(key, "canonical")
     role = _lookup_synonym(key)
@@ -692,6 +723,12 @@ def apply_mapping(columns: dict[str, list], mapping: Mapping) -> dict[str, list]
     Two columns on ``case_id`` are the DEC-11 composite key, E01 ending ``reduce your
     case key to one column``; two columns on any other role are H07 (repair 2, FA-B1:
     at e92989b ``patient_nbr`` + ``mrn_local`` were H07 here through ``proofpack run``).
+    An ignored column named for a role another column holds is the DEC-31 collision:
+    the prompt refuses it and :func:`check_h07` halts a prior that carries it before
+    this function runs (:func:`ignore_collision`); this function is unchanged by that,
+    and the hand-built pair ``score -> ignore`` beside ``prob -> score`` fed to it
+    directly halts the H07 above with ``{"role": "score"}``
+    (``tests/test_mapping_repair3.py::test_ignored_columns_otherwise_keep_their_name_at_apply_mapping``).
     """
     n_case = sum(1 for original in columns if mapping.role_of(original) == "case_id")
     if n_case >= 2:
@@ -710,6 +747,121 @@ def apply_mapping(columns: dict[str, list], mapping: Mapping) -> dict[str, list]
     return out
 
 
+def ignore_collision(
+    roles: list[RoleMapping], *, ignored: RoleMapping | None = None, role: str | None = None
+) -> tuple[RoleMapping, str, RoleMapping] | None:
+    """DEC-31: the first (ignored entry, role, holder) where an ignored column's folded
+    header equals a role another column holds - at ``apply_mapping`` the ignored column
+    keeps its name and the two would collide (lens-3 FA-B2: at 1354758 the table
+    ``row_id,label,score,prob`` answered ``e ignore a`` wrote ``score -> ignore``,
+    ``prob -> score`` and ``proofpack run --mapping`` halted H07 ``two columns map to the
+    same canonical role``; ``tests/test_mapping_repair3.py::
+    test_ignore_on_a_column_named_for_a_held_role_is_refused_at_the_prompt``).
+
+    With ``ignored`` and ``role`` given, the check is made as if that entry held ``role``
+    (``None`` = ignore) - the prompt asks before it changes the entry.
+    """
+    state = {id(r): r.role for r in roles}
+    if ignored is not None:
+        state[id(ignored)] = role
+    for r in roles:
+        if state[id(r)] is not None:
+            continue
+        name = fold_header(r.original)
+        for o in roles:
+            if o is not r and state[id(o)] == name:
+                return r, name, o
+    return None
+
+
+def _check_prior_against_table(prior: Mapping, headers: list[str]) -> None:
+    """DEC-29 and DEC-31 on a prior whose hash matched: entry set = header set, every
+    role canonical or ``attr_`` / ``rater_`` (:data:`_IDENT`), no ignore collision."""
+    header_set = set(headers)
+    unknown = sum(1 for r in prior.roles if r.original not in header_set)
+    if unknown:
+        raise HaltError(
+            "H07",
+            "mapping.json names a column that is not in this table's header set; run "
+            "proofpack map again",
+            {"originals_not_in_table": unknown},
+        )
+    originals = {r.original for r in prior.roles}
+    missing = sum(1 for h in headers if h not in originals)
+    if missing:
+        raise HaltError(
+            "H07",
+            "mapping.json has no entry for a column of this table; run proofpack map again",
+            {"columns_without_entry": missing},
+        )
+    canon = set(canonical_columns())
+    bad = sum(
+        1
+        for r in prior.roles
+        if r.role is not None
+        and r.role not in canon
+        and not (
+            _IDENT.match(r.role)
+            and any(r.role.startswith(p) and len(r.role) > len(p) for p in ("attr_", "rater_"))
+        )
+    )
+    if bad:
+        raise HaltError(
+            "H07",
+            "mapping.json holds a role that is not a canonical role or an attr_ / rater_ "
+            "name; run proofpack map again",
+            {"roles_not_canonical": bad},
+        )
+    pair = ignore_collision(prior.roles)
+    if pair is not None:
+        _, role, _ = pair
+        raise HaltError(
+            "H07",
+            f"mapping.json ignores the column whose header is the role name {role} and maps "
+            f"another column to {role}: an ignored column keeps its name and the two would "
+            "collide; run proofpack map again and give one of them another role",
+            {"role": role},
+        )
+
+
+def _check_yes_rule(prior: Mapping, fresh: Mapping) -> None:
+    """DEC-28 with the carried-7 role comparison, for ``--yes`` on a matching prior."""
+    if not prior.all_high:
+        unconfirmed = [
+            r
+            for r in prior.roles
+            if r.role is not None and r.confidence != "high" and not r.confirmed
+        ]
+        if unconfirmed:
+            raise HaltError(
+                "H07",
+                "non-interactive mode requires every mapped role at high confidence in "
+                "mapping.json or confirmed at the prompt (confirmed: true)",
+                {"low_or_medium": len(unconfirmed)},
+            )
+    # every fresh original has a prior entry: _check_prior_against_table ran first
+    by_original = {p.original: p for p in prior.roles}
+    for f in fresh.roles:
+        p = by_original[f.original]
+        if p.role != f.role:
+            raise HaltError(
+                "H07",
+                f"mapping.json maps a column to {p.role_label} but the mapping computed from "
+                f"this table gives it {f.role_label}; run proofpack map again",
+                {"prior_role": p.role_label, "fresh_role": f.role_label},
+            )
+    if not fresh.all_high:
+        unconfirmed = [f for f in fresh.non_high if not by_original[f.original].confirmed]
+        if unconfirmed:
+            raise HaltError(
+                "H07",
+                "non-interactive mode requires every role at high confidence in the mapping "
+                "computed from this table, or confirmed at the prompt for the same column and "
+                "role; run interactively",
+                {"low_or_medium": len(unconfirmed)},
+            )
+
+
 def check_h07(
     headers: list[str],
     mapping_path: str | Path | None,
@@ -719,15 +871,27 @@ def check_h07(
 ) -> Mapping:
     """Gate H07 and the ``--yes`` rule.
 
-    Interactive mode (``non_interactive=False``): return the prior mapping if its hash
-    matches, otherwise the fresh mapping (the confirm step is the CLI's).
-    Non-interactive mode: HALT H07 unless a prior ``mapping.json`` exists, its hash equals
-    the current header set, its ``decided_by`` is ``interactive`` or ``file`` (D1 section 5
-    step 5's two values; a ``proposed`` file is one ``proofpack run`` wrote without a
-    confirm step - at 555a5e1 ``map --yes`` accepted such a file and rewrote it as ``file``,
-    repair 1, FA-N1; ``tests/test_mapping_repair1.py::test_yes_refuses_a_proposed_prior``),
-    and every mapped role is ``high`` in both the prior file and the fresh mapping computed
-    from this table.
+    A prior ``mapping.json`` whose hash matches is returned in either mode after
+    :func:`_check_prior_against_table` (DEC-29: its entries name exactly this table's
+    headers and every role is canonical or ``attr_`` / ``rater_``; DEC-31: no ignored
+    column is named for a role another column holds; at 1354758 ``original:
+    NOT_A_HEADER``, ``role: SECRET_ROLE_NAME`` and ``roles: []`` each passed ``map --yes``
+    with exit 0 - carried 13; ``tests/test_mapping_repair3.py::
+    test_yes_halts_h07_on_an_original_outside_the_header_set`` and its two siblings).
+    Interactive mode without a matching prior returns the fresh mapping (the confirm step
+    is the CLI's).
+    Non-interactive mode additionally requires ``decided_by`` ``interactive`` or ``file``
+    (a ``proposed`` file is one ``proofpack run`` wrote without a confirm step - at 555a5e1
+    ``map --yes`` accepted it, repair 1, FA-N1;
+    ``tests/test_mapping_repair1.py::test_yes_refuses_a_proposed_prior``) and
+    :func:`_check_yes_rule` (DEC-28: every mapped role in the prior ``high`` or
+    ``confirmed: true``; the prior's role for each column equal to the fresh mapping's -
+    at 1354758 a prior ``age high`` on a column now holding bands passed ``map --yes`` and
+    was rewritten, lens-3 FA-N2;
+    ``::test_yes_halts_h07_when_the_prior_role_differs_from_the_fresh_one``);
+    every fresh non-high role confirmed in the prior for that column. An edited entry
+    (``role`` changed at the prompt) is not ``confirmed`` and its fresh role differs, so
+    it does not pass ``--yes`` - open question 1 of the repair-3 note.
     """
     current = header_set_sha256(headers)
     fresh = fresh or map_headers(headers)
@@ -744,19 +908,9 @@ def check_h07(
                 "interactively once",
                 {"decided_by": prior.decided_by[:16]},
             )
-        if non_interactive and not prior.all_high:
-            raise HaltError(
-                "H07",
-                "non-interactive mode requires every mapped role at high confidence",
-                {"low_or_medium": sum(1 for r in prior.roles if r.confidence != "high")},
-            )
-        if non_interactive and not fresh.all_high:
-            raise HaltError(
-                "H07",
-                "non-interactive mode requires every role at high confidence in the mapping "
-                "computed from this table; run interactively",
-                {"low_or_medium": len(fresh.non_high)},
-            )
+        _check_prior_against_table(prior, headers)
+        if non_interactive:
+            _check_yes_rule(prior, fresh)
         prior.decided_by = "file"
         return prior
 

@@ -204,7 +204,9 @@ def test_date_column_lists_no_values_and_coarsens_min_max_to_month():
     col = ["2024-03-15", "2024-03-16", "2025-11-02"] * 5
     s = profile_column(col)
     assert s.inferred_type == "date" and s.values_shown is False
-    assert (s.min, s.max) == ("2024-03", "2025-11")
+    # 2024-03 holds 10 of the 15 rows and is printed; 2025-11 holds 5 and is withheld
+    # (DEC-39, repair 3; at 1354758 this line asserted ("2024-03", "2025-11"))
+    assert (s.min, s.max) == ("2024-03", "<suppressed>")
     assert "2024-03-15" not in s.render() and "2024-03-15" not in json.dumps(s.to_dict())
 
 
@@ -711,7 +713,14 @@ def test_mapping_json_round_trip_and_hash_is_order_independent(tmp_path: Path):
         "decided_by",
         "timestamp",
     }
-    assert set(data["roles"][0]) == {"original", "role", "confidence", "source", "notes"}
+    assert set(data["roles"][0]) == {
+        "original",
+        "role",
+        "confidence",
+        "source",
+        "notes",
+        "confirmed",  # DEC-27 with DEC-28's flag, repair 3
+    }
     assert data["roles"][0]["original"] == "patient"
     assert data["decided_by"] == "proposed"
 
