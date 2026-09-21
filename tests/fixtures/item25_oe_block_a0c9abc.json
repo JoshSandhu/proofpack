@@ -1,0 +1,1358 @@
+{
+ "_provenance": "stats.calibration.calibration_block at a0c9abc, 21 September 2026; the item-25 construction (57 rows at 1e-160 beside 3 at 0.5, 20 events, 30 two-row declared cases, B=200, seed 20240101); every non-finite float replaced by the string 'non-finite float at a0c9abc' because JSON cannot hold it",
+ "block": {
+  "brier": {
+   "analytic": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": 0.3458333333333333,
+    "flags": [],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+    "suppressed": false
+   },
+   "analytic_status": "refused_clustered",
+   "bootstrap": {
+    "B": 200,
+    "b_source": "engine_default",
+    "cell_key": "[\"calibration\", \"brier\"]",
+    "interval": "percentile",
+    "resample_sd": 0.008473254758546942,
+    "resampling": {
+     "class_strata": {
+      "negative": [
+       20,
+       0
+      ],
+      "positive": [
+       10,
+       0
+      ]
+     },
+     "class_units": {
+      "negative": 20,
+      "positive": 10
+     },
+     "deficient_class": null,
+     "frozen_variance_share": {
+      "negative": 0.0,
+      "positive": 0.0
+     },
+     "kind": "clustered",
+     "units_per_stratum": {
+      "negative": 20,
+      "positive": 10
+     }
+    },
+    "seed": 20240101,
+    "seed_source": "engine_default",
+    "thresholds": {
+     "low_precision_units": 10,
+     "max_frozen_variance_share": 0.2,
+     "min_units_per_class_stratum": 2,
+     "min_usable_fraction": 0.9,
+     "small_class": 10,
+     "very_low_precision_units": 30
+    },
+    "usable_resamples": 200
+   },
+   "clustering_route": "declared",
+   "number": {
+    "ci_hi": 0.36260416666666667,
+    "ci_level": 0.95,
+    "ci_lo": 0.3333333333333333,
+    "est": 0.3458333333333333,
+    "flags": [],
+    "method": "cluster_bootstrap_percentile",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": null,
+    "suppressed": false
+   }
+  },
+  "brier_ref": {
+   "analytic": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": 0.22222222222222224,
+    "flags": [],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+    "suppressed": false
+   },
+   "analytic_status": "unavailable",
+   "bootstrap": {
+    "B": 200,
+    "b_source": "engine_default",
+    "cell_key": "[\"calibration\", \"brier_ref\"]",
+    "interval": "percentile",
+    "resample_sd": null,
+    "resampling": {
+     "class_strata": {
+      "negative": [
+       20,
+       0
+      ],
+      "positive": [
+       10,
+       0
+      ]
+     },
+     "class_units": {
+      "negative": 20,
+      "positive": 10
+     },
+     "deficient_class": null,
+     "frozen_variance_share": {
+      "negative": 0.0,
+      "positive": 0.0
+     },
+     "kind": "clustered",
+     "units_per_stratum": {
+      "negative": 20,
+      "positive": 10
+     }
+    },
+    "seed": 20240101,
+    "seed_source": "engine_default",
+    "thresholds": {
+     "low_precision_units": 10,
+     "max_frozen_variance_share": 0.2,
+     "min_units_per_class_stratum": 2,
+     "min_usable_fraction": 0.9,
+     "small_class": 10,
+     "very_low_precision_units": 30
+    },
+    "usable_resamples": 0
+   },
+   "clustering_route": "declared",
+   "number": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": 0.22222222222222224,
+    "flags": [],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "fixed_by_outcome_stratification",
+    "suppressed": false
+   }
+  },
+  "clip_eps": 1e-12,
+  "clustering_route": "declared",
+  "convention": "ProofPack convention after Van Calster 2019",
+  "curve_flag": {
+   "event_cases": 10,
+   "events": 20,
+   "flag": "below_200_events_or_nonevents",
+   "minimum": 200,
+   "nonevent_cases": 20,
+   "nonevents": 40,
+   "note": "fewer than 200 events or fewer than 200 non-events (ProofPack convention after Van Calster 2019); the decile table, intercept, slope and O:E remain reported"
+  },
+  "decile_curve": [
+   {
+    "bin": 1,
+    "events": 6,
+    "mean_pred": 1e-160,
+    "n": 6,
+    "observed": {
+     "analytic": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 1.0,
+      "flags": [],
+      "k": 6,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+      "suppressed": false
+     },
+     "analytic_status": "refused_clustered",
+     "bootstrap": {
+      "B": 200,
+      "b_source": "engine_default",
+      "cell_key": "[\"calibration\", \"decile\", \"0\"]",
+      "interval": "percentile",
+      "resample_sd": 0.0,
+      "resampling": {
+       "class_strata": {
+        "all": [
+         3
+        ]
+       },
+       "class_units": {
+        "all": 3
+       },
+       "deficient_class": null,
+       "frozen_variance_share": {
+        "all": 0.0
+       },
+       "kind": "clustered",
+       "units_per_stratum": {
+        "all": 3
+       }
+      },
+      "seed": 20240101,
+      "seed_source": "engine_default",
+      "thresholds": {
+       "low_precision_units": 10,
+       "max_frozen_variance_share": 0.2,
+       "min_units_per_class_stratum": 2,
+       "min_usable_fraction": 0.9,
+       "small_class": 10,
+       "very_low_precision_units": 30
+      },
+      "usable_resamples": 200
+     },
+     "clustering_route": "declared",
+     "number": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 1.0,
+      "flags": [
+       "wilson_refused_clustered",
+       "not_evaluable_shown_for_transparency",
+       "below_200_events_or_nonevents"
+      ],
+      "k": 6,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "boundary_estimate",
+      "suppressed": false
+     }
+    },
+    "score_max": 1e-160,
+    "score_min": 1e-160
+   },
+   {
+    "bin": 2,
+    "events": 6,
+    "mean_pred": 1e-160,
+    "n": 6,
+    "observed": {
+     "analytic": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 1.0,
+      "flags": [],
+      "k": 6,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+      "suppressed": false
+     },
+     "analytic_status": "refused_clustered",
+     "bootstrap": {
+      "B": 200,
+      "b_source": "engine_default",
+      "cell_key": "[\"calibration\", \"decile\", \"1\"]",
+      "interval": "percentile",
+      "resample_sd": 0.0,
+      "resampling": {
+       "class_strata": {
+        "all": [
+         3
+        ]
+       },
+       "class_units": {
+        "all": 3
+       },
+       "deficient_class": null,
+       "frozen_variance_share": {
+        "all": 0.0
+       },
+       "kind": "clustered",
+       "units_per_stratum": {
+        "all": 3
+       }
+      },
+      "seed": 20240101,
+      "seed_source": "engine_default",
+      "thresholds": {
+       "low_precision_units": 10,
+       "max_frozen_variance_share": 0.2,
+       "min_units_per_class_stratum": 2,
+       "min_usable_fraction": 0.9,
+       "small_class": 10,
+       "very_low_precision_units": 30
+      },
+      "usable_resamples": 200
+     },
+     "clustering_route": "declared",
+     "number": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 1.0,
+      "flags": [
+       "wilson_refused_clustered",
+       "not_evaluable_shown_for_transparency",
+       "below_200_events_or_nonevents"
+      ],
+      "k": 6,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "boundary_estimate",
+      "suppressed": false
+     }
+    },
+    "score_max": 1e-160,
+    "score_min": 1e-160
+   },
+   {
+    "bin": 3,
+    "events": 6,
+    "mean_pred": 1e-160,
+    "n": 6,
+    "observed": {
+     "analytic": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 1.0,
+      "flags": [],
+      "k": 6,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+      "suppressed": false
+     },
+     "analytic_status": "refused_clustered",
+     "bootstrap": {
+      "B": 200,
+      "b_source": "engine_default",
+      "cell_key": "[\"calibration\", \"decile\", \"2\"]",
+      "interval": "percentile",
+      "resample_sd": 0.0,
+      "resampling": {
+       "class_strata": {
+        "all": [
+         3
+        ]
+       },
+       "class_units": {
+        "all": 3
+       },
+       "deficient_class": null,
+       "frozen_variance_share": {
+        "all": 0.0
+       },
+       "kind": "clustered",
+       "units_per_stratum": {
+        "all": 3
+       }
+      },
+      "seed": 20240101,
+      "seed_source": "engine_default",
+      "thresholds": {
+       "low_precision_units": 10,
+       "max_frozen_variance_share": 0.2,
+       "min_units_per_class_stratum": 2,
+       "min_usable_fraction": 0.9,
+       "small_class": 10,
+       "very_low_precision_units": 30
+      },
+      "usable_resamples": 200
+     },
+     "clustering_route": "declared",
+     "number": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 1.0,
+      "flags": [
+       "wilson_refused_clustered",
+       "not_evaluable_shown_for_transparency",
+       "below_200_events_or_nonevents"
+      ],
+      "k": 6,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "boundary_estimate",
+      "suppressed": false
+     }
+    },
+    "score_max": 1e-160,
+    "score_min": 1e-160
+   },
+   {
+    "bin": 4,
+    "events": 2,
+    "mean_pred": 1e-160,
+    "n": 6,
+    "observed": {
+     "analytic": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.3333333333333333,
+      "flags": [],
+      "k": 2,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+      "suppressed": false
+     },
+     "analytic_status": "refused_clustered",
+     "bootstrap": {
+      "B": 200,
+      "b_source": "engine_default",
+      "cell_key": "[\"calibration\", \"decile\", \"3\"]",
+      "interval": "percentile",
+      "resample_sd": 0.2781800548869504,
+      "resampling": {
+       "class_strata": {
+        "all": [
+         3
+        ]
+       },
+       "class_units": {
+        "all": 3
+       },
+       "deficient_class": null,
+       "frozen_variance_share": {
+        "all": 0.0
+       },
+       "kind": "clustered",
+       "units_per_stratum": {
+        "all": 3
+       }
+      },
+      "seed": 20240101,
+      "seed_source": "engine_default",
+      "thresholds": {
+       "low_precision_units": 10,
+       "max_frozen_variance_share": 0.2,
+       "min_units_per_class_stratum": 2,
+       "min_usable_fraction": 0.9,
+       "small_class": 10,
+       "very_low_precision_units": 30
+      },
+      "usable_resamples": 200
+     },
+     "clustering_route": "declared",
+     "number": {
+      "ci_hi": 1.0,
+      "ci_level": 0.95,
+      "ci_lo": 0.0,
+      "est": 0.3333333333333333,
+      "flags": [
+       "wilson_refused_clustered",
+       "not_evaluable_shown_for_transparency",
+       "imprecise",
+       "below_200_events_or_nonevents"
+      ],
+      "k": 2,
+      "method": "cluster_bootstrap_percentile",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": null,
+      "suppressed": false
+     }
+    },
+    "score_max": 1e-160,
+    "score_min": 1e-160
+   },
+   {
+    "bin": 5,
+    "events": 0,
+    "mean_pred": 1e-160,
+    "n": 6,
+    "observed": {
+     "analytic": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+      "suppressed": false
+     },
+     "analytic_status": "refused_clustered",
+     "bootstrap": {
+      "B": 200,
+      "b_source": "engine_default",
+      "cell_key": "[\"calibration\", \"decile\", \"4\"]",
+      "interval": "percentile",
+      "resample_sd": 0.0,
+      "resampling": {
+       "class_strata": {
+        "all": [
+         3
+        ]
+       },
+       "class_units": {
+        "all": 3
+       },
+       "deficient_class": null,
+       "frozen_variance_share": {
+        "all": 0.0
+       },
+       "kind": "clustered",
+       "units_per_stratum": {
+        "all": 3
+       }
+      },
+      "seed": 20240101,
+      "seed_source": "engine_default",
+      "thresholds": {
+       "low_precision_units": 10,
+       "max_frozen_variance_share": 0.2,
+       "min_units_per_class_stratum": 2,
+       "min_usable_fraction": 0.9,
+       "small_class": 10,
+       "very_low_precision_units": 30
+      },
+      "usable_resamples": 200
+     },
+     "clustering_route": "declared",
+     "number": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [
+       "wilson_refused_clustered",
+       "not_evaluable_shown_for_transparency",
+       "below_200_events_or_nonevents"
+      ],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "boundary_estimate",
+      "suppressed": false
+     }
+    },
+    "score_max": 1e-160,
+    "score_min": 1e-160
+   },
+   {
+    "bin": 6,
+    "events": 0,
+    "mean_pred": 1e-160,
+    "n": 6,
+    "observed": {
+     "analytic": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+      "suppressed": false
+     },
+     "analytic_status": "refused_clustered",
+     "bootstrap": {
+      "B": 200,
+      "b_source": "engine_default",
+      "cell_key": "[\"calibration\", \"decile\", \"5\"]",
+      "interval": "percentile",
+      "resample_sd": 0.0,
+      "resampling": {
+       "class_strata": {
+        "all": [
+         3
+        ]
+       },
+       "class_units": {
+        "all": 3
+       },
+       "deficient_class": null,
+       "frozen_variance_share": {
+        "all": 0.0
+       },
+       "kind": "clustered",
+       "units_per_stratum": {
+        "all": 3
+       }
+      },
+      "seed": 20240101,
+      "seed_source": "engine_default",
+      "thresholds": {
+       "low_precision_units": 10,
+       "max_frozen_variance_share": 0.2,
+       "min_units_per_class_stratum": 2,
+       "min_usable_fraction": 0.9,
+       "small_class": 10,
+       "very_low_precision_units": 30
+      },
+      "usable_resamples": 200
+     },
+     "clustering_route": "declared",
+     "number": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [
+       "wilson_refused_clustered",
+       "not_evaluable_shown_for_transparency",
+       "below_200_events_or_nonevents"
+      ],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "boundary_estimate",
+      "suppressed": false
+     }
+    },
+    "score_max": 1e-160,
+    "score_min": 1e-160
+   },
+   {
+    "bin": 7,
+    "events": 0,
+    "mean_pred": 1e-160,
+    "n": 6,
+    "observed": {
+     "analytic": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+      "suppressed": false
+     },
+     "analytic_status": "refused_clustered",
+     "bootstrap": {
+      "B": 200,
+      "b_source": "engine_default",
+      "cell_key": "[\"calibration\", \"decile\", \"6\"]",
+      "interval": "percentile",
+      "resample_sd": 0.0,
+      "resampling": {
+       "class_strata": {
+        "all": [
+         3
+        ]
+       },
+       "class_units": {
+        "all": 3
+       },
+       "deficient_class": null,
+       "frozen_variance_share": {
+        "all": 0.0
+       },
+       "kind": "clustered",
+       "units_per_stratum": {
+        "all": 3
+       }
+      },
+      "seed": 20240101,
+      "seed_source": "engine_default",
+      "thresholds": {
+       "low_precision_units": 10,
+       "max_frozen_variance_share": 0.2,
+       "min_units_per_class_stratum": 2,
+       "min_usable_fraction": 0.9,
+       "small_class": 10,
+       "very_low_precision_units": 30
+      },
+      "usable_resamples": 200
+     },
+     "clustering_route": "declared",
+     "number": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [
+       "wilson_refused_clustered",
+       "not_evaluable_shown_for_transparency",
+       "below_200_events_or_nonevents"
+      ],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "boundary_estimate",
+      "suppressed": false
+     }
+    },
+    "score_max": 1e-160,
+    "score_min": 1e-160
+   },
+   {
+    "bin": 8,
+    "events": 0,
+    "mean_pred": 1e-160,
+    "n": 6,
+    "observed": {
+     "analytic": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+      "suppressed": false
+     },
+     "analytic_status": "refused_clustered",
+     "bootstrap": {
+      "B": 200,
+      "b_source": "engine_default",
+      "cell_key": "[\"calibration\", \"decile\", \"7\"]",
+      "interval": "percentile",
+      "resample_sd": 0.0,
+      "resampling": {
+       "class_strata": {
+        "all": [
+         3
+        ]
+       },
+       "class_units": {
+        "all": 3
+       },
+       "deficient_class": null,
+       "frozen_variance_share": {
+        "all": 0.0
+       },
+       "kind": "clustered",
+       "units_per_stratum": {
+        "all": 3
+       }
+      },
+      "seed": 20240101,
+      "seed_source": "engine_default",
+      "thresholds": {
+       "low_precision_units": 10,
+       "max_frozen_variance_share": 0.2,
+       "min_units_per_class_stratum": 2,
+       "min_usable_fraction": 0.9,
+       "small_class": 10,
+       "very_low_precision_units": 30
+      },
+      "usable_resamples": 200
+     },
+     "clustering_route": "declared",
+     "number": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [
+       "wilson_refused_clustered",
+       "not_evaluable_shown_for_transparency",
+       "below_200_events_or_nonevents"
+      ],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "boundary_estimate",
+      "suppressed": false
+     }
+    },
+    "score_max": 1e-160,
+    "score_min": 1e-160
+   },
+   {
+    "bin": 9,
+    "events": 0,
+    "mean_pred": 1e-160,
+    "n": 6,
+    "observed": {
+     "analytic": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+      "suppressed": false
+     },
+     "analytic_status": "refused_clustered",
+     "bootstrap": {
+      "B": 200,
+      "b_source": "engine_default",
+      "cell_key": "[\"calibration\", \"decile\", \"8\"]",
+      "interval": "percentile",
+      "resample_sd": 0.0,
+      "resampling": {
+       "class_strata": {
+        "all": [
+         3
+        ]
+       },
+       "class_units": {
+        "all": 3
+       },
+       "deficient_class": null,
+       "frozen_variance_share": {
+        "all": 0.0
+       },
+       "kind": "clustered",
+       "units_per_stratum": {
+        "all": 3
+       }
+      },
+      "seed": 20240101,
+      "seed_source": "engine_default",
+      "thresholds": {
+       "low_precision_units": 10,
+       "max_frozen_variance_share": 0.2,
+       "min_units_per_class_stratum": 2,
+       "min_usable_fraction": 0.9,
+       "small_class": 10,
+       "very_low_precision_units": 30
+      },
+      "usable_resamples": 200
+     },
+     "clustering_route": "declared",
+     "number": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [
+       "wilson_refused_clustered",
+       "not_evaluable_shown_for_transparency",
+       "below_200_events_or_nonevents"
+      ],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "boundary_estimate",
+      "suppressed": false
+     }
+    },
+    "score_max": 1e-160,
+    "score_min": 1e-160
+   },
+   {
+    "bin": 10,
+    "events": 0,
+    "mean_pred": 0.25,
+    "n": 6,
+    "observed": {
+     "analytic": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+      "suppressed": false
+     },
+     "analytic_status": "refused_clustered",
+     "bootstrap": {
+      "B": 200,
+      "b_source": "engine_default",
+      "cell_key": "[\"calibration\", \"decile\", \"9\"]",
+      "interval": "percentile",
+      "resample_sd": 0.0,
+      "resampling": {
+       "class_strata": {
+        "all": [
+         3
+        ]
+       },
+       "class_units": {
+        "all": 3
+       },
+       "deficient_class": null,
+       "frozen_variance_share": {
+        "all": 0.0
+       },
+       "kind": "clustered",
+       "units_per_stratum": {
+        "all": 3
+       }
+      },
+      "seed": 20240101,
+      "seed_source": "engine_default",
+      "thresholds": {
+       "low_precision_units": 10,
+       "max_frozen_variance_share": 0.2,
+       "min_units_per_class_stratum": 2,
+       "min_usable_fraction": 0.9,
+       "small_class": 10,
+       "very_low_precision_units": 30
+      },
+      "usable_resamples": 200
+     },
+     "clustering_route": "declared",
+     "number": {
+      "ci_hi": null,
+      "ci_level": 0.95,
+      "ci_lo": null,
+      "est": 0.0,
+      "flags": [
+       "wilson_refused_clustered",
+       "not_evaluable_shown_for_transparency",
+       "below_200_events_or_nonevents"
+      ],
+      "k": 0,
+      "method": "none",
+      "n": 6,
+      "n_cases": 3,
+      "not_estimable_reason": "boundary_estimate",
+      "suppressed": false
+     }
+    },
+    "score_max": 0.5,
+    "score_min": 1e-160
+   }
+  ],
+  "decile_tie_rule": "ten equal-mass bins by score rank; ties placed by stable sort order (row order preserved); numpy.array_split, so the first N mod 10 bins hold one extra row",
+  "ece_equal_mass_10": {
+   "bins": 10,
+   "ci_not_computed_because": "no interval is emitted for the ECE: no coverage run of a bootstrap interval for a binned absolute deviation has been made against the DEC-08 bar of 0.90, and the ECE is reported as a descriptive figure (R2 section 1.4)",
+   "edges": [
+    1e-160,
+    1e-160,
+    1e-160,
+    1e-160,
+    1e-160,
+    1e-160,
+    1e-160,
+    1e-160,
+    1e-160,
+    1e-160,
+    0.5
+   ],
+   "note": "supplementary; ECE is bin-sensitive and descriptive (R2 section 1.4 after Nixon et al. 2019); the scheme is stated beside the value; no interval is emitted for it",
+   "number": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": 0.3583333333333334,
+    "flags": [],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "not_computed_this_run",
+    "suppressed": false
+   },
+   "scheme": "equal_mass"
+  },
+  "ece_equal_width_10": {
+   "bins": 10,
+   "ci_not_computed_because": "no interval is emitted for the ECE: no coverage run of a bootstrap interval for a binned absolute deviation has been made against the DEC-08 bar of 0.90, and the ECE is reported as a descriptive figure (R2 section 1.4)",
+   "edges": [
+    0.0,
+    0.1,
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.9,
+    1.0
+   ],
+   "note": "supplementary; ECE is bin-sensitive and descriptive (R2 section 1.4 after Nixon et al. 2019); the scheme is stated beside the value; no interval is emitted for it",
+   "number": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": 0.35833333333333334,
+    "flags": [],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "not_computed_this_run",
+    "suppressed": false
+   },
+   "scheme": "equal_width"
+  },
+  "events": 20,
+  "flags": [
+   "below_200_events_or_nonevents"
+  ],
+  "intercept": {
+   "analytic": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": null,
+    "flags": [
+     "scores_clipped_for_logit"
+    ],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "irls_not_converged",
+    "suppressed": false
+   },
+   "analytic_status": "unavailable",
+   "bootstrap": null,
+   "clustering_route": "declared",
+   "detail": {
+    "deviance": 73.87062805530651,
+    "iterations": 40,
+    "model": "logit P(y=1) = a + b * logit(p)",
+    "outcome": "irls_not_converged"
+   },
+   "number": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": null,
+    "flags": [
+     "scores_clipped_for_logit"
+    ],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "irls_not_converged",
+    "suppressed": false
+   }
+  },
+  "intercept_large": {
+   "analytic": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": 26.775355017951398,
+    "flags": [],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+    "suppressed": false
+   },
+   "analytic_status": "unavailable",
+   "bootstrap": {
+    "B": 200,
+    "b_source": "engine_default",
+    "cell_key": "[\"calibration\", \"intercept_large\"]",
+    "interval": "percentile",
+    "resample_sd": null,
+    "resampling": {
+     "class_strata": {
+      "all": [
+       30
+      ]
+     },
+     "class_units": {
+      "all": 30
+     },
+     "class_units_guard": {
+      "class_strata": {
+       "negative": [
+        20,
+        0
+       ],
+       "positive": [
+        10,
+        0
+       ]
+      },
+      "class_units": {
+       "negative": 20,
+       "positive": 10
+      },
+      "deficient_class": null,
+      "frozen_variance_share": {
+       "negative": 0.0,
+       "positive": 0.0
+      },
+      "kind": "clustered",
+      "units_per_stratum": {
+       "negative": 20,
+       "positive": 10
+      }
+     },
+     "deficient_class": null,
+     "frozen_variance_share": {
+      "all": 0.0
+     },
+     "kind": "clustered",
+     "units_per_stratum": {
+      "all": 30
+     }
+    },
+    "seed": 20240101,
+    "seed_source": "engine_default",
+    "thresholds": {
+     "low_precision_units": 10,
+     "max_frozen_variance_share": 0.2,
+     "min_units_per_class_stratum": 2,
+     "min_usable_fraction": 0.9,
+     "small_class": 10,
+     "very_low_precision_units": 30
+    },
+    "usable_resamples": 134
+   },
+   "clustering_route": "declared",
+   "detail": {
+    "deviance": 235.2541941016233,
+    "iterations": 6,
+    "model": "logit P(y=1) = a + logit(p), slope fixed at 1",
+    "outcome": "converged",
+    "wald_se": 0.2895229334665456
+   },
+   "number": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": 26.775355017951398,
+    "flags": [
+     "irls_wald_refused_clustered",
+     "scores_clipped_for_logit"
+    ],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "degenerate_resamples",
+    "suppressed": false
+   }
+  },
+  "ipa": {
+   "analytic": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": -0.5562499999999999,
+    "flags": [],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+    "suppressed": false
+   },
+   "analytic_status": "refused_clustered",
+   "bootstrap": {
+    "B": 200,
+    "b_source": "engine_default",
+    "cell_key": "[\"calibration\", \"ipa\"]",
+    "interval": "percentile",
+    "resample_sd": 0.037951428558728066,
+    "resampling": {
+     "class_strata": {
+      "negative": [
+       20,
+       0
+      ],
+      "positive": [
+       10,
+       0
+      ]
+     },
+     "class_units": {
+      "negative": 20,
+      "positive": 10
+     },
+     "deficient_class": null,
+     "frozen_variance_share": {
+      "negative": 0.0,
+      "positive": 0.0
+     },
+     "kind": "clustered",
+     "units_per_stratum": {
+      "negative": 20,
+      "positive": 10
+     }
+    },
+    "seed": 20240101,
+    "seed_source": "engine_default",
+    "thresholds": {
+     "low_precision_units": 10,
+     "max_frozen_variance_share": 0.2,
+     "min_units_per_class_stratum": 2,
+     "min_usable_fraction": 0.9,
+     "small_class": 10,
+     "very_low_precision_units": 30
+    },
+    "usable_resamples": 200
+   },
+   "clustering_route": "declared",
+   "number": {
+    "ci_hi": -0.4999999999999998,
+    "ci_level": 0.95,
+    "ci_lo": -0.6312499999999999,
+    "est": -0.5562499999999999,
+    "flags": [],
+    "method": "cluster_bootstrap_percentile",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": null,
+    "suppressed": false
+   }
+  },
+  "n": 60,
+  "n_cases": 30,
+  "n_clipped": 57,
+  "nonevents": 40,
+  "oe": {
+   "analytic": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": 13.333333333333334,
+    "flags": [],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "clustered_data_analytic_ci_invalid",
+    "suppressed": false
+   },
+   "analytic_status": "refused_clustered",
+   "bootstrap": {
+    "B": 200,
+    "b_source": "engine_default",
+    "cell_key": "[\"calibration\", \"oe\"]",
+    "interval": "percentile",
+    "resample_sd": "non-finite float at a0c9abc",
+    "resampling": {
+     "class_strata": {
+      "all": [
+       30
+      ]
+     },
+     "class_units": {
+      "all": 30
+     },
+     "class_units_guard": {
+      "class_strata": {
+       "negative": [
+        20,
+        0
+       ],
+       "positive": [
+        10,
+        0
+       ]
+      },
+      "class_units": {
+       "negative": 20,
+       "positive": 10
+      },
+      "deficient_class": null,
+      "frozen_variance_share": {
+       "negative": 0.0,
+       "positive": 0.0
+      },
+      "kind": "clustered",
+      "units_per_stratum": {
+       "negative": 20,
+       "positive": 10
+      }
+     },
+     "deficient_class": null,
+     "frozen_variance_share": {
+      "all": 0.0
+     },
+     "kind": "clustered",
+     "units_per_stratum": {
+      "all": 30
+     }
+    },
+    "seed": 20240101,
+    "seed_source": "engine_default",
+    "thresholds": {
+     "low_precision_units": 10,
+     "max_frozen_variance_share": 0.2,
+     "min_units_per_class_stratum": 2,
+     "min_usable_fraction": 0.9,
+     "small_class": 10,
+     "very_low_precision_units": 30
+    },
+    "usable_resamples": 200
+   },
+   "clustering_route": "declared",
+   "number": {
+    "ci_hi": 3.999999999999999e+159,
+    "ci_level": 0.95,
+    "ci_lo": 4.0,
+    "est": 13.333333333333334,
+    "flags": [
+     "log_delta_refused_clustered"
+    ],
+    "method": "cluster_bootstrap_percentile",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": null,
+    "suppressed": false
+   }
+  },
+  "slope": {
+   "analytic": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": null,
+    "flags": [
+     "scores_clipped_for_logit"
+    ],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "irls_not_converged",
+    "suppressed": false
+   },
+   "analytic_status": "unavailable",
+   "bootstrap": null,
+   "clustering_route": "declared",
+   "detail": {
+    "deviance": 73.87062805530651,
+    "iterations": 40,
+    "model": "logit P(y=1) = a + b * logit(p)",
+    "outcome": "irls_not_converged"
+   },
+   "number": {
+    "ci_hi": null,
+    "ci_level": 0.95,
+    "ci_lo": null,
+    "est": null,
+    "flags": [
+     "scores_clipped_for_logit"
+    ],
+    "method": "none",
+    "n": 60,
+    "n_cases": 30,
+    "not_estimable_reason": "irls_not_converged",
+    "suppressed": false
+   }
+  },
+  "suppressed_reason": null
+ }
+}

@@ -894,6 +894,33 @@ class BootstrapDraw:
     n_requested: int
     n_usable: int
     reason: str | None = None  # a typed not-estimable reason when no interval was formed
+    #: Why ``sd`` is ``None`` although usable draws exist: :data:`RESAMPLE_SD_NOT_FINITE`
+    #: when ``usable.std(ddof=1)`` overflowed float64 (carried item 25 of the day-6
+    #: handoff). ``None`` whenever ``sd`` is a float or no interval was formed.
+    sd_reason: str | None = None
+
+
+#: ``resample_sd`` is ``None`` with this reason beside it when the sample standard
+#: deviation of the usable draws is not finite. numpy squares the centred draws, so a
+#: draw above about 1e154 overflows to ``inf`` while the percentile bounds - order
+#: statistics, never squared - stay finite. The interval is kept; only the descriptive
+#: sd is withheld, with the reason in the cell, because ``json.dumps(allow_nan=False)``
+#: refuses ``inf`` and the alternative (writing the token ``Infinity``) is not JSON.
+#: Reproduced at 7eb617f and a0c9abc on 57 rows at ``1e-160`` beside 3 at ``0.5`` with 20
+#: events over 30 two-row cases: O:E ``est 13.33``, bounds ``(4.0, 4.0e159)``, ``sd inf``
+#: (``tests/test_bootstrap_carried.py``).
+RESAMPLE_SD_NOT_FINITE = "resample_sd_not_finite"
+
+
+def _resample_sd(usable: np.ndarray) -> tuple[float | None, str | None]:
+    """The sample sd of the usable draws, or ``(None, RESAMPLE_SD_NOT_FINITE)``."""
+    if usable.shape[0] <= 1:
+        return 0.0, None
+    with np.errstate(over="ignore", invalid="ignore"):
+        sd = float(usable.std(ddof=1))
+    if not math.isfinite(sd):
+        return None, RESAMPLE_SD_NOT_FINITE
+    return sd, None
 
 
 def bootstrap_percentile(
@@ -939,7 +966,7 @@ def bootstrap_percentile(
             reason="degenerate_resamples",
         )
     lo, hi = percentile_bounds(usable, level)
-    sd = float(usable.std(ddof=1)) if usable.shape[0] > 1 else 0.0
+    sd, sd_reason = _resample_sd(usable)
     if lo == hi:
         return BootstrapDraw(
             values=values,
@@ -949,6 +976,7 @@ def bootstrap_percentile(
             n_requested=n_resamples,
             n_usable=int(usable.shape[0]),
             reason="boundary_estimate",
+            sd_reason=sd_reason,
         )
     return BootstrapDraw(
         values=values,
@@ -957,6 +985,7 @@ def bootstrap_percentile(
         sd=sd,
         n_requested=n_resamples,
         n_usable=int(usable.shape[0]),
+        sd_reason=sd_reason,
     )
 
 
@@ -985,6 +1014,9 @@ class CellCI:
     #: interval - the quantities the refusal rule is measured on. ``None`` when no
     #: resampler ran, which is exactly when there is nothing to explain.
     resampling: dict[str, Any] | None = None
+    #: :attr:`BootstrapDraw.sd_reason`, carried into the cell so a ``resample_sd`` of
+    #: ``null`` beside a rendered interval is explained where it is read (item 25).
+    resample_sd_reason: str | None = None
 
     def __post_init__(self) -> None:
         if self.analytic_status not in ANALYTIC_STATUS:
@@ -1003,6 +1035,7 @@ class CellCI:
                 "cell_key": self.cell_key,
                 "usable_resamples": self.n_usable,
                 "resample_sd": self.resample_sd,
+                "resample_sd_reason": self.resample_sd_reason,
                 # the deciding quantity beside the threshold that decided it: a
                 # reviewer cannot check a refusal against a constant alone
                 "resampling": self.resampling,
@@ -1167,6 +1200,7 @@ def auroc_ci(
             draw.n_usable,
             draw.sd,
             resampler.describe(),
+            resample_sd_reason=draw.sd_reason,
         )
 
     analytic = auroc_number(scores, pos, level=level).auroc
@@ -1202,6 +1236,7 @@ def auroc_ci(
         draw.n_usable,
         draw.sd,
         resampler.describe(),
+        resample_sd_reason=draw.sd_reason,
     )
 
 
@@ -1276,4 +1311,5 @@ def proportion_ci(
         draw.n_usable,
         draw.sd,
         resampler.describe(),
+        resample_sd_reason=draw.sd_reason,
     )

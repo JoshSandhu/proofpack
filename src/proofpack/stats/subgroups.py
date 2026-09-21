@@ -616,6 +616,7 @@ def _proportion_difference(
         draw.n_usable,
         draw.sd,
         {"a": res_a.describe(), "b": res_b.describe(), "frozen_sides": list(frozen)},
+        resample_sd_reason=draw.sd_reason,
     )
 
 
@@ -730,6 +731,7 @@ def _auroc_difference(
         draw.n_usable,
         draw.sd,
         {"a": res_a.describe(), "b": res_b.describe(), "frozen_sides": list(frozen)},
+        resample_sd_reason=draw.sd_reason,
     )
     return cell, None
 
@@ -784,7 +786,16 @@ def _brier_cell(
         status = "unavailable"
     return (
         CellCI(
-            number, analytic, status, key, route, pol, draw.n_usable, draw.sd, resampler.describe()
+            number,
+            analytic,
+            status,
+            key,
+            route,
+            pol,
+            draw.n_usable,
+            draw.sd,
+            resampler.describe(),
+            resample_sd_reason=draw.sd_reason,
         ),
         None,
     )

@@ -558,6 +558,7 @@ def _clustered_cell(
         draw.n_usable,
         draw.sd,
         described,
+        resample_sd_reason=draw.sd_reason,
     )
 
 
@@ -768,6 +769,7 @@ def _brier_cells(ctx: _Ctx) -> dict[str, CellCI]:
             draw.n_usable,
             draw.sd,
             resampler.describe(),
+            resample_sd_reason=draw.sd_reason,
         )
 
     def ref_of(idx: np.ndarray) -> float:
