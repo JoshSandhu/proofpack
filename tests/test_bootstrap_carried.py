@@ -102,6 +102,30 @@ def _strip_sd(node):
     return node
 
 
+def _close(a, b, *, rel=1e-9, abs_=1e-12) -> bool:
+    if isinstance(a, float) and isinstance(b, (int, float)) and not isinstance(b, bool):
+        return math.isclose(a, float(b), rel_tol=rel, abs_tol=abs_)
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(_close(a[k], b[k], rel=rel, abs_=abs_) for k in a)
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(
+            _close(x, y, rel=rel, abs_=abs_) for x, y in zip(a, b, strict=True)
+        )
+    return a == b
+
+
+def _first_difference(a, b, path="block"):
+    if isinstance(a, dict) and isinstance(b, dict) and a.keys() == b.keys():
+        for k in a:
+            if not _close(a[k], b[k]):
+                return _first_difference(a[k], b[k], f"{path}.{k}")
+    if isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
+        for i, (x, y) in enumerate(zip(a, b, strict=True)):
+            if not _close(x, y):
+                return _first_difference(x, y, f"{path}[{i}]")
+    return f"{path}: now {a!r} vs snapshot {b!r}"
+
+
 def test_item25_every_other_figure_of_the_block_is_unchanged_against_a0c9abc():
     """(c) the snapshot taken at ``a0c9abc`` minus ``resample_sd`` equals the block now
     minus ``resample_sd`` and ``resample_sd_reason``; the O:E ``resample_sd`` was the only
@@ -110,7 +134,11 @@ def test_item25_every_other_figure_of_the_block_is_unchanged_against_a0c9abc():
     assert "a0c9abc" in snap["_provenance"]
     before = _strip_sd(snap["block"])
     now = _strip_sd(_item25_block())
-    assert json.dumps(now, sort_keys=True, allow_nan=False) == json.dumps(before, sort_keys=True)
+    # byte-identical on the Windows machine the snapshot was taken on; on the ubuntu CI
+    # runner (run 21 Sept 16:07 UTC) resampled floats differ in the last digits, so floats
+    # are compared within 1e-9 relative (the F17 cross-platform tolerance) and all else exactly
+    json.dumps(now, allow_nan=False)
+    assert _close(now, before), _first_difference(now, before)
     # the snapshot's one non-finite value was the O:E resample_sd, nothing else
     text = json.dumps(snap["block"])
     assert text.count("non-finite float at a0c9abc") == 1

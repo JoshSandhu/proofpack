@@ -37,6 +37,7 @@ from conftest import (
 from proofpack.cli import main
 from proofpack.errors import EXIT_HALT, EXIT_LICENCE, EXIT_OK, EXIT_WARNINGS
 from proofpack.licence.verify import WATERMARK_EXPIRED, WATERMARK_TRIAL
+from proofpack.manifest import REFERENCE_PLATFORM
 from proofpack.resources import load_json_schema
 from proofpack.run import assemble_run, default_mapping_path
 from test_criteria import (
@@ -247,7 +248,10 @@ def test_the_manifest_fields_and_the_licence_echo(run_document):
         r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", m["run_id"]
     )
     assert m["engine_version"] == "0.1.0.dev1"
-    assert re.fullmatch(r".+-cp3\d+", m["platform"]) and m["reference_platform"] is False
+    assert re.fullmatch(r".+-cp3\d+", m["platform"])
+    # False on the Windows build machine, True on the ubuntu CI runner (linux-x86_64-cp312,
+    # run 21 Sept 16:07 UTC): the flag is the comparison, not a constant
+    assert m["reference_platform"] is (m["platform"] == REFERENCE_PLATFORM)
     assert re.fullmatch(r"3\.\d+\.\d+", m["python"])
     assert m["numpy"] and (m["scipy"] is None or isinstance(m["scipy"], str))
     for key in ("input_sha256", "criteria_sha256", "mapping_sha256"):

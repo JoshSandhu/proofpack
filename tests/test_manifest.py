@@ -179,7 +179,8 @@ def test_f17_two_runs_in_one_process_differ_only_in_run_id_started_duration_s_an
     )
     assert ma["criteria_sha256"] == hashlib.sha256(yml.read_bytes()).hexdigest()
     assert ma["mapping_sha256"] == hashlib.sha256(mapping.read_bytes()).hexdigest()
-    assert ma["reference_platform"] is False  # measured on the build machine, not the image
+    # False on the Windows build machine, True on the ubuntu CI runner (linux-x86_64-cp312)
+    assert ma["reference_platform"] is (ma["platform"] == manifest_mod.REFERENCE_PLATFORM)
     assert doc_a["ledger"] == doc_b["ledger"]  # after the count is blanked: same key, no limit
     assert doc_a["ledger"]["warn_limit"] is None
 
