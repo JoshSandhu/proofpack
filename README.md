@@ -283,11 +283,17 @@ and the same bytes are `manifest.mapping_sha256` in `run.json` (DEC-27).
   fairness bound is one of `met` / `not_met` / `not_assessable` with a machine
   `reason_code`, comparing the statistic the customer named (`ci_lower_bound` =
   `ci_lo`, `ci_upper_bound` = `ci_hi`, `point_estimate` = `est`, read literally
-  whatever the comparator) with the customer's comparator and value. A Number with no
-  interval is `not_assessable`, never `not_met`. `attainable_at_n` /
+  whatever the comparator) with the customer's comparator and value. The row is routed
+  on the Number's `method` before any statistic is read: `method: none` (a typed
+  `not_estimable_reason`) is `not_assessable` / `no_interval` under `ci_lower_bound`,
+  `ci_upper_bound` and `point_estimate` alike, with the reason in `detail`
+  (`tests/test_criteria.py::test_a_number_with_method_none_is_not_assessable_under_each_of_the_three_statistics`;
+  at `ab729d3` `point_estimate` was compared on `est`). `attainable_at_n` /
   `max_lower_bound_at_n` (the Wilson lower bound at `k = n`, `stats.attainability`)
-  are filled for `ci_lower_bound` criteria on proportion metrics. No default bound,
-  statistic or comparator exists; a fairness `bound` needs `statistic` and
+  are filled for `ci_lower_bound` criteria on proportion metrics whose Number's
+  `method` is `wilson`; on any other method (a cluster bootstrap, `none`) both are
+  `null` and `detail.attainability_not_computed` reads `method_not_wilson`. No default
+  bound, statistic or comparator exists; a fairness `bound` needs `statistic` and
   `comparator` beside it (H08 otherwise).
 * **Ledger** (`io/ledger.py`): `ledger.json` in the per-user directory
   (`PROOFPACK_HOME`, else `%LOCALAPPDATA%\proofpack` on Windows, `~/.proofpack`

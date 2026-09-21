@@ -1356,15 +1356,15 @@ MUTANTS_DAY7: tuple[Mutant, ...] = (
     Mutant(
         "expires_compared_to_grace_end",
         LICENCE_VERIFY,
-        r"if now <= effective \+ CLOCK_SKEW:",
-        "if now <= grace_end + CLOCK_SKEW:",
+        r"if now <= expiry_with_skew:",
+        "if now <= grace_with_skew:",
         day=7,
         what="ok until the end of grace (the expires comparison)",
     ),
     Mutant(
         "skew_sign_flipped",
         LICENCE_VERIFY,
-        r"if now <= effective \+ CLOCK_SKEW:",
+        r"if now <= expiry_with_skew:",
         "if now <= effective - CLOCK_SKEW:",
         day=7,
         what="the 24 h clock-skew tolerance subtracted instead of added",
@@ -1432,6 +1432,31 @@ MUTANTS_DAY7: tuple[Mutant, ...] = (
         "return sd, RESAMPLE_SD_NOT_FINITE",
         day=7,
         what="a non-finite resample sd is written as inf (carried 25)",
+    ),
+    # repair 1 of 21 September (lens 1 B1, B2, FA-N3)
+    Mutant(
+        "method_none_point_estimate_compared",
+        CRITERIA,
+        r'if reason is not None or method == "none":',
+        "if False:",
+        day=7,
+        what="a Number with method none is compared on est under point_estimate (B1)",
+    ),
+    Mutant(
+        "attainability_on_any_method",
+        CRITERIA,
+        r"if n > 0 and method == ATTAINABILITY_METHOD:",
+        "if n > 0:",
+        day=7,
+        what="attainable_at_n filled on a cluster-bootstrap cell (B2)",
+    ),
+    Mutant(
+        "grace_overflow_raises",
+        LICENCE_VERIFY,
+        r'except OverflowError:\n        return _out_of_range\("grace_days", key_id\)',
+        'except ZeroDivisionError:\n        return _out_of_range("grace_days", key_id)',
+        day=7,
+        what="grace_days 3_000_000 raises OverflowError out of verify (FA-N3)",
     ),
 )
 

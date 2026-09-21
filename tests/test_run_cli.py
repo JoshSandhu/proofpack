@@ -39,7 +39,15 @@ from proofpack.errors import EXIT_HALT, EXIT_LICENCE, EXIT_OK, EXIT_WARNINGS
 from proofpack.licence.verify import WATERMARK_EXPIRED, WATERMARK_TRIAL
 from proofpack.resources import load_json_schema
 from proofpack.run import assemble_run, default_mapping_path
-from test_criteria import CRITERIA, FAIRNESS, Z_975, cohort_with_a_thirty_row_site
+from test_criteria import (
+    CLUSTERED_CRITERIA,
+    CRITERIA,
+    FAIRNESS,
+    Z_975,
+    assert_no_met_row_is_marked_unattainable,
+    clustered_cohort_with_one_wrong_negative_in_s3,
+    cohort_with_a_thirty_row_site,
+)
 from test_subgroups import VERDICT_WORDS, walk_keys_and_strings
 
 pytestmark = pytest.mark.day7
@@ -104,6 +112,87 @@ def test_the_full_run_statuses_reason_codes_and_attainability(run_document):
     assert "Next step:" in printed and "/docs/run" in printed
     assert (out / "run.json").exists() and (out / "ingest_report.json").exists()
     assert not (out / "mapping.json").exists()  # DEC-26
+    assert_no_met_row_is_marked_unattainable(doc["criteria_results"])
+
+
+def _crit(**kw) -> dict[str, Any]:
+    base = {
+        "id": "C",
+        "metric": "sensitivity",
+        "operating_point": "op1",
+        "scope": "overall",
+        "statistic": "ci_lower_bound",
+        "comparator": ">=",
+        "value": 0.85,
+        "author": "A",
+        "date": "2026-01-01",
+        "justification": "j",
+    }
+    base.update(kw)
+    return base
+
+
+def test_point_estimate_criteria_on_f1_and_mcc_read_method_none_as_not_assessable(
+    tmp_path: Path, monkeypatch
+):
+    """Repair 1 of 21 September (lens 1 B1). On the i.i.d. synthetic run overall.op1.f1
+    and .mcc carry method none with not_estimable_reason analytic_ci_unavailable (est
+    0.6620689655172414 and 0.4821183187439812, measured). At ab729d3 the two
+    point_estimate rows came back not_met (F1_pe, >= 0.70) and met (MCC_pe, >= 0.40)
+    with method none and reason_code statistic_compared."""
+    _own_home(tmp_path, monkeypatch)
+    crit = make_criteria(
+        criteria=[
+            _crit(id="F1_pe", metric="f1", statistic="point_estimate", value=0.70),
+            _crit(id="MCC_pe", metric="mcc", statistic="point_estimate", value=0.40),
+        ],
+        fairness=None,
+    )
+    csv_path, yml = _prepare(tmp_path, crit=crit)
+    out = tmp_path / "pack"
+    assert _run(csv_path, yml, out, "--offline") == EXIT_OK
+    doc = json.loads((out / "run.json").read_text(encoding="utf-8"))
+    rows = {r["criterion_id"]: r for r in doc["criteria_results"]}
+    assert set(rows) == {"F1_pe", "MCC_pe"}
+    expected = (("F1_pe", "f1", 0.6620689655172414), ("MCC_pe", "mcc", 0.4821183187439812))
+    for cid, metric, est in expected:
+        number = doc["overall"]["op1"][metric]
+        assert number["method"] == "none" and number["ci_lo"] is None and number["ci_hi"] is None
+        assert number["not_estimable_reason"] == "analytic_ci_unavailable"
+        assert number["est"] == pytest.approx(est, abs=1e-12)
+        row = rows[cid]
+        assert (row["status"], row["reason_code"]) == ("not_assessable", "no_interval"), row
+        assert row["compared_value"] is None and row["method"] == "none"
+        assert row["detail"]["not_estimable_reason"] == "analytic_ci_unavailable"
+        assert row["metric_ref"] == f"overall.op1.{metric}"
+    jsonschema.validate(doc, load_json_schema("output_schema_v1.json"))
+
+
+def test_b2_a_met_clustered_cell_carries_no_attainability_flag_through_run(
+    tmp_path: Path, monkeypatch
+):
+    """Repair 1 of 21 September (lens 1 B2), the CLI route of the construction in
+    test_criteria: at ab729d3 sp_S3 and acc_S3 were met (compared_value 0.9) beside
+    attainable_at_n False and max_lower_bound_at_n 0.8864866068260313."""
+    _own_home(tmp_path, monkeypatch)
+    crit = make_criteria(
+        clustering={"unit": "case_id", "declared_by": "test"},
+        criteria=copy.deepcopy(CLUSTERED_CRITERIA),
+        fairness=None,
+    )
+    csv_path, yml = _prepare(tmp_path, clustered_cohort_with_one_wrong_negative_in_s3(), crit)
+    out = tmp_path / "pack"
+    assert _run(csv_path, yml, out, "--offline") in (EXIT_OK, EXIT_WARNINGS)
+    doc = json.loads((out / "run.json").read_text(encoding="utf-8"))
+    rows = {r["criterion_id"]: r for r in doc["criteria_results"]}
+    for cid in ("sp_S3", "acc_S3"):
+        row = rows[cid]
+        assert (row["status"], row["compared_value"], row["n"]) == ("met", 0.9, 30), row
+        assert row["method"] == "cluster_bootstrap_percentile"
+        assert row["attainable_at_n"] is None and row["max_lower_bound_at_n"] is None
+        assert row["detail"] == {"attainability_not_computed": "method_not_wilson"}
+    assert_no_met_row_is_marked_unattainable(doc["criteria_results"])
+    jsonschema.validate(doc, load_json_schema("output_schema_v1.json"))
 
 
 def test_the_manifest_fields_and_the_licence_echo(run_document):
@@ -388,13 +477,18 @@ def test_a_clustered_run_has_no_overall_block_and_cluster_bootstrap_cells(
     assert method in ("cluster_bootstrap_percentile", "none")
 
 
-def test_assemble_run_writes_nothing(tmp_path: Path, monkeypatch):
-    _own_home(tmp_path, monkeypatch)
+def test_assemble_run_writes_only_the_ledger_file_under_home(tmp_path: Path, monkeypatch):
+    """Lens 1 of 21 September, RG-N1: the earlier test walked tmp_path's top level only
+    and the docstring said 'writes nothing'; assemble_run writes <home>/ledger.json
+    through ledger.record_run. The walk is recursive and names the one addition."""
+    home = _own_home(tmp_path, monkeypatch)
     csv_path, yml = _prepare(tmp_path)
-    before = sorted(p.name for p in tmp_path.iterdir())
+    before = {p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*")}
     outcome = assemble_run(csv_path, yml, registry=ephemeral_registry())
     assert outcome.exit_code == EXIT_OK and outcome.document["criteria_results"]
-    assert sorted(p.name for p in tmp_path.iterdir()) == before
+    after = {p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*")}
+    assert after - before == {"home/ledger.json"}
+    assert (home / "ledger.json").exists() and not (tmp_path / "pack").exists()
 
 
 def test_python_m_proofpack_cli_run_in_a_subprocess_without_a_licence(tmp_path: Path):

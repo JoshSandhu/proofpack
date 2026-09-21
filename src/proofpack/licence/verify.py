@@ -7,15 +7,24 @@ bytes of the first segment** as written, not over re-serialised JSON. Payload:
 issued, expires, grace_days, key_id}``; ``issued`` and ``expires`` are ISO-8601 UTC to the
 second with a ``Z`` (``isoUtc`` in the issuer).
 
-:func:`verify` **raises nothing on bad input**. Every outcome is a :class:`LicenceResult`
-with a status from :data:`STATUSES` and a reason from :data:`REASON_CODES`:
+Every outcome :func:`verify` returns is a :class:`LicenceResult` with a status from
+:data:`STATUSES` and a reason from :data:`REASON_CODES`. What ``tests/test_licence.py``
+feeds and reads back as ``refused`` without an exception: 300 random byte blobs of 0-199
+bytes, three truncations of a signed file, eight malformed spellings, every required field
+removed or mistyped in turn, and signed payloads with ``grace_days`` 3 000 000 and 10**9,
+``expires`` ``9999-12-31T23:59:59Z``, ``expires`` ``0001-01-01T00:00:00+05:00`` and a trial
+``issued`` ``9999-12-31T00:00:00Z``
+(``test_extreme_dates_and_grace_days_are_refused_expires_unparsable``) - at ``ab729d3``
+those five raised ``OverflowError`` out of the date arithmetic (lens 1 of 21 September, N3).
 
 * ``refused`` - the file cannot be trusted: not exactly two dot-separated segments; a
   segment that is not canonical base64 (base64url, unpadded and trailing-bit spellings are
   refused, not canonicalised - the four spellings are in ``tests/test_licence.py``); a
   payload that is not a JSON object; a required field missing or of the wrong type; a
   ``key_id`` the registry does not hold; ``cryptography``'s ``InvalidSignature``;
-  ``expires`` or ``issued`` unparsable; ``cryptography`` not importable.
+  ``expires`` or ``issued`` unparsable, or a date, the trial end or the grace end outside
+  Python's ``datetime`` range (``expires_unparsable`` with ``detail.field``);
+  ``cryptography`` not importable.
 * ``ok`` - the signature verifies and ``now <= expires + 24 h`` (the clock-skew tolerance,
   D1 section 7, applied on the customer's side only: a licence is never refused for a
   clock up to a day behind the issuer's). A trial's effective expiry is the earlier of the
@@ -67,7 +76,10 @@ REASON_CODES: dict[str, str] = {
     "unknown_tier": "tier is not trial, quarterly or annual",
     "unknown_key_id": "the payload's key_id is not a key this engine ships",
     "signature_invalid": "the Ed25519 signature does not verify against the key_id's key",
-    "expires_unparsable": "expires or issued is not an ISO-8601 UTC timestamp",
+    "expires_unparsable": (
+        "expires or issued is not an ISO-8601 UTC timestamp, or a date, the trial end or "
+        "the grace end lies outside the datetime range (detail.field)"
+    ),
     "cryptography_unavailable": "the cryptography package is not installed",
 }
 
@@ -129,6 +141,12 @@ def _refused(reason: str, **detail: Any) -> LicenceResult:
     return LicenceResult("refused", reason, detail=detail)
 
 
+def _out_of_range(field_name: str, key_id: str) -> LicenceResult:
+    """A signed payload whose date arithmetic left Python's ``datetime`` range."""
+    detail = {"field": field_name}
+    return LicenceResult("refused", "expires_unparsable", key_id=key_id, detail=detail)
+
+
 def parse_utc(value: Any) -> datetime | None:
     """``YYYY-MM-DDTHH:MM:SSZ`` (the issuer's ``isoUtc``) or any ISO-8601 with an offset."""
     if not isinstance(value, str) or not value:
@@ -140,7 +158,11 @@ def parse_utc(value: Any) -> datetime | None:
         return None
     if dt.tzinfo is None:
         return None
-    return dt.astimezone(UTC)
+    try:
+        return dt.astimezone(UTC)
+    except OverflowError:
+        # an offset that carries year 1 or year 9999 past the datetime range
+        return None
 
 
 def verify(
@@ -149,7 +171,8 @@ def verify(
     now: datetime | None = None,
     registry: KeyRegistry | None = None,
 ) -> LicenceResult:
-    """Verify a licence file (a path) or its bytes. Raises nothing on bad input."""
+    """Verify a licence file (a path) or its bytes; the module docstring lists the inputs
+    ``tests/test_licence.py`` feeds and reads back as a :class:`LicenceResult`."""
     registry = registry if registry is not None else KeyRegistry.shipped()
     now = (now if now is not None else datetime.now(UTC)).astimezone(UTC)
     if isinstance(source, bytes | bytearray):
@@ -209,13 +232,25 @@ def verify(
         return LicenceResult("refused", "expires_unparsable", key_id=key_id)
     effective = expires
     if payload["tier"] == "trial":
-        effective = min(expires, issued + timedelta(days=TRIAL_DAYS))
-    grace_end = effective + timedelta(days=int(payload["grace_days"]))
+        try:
+            effective = min(expires, issued + timedelta(days=TRIAL_DAYS))
+        except OverflowError:
+            return _out_of_range("issued", key_id)
+    # at ab729d3 these sums raised OverflowError out of verify() for grace_days 3_000_000
+    # and 10**9 and for expires 9999-12-31T23:59:59Z (tests/test_licence.py names the five)
+    try:
+        expiry_with_skew = effective + CLOCK_SKEW
+    except OverflowError:
+        return _out_of_range("expires", key_id)
+    try:
+        grace_with_skew = effective + timedelta(days=int(payload["grace_days"])) + CLOCK_SKEW
+    except OverflowError:
+        return _out_of_range("grace_days", key_id)
     days_left = (effective - now) // timedelta(days=1)
-    if now <= effective + CLOCK_SKEW:
+    if now <= expiry_with_skew:
         mark = WATERMARK_TRIAL if payload["tier"] == "trial" else None
         return LicenceResult("ok", "valid", payload, key_id, int(days_left), mark)
-    if now <= grace_end + CLOCK_SKEW:
+    if now <= grace_with_skew:
         return LicenceResult(
             "grace", "expired_within_grace", payload, key_id, int(days_left), WATERMARK_EXPIRED
         )

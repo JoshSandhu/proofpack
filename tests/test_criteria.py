@@ -42,10 +42,13 @@ def test_max_lower_bound_at_n_is_n_over_n_plus_z_squared(n):
 
 
 def test_the_hand_figures_at_30_50_200():
-    # 30 / 33.841458820694124, 50 / 53.841458820694124, 200 / 203.841458820694124
-    assert max_lower_bound_at_n(30) == pytest.approx(0.886487, abs=5e-6)
-    assert max_lower_bound_at_n(50) == pytest.approx(0.928655, abs=5e-6)
-    assert max_lower_bound_at_n(200) == pytest.approx(0.981154, abs=5e-6)
+    # 30 / 33.841458820694124, 50 / 53.841458820694124, 200 / 203.841458820694124, each
+    # re-derived by hand from the Wilson formula at p = 1 with z from
+    # statistics.NormalDist().inv_cdf(0.975) (repair 1 of 21 September, RG-N3: the earlier
+    # literal 0.928655 at n = 50 was mis-rounded and hidden by a 5e-6 tolerance)
+    assert max_lower_bound_at_n(30) == pytest.approx(0.886486606826, abs=1e-9)
+    assert max_lower_bound_at_n(50) == pytest.approx(0.928652400867, abs=1e-9)
+    assert max_lower_bound_at_n(200) == pytest.approx(0.981154673623, abs=1e-9)
 
 
 @pytest.mark.parametrize(
@@ -220,18 +223,93 @@ def test_attainability_fields_are_filled_for_a_lower_bound_proportion_criterion_
     assert "f1" not in PROPORTION_METRICS and "sensitivity" in PROPORTION_METRICS
 
 
-def test_a_number_without_an_interval_is_not_assessable_never_not_met():
-    decl = _decl_with([_criterion(value=0.0)], fairness=None)  # any bound would be met
+@pytest.mark.parametrize(
+    "statistic, comparator, value",
+    [
+        ("ci_lower_bound", ">=", 0.0),  # any bound at all
+        ("point_estimate", ">=", 0.95),  # est 0.90 sits below: was not_met at ab729d3
+        ("point_estimate", ">=", 0.5),  # est 0.90 sits above: was met at ab729d3
+        ("ci_upper_bound", "<=", 1.0),
+    ],
+)
+def test_a_number_with_method_none_is_not_assessable_under_each_of_the_three_statistics(
+    statistic, comparator, value
+):
+    """Repair 1 of 21 September (lens 1 B1). The Number is est 0.90, ci (None, None),
+    method none, not_estimable_reason single_class, n 100. At ab729d3 the two
+    point_estimate rows read est and came back not_met (>= 0.95) and met (>= 0.5); the
+    row is now routed on the method before any statistic is read."""
+    decl = _decl_with(
+        [_criterion(statistic=statistic, comparator=comparator, value=value)], fairness=None
+    )
     doc = _doc_with_overall(sensitivity=_num(0.90, None, None, n=100, reason="single_class"))
     [row] = crit_mod.evaluate(decl, doc)
     assert row["status"] == "not_assessable" and row["reason_code"] == "no_interval"
-    assert row["detail"] == {"not_estimable_reason": "single_class"}
-    assert row["compared_value"] is None
-    # point_estimate on the same Number: est exists, so it is compared - the customer
-    # asked for the point, not the interval
-    decl = _decl_with([_criterion(statistic="point_estimate", value=0.5)], fairness=None)
+    assert row["detail"]["not_estimable_reason"] == "single_class"
+    assert row["compared_value"] is None and row["method"] == "none"
+    assert row["attainable_at_n"] is None and row["max_lower_bound_at_n"] is None
+    if statistic == "ci_lower_bound":
+        # a proportion under ci_lower_bound, but the method is none, not wilson (B2's rule)
+        assert row["detail"]["attainability_not_computed"] == "method_not_wilson"
+    else:
+        assert "attainability_not_computed" not in row["detail"]
+
+
+CLUSTER_CELL = {
+    # the S3 specificity cell of the B2 construction as measured at ab729d3 through
+    # proofpack run: 29 of 30 negatives right, 15 two-row cases, B 200, seed 20240101
+    "est": 0.9666666666666667,
+    "ci_lo": 0.9,
+    "ci_hi": 1.0,
+    "ci_level": 0.95,
+    "method": "cluster_bootstrap_percentile",
+    "n": 30,
+    "k": 29,
+    "n_cases": 15,
+    "flags": ["wilson_refused_clustered", "very_low_precision"],
+    "suppressed": False,
+    "not_estimable_reason": None,
+}
+
+
+def test_a_cluster_bootstrap_cell_gets_no_attainability_flag():
+    """Repair 1 of 21 September (lens 1 B2). ci_lo 0.9 on this cell exceeds the Wilson
+    k = n figure at n = 30 (0.886486606826), so at ab729d3 the row was met with
+    attainable_at_n False and max_lower_bound_at_n 0.8864866068260313 beside it. The
+    figure is filled on method wilson only; here both are null and detail says why."""
+    decl = _decl_with(
+        [_criterion(id="sp", metric="specificity", value=0.89)],
+        fairness=None,
+    )
+    doc = _doc_with_overall(specificity=dict(CLUSTER_CELL))
     [row] = crit_mod.evaluate(decl, doc)
-    assert row["status"] == "met" and row["compared_value"] == 0.90
+    assert (row["status"], row["compared_value"], row["n"]) == ("met", 0.9, 30)
+    assert row["method"] == "cluster_bootstrap_percentile"
+    assert row["attainable_at_n"] is None and row["max_lower_bound_at_n"] is None
+    assert row["detail"] == {"attainability_not_computed": "method_not_wilson"}
+    # a Wilson Number at k = n = 30: est 1.0, ci_lo the k = n figure itself (measured
+    # 0.8864866068260313). The figure is filled; against 0.89 the row is not_met with
+    # attainable_at_n False, against 0.85 met with attainable_at_n True
+    wilson = dict(CLUSTER_CELL, method="wilson", flags=[], est=1.0, ci_lo=0.8864866068260313, k=30)
+    del wilson["n_cases"]
+    [row] = crit_mod.evaluate(decl, _doc_with_overall(specificity=wilson))
+    assert (row["status"], row["attainable_at_n"]) == ("not_met", False)
+    assert row["max_lower_bound_at_n"] == pytest.approx(0.886486606826, abs=1e-9)
+    assert row["detail"] == {}
+    decl = _decl_with([_criterion(id="sp", metric="specificity", value=0.85)], fairness=None)
+    [row] = crit_mod.evaluate(decl, _doc_with_overall(specificity=wilson))
+    assert (row["status"], row["attainable_at_n"]) == ("met", True)
+    assert row["compared_value"] == 0.8864866068260313 and row["detail"] == {}
+
+
+def assert_no_met_row_is_marked_unattainable(rows: list[dict]) -> None:
+    """Over the rows given: no row reads status met beside attainable_at_n False, and a
+    filled attainability field sits on a method wilson row only."""
+    assert rows
+    for row in rows:
+        assert not (row["status"] == "met" and row["attainable_at_n"] is False), row
+        if row["attainable_at_n"] is not None or row["max_lower_bound_at_n"] is not None:
+            assert row["method"] == "wilson", row  # criteria.ATTAINABILITY_METHOD
 
 
 def test_a_suppressed_number_is_not_assessable():
@@ -395,6 +473,74 @@ def test_f8_a_criterion_on_a_thirty_row_cell_is_not_met_and_not_attainable(docum
     idx = int(re.search(r"\[(\d+)\]", row["metric_ref"]).group(1))
     cell = document["subgroups"][idx]["metrics"]["op1"]["accuracy"]
     assert cell["number"]["n"] == 30 and row["compared_value"] == cell["number"]["ci_lo"]
+
+
+def test_no_row_of_the_synthetic_document_is_met_beside_attainable_at_n_false(document):
+    assert_no_met_row_is_marked_unattainable(document["criteria_results"])
+    n30 = next(r for r in document["criteria_results"] if r["criterion_id"] == "C_n30")
+    assert n30["method"] == "wilson" and n30["detail"] == {}
+
+
+def clustered_cohort_with_one_wrong_negative_in_s3() -> dict[str, list[Any]]:
+    """Lens 1 B2's construction: 400 rows in 200 two-row cases, site S3 = rows 0-29, all
+    negative, score 0.1 except row 0 at 0.9 (its case c000000's sibling row 1 is right)."""
+    cols = make_cohort(n=400, with_case_id=True)
+    cols["case_id"] = [f"c{i // 2:06d}" for i in range(400)]
+    cols["site"] = ["S3"] * 30 + ["S1", "S2"] * 185
+    for i in range(30):
+        cols["y_true"][i] = "0"
+        cols["score"][i] = 0.1
+    cols["score"][0] = 0.9
+    return cols
+
+
+CLUSTERED_CRITERIA = [
+    _criterion(
+        id="sp_S3",
+        metric="specificity",
+        scope={"attribute": "site", "level": "S3"},
+        value=0.89,
+    ),
+    _criterion(
+        id="acc_S3",
+        metric="accuracy",
+        scope={"attribute": "site", "level": "S3"},
+        value=0.89,
+    ),
+]
+
+
+def test_b2_the_clustered_s3_cell_is_met_with_no_attainability_flag_in_the_assembled_document():
+    """At ab729d3 both rows were met (ci_lo 0.9 >= 0.89) with attainable_at_n False and
+    max_lower_bound_at_n 0.8864866068260313 (the Wilson k = n figure at n = 30)."""
+    crit = make_criteria(
+        clustering={"unit": "case_id", "declared_by": "test"},
+        criteria=copy.deepcopy(CLUSTERED_CRITERIA),
+        fairness=None,
+    )
+    doc = assemble(clustered_cohort_with_one_wrong_negative_in_s3(), crit)
+    rows = {r["criterion_id"]: r for r in doc["criteria_results"]}
+    assert set(rows) == {"sp_S3", "acc_S3"}
+    for cid in ("sp_S3", "acc_S3"):
+        row = rows[cid]
+        assert (row["status"], row["compared_value"], row["n"]) == ("met", 0.9, 30), row
+        assert row["method"] == "cluster_bootstrap_percentile"
+        assert row["attainable_at_n"] is None and row["max_lower_bound_at_n"] is None
+        assert row["detail"] == {"attainability_not_computed": "method_not_wilson"}
+        idx = int(re.search(r"\[(\d+)\]", row["metric_ref"]).group(1))
+        num = doc["subgroups"][idx]["metrics"]["op1"][row["metric"]]["number"]
+        assert (num["ci_lo"], num["ci_hi"], num["n"], num["k"], num["n_cases"]) == (
+            0.9,
+            1.0,
+            30,
+            29,
+            15,
+        )
+        assert num["est"] == pytest.approx(29 / 30, abs=1e-12)
+        # the figure that sat beside status met at ab729d3
+        assert max_lower_bound_at_n(30) == pytest.approx(0.8864866068260313, abs=1e-12)
+        assert num["ci_lo"] > max_lower_bound_at_n(30)
+    assert_no_met_row_is_marked_unattainable(doc["criteria_results"])
 
 
 def test_the_three_statuses_and_their_reason_codes_on_the_synthetic_document(document):

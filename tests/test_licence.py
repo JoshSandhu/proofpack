@@ -242,6 +242,33 @@ def test_random_and_hostile_bytes_never_raise():
     assert set(STATUSES) == {"ok", "grace", "expired", "refused"}
 
 
+@pytest.mark.parametrize(
+    "field, extra",
+    [
+        ("grace_days", {"grace_days": 3_000_000}),
+        ("grace_days", {"grace_days": 10**9}),
+        ("expires", {"expires": "9999-12-31T23:59:59Z"}),
+        ("expires", {"expires": "0001-01-01T00:00:00+05:00"}),
+        ("issued", {"tier": "trial", "issued": "9999-12-31T00:00:00Z"}),
+    ],
+)
+def test_extreme_dates_and_grace_days_are_refused_expires_unparsable(field, extra):
+    """Lens 1 of 21 September, FA-N3: at ab729d3 each of these signed payloads raised
+    OverflowError out of verify() ('date value out of range', 'days=1000000000; must have
+    magnitude <= 999999999', and the year-0 offset in parse_utc). Each is now refused
+    expires_unparsable; the field is named except for the fourth, which parse_utc refuses
+    (an offset carrying year 1 below the range) before any field is attributed."""
+    payload = licence_payload()
+    payload.update(extra)
+    r = verify(sign_licence(payload).encode("ascii"), now=NOW, registry=ephemeral_registry())
+    assert (r.status, r.reason_code) == ("refused", "expires_unparsable"), extra
+    if extra.get("expires") == "0001-01-01T00:00:00+05:00":
+        assert r.detail == {}
+    else:
+        assert r.detail == {"field": field}
+    assert r.payload is None and r.watermark is None
+
+
 def test_no_file_is_refused_no_file(tmp_path: Path):
     r = verify(tmp_path / "absent.lic", now=NOW, registry=ephemeral_registry())
     assert (r.status, r.reason_code) == ("refused", "no_file")

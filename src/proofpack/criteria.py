@@ -22,11 +22,25 @@ criteria or verdicts"):
   because that would be the engine choosing the statistic; a customer who wants the
   upper end of the interval names ``ci_upper_bound`` (an addition to D1 section 2's two
   values, recorded in the E7 build note). T8's column heading says which end was read;
-* a Number with no interval (a typed ``not_estimable_reason``) or a suppressed one gives
-  ``not_assessable`` and carries the reason in ``detail`` - never ``not_met``;
+* :func:`_row` routes on the Number's ``method`` and ``not_estimable_reason`` *before* it
+  reads any statistic: a Number with ``method: none`` (a typed ``not_estimable_reason``,
+  no interval) is ``not_assessable`` / ``no_interval`` with the reason in ``detail`` under
+  each of the three statistics, ``point_estimate`` included, and a suppressed one is
+  ``not_assessable`` / ``suppressed``. Inspected by ``tests/test_criteria.py::
+  test_a_number_with_method_none_is_not_assessable_under_each_of_the_three_statistics``
+  (a hand-built Number ``est 0.90``, ``single_class``) and ``tests/test_run_cli.py::
+  test_point_estimate_criteria_on_f1_and_mcc_read_method_none_as_not_assessable`` (the
+  synthetic run's ``overall.op1.f1`` and ``mcc``, ``analytic_ci_unavailable``). At
+  ``ab729d3`` both were compared on ``est`` (lens 1 of 21 September, B1);
 * ``attainable_at_n`` / ``max_lower_bound_at_n`` (``stats.attainability``) are filled for a
-  ``ci_lower_bound`` criterion on a proportion metric whose Number carries ``n``, and
-  ``null`` otherwise. No sample-size advice.
+  ``ci_lower_bound`` criterion on a proportion metric whose Number carries ``n`` **and
+  whose ``method`` is ``wilson``** - the interval the k = n figure is a case of. On any
+  other method (``cluster_bootstrap_percentile``, ``none``) both are ``null`` and
+  ``detail.attainability_not_computed`` is ``method_not_wilson``: a cluster-bootstrap
+  lower bound is not bounded by the Wilson k = n figure (``tests/test_criteria.py::
+  test_a_cluster_bootstrap_cell_gets_no_attainability_flag``: at ``ab729d3`` a ``met``
+  row on ``ci_lo 0.9`` carried ``attainable_at_n false`` against ``0.8865`` at n = 30).
+  No sample-size advice.
 
 Which field each criterion reads
 --------------------------------
@@ -106,6 +120,10 @@ REASON_CODES: dict[str, str] = {
 
 STATISTICS: tuple[str, ...] = ("ci_lower_bound", "ci_upper_bound", "point_estimate")
 COMPARATORS: tuple[str, ...] = (">=", ">", "<=", "<")
+#: The one ``method`` string whose interval ``max_lower_bound_at_n`` (the Wilson lower
+#: bound at k = n) is a case of; on any other method the attainability fields are ``null``
+#: and ``detail.attainability_not_computed`` says so.
+ATTAINABILITY_METHOD = "wilson"
 
 #: Metrics read at an operating point (``operating_point`` required; H09 otherwise).
 THRESHOLD_METRICS: frozenset[str] = frozenset(
@@ -319,22 +337,30 @@ def _row(
     number = read.number
     if number is None:
         return out
-    out["method"] = number.get("method")
+    method = number.get("method")
+    out["method"] = method
     n = number.get("n")
     out["n"] = n
     if statistic == "ci_lower_bound" and metric in PROPORTION_METRICS and isinstance(n, int):
-        if n > 0:
+        if n > 0 and method == ATTAINABILITY_METHOD:
             out["max_lower_bound_at_n"] = max_lower_bound_at_n(n, level)
             out["attainable_at_n"] = attainable(value, n, comparator, level)
+        elif n > 0:
+            out["detail"]["attainability_not_computed"] = "method_not_wilson"
     if number.get("suppressed"):
         out["reason_code"] = "suppressed"
         return out
     reason = number.get("not_estimable_reason")
-    compared = _statistic_of(number, statistic)
-    if compared is None:
+    if reason is not None or method == "none":
+        # routed before any statistic is read: est is not compared on a Number that
+        # carries no interval, whatever the statistic named
         out["reason_code"] = "no_interval"
         if reason is not None:
             out["detail"]["not_estimable_reason"] = reason
+        return out
+    compared = _statistic_of(number, statistic)
+    if compared is None:
+        out["reason_code"] = "no_interval"
         return out
     out["compared_value"] = float(compared)
     out["status"] = "met" if _compare(float(compared), comparator, float(value)) else "not_met"

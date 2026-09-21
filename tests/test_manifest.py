@@ -131,9 +131,14 @@ def _blank_volatile(raw: bytes) -> tuple[bytes, dict]:
     return manifest_mod.canonical_json(doc), doc
 
 
-def test_f17_two_runs_in_one_process_are_byte_identical_except_the_three_volatile_keys(
+def test_f17_two_runs_in_one_process_differ_only_in_run_id_started_duration_s_and_the_ledger_count(
     tmp_path: Path, monkeypatch
 ):
+    """F17 as measured (lens 1 of 21 September, RG-N2: the earlier name said 'the three
+    volatile keys' while the body blanked four manifest keys and ledger.acceptance_runs).
+    The manifest keys that may differ are run_id, started, duration_s and ledger_count;
+    ledger.acceptance_runs in the body reads 1 then 2; the three SHA-256 fields are equal
+    and the bytes are identical once those keys are blanked."""
     monkeypatch.setenv("PROOFPACK_HOME", str(tmp_path / "home"))
     from conftest import write_licence
 
@@ -153,7 +158,17 @@ def test_f17_two_runs_in_one_process_are_byte_identical_except_the_three_volatil
     ma, mb = json.loads(first)["manifest"], json.loads(second)["manifest"]
     differ = {k for k in ma if ma[k] != mb[k]}
     assert differ <= manifest_mod.VOLATILE_KEYS | manifest_mod.HISTORY_KEYS
-    assert "run_id" in differ and (ma["ledger_count"], mb["ledger_count"]) == (1, 2)
+    assert manifest_mod.VOLATILE_KEYS | manifest_mod.HISTORY_KEYS == {
+        "run_id",
+        "started",
+        "duration_s",
+        "ledger_count",
+    }
+    assert "run_id" in differ and "ledger_count" in differ
+    assert (ma["ledger_count"], mb["ledger_count"]) == (1, 2)
+    da, db = json.loads(first), json.loads(second)
+    assert (da["ledger"]["acceptance_runs"], db["ledger"]["acceptance_runs"]) == (1, 2)
+    assert {k for k in da if da[k] != db[k]} == {"manifest", "ledger"}
     assert (
         ma["input_sha256"]
         == mb["input_sha256"]

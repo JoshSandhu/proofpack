@@ -17,27 +17,32 @@ and at ``k = n`` (``p = 1``) the square root collapses to ``z``, so
 
     max_lower_bound_at_n = n / (n + z^2)
 
-which is the closed form the oracle test recomputes by hand. It rises with ``n`` and never
-reaches 1: at n = 30 it is 0.8865, at n = 50 0.9287, at n = 200 0.9812 (95 %). A ``>=``
-criterion whose ``value`` exceeds it cannot be met by any outcome at that ``n``, whatever
-the model does - which is the fact the pack states, and all it states.
+which is the closed form the oracle test recomputes by hand (``tests/test_criteria.py``:
+0.886486606826 at n = 30, 0.928652400867 at n = 50, 0.981154673623 at n = 200, 95 %;
+``test_the_bound_rises_with_n_and_never_reaches_one`` inspects n = 1 ... 100000). The pack
+states the figure and, for a ``>=`` / ``>`` criterion, whether ``value`` is at or below it;
+nothing else.
 
-Under clustering the rendered interval is a cluster bootstrap, not Wilson, and the
-effective sample is smaller than ``n`` rows: the figure here is the i.i.d. Wilson bound
-over the rows, so ``attainable_at_n: false`` is exact (not attainable even with independent
-rows) and ``true`` says only that the row count alone does not rule the criterion out.
-The criteria row records ``n`` and the Number's method beside the figure so a reader can
-see which case applies.
+The figure is the Wilson bound and belongs beside a Wilson interval only. ``criteria._row``
+fills ``attainable_at_n`` / ``max_lower_bound_at_n`` when the Number's ``method`` is
+``wilson`` (``criteria.ATTAINABILITY_METHOD``) and leaves both ``null`` with
+``detail.attainability_not_computed: method_not_wilson`` otherwise. Measured at
+``ab729d3`` (lens 1 of 21 September, B2): a cluster-bootstrap percentile interval on 30
+negatives in 15 two-row cases with one wrong row (``k`` 29, ``n_cases`` 15) had ``ci_lo``
+0.9 - the wrong row's case is absent from about a third of the resamples - against the
+k = n Wilson figure 0.8865, so a ``ci_lower_bound >= 0.89`` criterion was ``met`` in a row
+that also carried ``attainable_at_n: false``. ``tests/test_criteria.py::
+test_a_cluster_bootstrap_cell_gets_no_attainability_flag`` feeds that construction.
 """
 
 from __future__ import annotations
 
 from proofpack.stats.proportions import wilson_bounds
 
-#: Metric ids whose Number is a plain proportion ``k / n`` with a Wilson (or cluster
-#: bootstrap) interval, for which the k = n bound is the attainability figure. F1, MCC,
-#: balanced accuracy, the likelihood ratios and the DOR are not proportions of one
-#: denominator and get ``null`` (D1: "null for non-proportion metrics").
+#: Metric ids whose Number is a plain proportion ``k / n``; the attainability figure is
+#: filled for these when the Number's interval is Wilson (``criteria.ATTAINABILITY_METHOD``).
+#: F1, MCC, balanced accuracy, the likelihood ratios and the DOR are not proportions of
+#: one denominator and get ``null`` (D1: "null for non-proportion metrics").
 PROPORTION_METRICS: frozenset[str] = frozenset(
     {"sensitivity", "specificity", "ppa", "npa", "ppv", "npv", "accuracy", "prevalence"}
 )

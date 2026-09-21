@@ -175,7 +175,11 @@ def assemble_run(
     registry: KeyRegistry | None = None,
     ledger_home: Path | None = None,
 ) -> RunOutcome:
-    """Everything ``proofpack run`` computes, as one document; writes nothing."""
+    """Everything ``proofpack run`` computes, as one document. Writes nothing under
+    ``--out``; the one file it writes is ``<PROOFPACK_HOME>/ledger.json`` through
+    :func:`proofpack.io.ledger.record_run` (``tests/test_run_cli.py::
+    test_assemble_run_writes_only_the_ledger_file_under_home`` walks the directory
+    tree before and after and names that file as the one addition)."""
     started = manifest_mod.utc_now_iso()
     t0 = time.perf_counter()
     licence = resolve(registry=registry)
