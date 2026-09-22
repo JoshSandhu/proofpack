@@ -1,0 +1,7 @@
+{
+  "name": "not_an_object",
+  "rule": "the claim is a string",
+  "expected_reason_code": "not_an_object",
+  "note": "",
+  "claim": "Sensitivity was fine."
+}

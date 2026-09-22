@@ -1,0 +1,24 @@
+{
+  "name": "comparator_unknown",
+  "rule": "comparator_id '=='",
+  "expected_reason_code": "comparator_unknown",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9002",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": "==",
+    "criterion_index": 0,
+    "criterion_id": "C_met",
+    "status": "met",
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/sensitivity"
+    ],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

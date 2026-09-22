@@ -1,0 +1,24 @@
+{
+  "name": "typed_reason_presented_as_estimate",
+  "rule": "overall F1 carries analytic_ci_unavailable and the claim says estimate",
+  "expected_reason_code": "relation_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9004",
+    "template_id": "OVERALL_ESTIMATE",
+    "metric_id": "f1",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/f1"
+    ],
+    "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
+    "free_text": null
+  }
+}

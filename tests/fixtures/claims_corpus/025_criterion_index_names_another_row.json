@@ -1,0 +1,24 @@
+{
+  "name": "criterion_index_names_another_row",
+  "rule": "criterion_index 3 (a C_f1_site row) under criterion_id C_met",
+  "expected_reason_code": "criterion_id_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9002",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": 3,
+    "criterion_id": "C_met",
+    "status": "met",
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/sensitivity"
+    ],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

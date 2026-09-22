@@ -1,0 +1,33 @@
+{
+  "name": "value_ref_to_calibration_when_null",
+  "rule": "CALIB_HIERARCHY pointers on a document whose calibration is null",
+  "expected_reason_code": "value_ref_unresolved",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9004",
+    "template_id": "CALIB_HIERARCHY",
+    "metric_id": "oe",
+    "operating_point": null,
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/calibration/oe/number",
+      "/calibration/slope/number",
+      "/calibration/intercept/number",
+      "/calibration/brier/number"
+    ],
+    "guidance_ref": "FDA_AIDSF_CALIBRATION",
+    "free_text": null
+  },
+  "document_patch": [
+    {
+      "pointer": "/calibration",
+      "value": null
+    }
+  ]
+}

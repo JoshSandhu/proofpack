@@ -1,0 +1,24 @@
+{
+  "name": "estimate_presented_as_not_assessable",
+  "rule": "overall sensitivity has an interval and the claim says not_assessable",
+  "expected_reason_code": "relation_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9004",
+    "template_id": "OVERALL_ESTIMATE",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "not_assessable",
+    "value_refs": [
+      "/overall/op1/sensitivity"
+    ],
+    "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
+    "free_text": null
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "status_word_capitalised",
+  "rule": "status 'Met' (a different case is not the enum value)",
+  "expected_reason_code": "status_not_in_enum",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9002",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": 0,
+    "criterion_id": "C_met",
+    "status": "Met",
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/sensitivity"
+    ],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

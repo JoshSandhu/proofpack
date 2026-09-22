@@ -1,0 +1,27 @@
+{
+  "name": "value_ref_to_cell_not_number",
+  "rule": "a pointer at the day-4 cell, not its number",
+  "expected_reason_code": "value_ref_not_a_number",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9001",
+    "template_id": "SUBGROUP_ESTIMATE",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": {
+      "attribute": "sex",
+      "level": "F"
+    },
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/subgroups/4/metrics/op1/sensitivity"
+    ],
+    "guidance_ref": "FDA_AIDSF_SUBGROUP_PERF",
+    "free_text": null
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "empty_claims_with_criteria",
+  "rule": "an empty claims list on a document with nine criteria rows",
+  "expected_reason_code": "no_claims_for_criteria",
+  "note": "",
+  "claims": []
+}

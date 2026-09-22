@@ -1,0 +1,42 @@
+{
+  "name": "fda_anchor_without_draft_qualifier",
+  "rule": "the map row for FDA_AIDSF_SUBGROUP_PERF says draft without 'not for implementation'",
+  "expected_reason_code": "guidance_draft_unqualified",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9001",
+    "template_id": "SUBGROUP_ESTIMATE_WITH_DIFF",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": {
+      "attribute": "sex",
+      "level": "F"
+    },
+    "reference": {
+      "attribute": "sex",
+      "level": "M"
+    },
+    "comparator_id": "diff_vs_reference",
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "within",
+    "value_refs": [
+      "/subgroups/4/metrics/op1/sensitivity/number",
+      "/subgroups/4/diff_vs_reference/op1/sensitivity/number"
+    ],
+    "guidance_ref": "FDA_AIDSF_SUBGROUP_PERF",
+    "free_text": null
+  },
+  "guidance_map": [
+    {
+      "internal_id": "FDA_AIDSF_SUBGROUP_PERF",
+      "document": "FDA draft guidance, AI-Enabled Device Software Functions",
+      "version_date": "2025-01-07",
+      "status": "draft",
+      "section": "",
+      "estar_section": "",
+      "notes": ""
+    }
+  ]
+}

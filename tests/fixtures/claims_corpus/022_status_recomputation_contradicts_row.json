@@ -1,0 +1,30 @@
+{
+  "name": "status_recomputation_contradicts_row",
+  "rule": "the row says met but its declared value was raised above the bound Number's lower end",
+  "expected_reason_code": "status_recomputation_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9002",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": 0,
+    "criterion_id": "C_met",
+    "status": "met",
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/sensitivity"
+    ],
+    "guidance_ref": null,
+    "free_text": null
+  },
+  "document_patch": [
+    {
+      "pointer": "/criteria_results/0/value",
+      "value": 0.999
+    }
+  ]
+}

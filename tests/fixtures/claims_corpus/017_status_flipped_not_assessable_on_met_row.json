@@ -1,0 +1,24 @@
+{
+  "name": "status_flipped_not_assessable_on_met_row",
+  "rule": "status not_assessable on the C_met row, which is met",
+  "expected_reason_code": "status_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9002",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": 0,
+    "criterion_id": "C_met",
+    "status": "not_assessable",
+    "relation": "not_assessable",
+    "value_refs": [
+      "/overall/op1/sensitivity"
+    ],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

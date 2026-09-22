@@ -1,0 +1,25 @@
+{
+  "name": "criterion_addressed_by_shared_id",
+  "rule": "criterion_id C_f1_site (three rows share it) with no criterion_index",
+  "expected_reason_code": "criterion_index_missing",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9002",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "f1",
+    "operating_point": "op1",
+    "subgroup": {
+      "attribute": "site",
+      "level": "S1"
+    },
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": null,
+    "criterion_id": "C_f1_site",
+    "status": "not_assessable",
+    "relation": "not_assessable",
+    "value_refs": [],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

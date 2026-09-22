@@ -1,0 +1,31 @@
+{
+  "name": "wrong_subgroup_site_numbers_under_sex",
+  "rule": "site=S2's Numbers attached to sex=F",
+  "expected_reason_code": "subgroup_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9001",
+    "template_id": "SUBGROUP_ESTIMATE_WITH_DIFF",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": {
+      "attribute": "sex",
+      "level": "F"
+    },
+    "reference": {
+      "attribute": "sex",
+      "level": "M"
+    },
+    "comparator_id": "diff_vs_reference",
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "within",
+    "value_refs": [
+      "/subgroups/7/metrics/op1/sensitivity/number",
+      "/subgroups/7/diff_vs_reference/op1/sensitivity/number"
+    ],
+    "guidance_ref": "FDA_AIDSF_SUBGROUP_PERF",
+    "free_text": null
+  }
+}

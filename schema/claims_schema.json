@@ -1,42 +1,139 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://proofpack.globalphoenix.co.uk/schema/claims_schema.json",
-  "title": "ProofPack claims list schema (SKELETON, day 1)",
-  "description": "Skeleton only. One claim object as consumed by the renderer; the only path to prose. Prose source: D1 section 4.4. The claim-binding checker (forbidden tokens, value_ref resolution, status equality) is built on the narrate day, not day 1.",
+  "title": "ProofPack claims list schema (final, build day 8)",
+  "description": "One claim object per sentence the renderer may print; the only path to prose (D1 section 4.4). A claim binds a template id from proofpack.narrate.templates to Numbers in run.json by RFC 6901 JSON pointers; it carries no number and no prose. The claim-binding checker (proofpack.narrate.checker) applies the rules this schema cannot: pointer resolution, subgroup and reference membership, status equality with criteria_results[criterion_index] by position, relation recomputation, guidance_ref membership and the draft qualifier, and the forbidden tokens in free_text. tests/test_claims.py validates every claim the synthetic run generates against this schema and ties the template_id enum to the library.",
   "type": "array",
   "items": {
     "type": "object",
+    "required": [
+      "claim_id",
+      "template_id",
+      "metric_id",
+      "operating_point",
+      "subgroup",
+      "reference",
+      "comparator_id",
+      "criterion_index",
+      "criterion_id",
+      "status",
+      "relation",
+      "value_refs",
+      "guidance_ref",
+      "free_text"
+    ],
+    "additionalProperties": false,
     "properties": {
       "claim_id": { "type": "string", "pattern": "^CL-\\d{4,}$" },
-      "template_id": { "type": "string", "minLength": 1 },
-      "metric_id": { "type": ["string", "null"] },
+      "template_id": {
+        "type": "string",
+        "enum": [
+          "DECL_ECHO",
+          "THRESH_PROVENANCE",
+          "FLOW_COUNTS",
+          "TABLE1_INTRO",
+          "SIMILARITY_SUMMARY",
+          "OVERLAP_RESULT",
+          "SITE_COUNT",
+          "REPRESENT_ROW",
+          "UNKNOWN_ROW_NOTE",
+          "REF_STD_TYPE_NOTE",
+          "RATER_COLS_NOTE",
+          "OVERALL_ESTIMATE",
+          "INDET_BOTH_WAYS",
+          "PPV_AT_PREVALENCE",
+          "PREV_MISMATCH_FLAG",
+          "AUROC_ESTIMATE",
+          "CALIB_HIERARCHY",
+          "CALIB_CURVE_FLAG",
+          "CALIB_NA",
+          "SUBGROUP_TABLE_INTRO",
+          "SUBGROUP_ESTIMATE_WITH_DIFF",
+          "SUBGROUP_ESTIMATE",
+          "PRESPEC_FLAG",
+          "LOW_N_CAVEAT",
+          "HETERO_EXPLORATORY_FOOTNOTE",
+          "CRITERION_STATUS",
+          "CRITERION_NOT_MET_RECORD",
+          "ATTAINABILITY_NOTE",
+          "FAIRNESS_INTRO",
+          "FAIRNESS_GAP",
+          "SELECTION_RATE_LABEL",
+          "IMPOSSIBILITY_STATEMENT",
+          "LOSO_RESULT",
+          "THRESH_SENS",
+          "MISSINGNESS_SENS",
+          "DUPLICATES_NOTE",
+          "MONITORING_POINTER",
+          "PUBLIC_SUMMARY_NUMBERS",
+          "MODEL_CARD_LIMITS",
+          "PAIRED_DIFF",
+          "MCNEMAR_RESULT",
+          "UNPAIRED_LABEL",
+          "LEDGER_STATEMENT",
+          "LEDGER_WARNING",
+          "IMPACT_INPUTS_NOTE",
+          "MONITORING_RULE_ECHO",
+          "PSI_RESULT",
+          "KS_RESULT",
+          "PREVALENCE_SHIFT",
+          "PERIOD_METRIC_ROW",
+          "CONTROL_RULE_STATUS",
+          "SUBGROUP_TREND_ROW",
+          "AGREEMENT_RATE_ROW",
+          "INDET_RATE_ROW",
+          "ATTR_DRIFT_ROW",
+          "SUMMARY_POINTER"
+        ]
+      },
+      "metric_id": {
+        "description": "D1 section 4.3's metric id enum (output_schema_v1.json $defs/metricId) or calibration_by_group, or null for a claim about no one metric.",
+        "type": ["string", "null"]
+      },
       "operating_point": { "type": ["string", "null"] },
       "subgroup": {
         "type": ["object", "null"],
-        "properties": { "attribute": { "type": "string" }, "level": { "type": ["string", "integer", "number"] } },
-        "required": ["attribute", "level"]
+        "required": ["attribute", "level"],
+        "additionalProperties": false,
+        "properties": { "attribute": { "type": "string" }, "level": { "type": "string" } }
       },
       "reference": {
         "type": ["object", "null"],
-        "properties": { "attribute": { "type": "string" }, "level": { "type": ["string", "integer", "number"] } },
-        "required": ["attribute", "level"]
+        "required": ["attribute", "level"],
+        "additionalProperties": false,
+        "properties": { "attribute": { "type": "string" }, "level": { "type": "string" } }
       },
-      "value_refs": { "type": "array", "items": { "type": "string" } },
-      "relation": { "type": "string", "enum": ["estimate", "above", "below", "within", "not_assessable"] },
+      "comparator_id": {
+        "description": "On a difference claim, the difference block the second pointer reads; on a criterion claim, the row's comparator.",
+        "enum": ["diff_vs_reference", "diff_vs_complement", ">=", ">", "<=", "<", null]
+      },
+      "criterion_index": {
+        "description": "The position in criteria_results a criterion claim addresses (by position, never by id: two rows may share an id).",
+        "type": ["integer", "null"],
+        "minimum": 0
+      },
       "criterion_id": { "type": ["string", "null"] },
-      "status": { "type": ["string", "null"], "enum": ["met", "not_met", "not_assessable", null] },
-      "guidance_ref": { "type": ["string", "null"], "description": "Must be an internal_id present in design/guidance_map_v1.csv." },
+      "status": { "enum": ["met", "not_met", "not_assessable", null] },
+      "relation": { "enum": ["estimate", "above", "below", "within", "not_assessable"] },
+      "value_refs": {
+        "type": "array",
+        "items": { "type": "string", "pattern": "^/" },
+        "description": "RFC 6901 JSON pointers into run.json, each resolving to a Number object or a documented scalar."
+      },
+      "guidance_ref": {
+        "type": ["string", "null"],
+        "description": "An internal_id present in design/guidance_map_v1.csv, or null."
+      },
       "free_text": {
         "type": ["string", "null"],
-        "description": "Forbidden tokens (checked by the binding checker, not by this schema): digits, '%', verdict words, section sign, 'CFR', 'guidance'."
+        "description": "Null at launch. When present the checker forbids a digit in any script, %, the verdict words, the section sign, CFR, guidance, and any claim of certification, approval, endorsement or clearance."
       }
-    },
-    "required": ["claim_id", "template_id", "value_refs", "relation"],
-    "additionalProperties": false
+    }
   },
   "x-proofpack": {
-    "status": "skeleton",
-    "forbidden_free_text_tokens": ["pass", "fail", "verdict", "unbiased", "well calibrated", "consistent", "meets", "acceptable", "safe", "§", "CFR", "guidance", "%"],
-    "renderer_permitted_status_words": ["criterion met", "criterion not met", "not assessable", "record of criterion not met"]
+    "status": "final",
+    "forbidden_free_text_tokens": ["digits (Unicode Nd, Nl, No)", "%", "verdict words", "§", "CFR", "guidance", "certified", "approved", "endorsed", "cleared"],
+    "renderer_permitted_status_words": ["criterion met", "criterion not met", "not assessable", "record of criterion not met"],
+    "rejections_key": "claim_rejections"
   }
 }

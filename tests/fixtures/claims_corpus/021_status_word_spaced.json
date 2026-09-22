@@ -1,0 +1,27 @@
+{
+  "name": "status_word_spaced",
+  "rule": "status 'not met' (the prose form, not the enum)",
+  "expected_reason_code": "status_not_in_enum",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9003",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "accuracy",
+    "operating_point": "op1",
+    "subgroup": {
+      "attribute": "site",
+      "level": "S3"
+    },
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": 1,
+    "criterion_id": "C_n30",
+    "status": "not met",
+    "relation": "estimate",
+    "value_refs": [
+      "/subgroups/8/metrics/op1/accuracy/number"
+    ],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}
