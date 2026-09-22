@@ -288,7 +288,12 @@ def test_the_document_validates_and_is_canonical_json(run_document):
     ).encode("utf-8")
     assert not raw.startswith(b"\xef\xbb\xbf") and b"\r\n" not in raw
     assert b"Infinity" not in raw and b"NaN" not in raw
-    assert doc["halts"] == [] and doc["suppression_log"] == [] and doc["guidance_refs"] == []
+    assert doc["halts"] == [] and doc["suppression_log"] == []
+    # E8: the anchors the accepted claims cite, {id, label, draft, url} each
+    assert doc["guidance_refs"] and all(
+        set(r) == {"id", "label", "draft", "url"} for r in doc["guidance_refs"]
+    )
+    assert doc["claims"] and doc["claim_rejections"] == []
     assert doc["declarations"]["criteria"][0]["justification"] == "j"
     assert doc["overall"]["threshold_free"]["roc"][0] == [0.0, 0.0, None]
     assert doc["flow"]["dev_rows"] == 0
@@ -300,13 +305,23 @@ def test_the_status_words_appear_only_under_criteria_results(run_document):
     def words(token):
         return set(re.split(r"[^a-z]+", token.lower()))
 
-    rest = {k: v for k, v in doc.items() if k not in ("declarations", "criteria_results")}
+    # E8: ``claims`` carries each criterion claim's status echo, which the checker ties
+    # to criteria_results[criterion_index] by position (tests/test_claims.py); the walk
+    # below asserts the words appear there only as the value of a ``status`` key
+    excluded = ("declarations", "criteria_results", "claims")
+    rest = {k: v for k, v in doc.items() if k not in excluded}
     for token in walk_keys_and_strings(rest):
         assert not (words(token) & VERDICT_WORDS), token
     seen = {t for t in walk_keys_and_strings(doc["criteria_results"]) if t in VERDICT_WORDS}
     assert seen == {"met", "not_met"}
     for token in walk_keys_and_strings(doc["criteria_results"]):
         assert not (words(token) & {"pass", "fail", "verdict"}), token
+    for claim in doc["claims"]:
+        # criterion_id is the customer's own id echoed from the row (C_met in this fixture)
+        without_status = {k: v for k, v in claim.items() if k not in ("status", "criterion_id")}
+        for token in walk_keys_and_strings(without_status):
+            assert not (words(token) & VERDICT_WORDS), token
+        assert claim["status"] in (None, "met", "not_met", "not_assessable")
 
 
 def test_a_criteria_file_lacking_a_justification_is_h08_exit_3_and_no_document(

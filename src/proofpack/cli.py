@@ -5,7 +5,10 @@ On HALT nothing is written to ``--out``. ``run`` (build day 7, E7: :mod:`proofpa
 needs a confirmed mapping (DEC-26) and writes ``run.json`` - the assembled document -
 under ``--out``; on a licence that is expired past grace, refused or absent it still
 writes the JSON with the expired watermark and exits 4 (D1 section 7: "after grace
-run/compare emit JSON only; doctor, map, fixtures always work").
+run/compare emit JSON only; doctor, map, fixtures always work"). Build day 8 (E8):
+``--format json,html`` (the default) also writes ``T8.html`` beside ``run.json`` when
+the licence is ``ok`` or ``grace``; ``--templates T8`` (default) names the documents,
+and T1 / T7 print a typed "not built in E8" line rather than a traceback.
 """
 
 from __future__ import annotations
@@ -75,6 +78,17 @@ def _build_parser() -> argparse.ArgumentParser:
         "--yes",
         action="store_true",
         help="accepted for compatibility; run is always non-interactive since build day 7",
+    )
+    r.add_argument(
+        "--format",
+        default=None,
+        help="comma list of json, html (default json,html; HTML is written only when the "
+        "licence is ok or in grace)",
+    )
+    r.add_argument(
+        "--templates",
+        default=None,
+        help="comma list of T1, T7, T8 (default T8; T1 and T7 are not built in E8)",
     )
 
     c = sub.add_parser(
@@ -442,11 +456,29 @@ def cmd_map(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    from proofpack.run import LICENCE_FIX, assemble_run, write_run
+    from proofpack.run import (
+        DEFAULT_FORMAT,
+        DEFAULT_TEMPLATES,
+        LICENCE_FIX,
+        assemble_run,
+        parse_formats,
+        parse_templates,
+        write_documents,
+        write_run,
+    )
 
     _tolerant_console()
+    try:
+        formats = parse_formats(args.format if args.format is not None else DEFAULT_FORMAT)
+        templates = parse_templates(
+            args.templates if args.templates is not None else DEFAULT_TEMPLATES
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_INTERNAL
     outcome = assemble_run(args.input, args.criteria, mapping=args.mapping, registry=args.registry)
     target = write_run(outcome, args.out)
+    documents, notes = write_documents(outcome, args.out, formats, templates)
     doc = outcome.document
     manifest = doc["manifest"]
     statuses = [r["status"] for r in doc["criteria_results"]]
@@ -465,7 +497,19 @@ def cmd_run(args: argparse.Namespace) -> int:
     )
     if not lic.usable:
         summary += f"  {LICENCE_FIX}\n"
-    summary += "Next step: proofpack licence show, then the T1/T7/T8 renderers (docs: /docs/run)"
+    for path in documents:
+        summary += f"  document written: {path}\n"
+    for note in notes:
+        summary += f"  {note}\n"
+    if documents:
+        summary += "Next step: open T8.html beside run.json; T1 and T7 land on E9 (docs: /docs/run)"
+    elif not lic.usable:
+        summary += (
+            "Next step: proofpack licence install FILE, then run again for T8.html "
+            "(docs: /docs/run)"
+        )
+    else:
+        summary += "Next step: run again with --format json,html for T8.html (docs: /docs/run)"
     _emit(
         args,
         {
@@ -477,6 +521,12 @@ def cmd_run(args: argparse.Namespace) -> int:
                 "watermark": manifest["watermark"],
                 "criteria_status_counts": counts,
                 "warnings": [w.code for w in outcome.warnings],
+                "formats": formats,
+                "templates": templates,
+                "documents": [str(p) for p in documents],
+                "document_notes": notes,
+                "claims": len(doc["claims"]),
+                "claim_rejections": len(doc["claim_rejections"]),
             }
         },
         summary,

@@ -1225,6 +1225,11 @@ def _document(rep) -> dict[str, Any]:
         "calibration": None,
         "calibration_suppressed_reason": None,
         "criteria_results": [],
+        # build day 8 (E8): the narrative keys; empty here because this hand-built
+        # document declares no criteria (the checker's document-level rule fires only
+        # when criteria rows exist) and cites no anchor
+        "claims": [],
+        "claim_rejections": [],
         "suppression_log": [],
         "guidance_refs": [],
         **rep.as_dict(),

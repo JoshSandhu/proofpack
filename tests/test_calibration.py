@@ -1240,10 +1240,17 @@ def test_no_verdict_word_appears_in_any_key_or_engine_string_of_the_day6_output(
     # build day 7: ``criteria_results`` is the one block the status words met / not_met /
     # not_assessable may appear in (E7, proofpack.criteria); it is excluded by key here and
     # ``tests/test_run_cli.py`` asserts those tokens appear under it and nowhere else
+    # build day 8: ``claims`` echoes the criterion rows' status and the customer's ids
+    # (tests/test_claims.py ties both to the rows by position); excluded like the block
     for name, doc in documents.items():
-        engine = {k: v for k, v in doc.items() if k not in ("declarations", "criteria_results")}
+        excluded = ("declarations", "criteria_results", "claims")
+        engine = {k: v for k, v in doc.items() if k not in excluded}
         for token in walk_keys_and_strings(engine):
             assert not flagged(token), (name, token)
+        for claim in doc["claims"]:
+            body = {k: v for k, v in claim.items() if k not in ("status", "criterion_id")}
+            for token in walk_keys_and_strings(body):
+                assert not flagged(token), (name, token)
     assert flagged("well calibrated") and flagged("miscalibrated") and not flagged("calibration")
 
 

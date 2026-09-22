@@ -30,10 +30,20 @@ The order, and what each step is allowed to do:
    ``calibration`` or ``None`` with ``calibration_suppressed_reason`` (DEC-36),
    ``subgroups`` / ``subgroup_attributes`` / ``fairness`` (``stats.subgroups``).
 5. **Criteria** (:mod:`proofpack.criteria`) over the assembled blocks.
+5b. **Narrative** (:func:`narrative_block`, E8): the claims list built from the assembled
+   blocks and the criteria rows, checked by :mod:`proofpack.narrate.checker` (rejected
+   claims replaced by the deterministic template claim and logged in
+   ``claim_rejections``), and the guidance anchors the claims cite resolved through the
+   map into ``guidance_refs``.
 6. **Ledger** (:mod:`proofpack.io.ledger`) and the **manifest** (:mod:`proofpack.manifest`);
    the document is serialised as canonical JSON (a non-finite float raises and nothing is
    written) to ``<out>/run.json``. ``<out>/ingest_report.json`` (the day-1 aggregate
    report) is still written beside it.
+7. **Documents** (:func:`write_documents`, E8): ``<out>/T8.html`` beside ``run.json``
+   when ``--format`` includes ``html`` (the default ``json,html``) and the licence is
+   ``ok`` or ``grace``; on any other licence state the JSON alone is written and the
+   summary says so; ``--templates`` names T1 / T7 / T8, of which E8 renders T8 and prints
+   a typed one-line note for the other two.
 
 ``--offline`` opens no socket: nothing in this module or below it imports ``socket``,
 ``urllib`` or ``http``; ``tests/test_run_cli.py`` makes ``socket.socket`` raise and runs
@@ -61,6 +71,9 @@ from proofpack.io.schema import Table, analysis_mask, load_table
 from proofpack.licence import LicenceResult, resolve
 from proofpack.licence.keys import KeyRegistry
 from proofpack.licence.verify import WATERMARK_EXPIRED
+from proofpack.narrate import checker as checker_mod
+from proofpack.render import anchors as anchors_mod
+from proofpack.render.html import TemplateNotBuilt, write_t8
 from proofpack.stats.bootstrap import (
     DEFAULT_LEVEL,
     BootstrapPolicy,
@@ -310,6 +323,93 @@ def overall_block(
     return out
 
 
+#: The document keys the narrative step writes (E8): the claims the checker accepted
+#: (rejected ones replaced by the deterministic template claim for their slot), the
+#: rejections T8 section 7 prints, and the guidance anchors the claims cite, resolved
+#: through ``design/guidance_map_v1.csv`` into ``{id, label, draft, url}`` items (the
+#: draft status as structured data, D1 section 4.2 / CLAUDE.md).
+NARRATIVE_KEYS: tuple[str, ...] = ("claims", "claim_rejections", "guidance_refs")
+#: ``--templates`` ids the CLI accepts; only T8 is rendered in E8 (T1 and T7: E9).
+TEMPLATE_IDS: tuple[str, ...] = ("T1", "T7", "T8")
+FORMATS: tuple[str, ...] = ("json", "html")
+#: ``--format`` default: the JSON is always written; the HTML documents are written
+#: beside it when the licence is ``ok`` or ``grace`` (D1 section 7: after grace, JSON
+#: only). D1 section 7 lists ``--format json,html,docx`` without a default; ``json,html``
+#: is the E8 decision (a customer who runs ``proofpack run`` gets the pack they bought,
+#: and ``--format json`` is the explicit way to ask for the document alone).
+DEFAULT_FORMAT = "json,html"
+DEFAULT_TEMPLATES = "T8"
+
+
+def narrative_block(doc: dict[str, Any]) -> dict[str, Any]:
+    """The three :data:`NARRATIVE_KEYS` for an assembled document (the one call site is
+    :func:`assemble_run`, after the criteria rows exist and before the manifest)."""
+    claims, rejections = checker_mod.resolve(doc)
+    ids = sorted({c["guidance_ref"] for c in claims if c.get("guidance_ref")})
+    return {
+        "claims": claims,
+        "claim_rejections": rejections,
+        "guidance_refs": anchors_mod.resolve(ids),
+    }
+
+
+def parse_formats(text: str) -> list[str]:
+    """``--format json,html`` -> ``["json", "html"]``; an unknown token raises ``ValueError``."""
+    out: list[str] = []
+    for token in text.split(","):
+        t = token.strip().lower()
+        if not t:
+            continue
+        if t not in FORMATS:
+            raise ValueError(
+                f"unknown --format token {token.strip()!r}; choose from {', '.join(FORMATS)}"
+            )
+        if t not in out:
+            out.append(t)
+    return out or ["json"]
+
+
+def parse_templates(text: str) -> list[str]:
+    out: list[str] = []
+    for token in text.split(","):
+        t = token.strip().upper()
+        if not t:
+            continue
+        if t not in TEMPLATE_IDS:
+            raise ValueError(
+                f"unknown --templates id {token.strip()!r}; choose from {', '.join(TEMPLATE_IDS)}"
+            )
+        if t not in out:
+            out.append(t)
+    return out or [DEFAULT_TEMPLATES]
+
+
+def write_documents(
+    outcome: RunOutcome, out: str | Path, formats: list[str], templates: list[str]
+) -> tuple[list[Path], list[str]]:
+    """The HTML documents beside ``run.json`` - only on a licence that is ``ok`` or
+    ``grace`` (D1 section 7; the E7 "after grace" decision: the JSON is emitted, the
+    documents are not). Returns the paths written and one line per template not
+    written (a template not built in E8, or the licence state)."""
+    written: list[Path] = []
+    notes: list[str] = []
+    if "html" not in formats:
+        return written, notes
+    if not outcome.licence.usable:
+        notes.append(
+            f"HTML not written: licence {outcome.licence.status} ({outcome.licence.reason_code}); "
+            "run.json only (D1 section 7: after grace, JSON only)"
+        )
+        return written, notes
+    for template in templates:
+        if template == "T8":
+            written.append(write_t8(outcome.document, out))
+            continue
+        exc = TemplateNotBuilt(f"template {template} is not built in E8 (E9 renders T1 and T7)")
+        notes.append(f"{template} not written: {exc}")
+    return written, notes
+
+
 def _warning_entry(f: Finding) -> dict[str, Any]:
     return {"code": f.code, "text_id": None, "params": dict(f.detail)}
 
@@ -378,9 +478,9 @@ def assemble_run(
         **cal.as_document(),
         **sub.as_dict(),
         "suppression_log": [],  # egress k-suppression is A-P2's; nothing is suppressed locally
-        "guidance_refs": [],  # resolved by the renderer (E9)
     }
     doc["criteria_results"] = criteria_mod.evaluate(decl, doc)
+    doc.update(narrative_block(doc))
 
     key = ledger.test_set_key(
         table.y_true[mask],

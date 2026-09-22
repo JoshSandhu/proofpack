@@ -7,7 +7,7 @@
   "required": [
     "schema_version", "manifest", "declarations", "halts", "warnings", "flow",
     "table1", "missingness", "overall", "calibration", "calibration_suppressed_reason",
-    "subgroups", "subgroup_attributes", "fairness", "criteria_results", "suppression_log",
+    "subgroups", "subgroup_attributes", "fairness", "criteria_results", "claims", "claim_rejections", "suppression_log",
     "guidance_refs"
   ],
   "properties": {
@@ -118,9 +118,321 @@
       "description": "Build day 7 (E7, proofpack.criteria). One row per criterion per level in scope, plus one per level for a fairness bound (criterion_id 'fairness:<criterion_of_interest>'). The only place in the document the words met / not_met / not_assessable appear. Every bound, statistic and comparator is the customer's; attainable_at_n / max_lower_bound_at_n are stats.attainability's Wilson bound at k = n, filled for ci_lower_bound criteria on proportion metrics whose Number's method is wilson and whose n is an integer above 0; on any other method both are null and detail.attainability_not_computed is 'method_not_wilson' whatever n (repair 1 of 21 September: at ab729d3 a cluster_bootstrap_percentile row was met with attainable_at_n false; repair 2: at 02d00c5 a zero_denominator row at n 0 carried no annotation - tests/test_criteria.py::test_a_method_none_number_at_n_zero_or_n_null_is_annotated_method_not_wilson). A Number with method none is not_assessable / no_interval under every statistic, point_estimate included (repair 1 of 21 September, B1).",
       "items": { "$ref": "#/$defs/criterionResult" }
     },
-    "claims": { "type": ["array", "null"], "items": { "type": "object" } },
+    "claims": {
+      "type": "array",
+      "description": "Build day 8 (E8, proofpack.narrate): the claims the checker accepted, one per sentence the renderer may print; each item is exactly the claims_schema.json item (tests/test_claims.py asserts the two are equal).",
+      "items": {
+        "type": "object",
+        "required": [
+          "claim_id",
+          "template_id",
+          "metric_id",
+          "operating_point",
+          "subgroup",
+          "reference",
+          "comparator_id",
+          "criterion_index",
+          "criterion_id",
+          "status",
+          "relation",
+          "value_refs",
+          "guidance_ref",
+          "free_text"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "pattern": "^CL-\\d{4,}$"
+          },
+          "template_id": {
+            "type": "string",
+            "enum": [
+              "DECL_ECHO",
+              "THRESH_PROVENANCE",
+              "FLOW_COUNTS",
+              "TABLE1_INTRO",
+              "SIMILARITY_SUMMARY",
+              "OVERLAP_RESULT",
+              "SITE_COUNT",
+              "REPRESENT_ROW",
+              "UNKNOWN_ROW_NOTE",
+              "REF_STD_TYPE_NOTE",
+              "RATER_COLS_NOTE",
+              "OVERALL_ESTIMATE",
+              "INDET_BOTH_WAYS",
+              "PPV_AT_PREVALENCE",
+              "PREV_MISMATCH_FLAG",
+              "AUROC_ESTIMATE",
+              "CALIB_HIERARCHY",
+              "CALIB_CURVE_FLAG",
+              "CALIB_NA",
+              "SUBGROUP_TABLE_INTRO",
+              "SUBGROUP_ESTIMATE_WITH_DIFF",
+              "SUBGROUP_ESTIMATE",
+              "PRESPEC_FLAG",
+              "LOW_N_CAVEAT",
+              "HETERO_EXPLORATORY_FOOTNOTE",
+              "CRITERION_STATUS",
+              "CRITERION_NOT_MET_RECORD",
+              "ATTAINABILITY_NOTE",
+              "FAIRNESS_INTRO",
+              "FAIRNESS_GAP",
+              "SELECTION_RATE_LABEL",
+              "IMPOSSIBILITY_STATEMENT",
+              "LOSO_RESULT",
+              "THRESH_SENS",
+              "MISSINGNESS_SENS",
+              "DUPLICATES_NOTE",
+              "MONITORING_POINTER",
+              "PUBLIC_SUMMARY_NUMBERS",
+              "MODEL_CARD_LIMITS",
+              "PAIRED_DIFF",
+              "MCNEMAR_RESULT",
+              "UNPAIRED_LABEL",
+              "LEDGER_STATEMENT",
+              "LEDGER_WARNING",
+              "IMPACT_INPUTS_NOTE",
+              "MONITORING_RULE_ECHO",
+              "PSI_RESULT",
+              "KS_RESULT",
+              "PREVALENCE_SHIFT",
+              "PERIOD_METRIC_ROW",
+              "CONTROL_RULE_STATUS",
+              "SUBGROUP_TREND_ROW",
+              "AGREEMENT_RATE_ROW",
+              "INDET_RATE_ROW",
+              "ATTR_DRIFT_ROW",
+              "SUMMARY_POINTER"
+            ]
+          },
+          "metric_id": {
+            "description": "D1 section 4.3's metric id enum (output_schema_v1.json $defs/metricId) or calibration_by_group, or null for a claim about no one metric.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operating_point": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subgroup": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "attribute",
+              "level"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "attribute": {
+                "type": "string"
+              },
+              "level": {
+                "type": "string"
+              }
+            }
+          },
+          "reference": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "attribute",
+              "level"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "attribute": {
+                "type": "string"
+              },
+              "level": {
+                "type": "string"
+              }
+            }
+          },
+          "comparator_id": {
+            "description": "On a difference claim, the difference block the second pointer reads; on a criterion claim, the row's comparator.",
+            "enum": [
+              "diff_vs_reference",
+              "diff_vs_complement",
+              ">=",
+              ">",
+              "<=",
+              "<",
+              null
+            ]
+          },
+          "criterion_index": {
+            "description": "The position in criteria_results a criterion claim addresses (by position, never by id: two rows may share an id).",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "criterion_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "met",
+              "not_met",
+              "not_assessable",
+              null
+            ]
+          },
+          "relation": {
+            "enum": [
+              "estimate",
+              "above",
+              "below",
+              "within",
+              "not_assessable"
+            ]
+          },
+          "value_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^/"
+            },
+            "description": "RFC 6901 JSON pointers into run.json, each resolving to a Number object or a documented scalar."
+          },
+          "guidance_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "An internal_id present in design/guidance_map_v1.csv, or null."
+          },
+          "free_text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Null at launch. When present the checker forbids a digit in any script, %, the verdict words, the section sign, CFR, guidance, and any claim of certification, approval, endorsement or clearance."
+          }
+        }
+      }
+    },
+    "claim_rejections": {
+      "type": "array",
+      "description": "Build day 8 (E8, proofpack.narrate.checker.resolve): every claim the checker rejected, with its typed reason; T8 section 7 prints the count and the codes. Empty when every engine claim was accepted.",
+      "items": {
+        "type": "object",
+        "required": [
+          "claim_id",
+          "reason_code",
+          "template_id",
+          "substituted",
+          "detail"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason_code": {
+            "enum": [
+              "claim_id_invalid",
+              "comparator_mismatch",
+              "comparator_unknown",
+              "criterion_id_mismatch",
+              "criterion_index_invalid",
+              "criterion_index_missing",
+              "free_text_certification_word",
+              "free_text_cfr",
+              "free_text_digit",
+              "free_text_guidance",
+              "free_text_percent",
+              "free_text_section_sign",
+              "free_text_verdict_word",
+              "guidance_draft_unqualified",
+              "guidance_ref_unknown",
+              "metric_unknown",
+              "missing_key",
+              "no_claims_for_criteria",
+              "not_an_object",
+              "reference_mismatch",
+              "reference_not_in_document",
+              "relation_mismatch",
+              "relation_unknown",
+              "status_mismatch",
+              "status_not_in_enum",
+              "status_on_non_criterion",
+              "status_recomputation_mismatch",
+              "subgroup_mismatch",
+              "subgroup_not_in_document",
+              "template_unknown",
+              "unknown_key",
+              "value_ref_not_a_number",
+              "value_ref_suppressed",
+              "value_ref_unresolved",
+              "value_refs_count",
+              "value_refs_invalid"
+            ]
+          },
+          "template_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "substituted": {
+            "type": "boolean"
+          },
+          "detail": {
+            "type": "object"
+          }
+        }
+      }
+    },
     "suppression_log": { "type": "array", "items": { "type": "object" }, "description": "Empty at launch: k-suppression applies on egress only (A-P2)." },
-    "guidance_refs": { "type": "array", "items": { "type": "object" }, "description": "Empty until the renderer resolves anchors (E9)." }
+    "guidance_refs": {
+      "type": "array",
+      "description": "Build day 8 (E8, proofpack.render.anchors): every guidance anchor the accepted claims cite, resolved through design/guidance_map_v1.csv. draft is structured data (D1 section 4.2; CLAUDE.md: the FDA AI-DSF guidance is a draft, January 2025, not for implementation, in prose and in data); label is built from the map row; url is the row's url or null.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "draft",
+          "url"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "draft": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
   },
 
   "$defs": {

@@ -712,10 +712,18 @@ def test_the_status_words_appear_only_under_criteria_results_and_no_verdict_word
         return set(re.split(r"[^a-z]+", token.lower()))
 
     status_words = {"met", "not_met", "not_assessable"}
-    rest = {k: v for k, v in document.items() if k not in ("declarations", "criteria_results")}
+    # E8: ``claims`` echoes each criterion claim's status (tied to the row by position by
+    # the checker) and the customer's criterion id; both are excluded like the row block
+    excluded = ("declarations", "criteria_results", "claims")
+    rest = {k: v for k, v in document.items() if k not in excluded}
     for token in walk_keys_and_strings(rest):
         assert not (words(token) & VERDICT_WORDS), token
         assert token not in status_words, token
+    for claim in document["claims"]:
+        body = {k: v for k, v in claim.items() if k not in ("status", "criterion_id")}
+        for token in walk_keys_and_strings(body):
+            assert not (words(token) & VERDICT_WORDS), token
+        assert claim["status"] in (None, *status_words)
     seen = set()
     for token in walk_keys_and_strings(document["criteria_results"]):
         if token in status_words:

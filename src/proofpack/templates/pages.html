@@ -1,0 +1,12 @@
+{# The base furniture around pre-rendered page bodies: proofpack.render.html.render_pages
+   (the footer-on-every-page test renders one- and two-page documents through it). #}
+{% extends "base.html" %}
+{% block pages %}
+{% for body in pages %}
+<section class="page" id="page-{{ loop.index }}">
+<header class="page-header">{{ header }}</header>
+{{ body }}
+{{ page_footer() }}
+</section>
+{% endfor %}
+{% endblock %}

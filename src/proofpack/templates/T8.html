@@ -1,0 +1,197 @@
+{# T8 - Run manifest, declarations, scope and disclaimer (D4 section 11). Three page
+   sections; every value comes through a fmt_* filter or from proofpack.render.html's
+   context (section 7's counts, the criteria rows by position, the anchors' labels from
+   the guidance map). No arithmetic here. Customer text is rendered verbatim, escaped,
+   inside .customer-text. #}
+{% extends "base.html" %}
+{% block pages %}
+<section class="page" id="page-1">
+<header class="page-header">{{ header }}</header>
+<h1>{{ template_name }}</h1>
+<p class="cover-note">Attachment set prepared for the manufacturer's own submission or record. Not a submission. No regulator has endorsed this tool.</p>
+{% if watermark %}<p class="stamp">{{ watermark }}</p>{% endif %}
+<table class="cover-block">
+<caption>Cover block</caption>
+<tbody>
+<tr><th scope="row">Model</th><td class="customer-text">{{ document.declarations.model.name | fmt_text }} v{{ document.declarations.model.version | fmt_text }}{% if document.declarations.model.prior_version %} (prior version {{ document.declarations.model.prior_version | fmt_text }}){% endif %}</td></tr>
+<tr><th scope="row">Run id</th><td class="mono">{{ document.manifest.run_id | fmt_text }}</td></tr>
+<tr><th scope="row">Engine version</th><td>{{ document.manifest.engine_version | fmt_text }}</td></tr>
+<tr><th scope="row">Reference platform</th><td>{{ document.manifest.reference_platform | fmt_scalar }} ({{ document.manifest.platform | fmt_text }})</td></tr>
+<tr><th scope="row">Input SHA-256</th><td class="mono">{{ document.manifest.input_sha256 | fmt_text }}</td></tr>
+<tr><th scope="row">Guidance versions referenced</th><td>{% for ref in guidance_refs %}<a href="#{{ ref.id }}">{{ ref.label }}</a>{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+<tr><th scope="row">Customer sections outstanding</th><td>{{ customer_sections_outstanding | length | fmt_count }}</td></tr>
+</tbody>
+</table>
+<h2 id="s1">1. {{ long_form_title }}</h2>
+{{ margin_note(anchor.disclaimer) }}
+<ol class="disclaimer disclaimer-long">
+{% for title, body in long_form_items %}
+<li><strong>{{ title }}</strong> {{ body }}</li>
+{% endfor %}
+</ol>
+{{ page_footer() }}
+</section>
+<section class="page" id="page-2">
+<header class="page-header">{{ header }}</header>
+<h2 id="s2">2. Run manifest</h2>
+{{ margin_note(anchor.manifest) }}
+<table>
+<caption>Manifest, as recorded by the engine at run time (every field a fact about the run)</caption>
+<tbody>
+{% for label, value in manifest_rows %}
+<tr><th scope="row">{{ label }}</th><td class="mono">{{ value }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<h2 id="s3">3. Declarations echo</h2>
+{{ margin_note(anchor.declarations) }}
+<p>Every declaration below was written by the manufacturer in <code>criteria.yaml</code>; the engine infers none and supplies no default. The positive class and the score orientation are highlighted.</p>
+<table>
+<caption>Table T1-1 - declarations that shape every number in the pack</caption>
+<tbody>
+{% for label, value, highlight in declaration_rows %}
+<tr{% if highlight %} class="highlight"{% endif %}><th scope="row">{{ label }}</th><td class="customer-text">{{ value }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<div class="customer-text"><span class="label">Manufacturer text - criteria.yaml, verbatim</span>
+<pre>{{ criteria_yaml }}</pre>
+</div>
+<h2 id="s4">4. Mapping report</h2>
+<p>The confirmed mapping is not printed in this pack: its SHA-256 is in the manifest above, and the original headers and value summaries stay in the <code>mapping.json</code> beside the input, never in a document a customer hands over.</p>
+{{ page_footer() }}
+</section>
+<section class="page" id="page-3">
+<header class="page-header">{{ header }}</header>
+<h2 id="s5">5. HALT and warning log</h2>
+{% if halts %}
+<ul>{% for h in halts %}<li>{{ h | fmt_text }}</li>{% endfor %}</ul>
+{% else %}
+<p>No HALT gate fired (a document is only written when none does).</p>
+{% endif %}
+{% if warning_rows %}
+<table>
+<caption>Warnings raised</caption>
+<thead><tr><th scope="col">Code</th><th scope="col">Meaning</th><th scope="col">Parameters</th></tr></thead>
+<tbody>
+{% for w in warning_rows %}
+<tr><td class="mono">{{ w.code }}</td><td>{{ w.text }}</td><td class="mono">{{ w.params }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p>No warnings were raised.</p>
+{% endif %}
+<h2 id="s5a">5a. Acceptance criteria (Table T1-17)</h2>
+{{ margin_note(anchor.criteria) }}
+{% if has_criteria %}
+<div class="table-wrap">
+<table class="criteria">
+<caption>One row per evaluated criterion, in the order the engine evaluated them (a criterion with <code>level: *</code> yields one row per level; rows are addressed by position, never by id). Observed values print by the metric's rule of D4 section 1.2; the declared value, the compared statistic and the largest attainable lower bound print on the unit scale to three decimals, as the manufacturer wrote the value. Status words are the engine's three and nothing else.</caption>
+<thead><tr><th scope="col">#</th><th scope="col">Id</th><th scope="col">Metric</th><th scope="col">Scope</th><th scope="col">Op.</th><th scope="col">Statistic</th><th scope="col">Comp.</th><th scope="col" class="num">Value</th><th scope="col">Author · date</th><th scope="col">Observed (95% CI)</th><th scope="col" class="num">n</th><th scope="col">Method</th><th scope="col" class="num">Compared</th><th scope="col">Status</th><th scope="col">Reason code</th><th scope="col">Attainable at n</th><th scope="col" class="num">Max LB at n</th><th scope="col">Detail</th></tr></thead>
+<tbody>
+{% for r in criteria_rows %}
+<tr class="criterion-row" data-position="{{ r.position }}">
+<td class="num">{{ r.position }}</td>
+<td class="customer-text mono">{{ r.criterion_id }}</td>
+<td>{{ r.metric }}</td>
+<td class="customer-text">{{ r.scope }}</td>
+<td>{{ r.operating_point }}</td>
+<td>{{ r.statistic }}</td>
+<td>{{ r.comparator }}</td>
+<td class="num">{{ r.value }}</td>
+<td class="customer-text">{{ r.authored }}</td>
+<td class="num observed">{{ r.observed }}</td>
+<td class="num">{{ r.n }}</td>
+<td class="mono">{{ r.method }}</td>
+<td class="num">{{ r.compared_value }}</td>
+<td class="status">{{ r.status_word }}</td>
+<td class="mono">{{ r.reason_code }}</td>
+<td>{{ r.attainable_at_n }}</td>
+<td class="num">{{ r.max_lower_bound_at_n }}</td>
+<td class="mono">{{ r.detail }}</td>
+</tr>
+<tr class="justification-row"><td colspan="18"><div class="customer-text"><span class="label">Manufacturer text - justification</span>{{ r.justification }}</div></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}
+<p>No acceptance criteria were declared; estimates and intervals only.</p>
+{% endif %}
+<h2 id="s6">6. Ledger</h2>
+{{ margin_note(anchor.ledger) }}
+<table>
+<caption>Acceptance-decision runs recorded against this test set in the local ledger</caption>
+<tbody>
+<tr><th scope="row">Test-set SHA-256</th><td class="mono">{{ ledger.test_set_sha256 }}</td></tr>
+<tr><th scope="row">Acceptance runs recorded (including this run)</th><td class="num">{{ ledger.acceptance_runs }}</td></tr>
+<tr><th scope="row">Manifest ledger count</th><td class="num">{{ ledger.ledger_count }}</td></tr>
+<tr><th scope="row">Declared limit (warn_after_acceptance_runs)</th><td class="num customer-text">{{ ledger.declared_limit }}</td></tr>
+<tr><th scope="row">Counted</th><td>{% if ledger.counted %}yes{% else %}no (the ledger could not be read or written; see the warning log){% endif %}</td></tr>
+</tbody>
+</table>
+<h2 id="s7">7. Narrative integrity</h2>
+{{ margin_note(anchor.narrative) }}
+<table class="integrity">
+<caption>Counts computed from the document by the renderer</caption>
+<tbody>
+<tr><th scope="row">Claims generated</th><td class="num" data-count="claims_generated">{{ integrity.claims_generated | fmt_count }}</td></tr>
+<tr><th scope="row">Claims rejected by the checker</th><td class="num" data-count="claims_rejected">{{ integrity.claims_rejected | fmt_count }}</td></tr>
+<tr><th scope="row">Claims substituted by the deterministic template claim</th><td class="num" data-count="claims_substituted">{{ integrity.claims_substituted | fmt_count }}</td></tr>
+<tr><th scope="row">Rows analysed</th><td class="num" data-count="rows_analysed">{{ integrity.rows_analysed | fmt_count }}</td></tr>
+<tr><th scope="row">Subgroup rows</th><td class="num" data-count="subgroup_rows">{{ integrity.subgroup_rows | fmt_count }}</td></tr>
+<tr><th scope="row">Criteria rows</th><td class="num" data-count="criteria_rows">{{ integrity.criteria_rows | fmt_count }}</td></tr>
+{% for status, n in integrity.criteria_by_status %}
+<tr><th scope="row" class="status">{{ status_words[status] }}</th><td class="num" data-count="criteria_{{ status }}">{{ n | fmt_count }}</td></tr>
+{% endfor %}
+<tr><th scope="row">Suppressed cells</th><td class="num" data-count="suppressed_cells">{{ integrity.suppressed_cells | fmt_count }}</td></tr>
+<tr><th scope="row">Warnings</th><td class="num" data-count="warnings">{{ integrity.warnings | fmt_count }}</td></tr>
+</tbody>
+</table>
+{% if rejections %}
+<table class="rejections">
+<caption>Claim rejections (each replaced by the deterministic template claim for its slot where one exists)</caption>
+<thead><tr><th scope="col">Claim id</th><th scope="col">Template</th><th scope="col">Reason code</th><th scope="col">Substituted</th></tr></thead>
+<tbody>
+{% for rj in rejections %}
+<tr><td class="mono">{{ rj.claim_id | fmt_text }}</td><td class="mono">{{ rj.template_id | fmt_text }}</td><td class="mono">{{ rj.reason_code | fmt_text }}</td><td>{% if rj.substituted %}yes{% else %}no{% endif %}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<p>No claim was rejected by the checker.</p>
+{% endif %}
+<p class="narrative-footer">{{ narrative_footer }}</p>
+<h2 id="s8">8. Out of scope - never performed by ProofPack</h2>
+<ul>
+{% for item in out_of_scope %}
+<li>{{ item }}</li>
+{% endfor %}
+</ul>
+<h2 id="s9">9. Guidance references</h2>
+<table class="guidance">
+<caption>Every anchor used in this render, labelled from the guidance map; a draft is a draft in the label and in the structured data</caption>
+<thead><tr><th scope="col">Internal id</th><th scope="col">Document, version or date, status</th><th scope="col">Draft</th><th scope="col">URL</th></tr></thead>
+<tbody>
+{% for ref in guidance_refs %}
+<tr id="{{ ref.id }}"{% if ref.draft %} class="draft"{% endif %}><td class="mono">{{ ref.id }}</td><td>{{ ref.label }}</td><td>{% if ref.draft %}yes{% else %}no{% endif %}</td><td>{% if ref.url %}{{ ref.url }}{% else %}not recorded{% endif %}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<h2 id="s10">10. Customer sections outstanding</h2>
+{% if customer_sections_outstanding %}
+<ul>{% for slot in customer_sections_outstanding %}<li>{{ slot }}</li>{% endfor %}</ul>
+{% else %}
+<p>This template version defines no customer text slots; none are outstanding.</p>
+{% endif %}
+<h2 id="s11">11. Data status</h2>
+{% if watermark %}
+<p class="stamp">{{ watermark }}</p>
+<p>This document carries the marking above and must not be used in any regulatory record while it does.</p>
+{% else %}
+<p>No synthetic, demonstration or trial marking applies to this run.</p>
+{% endif %}
+{{ page_footer() }}
+</section>
+{% endblock %}

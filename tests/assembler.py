@@ -23,7 +23,7 @@ from conftest import make_criteria
 from proofpack import criteria as criteria_mod
 from proofpack.io import schema as schema_mod
 from proofpack.io.declare import validate_dict
-from proofpack.run import overall_block
+from proofpack.run import narrative_block, overall_block
 from proofpack.stats.bootstrap import BootstrapPolicy, plan_clustering, policy_from_declarations
 from proofpack.stats.calibration import calibration_from_table
 from proofpack.stats.descriptive import flow_block, missingness_block, table1_block
@@ -82,8 +82,9 @@ def assemble(
         **cal.as_document(),
         **sub.as_dict(),
         "suppression_log": [],
-        "guidance_refs": [],
     }
     # build day 7: the criteria engine reads the assembled blocks (E7, proofpack.criteria)
     doc["criteria_results"] = criteria_mod.evaluate(decl, doc)
+    # build day 8: the claims, their rejections and the guidance anchors (E8, run.narrative_block)
+    doc.update(narrative_block(doc))
     return doc
