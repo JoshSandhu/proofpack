@@ -375,8 +375,11 @@ def t8_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
         "long_form_items": LONG_FORM_ITEMS,
         "manifest_rows": manifest_rows(document),
         "declaration_rows": declaration_rows(document),
+        # the declarations block of run.json re-serialised as YAML with sorted keys - the
+        # canonical order run.json itself uses - so the page is a pure function of the
+        # written document; the file's own bytes are represented by criteria_sha256
         "criteria_yaml": yaml.safe_dump(
-            document.get("declarations") or {}, sort_keys=False, allow_unicode=True
+            document.get("declarations") or {}, sort_keys=True, allow_unicode=True
         ),
         "criteria_rows": criteria_rows(document),
         "has_criteria": bool((document.get("declarations") or {}).get("criteria")),

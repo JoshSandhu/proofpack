@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>synthetic-classifier v1.3 · T8 · ProofPack v0.1.0.dev1 · run test-onl</title>
+<style>
+:root {
+  --pp-color-bg: #ffffff;
+  --pp-color-bg-inset: #eef1f4;
+  --pp-color-bg-soft: #f5f7f9;
+  --pp-color-brand: #123a5f;
+  --pp-color-brand-soft: #e6eef5;
+  --pp-color-brand-strong: #0c2740;
+  --pp-color-honesty: #8a4b00;
+  --pp-color-honesty-bg: #fdf3e3;
+  --pp-color-ink: #16202b;
+  --pp-color-ink-faint: #6b7784;
+  --pp-color-ink-soft: #4a5a6a;
+  --pp-color-line: #d8dfe6;
+  --pp-color-ok: #14532d;
+  --pp-color-ok-bg: #e4f2e8;
+  --pp-color-ok-line: #86b39a;
+  --pp-color-on-brand: #ffffff;
+  --pp-color-stop: #7f1d1d;
+  --pp-color-stop-bg: #fdeaea;
+  --pp-color-stop-line: #c98b8b;
+  --pp-layout-focus: 3px solid;
+  --pp-layout-focus-offset: 2px;
+  --pp-layout-function-page: 44rem;
+  --pp-layout-measure: 68ch;
+  --pp-layout-motion: none;
+  --pp-layout-rule: 1px;
+  --pp-layout-wrap: 74rem;
+  --pp-print-footer-size: 0.72rem;
+  --pp-print-page-margin: 20mm 18mm 26mm;
+  --pp-print-page-size: A4;
+  --pp-radius-button: 6px;
+  --pp-radius-callout: 8px;
+  --pp-radius-card: 8px;
+  --pp-radius-code: 6px;
+  --pp-radius-input: 4px;
+  --pp-radius-tag: 4px;
+  --pp-space-1: 0.25rem;
+  --pp-space-2: 0.5rem;
+  --pp-space-3: 0.75rem;
+  --pp-space-4: 1rem;
+  --pp-space-5: 1.5rem;
+  --pp-space-6: 2rem;
+  --pp-space-7: 2.75rem;
+  --pp-space-8: 3rem;
+  --pp-type-body-px: 17px;
+  --pp-type-line-height-body: 1.6;
+  --pp-type-line-height-headings: 1.25;
+  --pp-type-line-height-tables: 1.45;
+  --pp-type-mono: ui-monospace, &#34;Cascadia Mono&#34;, Consolas, Menlo, monospace;
+  --pp-type-numeric: tabular-nums;
+  --pp-type-scale-body: 1rem;
+  --pp-type-scale-footnote: 0.85rem;
+  --pp-type-scale-h1: clamp(1.8rem, 4.2vw, 2.7rem);
+  --pp-type-scale-h2: 1.4rem;
+  --pp-type-scale-h3: 1.15rem;
+  --pp-type-scale-strip: 0.78rem;
+  --pp-type-scale-table: 0.92rem;
+  --pp-type-scale-tag: 0.72rem;
+  --pp-type-text: -apple-system, BlinkMacSystemFont, &#34;Segoe UI&#34;, Roboto, Helvetica, Arial, sans-serif;
+  --pp-type-tracking-uppercase: 0.06em;
+}
+html { font-size: var(--pp-type-body-px); }
+body { margin: 0; background: var(--pp-color-bg); color: var(--pp-color-ink); font-family: var(--pp-type-text); line-height: var(--pp-type-line-height-body); font-size: var(--pp-type-scale-body); }
+.page { max-width: var(--pp-layout-wrap); margin: 0 auto; padding: var(--pp-space-6) var(--pp-space-5); border-bottom: var(--pp-layout-rule) solid var(--pp-color-line); page-break-after: always; break-after: page; }
+.page-header { font-size: var(--pp-type-scale-strip); color: var(--pp-color-ink-soft); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); border-bottom: var(--pp-layout-rule) solid var(--pp-color-line); padding-bottom: var(--pp-space-2); margin-bottom: var(--pp-space-5); }
+.page-footer { margin-top: var(--pp-space-6); padding-top: var(--pp-space-3); border-top: var(--pp-layout-rule) solid var(--pp-color-line); font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); }
+.print-footer { display: none; }
+h1 { font-size: var(--pp-type-scale-h1); line-height: var(--pp-type-line-height-headings); margin: 0 0 var(--pp-space-4); }
+h2 { font-size: var(--pp-type-scale-h2); line-height: var(--pp-type-line-height-headings); margin: var(--pp-space-6) 0 var(--pp-space-3); }
+h3 { font-size: var(--pp-type-scale-h3); line-height: var(--pp-type-line-height-headings); margin: var(--pp-space-5) 0 var(--pp-space-2); }
+p, li { max-width: var(--pp-layout-measure); }
+table { border-collapse: collapse; width: 100%; font-size: var(--pp-type-scale-table); line-height: var(--pp-type-line-height-tables); font-variant-numeric: var(--pp-type-numeric); margin: var(--pp-space-3) 0; }
+th, td { text-align: left; vertical-align: top; padding: var(--pp-space-1) var(--pp-space-2); border-bottom: var(--pp-layout-rule) solid var(--pp-color-line); }
+thead { display: table-header-group; }
+th { background: var(--pp-color-bg-soft); font-weight: 600; }
+td.num, th.num { text-align: right; }
+caption { text-align: left; font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); padding: var(--pp-space-1) 0; caption-side: top; }
+.table-wrap { overflow-x: auto; }
+code, pre, .mono { font-family: var(--pp-type-mono); }
+pre { background: var(--pp-color-bg-inset); padding: var(--pp-space-3); border-radius: var(--pp-radius-code); overflow-x: auto; font-size: var(--pp-type-scale-table); }
+.customer-text { border-left: var(--pp-layout-rule) solid var(--pp-color-ink-faint); padding-left: var(--pp-space-3); margin: var(--pp-space-2) 0; color: var(--pp-color-ink-soft); }
+.customer-text .label { display: block; font-size: var(--pp-type-scale-tag); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); color: var(--pp-color-ink-faint); }
+.margin-note { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); border-left: var(--pp-layout-rule) solid var(--pp-color-line); padding-left: var(--pp-space-2); margin: var(--pp-space-1) 0 var(--pp-space-3); }
+.margin-note.draft { color: var(--pp-color-honesty); border-left-color: var(--pp-color-honesty); }
+.margin-note a { color: inherit; }
+.disclaimer { color: var(--pp-color-ink-soft); }
+.disclaimer-long { max-width: var(--pp-layout-measure); }
+.watermark { font-weight: 700; color: var(--pp-color-honesty); background: var(--pp-color-honesty-bg); display: inline-block; padding: var(--pp-space-1) var(--pp-space-2); border-radius: var(--pp-radius-tag); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); }
+.stamp { border: var(--pp-layout-rule) solid var(--pp-color-honesty); color: var(--pp-color-honesty); display: inline-block; padding: var(--pp-space-2) var(--pp-space-3); border-radius: var(--pp-radius-card); margin: var(--pp-space-3) 0; }
+.cover-note { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); }
+.tag { font-size: var(--pp-type-scale-tag); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); background: var(--pp-color-bg-inset); border-radius: var(--pp-radius-tag); padding: 0 var(--pp-space-1); }
+.highlight { background: var(--pp-color-brand-soft); }
+td.status { font-weight: 600; }
+.narrative-footer { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); font-style: italic; }
+a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); outline-offset: var(--pp-layout-focus-offset); }
+@media print {
+  @page { size: var(--pp-print-page-size); margin: var(--pp-print-page-margin); }
+  body { font-size: var(--pp-type-scale-table); }
+  .page { max-width: none; padding: 0; border-bottom: 0; }
+  .page-footer { display: none; }
+  .print-footer { display: block; position: fixed; bottom: 0; left: 0; right: 0; font-size: var(--pp-print-footer-size); color: var(--pp-color-ink-soft); border-top: var(--pp-layout-rule) solid var(--pp-color-line); padding-top: var(--pp-space-1); background: var(--pp-color-bg); }
+  thead { display: table-header-group; }
+  .table-wrap { overflow-x: visible; }
+}
+</style>
+</head>
+<body>
+<section class="page" id="page-1">
+<header class="page-header">synthetic-classifier v1.3 · T8 · ProofPack v0.1.0.dev1 · run test-onl</header>
+<h1>T8 · Run manifest, declarations, scope and disclaimer</h1>
+<p class="cover-note">Attachment set prepared for the manufacturer's own submission or record. Not a submission. No regulator has endorsed this tool.</p>
+<table class="cover-block">
+<caption>Cover block</caption>
+<tbody>
+<tr><th scope="row">Model</th><td class="customer-text">synthetic-classifier v1.3 (prior version 1.2)</td></tr>
+<tr><th scope="row">Run id</th><td class="mono">test-only-assembler</td></tr>
+<tr><th scope="row">Engine version</th><td>0.1.0.dev1</td></tr>
+<tr><th scope="row">Reference platform</th><td>no (test)</td></tr>
+<tr><th scope="row">Input SHA-256</th><td class="mono"></td></tr>
+<tr><th scope="row">Guidance versions referenced</th><td><a href="#FDA_AIDSF_DATA_MGMT">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_AIDSF_PERF_VALIDATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_AIDSF_SUBGROUP_PERF">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_AIDSF_CALIBRATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_PCCP_MP1_DATA">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a>; <a href="#PP_SCOPE">ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</a>; <a href="#PP_METHODS">ProofPack internal: methods appendix conventions (T7) (engine version, internal)</a></td></tr>
+<tr><th scope="row">Customer sections outstanding</th><td>0</td></tr>
+</tbody>
+</table>
+<h2 id="s1">1. Scope and limits of this document</h2>
+<aside class="margin-note">maps to <a href="#PP_SCOPE">ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</a></aside>
+<ol class="disclaimer disclaimer-long">
+<li><strong>What ProofPack is.</strong> ProofPack is statistical software that computes performance estimates, confidence intervals, differences and distribution comparisons from a customer-supplied test table and renders them into document templates. It is not a certification, an audit, a regulatory opinion, a clinical evaluation or a submission. No regulator has reviewed, accepted, approved or endorsed this tool or its outputs.</li>
+<li><strong>What is warranted.</strong> Global Phoenix Solutions Ltd warrants the computational correctness of the numbers in this document to the tolerances stated in the Methods Appendix (T7), on the reference platform stated in the Run Manifest (T8). Nothing else is warranted.</li>
+<li><strong>What is the manufacturer&#39;s responsibility.</strong> The manufacturer selected and is responsible for: the data and its provenance; the labels and the reference standard or comparator and their validity; the positive class, score orientation, thresholds and their provenance; the intended-use prevalence; the acceptance criteria, non-inferiority margins, subgroup bounds and fairness criterion of interest (each recorded with author, date and justification in T8); the pre-specification of subgroups; and all text in sections marked &#34;Manufacturer text&#34;.</li>
+<li><strong>Out of scope (never performed by ProofPack).</strong> Study design; sample-size calculation; selection of acceptance criteria, margins or thresholds; adjudication and reference-standard construction (rater columns are never used to construct labels); MRMC or reader studies; clinical-outcome or trial evidence; literature review; valid clinical association; benefit-risk conclusions; risk management; cybersecurity documentation; human factors; explainability; complaints, vigilance and incident trend reporting (MDR Art. 88; GB SI 2024/1368 reg. 44ZN); authorship of the 510(k) Summary (21 CFR 807.92).</li>
+<li><strong>Guidance status.</strong> Every guidance reference in this document names the document, its version or date and whether it is draft or final. Where the reference is to the FDA draft guidance &#34;Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations&#34; (January 2025), it is a draft, not for implementation, and section numbering may change on finalisation. References to the FDA PCCP guidance are to the version issued 4 December 2024 and updated 18 August 2025. References to the FDA &#34;Statistical Guidance on Reporting Results from Studies Evaluating Diagnostic Tests&#34; are to the final guidance of 13 March 2007.</li>
+<li><strong>Narrative.</strong> All prose is machine-drafted from a fixed sentence library bound to computed quantities. It must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Every number in the prose is traceable to a JSON path in the accompanying pack.json.</li>
+<li><strong>Conventions that are ProofPack&#39;s, not a regulator&#39;s.</strong> Low-n tier labels, the 200/200 calibration-curve convention, the choice of Wilson (no continuity correction) with Clopper-Pearson alongside at k = 0 or k = n, and bootstrap settings are ProofPack conventions, stated in T7 with citations. No regulator specifies per-stratum minimum sizes.</li>
+<li><strong>Synthetic or demonstration data.</strong> Where this document is marked &#34;SYNTHETIC - illustrative&#34;, &#34;DEMO&#34; or &#34;TRIAL&#34;, it contains no real evidence and must not be used in any regulatory record.</li>
+</ol>
+<footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-18T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final); ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal); ProofPack internal: methods appendix conventions (T7) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>
+</section>
+<section class="page" id="page-2">
+<header class="page-header">synthetic-classifier v1.3 · T8 · ProofPack v0.1.0.dev1 · run test-onl</header>
+<h2 id="s2">2. Run manifest</h2>
+<aside class="margin-note">maps to <a href="#PP_METHODS">ProofPack internal: methods appendix conventions (T7) (engine version, internal)</a></aside>
+<table>
+<caption>Manifest, as recorded by the engine at run time (every field a fact about the run)</caption>
+<tbody>
+<tr><th scope="row">Run id</th><td class="mono">test-only-assembler</td></tr>
+<tr><th scope="row">Engine version</th><td class="mono">0.1.0.dev1</td></tr>
+<tr><th scope="row">Platform</th><td class="mono">test</td></tr>
+<tr><th scope="row">Python</th><td class="mono">3</td></tr>
+<tr><th scope="row">numpy</th><td class="mono">x.y.z</td></tr>
+<tr><th scope="row">scipy</th><td class="mono">—</td></tr>
+<tr><th scope="row">Reference platform</th><td class="mono">no</td></tr>
+<tr><th scope="row">Input SHA-256</th><td class="mono">—</td></tr>
+<tr><th scope="row">criteria.yaml SHA-256</th><td class="mono">—</td></tr>
+<tr><th scope="row">mapping.json SHA-256</th><td class="mono">—</td></tr>
+<tr><th scope="row">Seed</th><td class="mono">20240101</td></tr>
+<tr><th scope="row">Bootstrap resamples (B)</th><td class="mono">200</td></tr>
+<tr><th scope="row">Started (UTC)</th><td class="mono">2026-09-18T00:00:00Z</td></tr>
+<tr><th scope="row">Duration (s)</th><td class="mono">—</td></tr>
+<tr><th scope="row">Licence id</th><td class="mono">—</td></tr>
+<tr><th scope="row">Licence tier</th><td class="mono">—</td></tr>
+<tr><th scope="row">Ledger count</th><td class="mono">—</td></tr>
+<tr><th scope="row">Watermark</th><td class="mono">—</td></tr>
+</tbody>
+</table>
+<h2 id="s3">3. Declarations echo</h2>
+<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_DATA_MGMT">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a></aside>
+<p>Every declaration below was written by the manufacturer in <code>criteria.yaml</code>; the engine infers none and supplies no default. The positive class and the score orientation are highlighted.</p>
+<table>
+<caption>Table T1-1 - declarations that shape every number in the pack</caption>
+<tbody>
+<tr class="highlight"><th scope="row">Positive class</th><td class="customer-text">1</td></tr>
+<tr><th scope="row">Negative class</th><td class="customer-text">0</td></tr>
+<tr><th scope="row">Score type</th><td class="customer-text">probability</td></tr>
+<tr class="highlight"><th scope="row">Score orientation</th><td class="customer-text">higher_is_positive</td></tr>
+<tr><th scope="row">Operating points</th><td class="customer-text">op1: threshold 0.500 rule &gt;=, prespecified_sap (test fixture)</td></tr>
+<tr><th scope="row">Reference standard</th><td class="customer-text">reference_standard (test fixture)</td></tr>
+<tr><th scope="row">Indeterminates</th><td class="customer-text">none_present []</td></tr>
+<tr><th scope="row">Clustering unit</th><td class="customer-text">none (declared by test fixture)</td></tr>
+<tr><th scope="row">Intended-use prevalence</th><td class="customer-text">intended-use, test: 0.300 (test fixture)</td></tr>
+<tr><th scope="row">Subgroups</th><td class="customer-text">sex (reference M; pre-specified); age (reference 40-65; pre-specified); site (reference largest; exploratory)</td></tr>
+<tr><th scope="row">Fairness criterion of interest</th><td class="customer-text">tpr_gap on sex; bound 0.100 (ci_upper_bound &lt;=)</td></tr>
+</tbody>
+</table>
+<div class="customer-text"><span class="label">Manufacturer text - the declarations block of run.json as YAML (keys in canonical order; the file's SHA-256 is in the manifest)</span>
+<pre>bootstrap:
+  B: 200
+  interval: percentile
+  seed: 20240101
+classes:
+  negative: &#39;0&#39;
+  positive: &#39;1&#39;
+clustering:
+  declared_by: test fixture
+  unit: none
+criteria:
+- author: A
+  comparator: &#39;&gt;=&#39;
+  date: &#39;2026-01-01&#39;
+  id: C_met
+  justification: j
+  metric: sensitivity
+  operating_point: op1
+  scope: overall
+  statistic: ci_lower_bound
+  value: 0.5
+- author: A
+  comparator: &#39;&gt;=&#39;
+  date: &#39;2026-01-01&#39;
+  id: C_n30
+  justification: j
+  metric: accuracy
+  operating_point: op1
+  scope:
+    attribute: site
+    level: S3
+  statistic: ci_lower_bound
+  value: 0.9
+- author: A
+  comparator: &#39;&gt;=&#39;
+  date: &#39;2026-01-01&#39;
+  id: C_f1_site
+  justification: j
+  metric: f1
+  operating_point: op1
+  scope:
+    attribute: site
+    level: &#39;*&#39;
+  statistic: ci_lower_bound
+  value: 0.5
+- author: A
+  comparator: &#39;&gt;=&#39;
+  date: &#39;2026-01-01&#39;
+  id: C_auroc
+  justification: j
+  metric: auroc
+  scope: overall
+  statistic: ci_lower_bound
+  value: 0.5
+- author: A
+  comparator: &lt;=
+  date: &#39;2026-01-01&#39;
+  id: C_ece
+  justification: j
+  metric: ece
+  scope: overall
+  statistic: ci_lower_bound
+  value: 0.1
+- author: A
+  comparator: &#39;&gt;=&#39;
+  date: &#39;2026-01-01&#39;
+  id: C_prior
+  justification: j
+  metric: sensitivity
+  operating_point: op1
+  scope: overall
+  statistic: ci_lower_bound
+  type: paired_difference_vs_prior
+  value: -0.03
+egress:
+  suppression:
+    min_events: 5
+    min_n: 10
+    min_nonevents: 5
+  telemetry: false
+fairness:
+  attribute: sex
+  author: Dr F.
+  bound: 0.1
+  comparator: &lt;=
+  criterion_of_interest: tpr_gap
+  date: &#39;2026-02-02&#39;
+  justification: intended-use population
+  statistic: ci_upper_bound
+indeterminates:
+  policy: none_present
+  values: []
+ledger:
+  warn_after_acceptance_runs: 3
+model:
+  name: synthetic-classifier
+  prior_version: &#39;1.2&#39;
+  udi_di: null
+  version: &#39;1.3&#39;
+operating_points:
+- id: op1
+  provenance: prespecified_sap
+  rule: &#39;&gt;=&#39;
+  source: test fixture
+  threshold: 0.5
+prevalence:
+- label: intended-use, test
+  source: test fixture
+  value: 0.3
+reference_standard:
+  description: test fixture
+  type: reference_standard
+schema_version: 1
+score:
+  orientation: higher_is_positive
+  type: probability
+subgroups:
+- attribute: sex
+  prespecified: true
+  reference_level: M
+  source: test
+- attribute: age
+  bands:
+  - - 0
+    - 40
+  - - 40
+    - 65
+  - - 65
+    - 80
+  - - 80
+    - 200
+  prespecified: true
+  reference_level: 40-65
+  source: test
+- attribute: site
+  prespecified: false
+  reference_level: largest
+task: binary
+</pre>
+</div>
+<h2 id="s4">4. Mapping report</h2>
+<p>The confirmed mapping is not printed in this pack: its SHA-256 is in the manifest above, and the original headers and value summaries stay in the <code>mapping.json</code> beside the input, never in a document a customer hands over.</p>
+<footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-18T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final); ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal); ProofPack internal: methods appendix conventions (T7) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>
+</section>
+<section class="page" id="page-3">
+<header class="page-header">synthetic-classifier v1.3 · T8 · ProofPack v0.1.0.dev1 · run test-onl</header>
+<h2 id="s5">5. HALT and warning log</h2>
+<p>No HALT gate fired (a document is only written when none does).</p>
+<p>No warnings were raised.</p>
+<h2 id="s5a">5a. Acceptance criteria (Table T1-17)</h2>
+<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_PERF_VALIDATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a></aside>
+<div class="table-wrap">
+<table class="criteria">
+<caption>One row per evaluated criterion, in the order the engine evaluated them (a criterion with <code>level: *</code> yields one row per level; rows are addressed by position, never by id). Observed values print by the metric's rule of D4 section 1.2; the declared value, the compared statistic and the largest attainable lower bound print on the unit scale to three decimals, as the manufacturer wrote the value. Status words are the engine's three and nothing else.</caption>
+<thead><tr><th scope="col">#</th><th scope="col">Id</th><th scope="col">Metric</th><th scope="col">Scope</th><th scope="col">Op.</th><th scope="col">Statistic</th><th scope="col">Comp.</th><th scope="col" class="num">Value</th><th scope="col">Author · date</th><th scope="col">Observed (95% CI)</th><th scope="col" class="num">n</th><th scope="col">Method</th><th scope="col" class="num">Compared</th><th scope="col">Status</th><th scope="col">Reason code</th><th scope="col">Attainable at n</th><th scope="col" class="num">Max LB at n</th><th scope="col">Detail</th></tr></thead>
+<tbody>
+<tr class="criterion-row" data-position="1">
+<td class="num">1</td>
+<td class="customer-text mono">C_met</td>
+<td>sensitivity</td>
+<td class="customer-text">overall</td>
+<td>op1</td>
+<td>ci lower bound</td>
+<td>&gt;=</td>
+<td class="num">0.500</td>
+<td class="customer-text">A · 2026-01-01</td>
+<td class="num observed">96/128 (75.0%) [66.8, 81.7]</td>
+<td class="num">128</td>
+<td class="mono">wilson</td>
+<td class="num">0.668</td>
+<td class="status">criterion met</td>
+<td class="mono">statistic_compared</td>
+<td>yes</td>
+<td class="num">0.971</td>
+<td class="mono"></td>
+</tr>
+<tr class="justification-row"><td colspan="18"><div class="customer-text"><span class="label">Manufacturer text - justification</span>j</div></td></tr>
+<tr class="criterion-row" data-position="2">
+<td class="num">2</td>
+<td class="customer-text mono">C_n30</td>
+<td>accuracy</td>
+<td class="customer-text">site = S3</td>
+<td>op1</td>
+<td>ci lower bound</td>
+<td>&gt;=</td>
+<td class="num">0.900</td>
+<td class="customer-text">A · 2026-01-01</td>
+<td class="num observed">21/30 (70.0%) [52.1, 83.3]ᶜ</td>
+<td class="num">30</td>
+<td class="mono">wilson</td>
+<td class="num">0.521</td>
+<td class="status">criterion not met</td>
+<td class="mono">statistic_compared</td>
+<td>no</td>
+<td class="num">0.886</td>
+<td class="mono"></td>
+</tr>
+<tr class="justification-row"><td colspan="18"><div class="customer-text"><span class="label">Manufacturer text - justification</span>j</div></td></tr>
+<tr class="criterion-row" data-position="3">
+<td class="num">3</td>
+<td class="customer-text mono">C_f1_site</td>
+<td>f1</td>
+<td class="customer-text">site = S1</td>
+<td>op1</td>
+<td>ci lower bound</td>
+<td>&gt;=</td>
+<td class="num">0.500</td>
+<td class="customer-text">A · 2026-01-01</td>
+<td class="num observed">—</td>
+<td class="num">—</td>
+<td class="mono">—</td>
+<td class="num">—</td>
+<td class="status">not assessable</td>
+<td class="mono">metric_not_computed_for_scope</td>
+<td>—</td>
+<td class="num">—</td>
+<td class="mono"></td>
+</tr>
+<tr class="justification-row"><td colspan="18"><div class="customer-text"><span class="label">Manufacturer text - justification</span>j</div></td></tr>
+<tr class="criterion-row" data-position="4">
+<td class="num">4</td>
+<td class="customer-text mono">C_f1_site</td>
+<td>f1</td>
+<td class="customer-text">site = S2</td>
+<td>op1</td>
+<td>ci lower bound</td>
+<td>&gt;=</td>
+<td class="num">0.500</td>
+<td class="customer-text">A · 2026-01-01</td>
+<td class="num observed">—</td>
+<td class="num">—</td>
+<td class="mono">—</td>
+<td class="num">—</td>
+<td class="status">not assessable</td>
+<td class="mono">metric_not_computed_for_scope</td>
+<td>—</td>
+<td class="num">—</td>
+<td class="mono"></td>
+</tr>
+<tr class="justification-row"><td colspan="18"><div class="customer-text"><span class="label">Manufacturer text - justification</span>j</div></td></tr>
+<tr class="criterion-row" data-position="5">
+<td class="num">5</td>
+<td class="customer-text mono">C_f1_site</td>
+<td>f1</td>
+<td class="customer-text">site = S3</td>
+<td>op1</td>
+<td>ci lower bound</td>
+<td>&gt;=</td>
+<td class="num">0.500</td>
+<td class="customer-text">A · 2026-01-01</td>
+<td class="num observed">—</td>
+<td class="num">—</td>
+<td class="mono">—</td>
+<td class="num">—</td>
+<td class="status">not assessable</td>
+<td class="mono">metric_not_computed_for_scope</td>
+<td>—</td>
+<td class="num">—</td>
+<td class="mono"></td>
+</tr>
+<tr class="justification-row"><td colspan="18"><div class="customer-text"><span class="label">Manufacturer text - justification</span>j</div></td></tr>
+<tr class="criterion-row" data-position="6">
+<td class="num">6</td>
+<td class="customer-text mono">C_auroc</td>
+<td>auroc</td>
+<td class="customer-text">overall</td>
+<td>—</td>
+<td>ci lower bound</td>
+<td>&gt;=</td>
+<td class="num">0.500</td>
+<td class="customer-text">A · 2026-01-01</td>
+<td class="num observed">0.835 [0.795, 0.876]</td>
+<td class="num">—</td>
+<td class="mono">delong_wald</td>
+<td class="num">0.795</td>
+<td class="status">criterion met</td>
+<td class="mono">statistic_compared</td>
+<td>—</td>
+<td class="num">—</td>
+<td class="mono"></td>
+</tr>
+<tr class="justification-row"><td colspan="18"><div class="customer-text"><span class="label">Manufacturer text - justification</span>j</div></td></tr>
+<tr class="criterion-row" data-position="7">
+<td class="num">7</td>
+<td class="customer-text mono">C_ece</td>
+<td>ece</td>
+<td class="customer-text">overall</td>
+<td>—</td>
+<td>ci lower bound</td>
+<td>&lt;=</td>
+<td class="num">0.100</td>
+<td class="customer-text">A · 2026-01-01</td>
+<td class="num observed">—</td>
+<td class="num">—</td>
+<td class="mono">—</td>
+<td class="num">—</td>
+<td class="status">not assessable</td>
+<td class="mono">metric_not_computed</td>
+<td>—</td>
+<td class="num">—</td>
+<td class="mono"></td>
+</tr>
+<tr class="justification-row"><td colspan="18"><div class="customer-text"><span class="label">Manufacturer text - justification</span>j</div></td></tr>
+<tr class="criterion-row" data-position="8">
+<td class="num">8</td>
+<td class="customer-text mono">C_prior</td>
+<td>sensitivity</td>
+<td class="customer-text">overall</td>
+<td>op1</td>
+<td>ci lower bound</td>
+<td>&gt;=</td>
+<td class="num">−0.030</td>
+<td class="customer-text">A · 2026-01-01</td>
+<td class="num observed">—</td>
+<td class="num">—</td>
+<td class="mono">—</td>
+<td class="num">—</td>
+<td class="status">not assessable</td>
+<td class="mono">requires_compare</td>
+<td>—</td>
+<td class="num">—</td>
+<td class="mono"></td>
+</tr>
+<tr class="justification-row"><td colspan="18"><div class="customer-text"><span class="label">Manufacturer text - justification</span>j</div></td></tr>
+<tr class="criterion-row" data-position="9">
+<td class="num">9</td>
+<td class="customer-text mono">fairness:tpr_gap</td>
+<td>tpr_gap</td>
+<td class="customer-text">sex = F</td>
+<td>op1</td>
+<td>ci upper bound</td>
+<td>&lt;=</td>
+<td class="num">0.100</td>
+<td class="customer-text">Dr F. · 2026-02-02</td>
+<td class="num observed">+7.0 [−7.9, +21.7]</td>
+<td class="num">63</td>
+<td class="mono">newcombe10</td>
+<td class="num">0.217</td>
+<td class="status">criterion not met</td>
+<td class="mono">statistic_compared</td>
+<td>—</td>
+<td class="num">—</td>
+<td class="mono"></td>
+</tr>
+<tr class="justification-row"><td colspan="18"><div class="customer-text"><span class="label">Manufacturer text - justification</span>intended-use population</div></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s6">6. Ledger</h2>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_MP1_DATA">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a></aside>
+<table>
+<caption>Acceptance-decision runs recorded against this test set in the local ledger</caption>
+<tbody>
+<tr><th scope="row">Test-set SHA-256</th><td class="mono"></td></tr>
+<tr><th scope="row">Acceptance runs recorded (including this run)</th><td class="num">—</td></tr>
+<tr><th scope="row">Manifest ledger count</th><td class="num">—</td></tr>
+<tr><th scope="row">Declared limit (warn_after_acceptance_runs)</th><td class="num customer-text">3</td></tr>
+<tr><th scope="row">Counted</th><td>no (the ledger could not be read or written; see the warning log)</td></tr>
+</tbody>
+</table>
+<h2 id="s7">7. Narrative integrity</h2>
+<aside class="margin-note">maps to <a href="#PP_SCOPE">ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</a></aside>
+<table class="integrity">
+<caption>Counts computed from the document by the renderer</caption>
+<tbody>
+<tr><th scope="row">Claims generated</th><td class="num" data-count="claims_generated">70</td></tr>
+<tr><th scope="row">Claims rejected by the checker</th><td class="num" data-count="claims_rejected">0</td></tr>
+<tr><th scope="row">Claims substituted by the deterministic template claim</th><td class="num" data-count="claims_substituted">0</td></tr>
+<tr><th scope="row">Rows analysed</th><td class="num" data-count="rows_analysed">400</td></tr>
+<tr><th scope="row">Subgroup rows</th><td class="num" data-count="subgroup_rows">9</td></tr>
+<tr><th scope="row">Criteria rows</th><td class="num" data-count="criteria_rows">9</td></tr>
+<tr><th scope="row" class="status">criterion met</th><td class="num" data-count="criteria_met">2</td></tr>
+<tr><th scope="row" class="status">criterion not met</th><td class="num" data-count="criteria_not_met">2</td></tr>
+<tr><th scope="row" class="status">not assessable</th><td class="num" data-count="criteria_not_assessable">5</td></tr>
+<tr><th scope="row">Suppressed cells</th><td class="num" data-count="suppressed_cells">0</td></tr>
+<tr><th scope="row">Warnings</th><td class="num" data-count="warnings">0</td></tr>
+</tbody>
+</table>
+<p>No claim was rejected by the checker.</p>
+<p class="narrative-footer">Machine-drafted; requires review by the manufacturer&#39;s statistician and regulatory lead.</p>
+<h2 id="s8">8. Out of scope - never performed by ProofPack</h2>
+<ul>
+<li>Study design</li>
+<li>sample-size calculation</li>
+<li>selection of acceptance criteria, margins or thresholds</li>
+<li>adjudication and reference-standard construction (rater columns are never used to construct labels)</li>
+<li>MRMC or reader studies</li>
+<li>clinical-outcome or trial evidence</li>
+<li>literature review</li>
+<li>valid clinical association</li>
+<li>benefit-risk conclusions</li>
+<li>risk management</li>
+<li>cybersecurity documentation</li>
+<li>human factors</li>
+<li>explainability</li>
+<li>complaints, vigilance and incident trend reporting (MDR Art. 88</li>
+<li>GB SI 2024/1368 reg. 44ZN)</li>
+<li>authorship of the 510(k) Summary (21 CFR 807.92)</li>
+</ul>
+<h2 id="s9">9. Guidance references</h2>
+<table class="guidance">
+<caption>Every anchor used in this render, labelled from the guidance map; a draft is a draft in the label and in the structured data</caption>
+<thead><tr><th scope="col">Internal id</th><th scope="col">Document, version or date, status</th><th scope="col">Draft</th><th scope="col">URL</th></tr></thead>
+<tbody>
+<tr id="FDA_AIDSF_DATA_MGMT" class="draft"><td class="mono">FDA_AIDSF_DATA_MGMT</td><td>FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</td><td>yes</td><td>not recorded</td></tr>
+<tr id="FDA_AIDSF_PERF_VALIDATION" class="draft"><td class="mono">FDA_AIDSF_PERF_VALIDATION</td><td>FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</td><td>yes</td><td>not recorded</td></tr>
+<tr id="FDA_AIDSF_SUBGROUP_PERF" class="draft"><td class="mono">FDA_AIDSF_SUBGROUP_PERF</td><td>FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</td><td>yes</td><td>not recorded</td></tr>
+<tr id="FDA_AIDSF_CALIBRATION" class="draft"><td class="mono">FDA_AIDSF_CALIBRATION</td><td>FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</td><td>yes</td><td>not recorded</td></tr>
+<tr id="FDA_PCCP_MP1_DATA"><td class="mono">FDA_PCCP_MP1_DATA</td><td>FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</td><td>no</td><td>not recorded</td></tr>
+<tr id="PP_SCOPE"><td class="mono">PP_SCOPE</td><td>ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</td><td>no</td><td>not recorded</td></tr>
+<tr id="PP_METHODS"><td class="mono">PP_METHODS</td><td>ProofPack internal: methods appendix conventions (T7) (engine version, internal)</td><td>no</td><td>not recorded</td></tr>
+</tbody>
+</table>
+<h2 id="s10">10. Customer sections outstanding</h2>
+<p>This template version defines no customer text slots; none are outstanding.</p>
+<h2 id="s11">11. Data status</h2>
+<p>No synthetic, demonstration or trial marking applies to this run.</p>
+<footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-18T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final); ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal); ProofPack internal: methods appendix conventions (T7) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>
+</section>
+<div class="print-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-18T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final); ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal); ProofPack internal: methods appendix conventions (T7) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></div>
+</body>
+</html>
