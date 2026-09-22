@@ -363,6 +363,10 @@
           "type": "null"
         },
         "prevalence": { "$ref": "#/$defs/Number" },
+        "suppressed_reason": {
+          "description": "Build day 8 (E8 item 1, E7 carried item 42): present only on a y_pred-only table, where no threshold-free statistic can exist; the auroc Number beside it carries not_computed_this_run and roc is empty.",
+          "enum": ["no_score_column"]
+        },
         "roc": {
           "type": "array",
           "items": {

@@ -476,7 +476,10 @@ def test_a_y_pred_only_table_gives_calibration_null_with_no_score_column(
     doc = json.loads((out / "run.json").read_text(encoding="utf-8"))
     assert doc["calibration"] is None
     assert doc["calibration_suppressed_reason"]["reason"] == "no_score_column"
-    assert doc["overall"] is None
+    # E8 item 1 (E7 carried item 42): the operating-point block is built from y_pred alone
+    # and the threshold-free block is typed no_score_column (tests/test_overall_carried.py)
+    assert doc["overall"]["threshold_free"]["suppressed_reason"] == "no_score_column"
+    assert doc["overall"]["op1"]["sensitivity"]["method"] == "wilson"
     assert doc["subgroups"] and doc["criteria_results"] == []
     assert (
         list(
@@ -510,9 +513,12 @@ def test_flow_reconciles_with_dev_rows(tmp_path: Path, monkeypatch):
     )
 
 
-def test_a_clustered_run_has_no_overall_block_and_cluster_bootstrap_cells(
+def test_a_clustered_run_has_a_cluster_bootstrap_overall_block_and_cells(
     tmp_path: Path, monkeypatch
 ):
+    """At 7b2ca2a this test asserted ``overall null`` on a clustered plan (E7 cut 1);
+    E8 item 1 builds the block from proportion_ci / auroc_ci (tests/test_overall_carried.py
+    holds the oracles)."""
     _own_home(tmp_path, monkeypatch)
     cols = make_cohort(n=200, with_case_id=True)
     cols["case_id"] = [f"c{i // 2}" for i in range(200)]
@@ -521,7 +527,12 @@ def test_a_clustered_run_has_no_overall_block_and_cluster_bootstrap_cells(
     out = tmp_path / "pack"
     assert _run(csv_path, yml, out) in (EXIT_OK, EXIT_WARNINGS)
     doc = json.loads((out / "run.json").read_text(encoding="utf-8"))
-    assert doc["overall"] is None and doc["flow"]["clustered"] is True
+    assert doc["flow"]["clustered"] is True
+    overall = doc["overall"]
+    assert overall["op1"]["sensitivity"]["method"] == "cluster_bootstrap_percentile"
+    assert "wilson_refused_clustered" in overall["op1"]["sensitivity"]["flags"]
+    assert overall["threshold_free"]["auroc"]["method"] == "cluster_bootstrap_percentile"
+    assert overall["op1"]["f1"]["not_estimable_reason"] == "clustered_data_analytic_ci_invalid"
     method = doc["subgroups"][0]["metrics"]["op1"]["sensitivity"]["number"]["method"]
     assert method in ("cluster_bootstrap_percentile", "none")
 

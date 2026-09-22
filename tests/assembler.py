@@ -7,12 +7,10 @@ build day 7's (E7, ``spec/briefs/day7_E.md``). This module exists so the day-6 t
 validate a whole document against ``schema/output_schema_v1.json`` with every block the
 library can produce today in it; E7 wires the real thing and may take this as a sketch.
 
-The ``overall`` block is built from the day-2 functions over the analysed rows. Two of
-those - :func:`~proofpack.stats.proportions.two_by_two_metrics` and
-:func:`~proofpack.stats.discrimination.auroc_number` - take no ``cluster_ids`` and are
-documented as such; here ``overall`` is therefore only built for a non-clustered plan
-and left ``None`` otherwise, so this module never renders an analytic interval on
-clustered rows.
+The ``overall`` block comes from the engine's own :func:`proofpack.run.overall_block`
+(build day 8, E8 item 1): the day-2 functions on an i.i.d. plan, the day-4
+cluster-bootstrap route on a clustered plan, ``y_pred`` alone on a table without a score
+column - so a document this module assembles carries the same ``overall`` as ``run``.
 """
 
 from __future__ import annotations
@@ -24,52 +22,12 @@ import numpy as np
 from conftest import make_criteria
 from proofpack import criteria as criteria_mod
 from proofpack.io import schema as schema_mod
-from proofpack.io.declare import Declarations, validate_dict
+from proofpack.io.declare import validate_dict
+from proofpack.run import overall_block
 from proofpack.stats.bootstrap import BootstrapPolicy, plan_clustering, policy_from_declarations
 from proofpack.stats.calibration import calibration_from_table
 from proofpack.stats.descriptive import flow_block, missingness_block, table1_block
-from proofpack.stats.discrimination import auroc_number
-from proofpack.stats.proportions import (
-    Table2x2,
-    proportion,
-    two_by_two_metrics,
-)
 from proofpack.stats.subgroups import subgroup_analysis
-
-
-def _overall(
-    table: schema_mod.Table, decl: Declarations, mask: np.ndarray
-) -> dict[str, Any] | None:
-    if table.score is None:
-        return None
-    yt = table.y_true[mask]
-    pos = np.array([v == decl.positive for v in yt.tolist()], dtype=bool)
-    score = np.asarray(table.score[mask], dtype=np.float64)
-    oriented = score if decl.orientation == "higher_is_positive" else -score
-    n_pos, n_neg = int(pos.sum()), int((~pos).sum())
-    out: dict[str, Any] = {}
-    for op in decl.operating_points:
-        pred = np.array([op.is_positive(float(v)) for v in score], dtype=bool)
-        t = Table2x2(
-            tp=int((pos & pred).sum()),
-            fn=int((pos & ~pred).sum()),
-            fp=int((~pos & pred).sum()),
-            tn=int((~pos & ~pred).sum()),
-        )
-        metrics = two_by_two_metrics(t, reference_standard_type=decl.reference_standard_type)
-        block = {k: v.as_dict() for k, v in metrics.items()}
-        block["two_by_two"] = t.as_dict()
-        block["ppv_at_prevalence"] = []
-        out[op.id] = block
-    disc = auroc_number(oriented, pos)
-    out["threshold_free"] = {
-        "auroc": disc.auroc.as_dict(),
-        "auroc_wald": None if disc.auroc_secondary is None else disc.auroc_secondary.as_dict(),
-        "auprc": None,
-        "prevalence": proportion(n_pos, n_pos + n_neg).as_dict(),
-        "roc": disc.roc,
-    }
-    return out
 
 
 def assemble(
@@ -120,7 +78,7 @@ def assemble(
         "flow": flow_block(table, mask, flow, decl, plan),
         "table1": table1_block(table, decl, mask),
         "missingness": missingness_block(table),
-        "overall": None if plan.clustered else _overall(table, decl, mask),
+        "overall": overall_block(table, decl, mask, plan=plan, policy=pol),
         **cal.as_document(),
         **sub.as_dict(),
         "suppression_log": [],

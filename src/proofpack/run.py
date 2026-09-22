@@ -24,7 +24,9 @@ The order, and what each step is allowed to do:
    HALT (D1 section 5).
 4. **Statistics**, each block from the library module that owns it and nothing computed
    here: ``flow`` / ``table1`` / ``missingness`` (``stats.descriptive``), ``overall``
-   (the day-2 functions over the analysed rows, i.i.d. only - see :func:`overall_block`),
+   (see :func:`overall_block`: the day-2 functions on an i.i.d. plan, the day-4
+   cluster-bootstrap route on a clustered plan, ``y_pred`` alone on a table without a
+   score column - E8 item 1),
    ``calibration`` or ``None`` with ``calibration_suppressed_reason`` (DEC-36),
    ``subgroups`` / ``subgroup_attributes`` / ``fairness`` (``stats.subgroups``).
 5. **Criteria** (:mod:`proofpack.criteria`) over the assembled blocks.
@@ -40,6 +42,7 @@ the whole command.
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,12 +61,27 @@ from proofpack.io.schema import Table, analysis_mask, load_table
 from proofpack.licence import LicenceResult, resolve
 from proofpack.licence.keys import KeyRegistry
 from proofpack.licence.verify import WATERMARK_EXPIRED
-from proofpack.stats.bootstrap import plan_clustering, policy_from_declarations
+from proofpack.stats.bootstrap import (
+    DEFAULT_LEVEL,
+    BootstrapPolicy,
+    ClusterPlan,
+    auroc_ci,
+    plan_clustering,
+    policy_from_declarations,
+    proportion_ci,
+)
 from proofpack.stats.calibration import calibration_from_table
 from proofpack.stats.descriptive import flow_block, missingness_block, table1_block
-from proofpack.stats.discrimination import auroc_number
-from proofpack.stats.proportions import Table2x2, proportion, two_by_two_metrics
-from proofpack.stats.subgroups import subgroup_analysis
+from proofpack.stats.discrimination import auroc_number, roc_curve
+from proofpack.stats.number import not_estimable
+from proofpack.stats.proportions import (
+    Table2x2,
+    proportion,
+    sensitivity_id,
+    specificity_id,
+    two_by_two_metrics,
+)
+from proofpack.stats.subgroups import _conditioned, subgroup_analysis
 
 RUN_JSON = "run.json"
 INGEST_REPORT = "ingest_report.json"
@@ -105,26 +123,122 @@ def resolve_mapping_path(input_path: str | Path, mapping: str | Path | None) -> 
     return p
 
 
-def overall_block(table: Table, decl: Declarations, mask: np.ndarray) -> dict[str, Any] | None:
-    """The ``overall`` block from the day-2 functions over the analysed rows, i.i.d. only.
+def _overall_cell_key(*parts: Any) -> str:
+    """One unambiguous bootstrap cell key for an overall cell (the subgroup rows use the
+    same shape under ``"subgroups"``; ``rng_for_cell`` seeds each cell from it)."""
+    return json.dumps(["overall", *[str(p) for p in parts]])
 
-    ``two_by_two_metrics`` and ``auroc_number`` take no ``cluster_ids`` (their docstrings
-    say so), so on a clustered plan this returns ``None`` rather than render an analytic
-    interval on dependent rows; the subgroup rows carry the cluster-bootstrap cells. The
-    clustered overall block is carried to E8 (the E7 build note names it). ``None`` also
-    for a ``y_pred``-only table (no threshold-free block can exist; the operating-point
-    metrics from ``y_pred`` are carried with it).
+
+#: The two-by-two metrics whose analytic interval assumes independent rows and for which
+#: no cluster-bootstrap route exists in the engine today: under a clustered plan each is
+#: typed ``clustered_data_analytic_ci_invalid`` (DEC-09) with the point estimate that
+#: ``two_by_two_metrics`` computes from the four counts and no interval.
+CLUSTERED_REFUSED_2X2: tuple[str, ...] = (
+    "youden",
+    "balanced_accuracy",
+    "lr_pos",
+    "lr_neg",
+    "dor",
+    "f1",
+    "mcc",
+)
+#: The overall proportions routed through ``proportion_ci`` under a clustered plan, in
+#: the vocabulary of ``stats.subgroups._conditioned`` (``se`` / ``sp`` are renamed to the
+#: reference-standard ids).
+_OVERALL_PROPORTIONS: tuple[str, ...] = ("se", "sp", "ppv", "npv", "accuracy")
+#: The structured reason on ``threshold_free`` of a ``y_pred``-only table (E7 carried
+#: item 42): no score column, so no threshold-free statistic can exist. The AUROC Number
+#: itself carries ``not_computed_this_run``, the reason the subgroup rows use for the
+#: same absence (``no_score_column`` is a calibration suppression reason, not a Number
+#: reason - E7's decision, unchanged here).
+NO_SCORE_COLUMN = "no_score_column"
+
+
+def overall_block(
+    table: Table,
+    decl: Declarations,
+    mask: np.ndarray,
+    *,
+    plan: ClusterPlan | None = None,
+    policy: BootstrapPolicy | None = None,
+) -> dict[str, Any]:
+    """The ``overall`` block over the analysed rows, on every plan and every table (E8 item 1).
+
+    Which existing function each cell comes from:
+
+    * **i.i.d. plan** (``plan`` ``None`` or not clustered): unchanged from E7 - every
+      operating-point metric from :func:`~proofpack.stats.proportions.two_by_two_metrics`
+      (Wilson for the proportions, Newcombe-10 for Youden / balanced accuracy, log-delta
+      for LR+ / LR- / DOR, ``analytic_ci_unavailable`` for F1 / MCC), the AUROC from
+      :func:`~proofpack.stats.discrimination.auroc_number` (DeLong) and the prevalence
+      from :func:`~proofpack.stats.proportions.proportion`.
+    * **clustered plan** (declared or detected): the five conditioned proportions
+      (sensitivity or PPA, specificity or NPA, PPV, NPV, accuracy) and the prevalence each
+      come from :func:`~proofpack.stats.bootstrap.proportion_ci` - the cluster-bootstrap
+      route the subgroup rows take through ``stats.subgroups._proportion_cell``, with the
+      rows conditioned by ``stats.subgroups._conditioned`` and the case ids sliced with
+      them, never a second implementation - so the rendered Number carries
+      ``cluster_bootstrap_percentile``, the flag ``wilson_refused_clustered`` and
+      ``n_cases``; the AUROC comes from :func:`~proofpack.stats.bootstrap.auroc_ci`'s
+      clustered route (``delong_refused_clustered``; ``auroc_wald`` is ``null``, there is
+      no Wald interval); the ROC coordinates from
+      :func:`~proofpack.stats.discrimination.roc_curve`; and the seven two-by-two-only
+      metrics in :data:`CLUSTERED_REFUSED_2X2` are typed
+      ``clustered_data_analytic_ci_invalid`` (DEC-09) with the point estimate that
+      ``two_by_two_metrics`` gives from the four counts (``None`` where it gives none)
+      and no interval. The bootstrap cell key is ``["overall", <op>, <metric>]`` /
+      ``["overall", "auroc"]`` / ``["overall", "prevalence"]``, so an overall cell's
+      draw is seeded like a subgroup cell's but is its own stream; ``tests/
+      test_overall_carried.py`` calls ``proportion_ci`` with the same key on the same
+      rows and asserts the interval equal.
+    * **``y_pred``-only table** (no score column; E7 carried item 42): the operating-point
+      block from ``y_pred == positive`` alone through the same two routes above, and
+      ``threshold_free`` carrying an AUROC Number typed ``not_computed_this_run`` (the
+      subgroup rows' reason for the same absence), ``roc`` empty and the structured key
+      ``suppressed_reason: no_score_column`` (:data:`NO_SCORE_COLUMN`).
+
+    The two-by-two counts are the same four integers on every route; ``tests/
+    test_overall_carried.py`` compares them with scikit-learn's ``confusion_matrix``.
+    The block's *shape* (a Number per metric) is unchanged from E7, so ``criteria`` reads
+    ``overall.<op>.<metric>`` on a clustered run as it does on an i.i.d. one; the
+    bootstrap audit (companion refusal, usable resamples) is not carried into the
+    overall block in E8 - the subgroup cells carry theirs.
     """
-    if table.score is None:
-        return None
     yt = table.y_true[mask]
     pos = np.array([v == decl.positive for v in yt.tolist()], dtype=bool)
-    score = np.asarray(table.score[mask], dtype=np.float64)
-    oriented = score if decl.orientation == "higher_is_positive" else -score
+    n_rows = int(pos.shape[0])
+    all_rows = np.arange(n_rows, dtype=np.intp)
+    raw_score = None if table.score is None else np.asarray(table.score[mask], dtype=np.float64)
+    ids = None if table.case_id is None else np.asarray(table.case_id[mask], dtype=object)
+    clustered = plan is not None and plan.clustered
+    if clustered and ids is None:
+        raise ValueError("a clustered plan needs a case column")
     n_pos, n_neg = int(pos.sum()), int((~pos).sum())
+    se_key = sensitivity_id(decl.reference_standard_type)
+    sp_key = specificity_id(decl.reference_standard_type)
+    level = DEFAULT_LEVEL
+    pol = policy if policy is not None else BootstrapPolicy()
+
+    def clustered_proportion(rows: np.ndarray, indicator: np.ndarray, key: str) -> dict[str, Any]:
+        cell = proportion_ci(
+            indicator,
+            cell_key=key,
+            policy=pol,
+            plan=plan,
+            cluster_ids=ids[rows],
+            level=level,
+        )
+        return cell.number.as_dict()
+
     out: dict[str, Any] = {}
+    prevalence: dict[str, Any] | None = None
+    if clustered:
+        prevalence = clustered_proportion(all_rows, pos, _overall_cell_key("prevalence"))
     for op in decl.operating_points:
-        pred = np.array([op.is_positive(float(v)) for v in score], dtype=bool)
+        if raw_score is not None:
+            pred = np.array([op.is_positive(float(v)) for v in raw_score], dtype=bool)
+        else:
+            pred = np.array([v == decl.positive for v in table.y_pred[mask].tolist()], dtype=bool)
         t = Table2x2(
             tp=int((pos & pred).sum()),
             fn=int((pos & ~pred).sum()),
@@ -132,10 +246,59 @@ def overall_block(table: Table, decl: Declarations, mask: np.ndarray) -> dict[st
             tn=int((~pos & ~pred).sum()),
         )
         metrics = two_by_two_metrics(t, reference_standard_type=decl.reference_standard_type)
-        block = {k: v.as_dict() for k, v in metrics.items()}
+        if not clustered:
+            block = {k: v.as_dict() for k, v in metrics.items()}
+        else:
+            block = {}
+            for metric in _OVERALL_PROPORTIONS:
+                rows, ind = _conditioned(all_rows, pos, pred, metric)
+                key = {"se": se_key, "sp": sp_key}.get(metric, metric)
+                block[key] = clustered_proportion(rows, ind, _overall_cell_key(op.id, key))
+            block["prevalence"] = dict(prevalence)  # type: ignore[arg-type]
+            for key in CLUSTERED_REFUSED_2X2:
+                block[key] = not_estimable(
+                    "clustered_data_analytic_ci_invalid",
+                    est=metrics[key].est,
+                    n=t.n,
+                    ci_level=level,
+                ).as_dict()
         block["two_by_two"] = t.as_dict()
         block["ppv_at_prevalence"] = []
         out[op.id] = block
+
+    if raw_score is None:
+        out["threshold_free"] = {
+            "auroc": not_estimable(
+                "not_computed_this_run", n_pos=n_pos, n_neg=n_neg, ci_level=level
+            ).as_dict(),
+            "auroc_wald": None,
+            "auprc": None,
+            "prevalence": prevalence
+            if prevalence is not None
+            else proportion(n_pos, n_pos + n_neg).as_dict(),
+            "roc": [],
+            "suppressed_reason": NO_SCORE_COLUMN,
+        }
+        return out
+    oriented = raw_score if decl.orientation == "higher_is_positive" else -raw_score
+    if clustered:
+        auroc = auroc_ci(
+            oriented,
+            pos,
+            cell_key=_overall_cell_key("auroc"),
+            policy=pol,
+            plan=plan,
+            cluster_ids=ids,
+            level=level,
+        ).number
+        out["threshold_free"] = {
+            "auroc": auroc.as_dict(),
+            "auroc_wald": None,
+            "auprc": None,
+            "prevalence": dict(prevalence),  # type: ignore[arg-type]
+            "roc": roc_curve(oriented, pos),
+        }
+        return out
     disc = auroc_number(oriented, pos)
     out["threshold_free"] = {
         "auroc": disc.auroc.as_dict(),
@@ -211,7 +374,7 @@ def assemble_run(
         "flow": flow_block(table, mask, flow, decl, plan),
         "table1": table1_block(table, decl, mask),
         "missingness": missingness_block(table),
-        "overall": None if plan.clustered else overall_block(table, decl, mask),
+        "overall": overall_block(table, decl, mask, plan=plan, policy=policy),
         **cal.as_document(),
         **sub.as_dict(),
         "suppression_log": [],  # egress k-suppression is A-P2's; nothing is suppressed locally
