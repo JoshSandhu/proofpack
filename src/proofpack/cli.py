@@ -441,12 +441,33 @@ def cmd_map(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+#: The one sentence every telemetry mention carries (A-P2, D1 section 6): what is sent
+#: and how to turn it off. British spelling; the key list is the schema's, in order.
+TELEMETRY_SENTENCE = (
+    "telemetry: after run.json is written the engine sends one record to "
+    "https://proofpack.globalphoenix.co.uk/api/telemetry holding only schema, licence_id, "
+    "run_id, engine_version, platform, manifest_sha256, duration_s, halt_code, "
+    "row_count_bucket and timestamp; turn it off with --offline or egress.telemetry: false "
+    "in criteria.yaml (docs: /docs/egress)"
+)
+
+
 def cmd_run(args: argparse.Namespace) -> int:
+    from proofpack.egress import run_telemetry
     from proofpack.run import LICENCE_FIX, assemble_run, write_run
 
     _tolerant_console()
     outcome = assemble_run(args.input, args.criteria, mapping=args.mapping, registry=args.registry)
     target = write_run(outcome, args.out)
+    # The single telemetry call site (A-P2): after every document is written, decided
+    # before anything is built when --offline or egress.telemetry: false is in force; the
+    # result changes nothing below - not the exit code, not the files.
+    sent = run_telemetry(
+        outcome.document,
+        offline=args.offline,
+        licence_status=outcome.licence.status,
+        transport=getattr(args, "transport", None),
+    )
     doc = outcome.document
     manifest = doc["manifest"]
     statuses = [r["status"] for r in doc["criteria_results"]]
@@ -456,16 +477,25 @@ def cmd_run(args: argparse.Namespace) -> int:
         f"; watermark: {manifest['watermark']}" if manifest["watermark"] else ""
     )
     counts = {s: statuses.count(s) for s in ("met", "not_met", "not_assessable")}
+    if sent is None:
+        why = "--offline" if args.offline else "egress.telemetry: false"
+        telemetry_line = f"telemetry skipped ({why}); nothing was sent"
+    else:
+        telemetry_line = sent.line()
     summary = (
         f"run written: {target} (run_id {manifest['run_id']})\n"
         f"  analysed {doc['flow']['analysed']} of {doc['flow']['rows_read']} rows; "
         f"criteria rows: {counts['met']} met, {counts['not_met']} not met, "
         f"{counts['not_assessable']} not assessable\n"
         f"  {lic_line}{warn_lines}\n"
+        f"  {telemetry_line}\n"
     )
     if not lic.usable:
         summary += f"  {LICENCE_FIX}\n"
-    summary += "Next step: proofpack licence show, then the T1/T7/T8 renderers (docs: /docs/run)"
+    summary += (
+        "Next step: proofpack licence show, then the T1/T7/T8 renderers (docs: /docs/run); "
+        + TELEMETRY_SENTENCE
+    )
     _emit(
         args,
         {
@@ -477,6 +507,11 @@ def cmd_run(args: argparse.Namespace) -> int:
                 "watermark": manifest["watermark"],
                 "criteria_status_counts": counts,
                 "warnings": [w.code for w in outcome.warnings],
+                "telemetry": (
+                    {"skipped": "--offline" if args.offline else "egress.telemetry: false"}
+                    if sent is None
+                    else sent.as_dict()
+                ),
             }
         },
         summary,
@@ -562,14 +597,18 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return EXIT_WARNINGS if warnings else EXIT_OK
 
 
-def main(argv: list[str] | None = None, *, registry=None) -> int:
+def main(argv: list[str] | None = None, *, registry=None, transport=None) -> int:
     """Entry point. ``registry`` (a :class:`proofpack.licence.keys.KeyRegistry`) is the
     test-only hook for licence verification against an ephemeral key pair: the shipped
-    key is never rebound; a caller that wants another key names it here. The console
-    script and ``python -m proofpack.cli`` always pass ``None`` (the shipped registry)."""
+    key is never rebound; a caller that wants another key names it here. ``transport``
+    (A-P2) is the same kind of hook for the telemetry send - a callable ``(url, body,
+    timeout) -> status`` that ``proofpack.egress.telemetry.send`` uses in place of
+    ``urllib``; the URL itself is the constant ``TELEMETRY_URL`` and has no hook. The
+    console script and ``python -m proofpack.cli`` always pass ``None`` for both."""
     parser = _build_parser()
     args = parser.parse_args(argv)
     args.registry = registry
+    args.transport = transport
     handler = {
         "doctor": cmd_doctor,
         "map": cmd_map,

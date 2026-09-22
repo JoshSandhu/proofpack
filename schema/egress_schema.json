@@ -1,70 +1,165 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://proofpack.globalphoenix.co.uk/schema/egress_schema.json",
-  "title": "ProofPack egress schema (SKELETON, day 1)",
-  "description": "Everything that may ever leave the customer's machine. At launch the runner makes at most one outbound call: the telemetry POST. No column names, no counts below bucket level, no metric values, no row-level field, no free-text declaration field. Prose source: D1 section 6. Published verbatim on the trust page.",
+  "title": "ProofPack egress schema",
+  "description": "Everything that may ever leave the customer's machine (D1 section 6). At launch the runner makes at most one outbound call: the telemetry POST, a document matching $defs/telemetry. The proofpack-aggregates/1 branch is the shape of the deferred narrative call and of the demo's optional narrative: no code path sends it at launch, but the engine builds and validates it (src/proofpack/egress) so the k-suppression, pseudonymisation and whitelist rules exist and are tested before the feature. No column names, no counts below bucket level, no metric values and no row-level field are in the telemetry document; no row-level field exists anywhere in this schema; no free-text declaration field (justification, description, source) has a place in it. Every string property carries an enum, a const or a pattern with a maximum length, and every object closes with additionalProperties false, so a key or a string the schema does not name cannot pass. Published verbatim on the trust page (build day 8, A-P2).",
   "$defs": {
     "telemetry": {
       "type": "object",
+      "description": "The one document the runner sends, at the end of `proofpack run`, after run.json is written; skipped entirely (no socket, no name lookup) with --offline or egress.telemetry: false in criteria.yaml. The ten keys are D1 section 6's literal payload. A HALT writes no document and sends nothing, so halt_code is null on every document the engine sends today; the key and its enum are kept so the shape D1 names is the shape the site stores.",
       "properties": {
         "schema": { "type": "string", "const": "proofpack-telemetry/1" },
-        "licence_id": { "type": "string", "pattern": "^L-[A-Za-z0-9-]+$" },
-        "run_id": { "type": "string", "format": "uuid" },
-        "engine_version": { "type": "string" },
-        "platform": { "type": "string", "pattern": "^[a-z0-9_]+-[a-z0-9_]+-cp3[0-9]{2}$" },
-        "manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "duration_s": { "type": "number", "minimum": 0 },
-        "halt_code": { "type": ["string", "null"], "enum": ["H01", "H02", "H03", "H04", "H05", "H06", "H07", "H08", "H09", "H10", "H11", "H12", null] },
+        "licence_id": {
+          "type": ["string", "null"],
+          "description": "The id of the licence file the run verified (the site issues lic_ + 32 hex; the pattern admits the prefix plus up to 60 letters or digits so a hand-signed id keeps the shape). Null when no licence file was found or the file was refused, so an unverified id from a tampered file is never reported as if it were a licence.",
+          "pattern": "^lic_[A-Za-z0-9]{1,60}$",
+          "maxLength": 64
+        },
+        "run_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "maxLength": 36 },
+        "engine_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([.a-z0-9]{0,16})?$", "maxLength": 32 },
+        "platform": {
+          "type": "string",
+          "description": "sysconfig.get_platform() plus the CPython tag, as the manifest records it: linux-x86_64-cp312, win-amd64-cp314, macosx-14.0-arm64-cp312.",
+          "pattern": "^[a-z][a-z0-9_.-]{0,62}-cp3[0-9]{1,2}$",
+          "maxLength": 72
+        },
+        "manifest_sha256": {
+          "type": "string",
+          "description": "SHA-256 of the canonical JSON bytes of run.json's manifest block (proofpack.manifest.canonical_json). A pointer to a local record; it reveals nothing about the table.",
+          "pattern": "^[0-9a-f]{64}$",
+          "maxLength": 64
+        },
+        "duration_s": { "type": "number", "minimum": 0, "maximum": 604800 },
+        "halt_code": {
+          "type": ["string", "null"],
+          "enum": ["E01", "H01", "H02", "H03", "H04", "H05", "H06", "H07", "H08", "H09", "H10", "H11", "H12", "S01", "S02", "S03", "S04", "S05", null]
+        },
         "row_count_bucket": { "type": "string", "enum": ["<1k", "1k-10k", "10k-100k", ">100k"] },
-        "timestamp": { "type": "string", "format": "date-time" }
+        "timestamp": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$", "maxLength": 20 }
       },
       "required": ["schema", "licence_id", "run_id", "engine_version", "platform", "manifest_sha256", "duration_s", "halt_code", "row_count_bucket", "timestamp"],
       "additionalProperties": false
     },
+    "metric_id": {
+      "type": "string",
+      "description": "Equals criteria_schema.json $defs/metric_id (D1 section 4.3); tests/test_egress.py holds the two enums equal.",
+      "enum": ["sensitivity", "specificity", "ppa", "npa", "ppv", "npv", "accuracy", "balanced_accuracy", "f1", "mcc", "lr_pos", "lr_neg", "dor", "youden", "auroc", "auprc", "brier", "ipa", "oe", "calibration_slope", "calibration_intercept", "ece", "tpr_gap", "fpr_gap", "ppv_gap", "npv_gap", "auroc_gap", "psi", "ks_d", "prevalence", "kappa", "macro_auroc", "bias", "loa_low", "loa_high", "mae", "rmse", "ccc", "dice_mean", "dice_median"]
+    },
+    "method": {
+      "type": ["string", "null"],
+      "description": "Equals output_schema_v1.json $defs/method plus null (a suppressed cell); the same test holds them equal.",
+      "enum": ["wilson", "wilson_cc", "clopper_pearson", "newcombe10", "newcombe11", "newcombe_paired", "delong_logit", "delong_wald", "cluster_bootstrap_percentile", "bootstrap_percentile", "bootstrap_bca", "irls_wald", "log_delta", "logit_delta", "chi2_psi", "exact_mcnemar", "cc_mcnemar", "none", null]
+    },
+    "identifier": {
+      "type": ["string", "null"],
+      "description": "A canonical attribute name or an operating-point id (D1 section 6 header whitelist ^[a-z][a-z0-9_]{0,31}$); an original header never matches because it is never looked at.",
+      "pattern": "^[a-z][a-z0-9_]{0,31}$",
+      "maxLength": 32
+    },
+    "level": {
+      "type": ["string", "null"],
+      "description": "A pseudonym (Site A, Device A, Protocol A, Level A ... Level ZZ), the engine's own Unknown/missing row, or a short token such as F, M or an age band 40-65. Anything else is pseudonymised before it gets here (src/proofpack/egress/pseudonymise.py).",
+      "pattern": "^(Site|Device|Protocol|Level) [A-Z]{1,3}$|^Unknown/missing$|^[A-Za-z0-9][A-Za-z0-9_.+-]{0,15}$",
+      "maxLength": 16
+    },
     "number": {
       "type": "object",
-      "description": "Aggregate Number object (deferred narrative call). Suppressed cells carry null values.",
+      "description": "The egress projection of an engine Number: est, ci_lo, ci_hi, method, n, k, suppressed and nothing else (no flags, no ci_level, no reason text). A suppressed cell carries null in every value field.",
       "properties": {
-        "value": { "type": ["number", "null"] },
-        "ci_low": { "type": ["number", "null"] },
-        "ci_high": { "type": ["number", "null"] },
+        "est": { "type": ["number", "null"] },
+        "ci_lo": { "type": ["number", "null"] },
+        "ci_hi": { "type": ["number", "null"] },
+        "method": { "$ref": "#/$defs/method" },
         "n": { "type": ["integer", "null"], "minimum": 10 },
-        "k": { "type": ["integer", "null"] },
+        "k": { "type": ["integer", "null"], "minimum": 0 },
         "suppressed": { "type": "boolean" }
       },
-      "required": ["value", "suppressed"],
-      "additionalProperties": false
+      "required": ["est", "ci_lo", "ci_hi", "method", "n", "k", "suppressed"],
+      "additionalProperties": false,
+      "if": { "properties": { "suppressed": { "const": true } } },
+      "then": {
+        "properties": {
+          "est": { "type": "null" },
+          "ci_lo": { "type": "null" },
+          "ci_hi": { "type": "null" },
+          "method": { "type": "null" },
+          "n": { "type": "null" },
+          "k": { "type": "null" }
+        }
+      }
     },
     "aggregate_cell": {
       "type": "object",
       "properties": {
-        "metric_id": { "$ref": "criteria_schema.json#/$defs/metric_id" },
-        "attribute": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9_]{0,31}$" },
-        "level": { "type": ["string", "null"], "pattern": "^(Site|Device|Protocol|Level) [A-Z]+$|^Unknown/missing$|^[a-z][a-z0-9_]{0,31}$" },
+        "metric_id": { "$ref": "#/$defs/metric_id" },
+        "operating_point": { "$ref": "#/$defs/identifier" },
+        "attribute": { "$ref": "#/$defs/identifier" },
+        "level": { "$ref": "#/$defs/level" },
         "number": { "$ref": "#/$defs/number" }
       },
-      "required": ["metric_id", "number"],
+      "required": ["metric_id", "operating_point", "attribute", "level", "number"],
+      "additionalProperties": false
+    },
+    "two_by_two_cell": {
+      "type": "object",
+      "description": "One 2x2 table (overall per operating point). Suppressed as one cell when n, events (tp + fn) or non-events (fp + tn) fall below the thresholds.",
+      "properties": {
+        "operating_point": { "$ref": "#/$defs/identifier" },
+        "attribute": { "$ref": "#/$defs/identifier" },
+        "level": { "$ref": "#/$defs/level" },
+        "tp": { "type": ["integer", "null"], "minimum": 0 },
+        "fn": { "type": ["integer", "null"], "minimum": 0 },
+        "fp": { "type": ["integer", "null"], "minimum": 0 },
+        "tn": { "type": ["integer", "null"], "minimum": 0 },
+        "suppressed": { "type": "boolean" }
+      },
+      "required": ["operating_point", "attribute", "level", "tp", "fn", "fp", "tn", "suppressed"],
+      "additionalProperties": false,
+      "if": { "properties": { "suppressed": { "const": true } } },
+      "then": { "properties": { "tp": { "type": "null" }, "fn": { "type": "null" }, "fp": { "type": "null" }, "tn": { "type": "null" } } }
+    },
+    "calibration_bin": {
+      "type": "object",
+      "description": "One decile bin of the calibration curve: its size, its events, the mean prediction and the observed proportion. Suppressed as one cell.",
+      "properties": {
+        "bin": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "n": { "type": ["integer", "null"], "minimum": 10 },
+        "events": { "type": ["integer", "null"], "minimum": 5 },
+        "mean_pred": { "type": ["number", "null"] },
+        "observed": { "$ref": "#/$defs/number" },
+        "suppressed": { "type": "boolean" }
+      },
+      "required": ["bin", "n", "events", "mean_pred", "observed", "suppressed"],
+      "additionalProperties": false,
+      "if": { "properties": { "suppressed": { "const": true } } },
+      "then": { "properties": { "n": { "type": "null" }, "events": { "type": "null" }, "mean_pred": { "type": "null" } } }
+    },
+    "aggregates": {
+      "type": "object",
+      "properties": {
+        "schema": { "type": "string", "const": "proofpack-aggregates/1" },
+        "cells": { "type": "array", "items": { "$ref": "#/$defs/aggregate_cell" } },
+        "two_by_two": { "type": "array", "items": { "$ref": "#/$defs/two_by_two_cell" } },
+        "calibration_bins": { "type": "array", "items": { "$ref": "#/$defs/calibration_bin" } }
+      },
+      "required": ["schema", "cells", "two_by_two", "calibration_bins"],
       "additionalProperties": false
     }
   },
   "oneOf": [
     { "$ref": "#/$defs/telemetry" },
-    {
-      "type": "object",
-      "properties": {
-        "schema": { "type": "string", "const": "proofpack-aggregates/1" },
-        "cells": { "type": "array", "items": { "$ref": "#/$defs/aggregate_cell" } }
-      },
-      "required": ["schema", "cells"],
-      "additionalProperties": false
-    }
+    { "$ref": "#/$defs/aggregates" }
   ],
   "x-proofpack": {
-    "status": "skeleton",
+    "status": "final (build day 8, A-P2)",
+    "telemetry_url": "https://proofpack.globalphoenix.co.uk/api/telemetry",
+    "telemetry_off_switches": ["--offline", "egress.telemetry: false"],
     "suppression_defaults": { "min_n": 10, "min_events": 5, "min_nonevents": 5 },
     "suppression_rule": "Any cell with n < min_n, events < min_events or non-events < min_nonevents is serialised with suppressed=true and null values. Customers may only tighten these.",
+    "suppression_cells": ["subgroup rows", "fairness gap rows", "calibration decile bins", "the overall two-by-two tables", "every Number, on its own n and, where it carries them, k and n - k or n_pos and n_neg; a Number whose n is unknown is suppressed"],
     "pseudonymised_attributes": ["site", "device", "protocol", "attr_*"],
+    "pseudonym_order": "within each attribute, the original labels sorted by Unicode code point receive Site A, Site B, ... Site Z, Site AA ...; the Unknown/missing row keeps its engine label; a level of any other attribute that is not a short token (^[A-Za-z0-9][A-Za-z0-9_.+-]{0,15}$) is pseudonymised the same way with the Level prefix; the map is written to <out>/pseudonyms.json locally and never serialised into any payload",
     "header_whitelist_pattern": "^[a-z][a-z0-9_]{0,31}$",
-    "never_serialised": ["original headers", "row-level values", "justification", "description", "source", "raw dates"]
+    "never_serialised": ["original headers", "row-level values", "justification", "description", "source", "raw dates", "ROC thresholds and curve points", "level labels of site, device, protocol and attr_* columns", "the ledger key", "the licence signature", "the mapping"]
   }
 }

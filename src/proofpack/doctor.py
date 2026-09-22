@@ -122,7 +122,14 @@ def run_checks(*, offline: bool = False, cwd: str | Path | None = None) -> list[
         Check(
             "network",
             True,
-            "skipped (--offline)" if offline else "not attempted - no outbound call exists yet",
+            "skipped (--offline)"
+            if offline
+            else (
+                "not attempted by doctor; the one outbound call is run's telemetry POST to "
+                "https://proofpack.globalphoenix.co.uk/api/telemetry (schema, licence_id, "
+                "run_id, engine_version, platform, manifest_sha256, duration_s, halt_code, "
+                "row_count_bucket, timestamp), off with --offline or egress.telemetry: false"
+            ),
             essential=False,
         )
     )

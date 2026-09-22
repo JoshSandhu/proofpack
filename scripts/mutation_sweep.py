@@ -27,6 +27,7 @@ Usage::
     python scripts/mutation_sweep.py --marker day5            # the day-5 list against -m day5
     python scripts/mutation_sweep.py --marker day6            # both day-6 lists (E and A)
     python scripts/mutation_sweep.py --marker day7            # the day-7 list (E7)
+    python scripts/mutation_sweep.py --marker ap2             # the A-P2 egress list (day 8 A)
     python scripts/mutation_sweep.py --marker day5 --only ref_largest_to_smallest
     python scripts/mutation_sweep.py --list
     python scripts/mutation_sweep.py --marker day5 --fail-on-survivor   # exit 1 if any survive
@@ -69,6 +70,11 @@ class Mutant:
     count: int = 1  # how many matches the pattern must have (all are replaced)
     what: str = ""  # the behaviour it changes, for the report
     day: int = 5  # the build day whose marker the mutant is meant to be killed by
+    marker: str = ""  # a non-day marker the mutant is run under (A-P2: ``ap2``); "" = dayN
+
+    @property
+    def label(self) -> str:
+        return self.marker or f"day{self.day}"
 
 
 #: The day-5 list, then the day-6 list. Every one changes behaviour; none is intended to
@@ -1483,6 +1489,166 @@ def make_copy() -> Path:
     return tmp
 
 
+EGRESS_SUPPRESS = "src/proofpack/egress/suppress.py"
+EGRESS_PSEUDONYMISE = "src/proofpack/egress/pseudonymise.py"
+EGRESS_WHITELIST = "src/proofpack/egress/whitelist.py"
+EGRESS_BUILD = "src/proofpack/egress/build.py"
+EGRESS_TELEMETRY = "src/proofpack/egress/telemetry.py"
+CLI = "src/proofpack/cli.py"
+
+#: A-P2 (build day 8, lane A): the egress rules, the telemetry send and --offline. Run
+#: with ``--marker ap2`` (the tests carry ``day8`` and ``ap2``).
+AP2_MUTANTS: tuple[Mutant, ...] = (
+    Mutant(
+        "ap2_min_n_default_5",
+        EGRESS_SUPPRESS,
+        r"DEFAULT_MIN_N = 10",
+        "DEFAULT_MIN_N = 5",
+        what="k-suppression floor on n: 5 rows instead of 10",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_min_events_default_1",
+        EGRESS_SUPPRESS,
+        r"DEFAULT_MIN_EVENTS = 5",
+        "DEFAULT_MIN_EVENTS = 1",
+        what="k-suppression floor on events: 1 instead of 5",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_min_nonevents_default_1",
+        EGRESS_SUPPRESS,
+        r"DEFAULT_MIN_NONEVENTS = 5",
+        "DEFAULT_MIN_NONEVENTS = 1",
+        what="k-suppression floor on non-events: 1 instead of 5",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_looser_value_accepted",
+        EGRESS_SUPPRESS,
+        r"if declared < default:",
+        "if declared > default:",
+        what="a looser egress.suppression value is accepted and a stricter one refused",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_unknown_n_not_suppressed",
+        EGRESS_SUPPRESS,
+        r"if n is None or n < thresholds\.min_n:",
+        "if n is not None and n < thresholds.min_n:",
+        what="a cell whose n is unknown passes unsuppressed",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_pseudonym_order_reversed",
+        EGRESS_PSEUDONYMISE,
+        r"chosen = originals\n",
+        "chosen = list(reversed(originals))\n",
+        what="pseudonym order: last code point first",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_unknown_row_pseudonymised",
+        EGRESS_PSEUDONYMISE,
+        r"    if level == UNKNOWN_LEVEL:\n        return level\n",
+        "    if False:\n        return level\n",
+        what="the Unknown/missing row loses its pass-through",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_whitelist_keeps_unknown_keys",
+        EGRESS_WHITELIST,
+        r"        # every key of ``value`` that is not in ``props`` is dropped here\n"
+        r"        return out",
+        "        for key in value:\n            out.setdefault(key, value[key])\n"
+        "        return out",
+        what="whitelist projection passes keys the schema does not name",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_bucket_boundary_moved",
+        EGRESS_BUILD,
+        r'\("<1k", 0, 1_000\),\n    \("1k-10k", 1_000, 10_000\),',
+        '("<1k", 0, 10_000),\n    ("1k-10k", 10_000, 10_000),',
+        what="row bucket boundary: <1k swallows 1k-10k",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_manifest_sha256_over_wrapped",
+        EGRESS_BUILD,
+        r"return hashlib\.sha256\(canonical_json\(dict\(manifest\)\)\)\.hexdigest\(\)",
+        'return hashlib.sha256(canonical_json({"m": dict(manifest)})).hexdigest()',
+        what="manifest_sha256 hashes something other than the manifest block's bytes",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_licence_id_sent_when_refused",
+        EGRESS_BUILD,
+        r"verified = licence_status in VERIFIED_LICENCE_STATUSES",
+        "verified = True",
+        what="a refused licence's id is sent as if verified",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_timeout_50s",
+        EGRESS_TELEMETRY,
+        r"TIMEOUT_S = 5\.0",
+        "TIMEOUT_S = 50.0",
+        what="the one attempt waits 50 s instead of 5",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_offline_short_circuit_removed",
+        EGRESS_TELEMETRY,
+        r"if offline or not telemetry_enabled\(",
+        "if not telemetry_enabled(",
+        what="--offline no longer skips the send",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_telemetry_false_ignored",
+        EGRESS_TELEMETRY,
+        r'return egress\.get\("telemetry", True\) is not False',
+        "return True",
+        what="egress.telemetry: false no longer skips the send",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_non_2xx_counted_as_sent",
+        EGRESS_TELEMETRY,
+        r"if 200 <= status < 300:",
+        "if 200 <= status < 600:",
+        what="a 500 is reported as sent",
+        day=8,
+        marker="ap2",
+    ),
+    Mutant(
+        "ap2_exit_code_changed_by_send",
+        CLI,
+        r"    return outcome\.exit_code\n",
+        "    return EXIT_WARNINGS if sent is not None and not sent.sent else outcome.exit_code\n",
+        what="a failed send turns the run's exit code into 2",
+        day=8,
+        marker="ap2",
+    ),
+)
+MUTANTS = MUTANTS + AP2_MUTANTS
+
+
 def env_for(copy: Path) -> dict[str, str]:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(copy / "src")
@@ -1549,11 +1715,14 @@ def main(argv: list[str] | None = None) -> int:
         day = int(args.marker[3:])
     # --only picks by id within the day (a day-6 id needs --marker day6 beside it)
     chosen = [
-        m for m in MUTANTS if (not args.only or m.id in args.only) and (day is None or m.day == day)
+        m
+        for m in MUTANTS
+        if (not args.only or m.id in args.only)
+        and (m.day == day if day is not None else m.label == args.marker)
     ]
     if args.list:
         for m in MUTANTS:
-            print(f"{m.id:<40} day{m.day} {m.file:<36} {m.what}")
+            print(f"{m.id:<40} {m.label} {m.file:<36} {m.what}")
         return 0
     copy = make_copy()
     try:

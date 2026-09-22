@@ -291,3 +291,36 @@ def _isolated_home(session_home: Path, monkeypatch):
     monkeypatch.setenv("PROOFPACK_HOME", str(session_home))
     monkeypatch.delenv("PROOFPACK_LICENCE", raising=False)
     yield
+
+
+# ------------------------------------------------------------- telemetry (build day 8)
+#
+# ``egress.telemetry`` is opt-out (D1 section 6): a criteria file without an ``egress``
+# block, run in-process without ``--offline``, would POST to the live endpoint from the
+# test suite. The guard below replaces the real transport for every test with one that
+# raises a BaseException (``send`` catches ``Exception`` only, so the attempt cannot be
+# swallowed into a W16 line) and records the attempt. Tests that exercise the real
+# transport against a loopback ``http.server`` take it from :data:`REAL_TRANSPORT`.
+
+
+class NetworkAttempted(BaseException):
+    """A test reached the default telemetry transport. The suite must never do that."""
+
+
+NETWORK_ATTEMPTS: list[tuple[str, int]] = []
+
+
+def _refusing_transport(url: str, body: bytes, timeout: float) -> int:
+    NETWORK_ATTEMPTS.append((url, len(body)))
+    raise NetworkAttempted(f"telemetry transport reached in a test: {url}")
+
+
+from proofpack.egress import telemetry as _telemetry  # noqa: E402 - after the helpers
+
+REAL_TRANSPORT = _telemetry.urllib_transport
+
+
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch):
+    monkeypatch.setattr(_telemetry, "urllib_transport", _refusing_transport)
+    yield
