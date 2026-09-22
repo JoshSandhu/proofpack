@@ -1,8 +1,9 @@
 """Locate packaged schema and design files.
 
-In a built wheel the repo's ``schema/`` directory and ``design/guidance_map_v1.csv``
-are force-included as ``proofpack/_schema/``. In an editable/dev checkout we fall
-back to the repository layout so the files in ``schema/`` stay the single source.
+In a built wheel the repo's ``schema/`` directory, ``design/guidance_map_v1.csv`` and
+``design/tokens.json`` are force-included as ``proofpack/_schema/``. In an editable/dev
+checkout we fall back to the repository layout so the files in ``schema/`` stay the
+single source.
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ _CANDIDATES = {
         "../../schema/output_schema_v1.json",
     ],
     "guidance_map_v1.csv": ["_schema/guidance_map_v1.csv", "../../design/guidance_map_v1.csv"],
+    # D5 section 4 (build day 8): the theme, read by proofpack.render.theme
+    "tokens.json": ["_schema/tokens.json", "../../design/tokens.json"],
 }
 
 

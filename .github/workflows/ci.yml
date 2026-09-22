@@ -96,7 +96,8 @@ jobs:
           uv run --no-project --with dist/*.whl python - <<'EOF'
           from proofpack.resources import resource_path
           for n in ("schema_v1.json", "criteria_schema.json", "claims_schema.json",
-                    "egress_schema.json", "output_schema_v1.json", "guidance_map_v1.csv"):
+                    "egress_schema.json", "output_schema_v1.json", "guidance_map_v1.csv",
+                    "tokens.json"):
               p = resource_path(n)
               assert "_schema" in str(p), p
           print("packaged resources ok")

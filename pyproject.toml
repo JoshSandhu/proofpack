@@ -13,6 +13,10 @@ dependencies = [
     # Ed25519 licence verification (D1 section 7, build day 7). Imported inside
     # proofpack.licence.verify only: `import proofpack` works without it.
     "cryptography>=42",
+    # HTML rendering (D1 section 3.1 render.*, build day 8). Imported inside
+    # proofpack.render.html only: `import proofpack` and `import proofpack.render` work
+    # without it (tests/test_render_theme.py hides it from sys.modules).
+    "jinja2>=3.1",
 ]
 
 [project.optional-dependencies]
@@ -48,6 +52,10 @@ packages = ["src/proofpack"]
 "schema/egress_schema.json" = "proofpack/_schema/egress_schema.json"
 "schema/output_schema_v1.json" = "proofpack/_schema/output_schema_v1.json"
 "design/guidance_map_v1.csv" = "proofpack/_schema/guidance_map_v1.csv"
+# D5 section 4: the theme ships in the wheel beside the guidance map (three files: this
+# line, design/tokens.json, the resources.py entry); tests/test_render_theme.py installs a
+# built wheel into a fresh venv and asserts resource_path("tokens.json") resolves inside it.
+"design/tokens.json" = "proofpack/_schema/tokens.json"
 
 [tool.hatch.build.targets.sdist]
 include = ["src/proofpack", "schema", "fixtures", "README.md", "pyproject.toml"]
@@ -71,7 +79,7 @@ markers = [
     "day5: Day 5",
     "day6: Day 6",
     "day7: Day 7",
-    "day8: Day 8",
+    "day8: Day 8 (E8) claims, checker, HTML renderer, T8, tokens.json",
     "day9: Day 9",
     "day10: Day 10",
     "fixture: named fixture register entries (F1-F21)",
