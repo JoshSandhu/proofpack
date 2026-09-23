@@ -46,7 +46,7 @@
     },
     "y_pred": {
       "type": ["string", "integer", "null"],
-      "description": "Optional. Values must be a subset of declared classes.positive ∪ classes.negative ∪ indeterminates.values, else H02 (repair 1 of build day 8); must equal rule(score, threshold) at every declared operating point on every row, else H04."
+      "description": "Optional. Non-blank values must be a subset of declared classes.positive ∪ classes.negative ∪ indeterminates.values, else H02 (repair 1 of build day 8); must equal rule(score, threshold) at every declared operating point on every row, else H04. A blank cell on a table without a score column is a missing prediction input: the row is excluded and counted under flow.excluded_missing_score (repair 2 of build day 8); a value in indeterminates.values marks the row indeterminate (flow.indeterminate)."
     },
     "indeterminate": {
       "type": ["integer", "null"],

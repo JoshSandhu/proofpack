@@ -1475,6 +1475,7 @@ MUTANTS_DAY7: tuple[Mutant, ...] = (
 #: ``--marker day8``.
 FORMAT = "src/proofpack/render/format.py"
 GATES = "src/proofpack/gates.py"
+IO_SCHEMA = "src/proofpack/io/schema.py"
 CHECKER = "src/proofpack/narrate/checker.py"
 CLAIMS = "src/proofpack/narrate/claims.py"
 ANCHORS = "src/proofpack/render/anchors.py"
@@ -1609,7 +1610,7 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
     Mutant(
         "checker_metric_binding_skipped",
         CHECKER,
-        r"            if f is not None and f\.metric is not None and f\.metric not in allowed:",
+        r"            if f\.metric is not None and f\.metric not in allowed:",
         "            if False:",
         day=8,
         what="a value_ref naming a sibling metric is accepted (FA-B1)",
@@ -1617,9 +1618,9 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
     Mutant(
         "checker_operating_point_binding_skipped",
         CHECKER,
-        r"        if f is not None and f\.operating_point is not None "
-        r"and f\.operating_point != op:",
-        "        if False:",
+        r"        return reject\(\"operating_point_mismatch\", value_ref=ref, "
+        r"operating_point=op\)",
+        "        continue",
         day=8,
         what="a value_ref naming another operating point is accepted (FA-B1)",
     ),
@@ -1647,13 +1648,17 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
         day=8,
         what="a Cyrillic a in pass is not mapped to a (FA-B2)",
     ),
+    # checker_format_characters_kept (repair 1, FA-B2) was withdrawn in repair 2: once
+    # _words joins up to _JOIN_RUN = 14 consecutive tokens, a kept Mn / Cf character only
+    # splits a word into more tokens, never more than its letters, and no listed word has
+    # more than 14 letters - the mutant became equivalent (it survived at repair 2).
     Mutant(
-        "checker_format_characters_kept",
+        "checker_join_window_short",
         CHECKER,
-        r'        if unicodedata\.category\(ch\) in \("Mn", "Cf"\):',
-        "        if False:",
+        r"^_JOIN_RUN = 14$",
+        "_JOIN_RUN = 12",
         day=8,
-        what="a zero-width joiner or combining mark inside a verdict word is kept (FA-B2)",
+        what="the thirteen spaced letters of a longest listed word are not joined (FA-B4)",
     ),
     Mutant(
         "checker_hyphen_parts_not_split",
@@ -1712,6 +1717,118 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
         '_overall_cell_key("prevalence"))',
         day=8,
         what="the clustered overall prevalence is the negative share (lens FA-N2's survivor)",
+    ),
+    # --- repair 2 of day 8 (23 September): one mutant per rule the lens-2 pair found missing
+    Mutant(
+        "schema_blank_y_pred_analysed",
+        IO_SCHEMA,
+        r"        sc_missing = np\.array\(\[v is None for v in table\.y_pred\.tolist\(\)\], "
+        r"dtype=bool\)",
+        "        sc_missing = np.zeros(n, dtype=bool)",
+        day=8,
+        what="a blank y_pred on a table without a score column is analysed as a negative "
+        "prediction (FA-B1 / RG-B1)",
+    ),
+    Mutant(
+        "schema_indeterminate_y_pred_ignored",
+        IO_SCHEMA,
+        r"    if table\.y_pred is not None:\n        indet \|= np\.array\(",
+        "    if False:\n        indet |= np.array(",
+        day=8,
+        what="a y_pred equal to a declared indeterminate value is analysed as a negative "
+        "prediction (FA-B1)",
+    ),
+    Mutant(
+        "gates_h02_skips_y_pred_beside_a_score",
+        GATES,
+        r"        if values is None:\n            continue\n        observed",
+        '        if values is None or (column == "y_pred" and table.score is not None):\n'
+        "            continue\n        observed",
+        day=8,
+        what="H02 does not read y_pred when a score column exists (RG-N2, FA-N4's survivor)",
+    ),
+    Mutant(
+        "checker_offshape_pointer_bound_by_nothing",
+        CHECKER,
+        r'        if f is None:\n            return reject\("value_ref_unbound", value_ref=ref, '
+        r'reason="path off the pointer shapes"\)',
+        "        if f is None:\n            continue",
+        day=8,
+        what="a Number off the eight pointer shapes is accepted unbound (FA-B2)",
+    ),
+    Mutant(
+        "checker_unbound_template_binds_a_number",
+        CHECKER,
+        r"    if numbers and template_id not in BOUND_TEMPLATES:",
+        "    if False:",
+        day=8,
+        what="a template outside the bound set binds a Number (FA-B2: 20 templates)",
+    ),
+    Mutant(
+        "checker_scalar_under_estimate_template_accepted",
+        CHECKER,
+        r"    if template_id in ESTIMATE_TEMPLATES and len\(numbers\) != len\(refs\):",
+        "    if False:",
+        day=8,
+        what="OVERALL_ESTIMATE over /flow/analysed alone is accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_null_metric_binds_any_number",
+        CHECKER,
+        r"    if numbers and metric_id is None:",
+        "    if False:",
+        day=8,
+        what="a claim with metric_id null binds any Number (FA-B2)",
+    ),
+    Mutant(
+        "checker_operating_point_null_ignored",
+        CHECKER,
+        r"        if f\.operating_point == op:\n            continue",
+        "        if f.operating_point == op or f.operating_point is None:\n            continue",
+        day=8,
+        what="AUROC_ESTIMATE with operating_point op1 is accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_reference_null_on_difference_accepted",
+        CHECKER,
+        r'        if reference is None and block_read == "diff_vs_reference" '
+        r"and ref_level is not None:",
+        "        if False:",
+        day=8,
+        what="a diff_vs_reference claim with reference null is accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_swapped_difference_slots_accepted",
+        CHECKER,
+        r"        if len\(blocks\) != 2 or blocks\[0\] is not None "
+        r"or blocks\[1\] not in DIFFERENCE_BLOCKS:",
+        "        if len(blocks) != 2:",
+        day=8,
+        what="the estimate and difference pointers swapped are accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_token_runs_not_joined",
+        CHECKER,
+        r"            joined \+= parts\[j\]\n            out\.add\(joined\)",
+        "            joined += parts[j]",
+        day=8,
+        what="p a s s and pa-ss are matched as separate tokens only (FA-B4 / RG-B2)",
+    ),
+    Mutant(
+        "checker_small_capitals_unmapped",
+        CHECKER,
+        r'    "ᴘ": "p",',
+        '    "ᴘ": "ᴘ",',
+        day=8,
+        what="the small capital P is not mapped to p (RG-B2)",
+    ),
+    Mutant(
+        "html_has_criteria_from_declarations_only",
+        HTML,
+        r'        "has_criteria": bool\(document\.get\("criteria_results"\)\)\n        or bool\(',
+        '        "has_criteria": False\n        or bool(',
+        day=8,
+        what="a fairness bound without a criteria list prints no criteria table (FA-B3)",
     ),
 )
 

@@ -1,0 +1,24 @@
+{
+  "name": "auroc_estimate_names_an_operating_point",
+  "rule": "AUROC_ESTIMATE with operating_point op1 over /overall/threshold_free/auroc, whose path names none (lens FA-B2: accepted at 657ef11)",
+  "expected_reason_code": "operating_point_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9126",
+    "template_id": "AUROC_ESTIMATE",
+    "metric_id": "auroc",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/threshold_free/auroc"
+    ],
+    "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
+    "free_text": null
+  }
+}

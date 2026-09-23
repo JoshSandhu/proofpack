@@ -1,0 +1,24 @@
+{
+  "name": "template_outside_the_bound_set_binds_a_number",
+  "rule": "LOSO_RESULT (a template rule 4 does not read; refs 1-2) bound to /overall/op1/sensitivity (lens FA-B2: 20 such templates accepted at 657ef11)",
+  "expected_reason_code": "value_ref_unbound",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9121",
+    "template_id": "LOSO_RESULT",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/sensitivity"
+    ],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

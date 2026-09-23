@@ -3,8 +3,11 @@ FA-B1 (binding), FA-B2 (free_text spellings), FA-B3 (y_pred vocabulary), FA-B4 (
 digits), FA-B5 (prior_version), FA-N1 (author by position), FA-N2 (the clustered
 prevalence no test pinned), FA-N4 (the checker items sharing B1's cause), RG-N1 and RG-N4
 (malformed documents). Each test names the literal input it feeds and the figure it
-asserts; every one failed in a worktree at 29fc04e with PYTHONPATH forced, and the
-repair-1 note quotes the first E line of each.
+asserts. Nine of the ten failed in a worktree at 29fc04e with PYTHONPATH forced, and the
+repair-1 note quotes the first E line of each; the tenth,
+``test_the_clustered_overall_prevalence_is_the_pooled_positive_share``, passes there
+(``1 passed`` at 29fc04e, lens RG-N1) and is the pin for the day-8 sweep's
+``run_prevalence_wrong_key`` mutant, not a regression test.
 """
 
 from __future__ import annotations
@@ -155,8 +158,10 @@ def test_the_lens_b1_and_n4_literal_claims_are_rejected_with_the_named_code(docu
             "subgroup_mismatch",
         ),
         (
+            # relation_mismatch in repair 1; from repair 2 rule 4 refuses the count before
+            # rule 5 reads the relation (lens FA-B2: not_assessable over the tp count)
             {**copy.deepcopy(engine[0]), "value_refs": ["/overall/op1/two_by_two/tp"]},
-            "relation_mismatch",
+            "value_ref_unbound",
         ),
         (
             {**copy.deepcopy(sub_diff), "value_refs": [sub_diff["value_refs"][1]] * 2},
@@ -408,7 +413,17 @@ def test_two_malformed_documents_are_rejected_not_raised(document):
     }
     bad = {"flow": copy.deepcopy(document["flow"]), "fairness": "x"}
     verdict = checker.check([scalar_gap], bad).verdicts[0]
-    assert not verdict.accepted and verdict.reason_code == "subgroup_not_in_document"
+    # subgroup_not_in_document in repair 1; from repair 2 rule 4 refuses the four counts
+    # under an estimate template before rule 6 reads the fairness block - a typed
+    # rejection either way, where 29fc04e raised AttributeError
+    assert not verdict.accepted and verdict.reason_code == "value_ref_unbound"
+    # the non-dict fairness guard of rule 6, reached by a subgroup claim on a document
+    # whose fairness block is the string x: a verdict, not a raise (accepted: the
+    # fairness block does not bear on a subgroup estimate of age = 40-65)
+    sub_est = next(c for c in engine if c["template_id"] == "SUBGROUP_ESTIMATE")
+    bad_full = {**copy.deepcopy(document), "fairness": "x"}
+    assert sub_est["claim_id"] == "CL-0020"
+    assert checker.check([sub_est], bad_full).verdicts[0].accepted
     string_ci = copy.deepcopy(document)
     string_ci["overall"]["op1"]["sensitivity"]["ci_lo"] = "0.1"
     verdict2 = checker.check([engine[0]], string_ci).verdicts[0]

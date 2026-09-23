@@ -404,7 +404,13 @@ def t8_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
             document.get("declarations") or {}, sort_keys=True, allow_unicode=True
         ),
         "criteria_rows": criteria_rows(document),
-        "has_criteria": bool((document.get("declarations") or {}).get("criteria")),
+        # a criteria row exists for every criteria.yaml entry and for the fairness bound,
+        # so the table is gated on the rows, not on the criteria list alone (repair 2,
+        # lens FA-B3: a fairness bound with no criteria list gave a not_met row in
+        # criteria_results, section 7's criteria_not_met 1, and the caption "No
+        # acceptance criteria were declared" with no table on the same page)
+        "has_criteria": bool(document.get("criteria_results"))
+        or bool((document.get("declarations") or {}).get("criteria")),
         "warning_rows": warning_rows(document),
         "halts": document.get("halts") or [],
         "ledger": {

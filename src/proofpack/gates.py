@@ -45,11 +45,15 @@ def _oriented(scores: np.ndarray, orientation: str) -> np.ndarray:
 
 
 def gate_h02(table: Table, decl: Declarations) -> None:
-    """``y_true`` and, when the column is present, ``y_pred`` hold only the declared
-    classes and indeterminate values. ``y_pred`` joined the gate in repair 1 of build day
-    8 (lens FA-B3): a ``y_pred`` column of ``yes`` / ``no`` beside classes ``1`` / ``0``
-    and no score column reached ``overall_block`` as every row predicted negative and
-    printed sensitivity ``0/42``; ``tests/test_e8_repair1.py`` feeds that table."""
+    """Every non-blank value of ``y_true`` and, when the column is present, of ``y_pred``
+    is a declared class or a declared indeterminate value; a blank cell (``None`` after
+    the missing-token normalisation) is not read here - :func:`proofpack.io.schema.
+    analysis_mask` excludes it and counts it. ``y_pred`` joined the gate in repair 1 of
+    build day 8 (lens FA-B3): a ``y_pred`` column of ``yes`` / ``no`` beside classes
+    ``1`` / ``0`` and no score column reached ``overall_block`` as every row predicted
+    negative and printed sensitivity ``0/42``; ``tests/test_e8_repair1.py`` feeds that
+    table, and ``tests/test_e8_repair2.py::test_h02_on_y_pred_fires_beside_a_score_column``
+    feeds the same ``yes`` / ``no`` column beside a score column (lens RG-N2)."""
     allowed = decl.classes | decl.indeterminate_values
     for column, values in (("y_true", table.y_true), ("y_pred", table.y_pred)):
         if values is None:

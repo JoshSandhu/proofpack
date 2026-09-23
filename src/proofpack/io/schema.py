@@ -418,12 +418,20 @@ def validate(raw: RawTable, period: dict | None = None) -> Table:
 
 
 def analysis_mask(table: Table, indeterminate_values: set[str]) -> tuple[np.ndarray, FlowCounts]:
-    """Rows usable for score-based analysis, and the flow counts.
+    """Rows usable for analysis, and the flow counts.
 
-    A row is excluded when ``y_true`` is missing, or ``score`` is missing while a
-    score column exists. Indeterminate rows (by value or by the 0/1 column) are
-    counted separately and excluded from the default mask (both-way analysis is a
-    later day). ``dev`` rows are never analysed.
+    A row is excluded when ``y_true`` is missing, or the prediction input is missing:
+    ``score`` while a score column exists, otherwise ``y_pred`` (repair 2 of build day 8,
+    lens FA-B1 / RG-B1: at ``657ef11`` a blank ``y_pred`` on a table without a score
+    column reached ``overall_block`` as a negative prediction - 60 blanks in 120 rows gave
+    ``{tp 21, fn 21, fp 7, tn 71}`` where the 60 non-blank rows give ``{tp 21, fn 3, fp 7,
+    tn 29}``; ``tests/test_e8_repair2.py`` feeds that table). Both exclusions count under
+    ``excluded_missing_score``, the flow's one "missing prediction input" entry (D1
+    section 2: "excluded-missing"). Indeterminate rows - ``y_true`` or ``y_pred`` holding a
+    declared indeterminate value (``schema_v1.json``: the 0/1 column is "an alternative to
+    listing indeterminate values in y_true / y_pred"), or the 0/1 column - are counted
+    separately and excluded from the default mask (both-way analysis is a later day).
+    ``dev`` rows are never analysed.
     """
     n = table.n_rows
     yt_missing = np.array([v is None for v in table.y_true.tolist()], dtype=bool)
@@ -431,10 +439,20 @@ def analysis_mask(table: Table, indeterminate_values: set[str]) -> tuple[np.ndar
         dev = np.array([v == "dev" for v in table.dataset.tolist()], dtype=bool)
     else:
         dev = np.zeros(n, dtype=bool)
-    sc_missing = np.isnan(table.score) if table.score is not None else np.zeros(n, dtype=bool)
+    if table.score is not None:
+        sc_missing = np.isnan(table.score)
+    elif table.y_pred is not None:
+        sc_missing = np.array([v is None for v in table.y_pred.tolist()], dtype=bool)
+    else:  # pragma: no cover - validate() requires a score or a y_pred column
+        sc_missing = np.zeros(n, dtype=bool)
     indet = np.array(
         [v is not None and v in indeterminate_values for v in table.y_true.tolist()], dtype=bool
     )
+    if table.y_pred is not None:
+        indet |= np.array(
+            [v is not None and v in indeterminate_values for v in table.y_pred.tolist()],
+            dtype=bool,
+        )
     if table.indeterminate is not None:
         indet |= table.indeterminate == 1
     base = ~dev

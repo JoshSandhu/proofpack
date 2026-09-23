@@ -1,10 +1,10 @@
 {
-  "name": "estimate_bound_to_a_count_only",
-  "rule": "OVERALL_ESTIMATE stating relation estimate over the tp count alone (a documented scalar under an estimate template; relation_mismatch at 657ef11, value_ref_unbound from repair 2 since rule 4 refuses the scalar before rule 5 reads the relation)",
+  "name": "off_shape_calibration_oe_analytic",
+  "rule": "OVERALL_ESTIMATE sensitivity bound to /calibration/oe/analytic (lens FA-B2)",
   "expected_reason_code": "value_ref_unbound",
   "note": "",
   "claim": {
-    "claim_id": "CL-9101",
+    "claim_id": "CL-9119",
     "template_id": "OVERALL_ESTIMATE",
     "metric_id": "sensitivity",
     "operating_point": "op1",
@@ -16,7 +16,7 @@
     "status": null,
     "relation": "estimate",
     "value_refs": [
-      "/overall/op1/two_by_two/tp"
+      "/calibration/oe/analytic"
     ],
     "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
     "free_text": null
