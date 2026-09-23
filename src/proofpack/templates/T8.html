@@ -111,9 +111,11 @@
 <tr><th scope="row">Rows analysed</th><td class="num" data-count="rows_analysed">{{ integrity.rows_analysed | fmt_count }}</td></tr>
 <tr><th scope="row">Subgroup rows</th><td class="num" data-count="subgroup_rows">{{ integrity.subgroup_rows | fmt_count }}</td></tr>
 <tr><th scope="row">Criteria rows</th><td class="num" data-count="criteria_rows">{{ integrity.criteria_rows | fmt_count }}</td></tr>
+{% if has_criteria %}
 {% for status, n in integrity.criteria_by_status %}
 <tr><th scope="row" class="status">{{ status_words[status] }}</th><td class="num" data-count="criteria_{{ status }}">{{ n | fmt_count }}</td></tr>
 {% endfor %}
+{% endif %}
 <tr><th scope="row">Suppressed cells</th><td class="num" data-count="suppressed_cells">{{ integrity.suppressed_cells | fmt_count }}</td></tr>
 <tr><th scope="row">Warnings</th><td class="num" data-count="warnings">{{ integrity.warnings | fmt_count }}</td></tr>
 </tbody>
