@@ -31,8 +31,8 @@ because the subgroup is part of it.
 
 **Differences.** Proportion metrics: Newcombe (1998) method 10 on independent rows. AUROC:
 the unpaired DeLong (1988) difference - the two variances add because the samples are
-disjoint - with a Wald interval; z and the two-sided p are printed as detail, and no status
-is read from them. The
+disjoint - with a Wald interval; z and the two-sided p are written to run.json beside the
+difference (`diff_vs_reference.auroc.detail` and `diff_vs_complement.auroc.detail`). The
 AUROC difference is refused with `boundary_estimate` (estimate carried, no z, no p) when
 either side's DeLong variance is zero - a perfectly separated side, whose own AUROC the
 engine already refuses for the same reason - because the interval would otherwise be the
@@ -181,7 +181,7 @@ position stated two paragraphs above.
 
 Each convention below is stated in full in the module docstring of `stats.calibration`,
 with the test that feeds the input named; this section is the T7 summary of the same
-rules. No target is compared to and no word describes the calibration.
+rules.
 
 **Scope.** The block is computed only for a score declared `probability` with
 `higher_is_positive`. A `logit` or `other` score gives a `None` block with the typed

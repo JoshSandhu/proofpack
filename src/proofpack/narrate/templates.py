@@ -24,6 +24,11 @@ column, a y_pred)" after "lacked a score" (repair 3, lens FA-N4: since repair 2
 column, and D4's words named a score only); ``CRITERION_STATUS`` prints " - " where D4
 has an em dash; ``KS_RESULT`` prints "Kolmogorov-Smirnov" where D4 has an en dash.
 ``REF_STD_TYPE_NOTE`` carries D4's two sentences as a phrase map.
+``SUBGROUP_ESTIMATE_WITH_DIFF``, ``SUBGROUP_ESTIMATE`` (and their not-estimable variants)
+and ``FAIRNESS_GAP`` add " at operating point {op_id}" after the group (E9 repair 2, lens-2
+FA-B1: on a run declaring op1 and op2, T1 printed "For age = 0-40, sensitivity was 30/38"
+and "... was 36/38" with nothing naming which operating point each figure belongs to; the
+claim already carries ``operating_point``).
 """
 
 from __future__ import annotations
@@ -208,14 +213,15 @@ _T: list[Template] = [
     ),
     Template(
         "SUBGROUP_ESTIMATE_WITH_DIFF",
-        "For {attribute} = {level}, {metric_name} was {k}/{n} ({est}) [{ci}], a difference of "
-        "{diff} percentage points [{diff_ci}] versus {reference_level}.",
+        "For {attribute} = {level} at operating point {op_id}, {metric_name} was {k}/{n} ({est}) "
+        "[{ci}], a difference of {diff} percentage points [{diff_ci}] versus {reference_level}.",
         refs=(2, 2),
         guidance_ref="FDA_AIDSF_SUBGROUP_PERF",
     ),
     Template(
         "SUBGROUP_ESTIMATE",
-        "For {attribute} = {level}, {metric_name} was {k}/{n} ({est}) [{ci}].",
+        "For {attribute} = {level} at operating point {op_id}, {metric_name} was {k}/{n} ({est}) "
+        "[{ci}].",
         refs=(1, 1),
         guidance_ref="FDA_AIDSF_SUBGROUP_PERF",
         note=(
@@ -285,8 +291,8 @@ _T: list[Template] = [
     ),
     Template(
         "FAIRNESS_GAP",
-        "For {level} versus {reference_level}: TPR gap {tpr_gap} [{ci}], FPR gap {fpr_gap} "
-        "[{ci}], PPV gap {ppv_gap} [{ci}], AUROC gap {auroc_gap} [{ci}].",
+        "For {level} versus {reference_level} at operating point {op_id}: TPR gap {tpr_gap} "
+        "[{ci}], FPR gap {fpr_gap} [{ci}], PPV gap {ppv_gap} [{ci}], AUROC gap {auroc_gap} [{ci}].",
         refs=(4, 4),
         guidance_ref="FDA_AIDSF_SUBGROUP_PERF",
     ),
@@ -838,8 +844,8 @@ VARIANTS: dict[str, tuple[Variant, ...]] = {
     "SUBGROUP_ESTIMATE": (
         Variant(
             "not_estimable",
-            "For {attribute} = {level}, {metric_name} was not estimable with an interval "
-            "({reason}).",
+            "For {attribute} = {level} at operating point {op_id}, {metric_name} was not estimable "
+            "with an interval ({reason}).",
             {"reason": (f"{_V}.reason",)},
             statuses=_NA,
         ),
@@ -847,9 +853,9 @@ VARIANTS: dict[str, tuple[Variant, ...]] = {
     "SUBGROUP_ESTIMATE_WITH_DIFF": (
         Variant(
             "difference_not_estimable",
-            "For {attribute} = {level}, {metric_name} was {k}/{n} ({est}) [{ci}]; the "
-            "difference versus {reference_level} was not estimable with an interval "
-            "({reason}).",
+            "For {attribute} = {level} at operating point {op_id}, {metric_name} was {k}/{n} "
+            "({est}) [{ci}]; the difference versus {reference_level} was not estimable with an "
+            "interval ({reason}).",
             {**_ROW_FACETS, "reason": ("diff.reason",)},
             statuses=_NA,
         ),

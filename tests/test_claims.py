@@ -422,9 +422,11 @@ def test_the_library_transcribes_d4_section_8_and_every_slot_is_a_formatter_fiel
     assert templates.NARRATIVE_FOOTER == (
         "Machine-drafted; requires review by the manufacturer's statistician and regulatory lead."
     )
+    # E9 repair 2 (lens-2 FA-B1): the operating point is named after the group
     assert templates.slots("SUBGROUP_ESTIMATE_WITH_DIFF") == (
         "attribute",
         "level",
+        "op_id",
         "metric_name",
         "k",
         "n",

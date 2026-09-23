@@ -390,10 +390,10 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
         {
             "metric_id": "sensitivity",
             "numbers": {"value": PROP, "diff": DIFF},
-            "text": {"attribute": "sex", "level": "F", "reference_level": "M"},
+            "text": {"attribute": "sex", "level": "F", "reference_level": "M", "op_id": "op1"},
         },
-        f"For sex = F, sensitivity was {PROP_TXT}, a difference of −3.2 percentage points "
-        "[−6.1, −0.4] versus M.",
+        f"For sex = F at operating point op1, sensitivity was {PROP_TXT}, a difference of −3.2 "
+        "percentage points [−6.1, −0.4] versus M.",
     ),
     (
         "subgroup_diff_not_estimable",
@@ -403,10 +403,10 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
             "metric_id": "sensitivity",
             "status": "not_assessable",
             "numbers": {"value": PROP, "diff": _ne("cases_span_both_groups")},
-            "text": {"attribute": "sex", "level": "F", "reference_level": "M"},
+            "text": {"attribute": "sex", "level": "F", "reference_level": "M", "op_id": "op1"},
         },
-        f"For sex = F, sensitivity was {PROP_TXT}; the difference versus M was not estimable "
-        "with an interval (cases_span_both_groups).",
+        f"For sex = F at operating point op1, sensitivity was {PROP_TXT}; the difference versus "
+        "M was not estimable with an interval (cases_span_both_groups).",
     ),
     (
         "subgroup_estimate",
@@ -415,9 +415,9 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
         {
             "metric_id": "sensitivity",
             "numbers": {"value": PROP_TIER},
-            "text": {"attribute": "site", "level": "S3"},
+            "text": {"attribute": "site", "level": "S3", "op_id": "op1"},
         },
-        "For site = S3, sensitivity was 81/263 (30.8%ᶜ) [25.5, 36.6].",
+        "For site = S3 at operating point op1, sensitivity was 81/263 (30.8%ᶜ) [25.5, 36.6].",
     ),
     (
         "subgroup_not_estimable",
@@ -427,9 +427,10 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
             "metric_id": "specificity",
             "status": "not_assessable",
             "numbers": {"value": _ne("zero_denominator")},
-            "text": {"attribute": "site", "level": "S3"},
+            "text": {"attribute": "site", "level": "S3", "op_id": "op2"},
         },
-        "For site = S3, specificity was not estimable with an interval (zero_denominator).",
+        "For site = S3 at operating point op2, specificity was not estimable with an interval "
+        "(zero_denominator).",
     ),
     (
         "prespec_prespecified",
@@ -568,10 +569,10 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
         {
             "metric_id": "tpr_gap",
             "numbers": {"tpr_gap": TPR, "fpr_gap": FPR, "ppv_gap": PPVG, "auroc_gap": DIFF3},
-            "text": {"level": "F", "reference_level": "M"},
+            "text": {"level": "F", "reference_level": "M", "op_id": "op1"},
         },
-        "For F versus M: TPR gap +7.0 [−7.9, +21.7], FPR gap −4.8 [−14.8, +5.4], PPV gap +8.9 "
-        "[−6.2, +23.3], AUROC gap −0.012 [−0.041, +0.017].",
+        "For F versus M at operating point op1: TPR gap +7.0 [−7.9, +21.7], FPR gap −4.8 "
+        "[−14.8, +5.4], PPV gap +8.9 [−6.2, +23.3], AUROC gap −0.012 [−0.041, +0.017].",
     ),
     (
         "selection_rate",

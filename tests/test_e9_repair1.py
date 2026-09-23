@@ -1,7 +1,10 @@
 """Build day 9, repair round 1 (lens 1 fresh attack and regression, 23 September 2026).
 
-Each test feeds the input a lens fed and asserts the figure it measured; each fails at
-``71b00d2`` (the pre-fix line is in the repair note):
+Each test feeds the input a lens fed and asserts the figure it measured. Each fails at
+``71b00d2`` except ``test_the_footer_helper_counts_per_page_and_refuses_the_lens_mutant``,
+which checks the test helper ``footers_per_page`` on a mutant it builds and passes there
+(lens-2 FA-N4 / RG-N1); its pre-fix evidence is the lens's mutant planted in ``71b00d2``'s
+``T1.html``, in the repair note. The pre-fix lines are in the repair note:
 
 * **FA-B1 / RG-B2** - the page grep of ``test_render_t1`` (the words of
   ``test_render_t8.FORBIDDEN_ON_PAGE`` outside ``.status``, ``.disclaimer`` and
@@ -77,7 +80,7 @@ def clustered() -> dict[str, Any]:
 # ------------------------------------------------------------------ FA-B1 / RG-B2 / FA-N1
 
 
-def test_t7_iid_and_clustered_carry_no_forbidden_word_and_no_internal_decision_text(
+def test_t7_iid_and_clustered_carry_no_forbidden_word_and_no_josh_or_open_decision(
     document, clustered
 ):
     for doc in (document, clustered):

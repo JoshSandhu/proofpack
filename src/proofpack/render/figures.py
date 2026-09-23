@@ -340,7 +340,10 @@ def f4_calibration(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any
         "ylabel": "Observed proportion",
         "caption": (
             f"n = {fmt.count(cal.get('n'))} rows ({fmt.count(cal.get('events'))} events) in "
-            f"{len(bins)} equal-mass bins; bar interval: {method_list(drawn_nums)}; "
+            f"{len(bins)} equal-mass bins; "
+            # E9 repair 2 (lens-2 FA-N7): with no bin drawn, method_list's empty value
+            # ("no Number printed") sat beside the n.e. Numbers this caption prints
+            + (f"bar interval: {method_list(drawn_nums)}; " if drawn_nums else "no bar drawn; ")
             + ("not drawn, no interval: " + ", ".join(not_drawn) + "; " if not_drawn else "")
             + _anchor_label(refs_by_id, "FDA_AIDSF_CALIBRATION")
         ),

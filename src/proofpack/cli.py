@@ -519,8 +519,12 @@ def cmd_run(args: argparse.Namespace) -> int:
             "three (docs: /docs/run)"
         )
     elif not lic.usable:
+        # E9 repair 2 (lens-2 FA-N6): under --format json the same flags write no HTML
+        # after an install, so the line names --format json,html
         summary += (
-            "Next step: proofpack licence install FILE, then run again for "
+            "Next step: proofpack licence install FILE, then run again "
+            + ("" if "html" in formats else "with --format json,html ")
+            + "for "
             + ", ".join(f"{t}.html" for t in templates)
             + " (docs: /docs/run)"
         )
