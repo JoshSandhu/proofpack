@@ -28,6 +28,7 @@ Usage::
     python scripts/mutation_sweep.py --marker day6            # both day-6 lists (E and A)
     python scripts/mutation_sweep.py --marker day7            # the day-7 list (E7)
     python scripts/mutation_sweep.py --marker day8            # the day-8 list (E8)
+    python scripts/mutation_sweep.py --marker day9            # the day-9 list (E9)
     python scripts/mutation_sweep.py --marker day5 --only ref_largest_to_smallest
     python scripts/mutation_sweep.py --list
     python scripts/mutation_sweep.py --marker day5 --fail-on-survivor   # exit 1 if any survive
@@ -2216,7 +2217,143 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
     ),
 )
 
-MUTANTS = MUTANTS + MUTANTS_DAY6_A + MUTANTS_DAY7 + MUTANTS_DAY8
+#: The day-9 list (E9: the template library's facet bindings, the sentence renderer, T1,
+#: T7, the D5 furniture, the figures, the --templates dispatch and the sample pack).
+#: ``--marker day9``.
+TEMPLATES_LIB = "src/proofpack/narrate/templates.py"
+SENTENCES = "src/proofpack/render/sentences.py"
+T1_RENDER = "src/proofpack/render/t1.py"
+T7_RENDER = "src/proofpack/render/t7.py"
+FIGURES = "src/proofpack/render/figures.py"
+RUN = "src/proofpack/run.py"
+SAMPLE_PACK = "scripts/build_sample_pack.py"
+MUTANTS_DAY9: tuple[Mutant, ...] = (
+    Mutant(
+        "facet_est_swapped_for_ci_lo",
+        TEMPLATES_LIB,
+        r'("OVERALL_ESTIMATE": \{\n        "k": \(f"\{_V\}\.k",\),\n'
+        r'        "n": \(f"\{_V\}\.n",\),\n'
+        r'        "est": \(f"\{_V\}\.)est(",\),)',
+        r"\1ci_lo\2",
+        day=9,
+        what="OVERALL_ESTIMATE's {est} slot takes the Number's ci_lo facet",
+    ),
+    Mutant(
+        "facet_family_slot_bound_to_another_pointer",
+        TEMPLATES_LIB,
+        r'^        "slope": \("slope\.est",\),$',
+        '        "slope": ("intercept.est",),',
+        day=9,
+        what="CALIB_HIERARCHY's slope slot prints the intercept (binding not by facet)",
+    ),
+    Mutant(
+        "status_word_printed_as_fixed_text",
+        SENTENCES,
+        r'parts\.append\(Part\(lib\.STATUS_WORDS\[str\(text\[slot\]\)\], "status"\)\)',
+        'parts.append(Part(lib.STATUS_WORDS[str(text[slot])], "fixed"))',
+        day=9,
+        what="a criterion sentence's status word leaves .status (the verdict grep's scope)",
+    ),
+    Mutant(
+        "t1_section_anchor_id_swapped",
+        T1_RENDER,
+        r'^    "s8": \("FDA_AIDSF_CALIBRATION",\),$',
+        '    "s8": ("PP_METHODS",),',
+        day=9,
+        what="T1 section 8 cites the wrong guidance anchor",
+    ),
+    Mutant(
+        "t1_draft_label_lookup_ignores_the_map_given",
+        T1_RENDER,
+        r"^    refs = anchors\.resolve\(ids, guidance_map\)$",
+        "    refs = anchors.resolve(ids)",
+        day=9,
+        what="T1 labels anchors from the packaged map, not the one it was given",
+    ),
+    Mutant(
+        "t1_placeholder_branch_never_taken",
+        T1_RENDER,
+        r'"filled": text is not None,',
+        '"filled": True,',
+        day=9,
+        what="an unfilled customer-text slot prints no placeholder box",
+    ),
+    Mutant(
+        "t7_methods_from_a_static_list",
+        T7_RENDER,
+        r'return Counter\(str\(n\.get\("method"\)\) for n in number_objects\(document\)\)',
+        "return Counter(METHOD_DESCRIPTIONS)",
+        day=9,
+        what="T7 lists every method ProofPack knows instead of those the run used",
+    ),
+    Mutant(
+        "f4_omission_condition_dropped",
+        FIGURES,
+        r"^    if isinstance\(cal, dict\):\n        return None$",
+        "    if True:\n        return None",
+        day=9,
+        what="a null calibration omits F4 without printing the reason",
+    ),
+    Mutant(
+        "f5_criterion_line_for_any_statistic",
+        FIGURES,
+        r'and row\.get\("statistic"\) == "ci_lower_bound"',
+        "and True",
+        day=9,
+        what="F5 draws a criterion line for a point-estimate criterion",
+    ),
+    Mutant(
+        "svg_map_y_axis_not_inverted",
+        FIGURES,
+        r"return self\.y0 \+ self\.h - \(float\(v\) - self\.ymin\) / \(self\.ymax - self\.ymin\) "
+        r"\* self\.h",
+        "return self.y0 + (float(v) - self.ymin) / (self.ymax - self.ymin) * self.h",
+        day=9,
+        what="the documented linear map draws y upside down",
+    ),
+    Mutant(
+        "furniture_licence_mark_retyped",
+        HTML,
+        r'out\.append\(\{"kind": "licence", "text": str\(manifest\["watermark"\]\)\}\)',
+        'out.append({"kind": "licence", "text": "LICENCE EXPIRED - not for submission"})',
+        day=9,
+        what="the cover stamp prints one retyped mark whatever the manifest carries",
+    ),
+    Mutant(
+        "templates_dispatch_drops_t1",
+        RUN,
+        r'return \{"T1": write_t1, "T7": write_t7, "T8": write_t8\}',
+        'return {"T7": write_t7, "T8": write_t8}',
+        day=9,
+        what="--templates T1 writes nothing",
+    ),
+    Mutant(
+        "dec48_no_licence_mark_dropped",
+        RUN,
+        r'return WATERMARK_NO_LICENCE if licence\.reason_code == "no_file" else WATERMARK_EXPIRED',
+        "return WATERMARK_EXPIRED",
+        day=9,
+        what="a run with no licence file carries the expired mark (DEC-48 undone)",
+    ),
+    Mutant(
+        "theme_block_escaped_again",
+        BASE_TEMPLATE,
+        r"^\{\{ css \| safe \}\}$",
+        "{{ css }}",
+        day=9,
+        what="the font stacks reach <style> as &#34; and every page falls back to serif",
+    ),
+    Mutant(
+        "sample_pack_unmarked",
+        SAMPLE_PACK,
+        r"data_marking=SYNTHETIC_MARK",
+        "data_marking=None",
+        day=9,
+        what="the sample pack's pages carry no SYNTHETIC mark",
+    ),
+)
+
+MUTANTS = MUTANTS + MUTANTS_DAY6_A + MUTANTS_DAY7 + MUTANTS_DAY8 + MUTANTS_DAY9
 
 
 def make_copy() -> Path:
