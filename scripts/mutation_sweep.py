@@ -2181,6 +2181,39 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
         day=8,
         what="the mapping role attr_colour plus a line feed halts H07, not H08 (DEC-65)",
     ),
+    # repair 6 of build day 8 (lens-6 FA-B1 / DEC-66, RG-B1, FA-N4)
+    Mutant(
+        "schema_dec66_check_not_called",
+        IO_SCHEMA,
+        r"^    check_control_characters\(raw, period\)$",
+        "    pass",
+        day=8,
+        what="race levels re\\x01d / bl\\x1bue reach T8.html raw with exit 0 (DEC-66)",
+    ),
+    Mutant(
+        "schema_dec66_c1_dropped",
+        IO_SCHEMA,
+        r'(^_CONTROL_CELL = re\.compile\("\[\\x00-\\x1f)\\x7f-\\x9f\]',
+        r"\1]",
+        day=8,
+        what="attr_colour levels re\\x85d / bl\\x9fue (C1) pass ingest (DEC-66)",
+    ),
+    Mutant(
+        "declare_self_reference_check_dropped",
+        DECLARE,
+        r"^    cycle = self_reference_at\(data\)$",
+        "    cycle = None",
+        day=8,
+        what="zz_extra: &a [*a] is not the self-reference H08 (lens-6 RG-B1)",
+    ),
+    Mutant(
+        "declare_walk_enters_shared_objects_again",
+        DECLARE,
+        r"elif isinstance\(v, \(dict, list, tuple\)\) and id\(v\) not in entered:",
+        "elif isinstance(v, (dict, list, tuple)):",
+        day=8,
+        what="an alias chain 24 deep is walked leaf by leaf (lens-6 FA-N4)",
+    ),
 )
 
 MUTANTS = MUTANTS + MUTANTS_DAY6_A + MUTANTS_DAY7 + MUTANTS_DAY8

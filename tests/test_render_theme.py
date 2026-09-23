@@ -54,12 +54,10 @@ D5_COLOURS = {
     "ok-bg": "#e4f2e8",
     "ok-line": "#86b39a",
 }
-#: The contrast ratios D5 section 3.1 states, token on surface. Three of them do not
-#: match the WCAG 2 formula on D5's own hex values (measured on build day 8 and recorded
-#: in tokens.json beside the stated figure): honesty 6.2 (6.80), stop 8.7 (10.02), ok
-#: 7.9 (9.11). They are kept as D5 states them; the test below asserts the computed
-#: ratio against tokens.json's contrast_computed and names the errata explicitly.
-D5_ERRATA = {("honesty", "bg"): 6.80, ("stop", "bg"): 10.02, ("ok", "bg"): 9.11}
+#: The contrast ratios D5 section 3.1 states, token on surface. honesty, stop and ok are
+#: on their own -bg surfaces, the rows D5 section 3.1 (lines 169-171) pairs them with
+#: (DEC-67, lens-6 RG-N3: tokens.json paired them with ``bg`` until repair 6 of build
+#: day 8, which gave 6.80, 10.02 and 9.11 against D5's 6.2, 8.7 and 7.9).
 D5_CONTRAST = {
     ("ink", "bg"): 16.4,
     ("ink-soft", "bg"): 7.1,
@@ -67,9 +65,9 @@ D5_CONTRAST = {
     ("line", "bg"): 1.3,
     ("on-brand", "brand"): 11.7,
     ("brand", "brand-soft"): 10.0,
-    ("honesty", "bg"): 6.2,
-    ("stop", "bg"): 8.7,
-    ("ok", "bg"): 7.9,
+    ("honesty", "honesty-bg"): 6.2,
+    ("stop", "stop-bg"): 8.7,
+    ("ok", "ok-bg"): 7.9,
 }
 
 
@@ -156,14 +154,10 @@ def test_the_declared_contrast_is_the_computed_wcag_ratio(pair):
     entry = theme.tokens()["color"][fg]
     assert entry["contrast"] == f"{D5_CONTRAST[pair]}:1"  # D5's figure, verbatim
     assert float(entry["contrast_computed"].split(":")[0]) == pytest.approx(ratio, abs=0.01)
-    if pair in D5_ERRATA:
-        assert ratio == pytest.approx(D5_ERRATA[pair], abs=0.01)
-        assert abs(ratio - D5_CONTRAST[pair]) > 0.1  # the erratum is real, not a rounding
-    else:
-        assert ratio == pytest.approx(D5_CONTRAST[pair], abs=0.1)
+    assert ratio == pytest.approx(D5_CONTRAST[pair], abs=0.1)
     if entry["role"] == "text":
         assert ratio >= 4.5, (pair, ratio)
-    assert entry.get("on", bg) == bg
+    assert entry["on"] == bg
 
 
 def test_css_variables_cover_every_colour_and_carry_no_role_or_contrast_text():

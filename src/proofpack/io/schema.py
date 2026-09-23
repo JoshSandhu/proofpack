@@ -291,6 +291,64 @@ def _to_int01(col: list[str | None], name: str) -> np.ndarray:
     return out
 
 
+#: DEC-66 (Josh, 23 September 2026; repair 6 of build day 8, lens-6 FA-B1): the characters
+#: DEC-65's ``io.declare._CONTROL`` matches (U+0000 to U+001F, U+007F, U+0080 to U+009F),
+#: searched for in the table's cells.
+_CONTROL_CELL = re.compile("[\x00-\x1f\x7f-\x9f]")
+
+
+def columns_read_by_validate(raw: RawTable, period: dict | None = None) -> list[str]:
+    """The column keys :func:`validate` reads cells from, in table order: the canonical
+    names of ``schema_v1.json``, the ``attr_`` names matching :data:`_IDENT`, and the
+    declared period column. ``rater_`` columns, ``ignored:`` keys and every other name
+    are not in the list (``validate`` counts them without reading a cell)."""
+    known = set(canonical_columns())
+    pcol = period.get("column") if period else None
+    return [
+        h
+        for h in raw.columns
+        if h in known or (h.startswith("attr_") and _IDENT.match(h)) or h == pcol
+    ]
+
+
+def check_control_characters(raw: RawTable, period: dict | None = None) -> None:
+    """DEC-66: a cell holding a :data:`_CONTROL_CELL` character, in a column
+    :func:`columns_read_by_validate` lists, halts S02 naming the column's role, the first
+    code point found and the count of rows holding one; no cell value is printed.
+
+    The cell is read after ``_norm_cell``'s ``strip()``, so a character ``str.strip``
+    removes at either end of a cell (tab, line feed, U+001F, U+0085 among them) is gone
+    before this check: ``tests/test_e8_repair6.py::
+    test_a_trailing_tab_in_a_site_cell_is_stripped_before_the_check`` feeds ``S1\\t``.
+
+    The code: D1 section 5 step 6 (the HALT gate table, ``spec/design/D1_engine_schema_api.md``
+    lines 257-272) assigns no code to a malformed table value; its twelve rows H01-H12 are
+    gates on declarations and aggregates (H02, line 262, reads ``y_true`` values against
+    the declared classes). S02 is the engine's code for a cell that does not hold its
+    column's declared kind of value (:data:`proofpack.errors.SCHEMA_CODES`; exit 3 like the
+    H-codes, D1 line 274), and it is in ``schema/egress_schema.json``'s ``halt_code``
+    enum. ``tests/test_e8_repair6.py`` feeds the lens-6 inputs (``race`` levels
+    ``re\\x01d`` / ``bl\\x1bue``, ``site`` ``S\\x001``, ``device`` ``dev\\x00A``,
+    ``attr_colour`` ``re\\x85d``) and one cell in each other column it names."""
+    for name in columns_read_by_validate(raw, period):
+        cells = [v for v in raw.columns[name] if v is not None]
+        if _CONTROL_CELL.search("".join(cells)) is None:
+            continue
+        hits = [m for m in (_CONTROL_CELL.search(v) for v in cells) if m is not None]
+        codepoint = f"U+{ord(hits[0].group()):04X}"
+        raise HaltError(
+            "S02",
+            f"column role {name!r} holds a control character ({codepoint}) in {len(hits)} "
+            "row(s); remove it from the table",
+            {
+                "role": name,
+                "reason": "control_character",
+                "codepoint": codepoint,
+                "count": len(hits),
+            },
+        )
+
+
 def _to_obj(col: list[str | None]) -> np.ndarray:
     return np.array(col, dtype=object)
 
@@ -330,6 +388,7 @@ def validate(raw: RawTable, period: dict | None = None) -> Table:
         raise HaltError("S01", "required column role 'y_true' is missing", {"role": "y_true"})
     if "score" not in cols and "y_pred" not in cols:
         raise HaltError("S01", "one of 'score' or 'y_pred' is required", {"role": "score"})
+    check_control_characters(raw, period)
 
     y_true = _to_obj(cols["y_true"])
     score = _to_float(cols["score"], "score") if "score" in cols else None

@@ -3,9 +3,10 @@
 Declarations are never inferred. Positive class, score orientation and type,
 operating points (thresholds), intended-use prevalence and the subgroup
 attribute list are MANDATORY; absence is gate H08. A criterion or fairness
-block without ``author``/``date``/``justification`` is also H08, and so is a string
-holding a control character (DEC-65, :func:`control_character_at`). References
-to unknown metric ids, operating points, attributes or levels are gate H09.
+block without ``author``/``date``/``justification`` is also H08. DEC-65's control-character
+halt and the self-reference halt are described at :func:`_check_control_characters`,
+with the literal inputs the tests feed. References to unknown metric ids, operating
+points, attributes or levels are gate H09.
 
 The engine supplies no default for anything a customer must own.
 """
@@ -42,50 +43,139 @@ AUTHORED_FIELDS: tuple[str, ...] = ("author", "date", "justification")
 #: test_an_operating_point_id_the_document_reserves_halts_h08``).
 RESERVED_OPERATING_POINT_IDS: frozenset[str] = frozenset({"threshold_free", "auroc", "brier"})
 
-#: DEC-65 (repair 5 of build day 8, lens-5 FA5-B4 at 375719c): C0 controls (U+0000 to
-#: U+001F), DEL (U+007F) and C1 controls (U+0080 to U+009F) in a string of
-#: ``criteria.yaml``, key or value, are H08 naming the field. D1 section 6 calls
-#: ``justification``, ``description`` and ``source`` the free-text declaration fields;
-#: under those keys tab (U+0009) and line feed (U+000A) are allowed, and under every
-#: other key they are H08 too. Carriage return (U+000D) is H08 under every key.
-#: ``tests/test_e8_repair5.py`` names the fields and code points it feeds.
+#: DEC-65 (repair 5 of build day 8, lens-5 FA5-B4 at 375719c). :data:`_CONTROL` matches
+#: U+0000 to U+001F, U+007F and U+0080 to U+009F; :data:`_CONTROL_MULTILINE` is the same
+#: set less tab (U+0009) and line feed (U+000A). :func:`control_character_at` applies the
+#: second to a string held directly under one of these three keys (the names D1 section
+#: 6 gives the free-text declaration fields) and the first to every other string and to
+#: every key. What ``validate_dict`` does with a hit, and the halts that come before it,
+#: are at :func:`_check_control_characters`.
 MULTILINE_FIELDS: frozenset[str] = frozenset({"justification", "description", "source"})
 _CONTROL = re.compile("[\x00-\x1f\x7f-\x9f]")
 _CONTROL_MULTILINE = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 
 
+def _path_text(path: tuple[Any, ...]) -> str:
+    """A path as the schema halt writes it (``criteria/0/justification``)."""
+    return "/".join(str(p) for p in path) or "<root>"
+
+
+def _string_hit(text: str, path: tuple[Any, ...]) -> tuple[str, str] | None:
+    key = path[-1] if path else None
+    rx = _CONTROL_MULTILINE if key in MULTILINE_FIELDS else _CONTROL
+    m = rx.search(text)
+    if m is None:
+        return None
+    return _path_text(path), f"U+{ord(m.group()):04X}"
+
+
+def _children(container: Any, path: tuple[Any, ...]):
+    """``(child path, is a mapping item, key, value)`` for each item, in document order."""
+    if isinstance(container, dict):
+        return (((*path, k), True, k, v) for k, v in container.items())
+    return (((*path, i), False, i, v) for i, v in enumerate(container))
+
+
 def control_character_at(value: Any, path: tuple[Any, ...] = ()) -> tuple[str, str] | None:
-    """The first ``(field path, "U+XXXX")`` whose string holds a control character that
+    """The first ``(field path, "U+XXXX")`` whose string holds a character that
     :data:`_CONTROL` (or, under a key in :data:`MULTILINE_FIELDS`, :data:`_CONTROL_MULTILINE`)
     matches, walking each mapping item (its key, then its value) and each list item in
-    order; ``None`` if none does.
+    document order, depth first; ``None`` when the walk ends without a match.
     The path is written as the schema halt writes it (``criteria/0/justification``); a key
-    is named by its parent's path and ``(key)``. The value itself is not returned."""
+    is named by its parent's path and ``(key)``. The value itself is not returned.
+
+    The walk keeps its own stack (no recursion) and enters each list or mapping object
+    once, by ``id``; a second reference to one (a YAML alias) is not walked again.
+    Repair 6 of build day 8, lens-6 RG-B1 / FA-N4: at ea2f743 the walk recursed with no
+    record of what it had entered, and ``zz_extra: &a [*a]`` as line 1 of a valid
+    ``criteria.yaml`` ended ``internal error: RecursionError`` (exit 5); an alias chain
+    20 levels deep (1,048,576 leaves) took 0.51 s.
+    ``tests/test_e8_repair6.py::test_an_alias_chain_24_deep_is_walked_in_under_two_seconds``
+    feeds a chain 24 deep."""
     if isinstance(value, str):
-        key = path[-1] if path else None
-        rx = _CONTROL_MULTILINE if key in MULTILINE_FIELDS else _CONTROL
-        m = rx.search(value)
-        if m is None:
-            return None
-        return "/".join(str(p) for p in path) or "<root>", f"U+{ord(m.group()):04X}"
-    if isinstance(value, dict):
-        for k, v in value.items():
+        return _string_hit(value, path)
+    if not isinstance(value, (dict, list, tuple)):
+        return None
+    entered = {id(value)}
+    stack = [(path, _children(value, path))]
+    while stack:
+        parent, children = stack[-1]
+        item = next(children, None)
+        if item is None:
+            stack.pop()
+            continue
+        child_path, is_mapping_item, k, v = item
+        if is_mapping_item:
             if isinstance(k, str) and _CONTROL.search(k):
-                parent = "/".join(str(p) for p in path) or "<root>"
-                return f"{parent} (key)", f"U+{ord(_CONTROL.search(k).group()):04X}"
-            found = control_character_at(v, (*path, k))
+                return f"{_path_text(parent)} (key)", f"U+{ord(_CONTROL.search(k).group()):04X}"
+        if isinstance(v, str):
+            found = _string_hit(v, child_path)
             if found is not None:
                 return found
-    elif isinstance(value, (list, tuple)):
-        for i, v in enumerate(value):
-            found = control_character_at(v, (*path, i))
-            if found is not None:
-                return found
+        elif isinstance(v, (dict, list, tuple)) and id(v) not in entered:
+            entered.add(id(v))
+            stack.append((child_path, _children(v, child_path)))
+    return None
+
+
+def self_reference_at(value: Any) -> str | None:
+    """The path of the first item, in document order, that is a list or mapping object
+    enclosing it - what PyYAML's ``safe_load`` builds from an alias inside its own anchor
+    (``zz_extra: &a [*a]`` loads as a list whose item 0 is that list: ``zz_extra/0``).
+    ``None`` when the walk ends without one. No recursion; each object is entered once."""
+    if not isinstance(value, (dict, list, tuple)):
+        return None
+    open_ids = {id(value)}
+    finished: set[int] = set()
+    stack = [(id(value), _children(value, ()))]
+    while stack:
+        oid, children = stack[-1]
+        item = next(children, None)
+        if item is None:
+            stack.pop()
+            open_ids.discard(oid)
+            finished.add(oid)
+            continue
+        child_path, _is_mapping_item, _k, v = item
+        if isinstance(v, (dict, list, tuple)):
+            vid = id(v)
+            if vid in open_ids:
+                return _path_text(child_path)
+            if vid not in finished:
+                open_ids.add(vid)
+                stack.append((vid, _children(v, child_path)))
     return None
 
 
 def _check_control_characters(data: dict[str, Any]) -> None:
-    """DEC-65: H08 naming the field and the code point (:func:`control_character_at`)."""
+    """Two H08 halts on the parsed document, in this order.
+
+    1. :func:`self_reference_at`: ``declaration invalid at <path>: the value contains
+       itself (a YAML alias inside its own anchor); remove the alias``, detail
+       ``{"field", "reason": "self_reference"}``. ``tests/test_e8_repair6.py`` feeds
+       ``&a [*a]`` as ``zz_extra`` at the root, as ``extra`` under ``model`` and as
+       ``extra`` in ``criteria[0]`` (exit 5 at ea2f743 in each; lens-6 RG-B1).
+    2. DEC-65, :func:`control_character_at`: ``declaration invalid at <path>: control
+       character U+XXXX; remove it``, detail ``{"field", "reason": "control_character",
+       "codepoint"}``. ``tests/test_e8_repair5.py`` names the 43 fields and 14 literals it
+       feeds, and the tab and line feed it feeds to ``justification``, ``description`` and
+       ``source`` (accepted there).
+
+    ``validate_dict`` runs this after the mandatory-block H08s and DEC-11's E01. Two
+    documents the tests feed halt before it: ``Tri\\x00age`` as the model name with the
+    ``prevalence`` block removed halts ``mandatory declaration block(s) missing:
+    prevalence`` (``tests/test_e8_repair6.py::
+    test_a_missing_block_halts_before_the_control_character_walk``), and U+0001 after the
+    first character of ``clustering.unit`` halts E01 (``tests/test_e8_repair5.py::
+    test_u0001_in_each_string_field_of_the_criteria_document_halts``)."""
+    cycle = self_reference_at(data)
+    if cycle is not None:
+        raise HaltError(
+            "H08",
+            f"declaration invalid at {cycle}: the value contains itself (a YAML alias inside "
+            "its own anchor); remove the alias",
+            {"field": cycle, "reason": "self_reference"},
+        )
     found = control_character_at(data)
     if found is not None:
         field_path, codepoint = found
@@ -281,8 +371,8 @@ def validate_dict(data: dict[str, Any]) -> Declarations:
         )
 
     # DEC-11's E01 first (a tab in clustering.unit is a separator there:
-    # tests/test_mapping_repair1.py::test_separators_the_lens_listed_reach_e01), then
-    # DEC-65, before any message below that prints a criterion id
+    # tests/test_mapping_repair1.py::test_separators_the_lens_listed_reach_e01), then the
+    # self-reference and DEC-65 halts, above the lines below that print a criterion id
     _check_dec11_case_key(data.get("clustering"))
     _check_control_characters(data)
 
