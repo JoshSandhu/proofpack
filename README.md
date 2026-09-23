@@ -316,3 +316,18 @@ and the same bytes are `manifest.mapping_sha256` in `run.json` (DEC-27).
   `proofpack licence install FILE` (verifies, then copies to the per-user location;
   a refused file is not installed).
 * Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal.
+* **Documents (build day 8, lane E).** `--format json,html` (the default) writes
+  `<out>/T8.html` beside `run.json` when the licence is `ok` or in `grace`; after grace
+  `run.json` is written, no document is, and the exit code is 4. `--format json` writes
+  no document; `docx` and `pdf` are refused with a typed line. `--templates T8` (the
+  default) names the document; `T1` and `T7` are accepted and answered with a typed
+  "not built in E8" line. The HTML needs `jinja2` at run time (a runtime dependency of
+  the wheel). `run.json` carries `claims`, `claim_rejections` and `guidance_refs`
+  (`{id, label, draft, url}`), and every `criteria_results` row carries
+  `declaration_index`, the position of the `criteria.yaml` entry it was evaluated from
+  (`null` on the fairness-bound rows). On the page a declared number (threshold,
+  criterion value, prevalence, fairness bound) prints with every digit `run.json`
+  carries; engine estimates print by D4 section 1.2's rules.
+* **H02 reads `y_pred` too** (repair 1 of build day 8): a `y_pred` column holding a
+  value outside `classes.positive`, `classes.negative` and `indeterminates.values`
+  halts H02 naming the column, before any statistic, with or without a score column.

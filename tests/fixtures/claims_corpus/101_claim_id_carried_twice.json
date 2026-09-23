@@ -1,0 +1,44 @@
+{
+  "name": "claim_id_carried_twice",
+  "rule": "the same engine claim twice in the list (both copies rejected; resolve fills the slot once)",
+  "expected_reason_code": "claim_id_duplicate",
+  "note": "",
+  "claims": [
+    {
+      "claim_id": "CL-9101",
+      "template_id": "OVERALL_ESTIMATE",
+      "metric_id": "sensitivity",
+      "operating_point": "op1",
+      "subgroup": null,
+      "reference": null,
+      "comparator_id": null,
+      "criterion_index": null,
+      "criterion_id": null,
+      "status": null,
+      "relation": "estimate",
+      "value_refs": [
+        "/overall/op1/sensitivity"
+      ],
+      "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
+      "free_text": null
+    },
+    {
+      "claim_id": "CL-9101",
+      "template_id": "OVERALL_ESTIMATE",
+      "metric_id": "sensitivity",
+      "operating_point": "op1",
+      "subgroup": null,
+      "reference": null,
+      "comparator_id": null,
+      "criterion_index": null,
+      "criterion_id": null,
+      "status": null,
+      "relation": "estimate",
+      "value_refs": [
+        "/overall/op1/sensitivity"
+      ],
+      "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
+      "free_text": null
+    }
+  ]
+}

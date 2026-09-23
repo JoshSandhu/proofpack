@@ -1,0 +1,27 @@
+{
+  "name": "subgroup_claim_bound_to_the_overall_number",
+  "rule": "SUBGROUP_ESTIMATE for age=40-65 bound to /overall/op1/sensitivity (the right number attached to the wrong subgroup, outside /subgroups)",
+  "expected_reason_code": "subgroup_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9103",
+    "template_id": "SUBGROUP_ESTIMATE",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": {
+      "attribute": "age",
+      "level": "40-65"
+    },
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/sensitivity"
+    ],
+    "guidance_ref": "FDA_AIDSF_SUBGROUP_PERF",
+    "free_text": null
+  }
+}

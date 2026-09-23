@@ -1,0 +1,27 @@
+{
+  "name": "criterion_claim_subgroup_differs_from_its_row_scope",
+  "rule": "CRITERION_STATUS at index 1 (row scope site=S3) naming site=S2 with S2's own accuracy pointer",
+  "expected_reason_code": "criterion_row_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9108",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "accuracy",
+    "operating_point": "op1",
+    "subgroup": {
+      "attribute": "site",
+      "level": "S2"
+    },
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": 1,
+    "criterion_id": "C_n30",
+    "status": "not_met",
+    "relation": "estimate",
+    "value_refs": [
+      "/subgroups/7/metrics/op1/accuracy/number"
+    ],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

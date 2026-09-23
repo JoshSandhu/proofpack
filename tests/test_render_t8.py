@@ -488,12 +488,13 @@ def test_twenty_printed_cells_equal_fmt_number_of_the_document_number():
         assert html_lib.unescape(cell) == fmt.number(number, kind), (row["criterion_id"], cell)
         compared += 1
     assert compared >= 20
-    # the declared value, compared value and the bound print on the unit scale, 3 dp
+    # the declared value prints every digit run.json carries (repair 1, FA-B4); the
+    # compared value and the bound, engine numbers, print on the unit scale to 3 dp
     for row, m in zip(
         rows, re.finditer(r'<tr class="criterion-row"[^>]*>(.*?)</tr>', out, re.S), strict=True
     ):
         cells = re.findall(r"<td[^>]*>([^<]*)</td>", m.group(1))
-        assert cells[7] == fmt.scalar(row["value"])
+        assert cells[7] == fmt.declared(row["value"])
         assert cells[12] == fmt.scalar(row["compared_value"])
         assert cells[16] == fmt.scalar(row["max_lower_bound_at_n"])
         assert cells[13] == STATUS_WORDS[row["status"]]

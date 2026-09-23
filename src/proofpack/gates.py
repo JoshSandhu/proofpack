@@ -45,15 +45,23 @@ def _oriented(scores: np.ndarray, orientation: str) -> np.ndarray:
 
 
 def gate_h02(table: Table, decl: Declarations) -> None:
+    """``y_true`` and, when the column is present, ``y_pred`` hold only the declared
+    classes and indeterminate values. ``y_pred`` joined the gate in repair 1 of build day
+    8 (lens FA-B3): a ``y_pred`` column of ``yes`` / ``no`` beside classes ``1`` / ``0``
+    and no score column reached ``overall_block`` as every row predicted negative and
+    printed sensitivity ``0/42``; ``tests/test_e8_repair1.py`` feeds that table."""
     allowed = decl.classes | decl.indeterminate_values
-    observed = {v for v in table.y_true.tolist() if v is not None}
-    unknown = observed - allowed
-    if unknown:
-        raise HaltError(
-            "H02",
-            "y_true contains value(s) outside declared classes and indeterminate values",
-            {"n_unknown_values": len(unknown), "n_declared": len(allowed)},
-        )
+    for column, values in (("y_true", table.y_true), ("y_pred", table.y_pred)):
+        if values is None:
+            continue
+        observed = {v for v in values.tolist() if v is not None}
+        unknown = observed - allowed
+        if unknown:
+            raise HaltError(
+                "H02",
+                f"{column} contains value(s) outside declared classes and indeterminate values",
+                {"column": column, "n_unknown_values": len(unknown), "n_declared": len(allowed)},
+            )
 
 
 def gate_h03(table: Table, decl: Declarations) -> None:

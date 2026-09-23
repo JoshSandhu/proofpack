@@ -17,7 +17,7 @@ EXIT_INTERNAL = 5
 #: HALT gate codes and their one-line meaning (D1 section 5 table).
 HALT_CODES: dict[str, str] = {
     "H01": "AUROC < 0.5 on declared orientation",
-    "H02": "y_true values not a subset of declared classes and indeterminate values",
+    "H02": "y_true or y_pred values not a subset of declared classes and indeterminate values",
     "H03": "score.type is probability and a value lies outside [0, 1]",
     "H04": "y_pred not reproducible from score at a declared operating point",
     "H05": "duplicate row_id, or duplicate case_id rows with conflicting y_true",

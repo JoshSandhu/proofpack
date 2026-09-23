@@ -85,7 +85,7 @@ caption { text-align: left; font-size: var(--pp-type-scale-footnote); color: var
 .table-wrap { overflow-x: auto; }
 code, pre, .mono { font-family: var(--pp-type-mono); }
 pre { background: var(--pp-color-bg-inset); padding: var(--pp-space-3); border-radius: var(--pp-radius-code); overflow-x: auto; font-size: var(--pp-type-scale-table); }
-.customer-text { border-left: var(--pp-layout-rule) solid var(--pp-color-ink-faint); padding-left: var(--pp-space-3); margin: var(--pp-space-2) 0; color: var(--pp-color-ink-soft); }
+.customer-text { border-left: var(--pp-layout-rule) solid var(--pp-color-ink-faint); padding-left: var(--pp-space-3); margin: var(--pp-space-2) 0; color: var(--pp-color-ink-soft); unicode-bidi: isolate; }
 .customer-text .label { display: block; font-size: var(--pp-type-scale-tag); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); color: var(--pp-color-ink-faint); }
 .margin-note { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); border-left: var(--pp-layout-rule) solid var(--pp-color-line); padding-left: var(--pp-space-2); margin: var(--pp-space-1) 0 var(--pp-space-3); }
 .margin-note.draft { color: var(--pp-color-honesty); border-left-color: var(--pp-color-honesty); }
@@ -179,13 +179,13 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <tr><th scope="row">Negative class</th><td class="customer-text">0</td></tr>
 <tr><th scope="row">Score type</th><td class="customer-text">probability</td></tr>
 <tr class="highlight"><th scope="row">Score orientation</th><td class="customer-text">higher_is_positive</td></tr>
-<tr><th scope="row">Operating points</th><td class="customer-text">op1: threshold 0.500 rule &gt;=, prespecified_sap (test fixture)</td></tr>
+<tr><th scope="row">Operating points</th><td class="customer-text">op1: threshold 0.5 rule &gt;=, prespecified_sap (test fixture)</td></tr>
 <tr><th scope="row">Reference standard</th><td class="customer-text">reference_standard (test fixture)</td></tr>
 <tr><th scope="row">Indeterminates</th><td class="customer-text">none_present []</td></tr>
 <tr><th scope="row">Clustering unit</th><td class="customer-text">none (declared by test fixture)</td></tr>
-<tr><th scope="row">Intended-use prevalence</th><td class="customer-text">intended-use, test: 0.300 (test fixture)</td></tr>
+<tr><th scope="row">Intended-use prevalence</th><td class="customer-text">intended-use, test: 0.3 (test fixture)</td></tr>
 <tr><th scope="row">Subgroups</th><td class="customer-text">sex (reference M; pre-specified); age (reference 40-65; pre-specified); site (reference largest; exploratory)</td></tr>
-<tr><th scope="row">Fairness criterion of interest</th><td class="customer-text">tpr_gap on sex; bound 0.100 (ci_upper_bound &lt;=)</td></tr>
+<tr><th scope="row">Fairness criterion of interest</th><td class="customer-text">tpr_gap on sex; bound 0.1 (ci_upper_bound &lt;=)</td></tr>
 </tbody>
 </table>
 <div class="customer-text"><span class="label">Manufacturer text - the declarations block of run.json as YAML (keys in canonical order; the file's SHA-256 is in the manifest)</span>
@@ -342,7 +342,7 @@ task: binary
 <aside class="margin-note draft">maps to <a href="#FDA_AIDSF_PERF_VALIDATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a></aside>
 <div class="table-wrap">
 <table class="criteria">
-<caption>One row per evaluated criterion, in the order the engine evaluated them (a criterion with <code>level: *</code> yields one row per level; rows are addressed by position, never by id). Observed values print by the metric's rule of D4 section 1.2; the declared value, the compared statistic and the largest attainable lower bound print on the unit scale to three decimals, as the manufacturer wrote the value. Status words are the engine's three and nothing else.</caption>
+<caption>One row per evaluated criterion, in the order the engine evaluated them (a criterion with <code>level: *</code> yields one row per level; rows are addressed by position, never by id, and each row's author, date and justification are those of the <code>criteria.yaml</code> entry it was evaluated from). Observed values print by the metric's rule of D4 section 1.2; the declared value prints with every digit run.json carries, unrounded; the compared statistic and the largest attainable lower bound, which the engine computed, print on the unit scale to three decimals. Status words are the engine's three and nothing else.</caption>
 <thead><tr><th scope="col">#</th><th scope="col">Id</th><th scope="col">Metric</th><th scope="col">Scope</th><th scope="col">Op.</th><th scope="col">Statistic</th><th scope="col">Comp.</th><th scope="col" class="num">Value</th><th scope="col">Author · date</th><th scope="col">Observed (95% CI)</th><th scope="col" class="num">n</th><th scope="col">Method</th><th scope="col" class="num">Compared</th><th scope="col">Status</th><th scope="col">Reason code</th><th scope="col">Attainable at n</th><th scope="col" class="num">Max LB at n</th><th scope="col">Detail</th></tr></thead>
 <tbody>
 <tr class="criterion-row" data-position="1">
@@ -353,7 +353,7 @@ task: binary
 <td>op1</td>
 <td>ci lower bound</td>
 <td>&gt;=</td>
-<td class="num">0.500</td>
+<td class="num">0.5</td>
 <td class="customer-text">A · 2026-01-01</td>
 <td class="num observed">96/128 (75.0%) [66.8, 81.7]</td>
 <td class="num">128</td>
@@ -374,7 +374,7 @@ task: binary
 <td>op1</td>
 <td>ci lower bound</td>
 <td>&gt;=</td>
-<td class="num">0.900</td>
+<td class="num">0.9</td>
 <td class="customer-text">A · 2026-01-01</td>
 <td class="num observed">21/30 (70.0%) [52.1, 83.3]ᶜ</td>
 <td class="num">30</td>
@@ -395,7 +395,7 @@ task: binary
 <td>op1</td>
 <td>ci lower bound</td>
 <td>&gt;=</td>
-<td class="num">0.500</td>
+<td class="num">0.5</td>
 <td class="customer-text">A · 2026-01-01</td>
 <td class="num observed">—</td>
 <td class="num">—</td>
@@ -416,7 +416,7 @@ task: binary
 <td>op1</td>
 <td>ci lower bound</td>
 <td>&gt;=</td>
-<td class="num">0.500</td>
+<td class="num">0.5</td>
 <td class="customer-text">A · 2026-01-01</td>
 <td class="num observed">—</td>
 <td class="num">—</td>
@@ -437,7 +437,7 @@ task: binary
 <td>op1</td>
 <td>ci lower bound</td>
 <td>&gt;=</td>
-<td class="num">0.500</td>
+<td class="num">0.5</td>
 <td class="customer-text">A · 2026-01-01</td>
 <td class="num observed">—</td>
 <td class="num">—</td>
@@ -458,7 +458,7 @@ task: binary
 <td>—</td>
 <td>ci lower bound</td>
 <td>&gt;=</td>
-<td class="num">0.500</td>
+<td class="num">0.5</td>
 <td class="customer-text">A · 2026-01-01</td>
 <td class="num observed">0.835 [0.795, 0.876]</td>
 <td class="num">—</td>
@@ -479,7 +479,7 @@ task: binary
 <td>—</td>
 <td>ci lower bound</td>
 <td>&lt;=</td>
-<td class="num">0.100</td>
+<td class="num">0.1</td>
 <td class="customer-text">A · 2026-01-01</td>
 <td class="num observed">—</td>
 <td class="num">—</td>
@@ -500,7 +500,7 @@ task: binary
 <td>op1</td>
 <td>ci lower bound</td>
 <td>&gt;=</td>
-<td class="num">−0.030</td>
+<td class="num">−0.03</td>
 <td class="customer-text">A · 2026-01-01</td>
 <td class="num observed">—</td>
 <td class="num">—</td>
@@ -521,7 +521,7 @@ task: binary
 <td>op1</td>
 <td>ci upper bound</td>
 <td>&lt;=</td>
-<td class="num">0.100</td>
+<td class="num">0.1</td>
 <td class="customer-text">Dr F. · 2026-02-02</td>
 <td class="num observed">+7.0 [−7.9, +21.7]</td>
 <td class="num">63</td>

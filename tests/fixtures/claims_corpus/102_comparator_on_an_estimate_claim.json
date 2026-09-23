@@ -1,0 +1,24 @@
+{
+  "name": "comparator_on_an_estimate_claim",
+  "rule": "OVERALL_ESTIMATE carrying comparator_id > (no row to compare with)",
+  "expected_reason_code": "comparator_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9101",
+    "template_id": "OVERALL_ESTIMATE",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": ">",
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/sensitivity"
+    ],
+    "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
+    "free_text": null
+  }
+}

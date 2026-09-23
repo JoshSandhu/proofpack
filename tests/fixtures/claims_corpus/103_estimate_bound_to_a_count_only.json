@@ -1,0 +1,24 @@
+{
+  "name": "estimate_bound_to_a_count_only",
+  "rule": "OVERALL_ESTIMATE stating relation estimate over the tp count alone (a documented scalar, not a Number)",
+  "expected_reason_code": "relation_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9101",
+    "template_id": "OVERALL_ESTIMATE",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/two_by_two/tp"
+    ],
+    "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
+    "free_text": null
+  }
+}

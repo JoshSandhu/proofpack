@@ -46,7 +46,7 @@
     },
     "y_pred": {
       "type": ["string", "integer", "null"],
-      "description": "Optional. Must equal rule(score, threshold) at every declared operating point on every row, else H04."
+      "description": "Optional. Values must be a subset of declared classes.positive ∪ classes.negative ∪ indeterminates.values, else H02 (repair 1 of build day 8); must equal rule(score, threshold) at every declared operating point on every row, else H04."
     },
     "indeterminate": {
       "type": ["integer", "null"],

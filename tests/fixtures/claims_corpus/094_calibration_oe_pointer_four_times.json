@@ -1,0 +1,27 @@
+{
+  "name": "calibration_oe_pointer_four_times",
+  "rule": "CALIB_HIERARCHY with the O:E pointer repeated four times",
+  "expected_reason_code": "value_ref_duplicate",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9105",
+    "template_id": "CALIB_HIERARCHY",
+    "metric_id": "oe",
+    "operating_point": null,
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/calibration/oe/number",
+      "/calibration/oe/number",
+      "/calibration/oe/number",
+      "/calibration/oe/number"
+    ],
+    "guidance_ref": "FDA_AIDSF_CALIBRATION",
+    "free_text": null
+  }
+}

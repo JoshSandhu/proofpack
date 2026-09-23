@@ -323,9 +323,14 @@ def _row(
     value: float,
     read: _Read,
     level: float,
+    declaration_index: int | None,
 ) -> dict[str, Any]:
     out: dict[str, Any] = {
         "criterion_id": criterion_id,
+        # the position of the criteria.yaml entry this row was evaluated from (repair 1,
+        # lens FA-N1: two entries sharing an id printed both authors on both rows); null
+        # on the fairness-bound rows, which come from the fairness block
+        "declaration_index": declaration_index,
         "metric": metric,
         "operating_point": op,
         "scope": scope,
@@ -416,7 +421,7 @@ def _reads_for(c: dict[str, Any], doc: dict[str, Any]) -> list[tuple[_Read, Any]
 def evaluate(decl: Declarations, doc: dict[str, Any], *, level: float = 0.95) -> list[dict]:
     """Every ``criteria`` entry and the fairness bound against ``doc``; JSON-ready rows."""
     rows: list[dict[str, Any]] = []
-    for c in decl.criteria:
+    for k, c in enumerate(decl.criteria):
         op = None if c.get("operating_point") is None else str(c["operating_point"])
         for read, scope_out in _reads_for(c, doc):
             rows.append(
@@ -430,6 +435,7 @@ def evaluate(decl: Declarations, doc: dict[str, Any], *, level: float = 0.95) ->
                     value=c["value"],
                     read=read,
                     level=level,
+                    declaration_index=k,
                 )
             )
     rows.extend(_fairness_rows(decl, doc, level))
@@ -469,6 +475,7 @@ def _fairness_rows(decl: Declarations, doc: dict[str, Any], level: float) -> lis
                     value=bound,
                     read=read,
                     level=level,
+                    declaration_index=None,
                 )
             )
     if not levels:
@@ -483,6 +490,7 @@ def _fairness_rows(decl: Declarations, doc: dict[str, Any], level: float) -> lis
                 value=bound,
                 read=_Read(None, None, "no_fairness_block" if fairness is None else "level_absent"),
                 level=level,
+                declaration_index=None,
             )
         )
     return out

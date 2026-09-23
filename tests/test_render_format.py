@@ -95,6 +95,20 @@ def test_counts_scalars_and_p_values():
     assert fmt.p_value(None) == "—"
 
 
+def test_declared_values_print_every_digit():
+    """Repair 1 (lens FA-B4): a declared number prints every digit run.json carries; at
+    29fc04e ``fmt.scalar`` printed 0.4275 as 0.427 under "as the manufacturer wrote"."""
+    assert fmt.declared(0.4275) == "0.4275"
+    assert fmt.declared(0.8525) == "0.8525"
+    assert fmt.declared(0.0125) == "0.0125"
+    assert fmt.declared(0.1005) == "0.1005"
+    assert fmt.declared(0.8) == "0.8"
+    assert fmt.declared(0.00001) == "0.00001"
+    assert fmt.declared(-0.03) == "−0.03"
+    assert fmt.declared(1) == "1" and fmt.declared(None) == "—" and fmt.declared(True) == "yes"
+    assert fmt.scalar(0.4275) == "0.427"  # the engine-scalar rule is unchanged
+
+
 def test_text_passes_unverified_markings_verbatim():
     s = "Newcombe 1998 Table II [unverified against the primary PDF]"
     assert fmt.text(s) == s

@@ -105,7 +105,8 @@ def relation_of(number: dict[str, Any] | None, *, difference: bool = False) -> s
     if number.get("suppressed") or number.get("not_estimable_reason") is not None:
         return "not_assessable"
     lo, hi = number.get("ci_lo"), number.get("ci_hi")
-    if lo is None or hi is None:
+    if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in (lo, hi)):
+        # no interval, or one that is not a number (a ci_lo of "-0.1": repair 1, lens RG-N1)
         return "not_assessable"
     if not difference:
         return "estimate"

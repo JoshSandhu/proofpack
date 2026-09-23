@@ -1,0 +1,24 @@
+{
+  "name": "criterion_met_claim_bound_to_npv",
+  "rule": "CRITERION_STATUS for C_met (sensitivity, ci_lower_bound >= 0.5) bound to NPV, whose lower bound also clears 0.5",
+  "expected_reason_code": "metric_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9107",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": 0,
+    "criterion_id": "C_met",
+    "status": "met",
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/npv"
+    ],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

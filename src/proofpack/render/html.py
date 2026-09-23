@@ -26,7 +26,16 @@ What the page carries and where it comes from:
   verdict grep (``tests/test_render_t8.py``) treats hits inside ``.customer-text`` as
   the customer's and asserts they occur nowhere else. Bidirectional control characters
   (U+202A-U+202E, U+2066-U+2069, U+200E-U+200F) in any string are written as numeric
-  character references so a right-to-left override in a label cannot reorder the page.
+  character references: the raw byte sequence is absent from the file and the reference
+  is present (``test_html_injection_in_a_justification_and_a_level_label_is_escaped``
+  asserts both on a ``site`` level ``\\u202eS1``). An HTML parser decodes the reference
+  back to the character, so this changes the bytes, not the rendered text (lens RG-N2);
+  ``base.html`` sets ``unicode-bidi: isolate`` on ``.customer-text``, which no test
+  here reads (no browser is driven);
+* the manufacturer's declared numbers (thresholds, criterion values, prevalences, the
+  fairness bound) through :func:`proofpack.render.format.declared` - every digit
+  ``run.json`` carries, no rounding - so the T1-1 table, the criteria table and the
+  YAML echo on one page state one threshold (repair 1, lens FA-B4).
 
 ``render_t8(document)`` returns the page as a string; :func:`write_t8` writes it as UTF-8
 with ``\\n`` line endings. The HTML is a pure function of the document and the template
@@ -186,29 +195,31 @@ def narrative_integrity(document: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _authored(document: dict[str, Any], criterion_id: str) -> str:
+def _declaration_for(document: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
+    """The criteria.yaml entry a criteria row was evaluated from, by the row's
+    ``declaration_index`` (repair 1, lens FA-N1: two entries sharing ``id: C_dup`` printed
+    both authors and both justifications on both rows); the fairness block for a row
+    whose index is null (the fairness-bound rows); an empty entry when the index names
+    nothing."""
     decl = document.get("declarations") or {}
-    pairs: list[str] = []
-    for c in decl.get("criteria") or []:
-        if str(c.get("id")) == criterion_id:
-            pair = f"{fmt.text(c.get('author'))} · {fmt.text(c.get('date'))}"
-            if pair not in pairs:
-                pairs.append(pair)
-    if criterion_id.startswith("fairness:"):
-        f = decl.get("fairness") or {}
-        pairs.append(f"{fmt.text(f.get('author'))} · {fmt.text(f.get('date'))}")
-    return "; ".join(pairs) if pairs else "—"
+    index = row.get("declaration_index")
+    if index is None:
+        return decl.get("fairness") or {}
+    entries = decl.get("criteria") or []
+    if isinstance(index, int) and 0 <= index < len(entries) and isinstance(entries[index], dict):
+        return entries[index]
+    return {}
 
 
-def _justification(document: dict[str, Any], criterion_id: str) -> str:
-    decl = document.get("declarations") or {}
-    texts: list[str] = []
-    for c in decl.get("criteria") or []:
-        if str(c.get("id")) == criterion_id and c.get("justification") not in texts:
-            texts.append(fmt.text(c.get("justification")))
-    if criterion_id.startswith("fairness:"):
-        texts.append(fmt.text((decl.get("fairness") or {}).get("justification")))
-    return " / ".join(texts)
+def _authored(document: dict[str, Any], row: dict[str, Any]) -> str:
+    entry = _declaration_for(document, row)
+    if not entry:
+        return "—"
+    return f"{fmt.text(entry.get('author'))} · {fmt.text(entry.get('date'))}"
+
+
+def _justification(document: dict[str, Any], row: dict[str, Any]) -> str:
+    return fmt.text(_declaration_for(document, row).get("justification"))
 
 
 def _scope_text(scope: Any) -> str:
@@ -220,8 +231,10 @@ def _scope_text(scope: Any) -> str:
 def criteria_rows(document: dict[str, Any]) -> list[dict[str, Any]]:
     """Table 5.6, one entry per ``criteria_results`` row **by position**; the observed
     Number is the row's own ``metric_ref`` resolved in the document and printed by the
-    metric's rule; the declared value, compared value and the attainability bound are
-    printed on the unit scale to three decimals (the scale the customer wrote)."""
+    metric's rule; the declared value prints with every digit ``run.json`` carries
+    (:func:`proofpack.render.format.declared`); the compared value and the attainability
+    bound, which the engine computed, print on the unit scale to three decimals; the
+    author, date and justification are the entry at the row's ``declaration_index``."""
     out: list[dict[str, Any]] = []
     for i, row in enumerate(document.get("criteria_results") or []):
         ref = claims_mod._dotted_to_pointer(row.get("metric_ref"))
@@ -241,8 +254,8 @@ def criteria_rows(document: dict[str, Any]) -> list[dict[str, Any]]:
                 "operating_point": fmt.text(row.get("operating_point")) or "—",
                 "statistic": fmt.text(row.get("statistic")).replace("_", " "),
                 "comparator": fmt.text(row.get("comparator")),
-                "value": fmt.scalar(row.get("value")),
-                "authored": _authored(document, str(row.get("criterion_id"))),
+                "value": fmt.declared(row.get("value")),
+                "authored": _authored(document, row),
                 "observed": fmt.number(number, kind) if number is not None else "—",
                 "n": fmt.count(row.get("n")) if row.get("n") is not None else "—",
                 "method": fmt.text(row.get("method")) or "—",
@@ -252,7 +265,7 @@ def criteria_rows(document: dict[str, Any]) -> list[dict[str, Any]]:
                 "attainable_at_n": fmt.scalar(row.get("attainable_at_n")),
                 "max_lower_bound_at_n": fmt.scalar(row.get("max_lower_bound_at_n")),
                 "detail": "; ".join(f"{k}: {v}" for k, v in (row.get("detail") or {}).items()),
-                "justification": _justification(document, str(row.get("criterion_id"))),
+                "justification": _justification(document, row),
             }
         )
     return out
@@ -292,7 +305,7 @@ def declaration_rows(document: dict[str, Any]) -> list[tuple[str, str, bool]]:
     d = document.get("declarations") or {}
     classes, score = d.get("classes") or {}, d.get("score") or {}
     ops = "; ".join(
-        f"{fmt.text(o.get('id'))}: threshold {fmt.scalar(o.get('threshold'))} "
+        f"{fmt.text(o.get('id'))}: threshold {fmt.declared(o.get('threshold'))} "
         f"rule {fmt.text(o.get('rule'))}, {fmt.text(o.get('provenance'))} "
         f"({fmt.text(o.get('source'))})"
         for o in d.get("operating_points") or []
@@ -301,7 +314,7 @@ def declaration_rows(document: dict[str, Any]) -> list[tuple[str, str, bool]]:
     ind = d.get("indeterminates") or {}
     clu = d.get("clustering") or {}
     prev = "; ".join(
-        f"{fmt.text(p.get('label'))}: {fmt.scalar(p.get('value'))} ({fmt.text(p.get('source'))})"
+        f"{fmt.text(p.get('label'))}: {fmt.declared(p.get('value'))} ({fmt.text(p.get('source'))})"
         for p in d.get("prevalence") or []
     )
     subs = "; ".join(
@@ -332,7 +345,7 @@ def declaration_rows(document: dict[str, Any]) -> list[tuple[str, str, bool]]:
         (
             "Fairness criterion of interest",
             f"{fmt.text(fair.get('criterion_of_interest'))} on "
-            f"{fmt.text(fair.get('attribute'))}; bound {fmt.scalar(fair.get('bound'))} "
+            f"{fmt.text(fair.get('attribute'))}; bound {fmt.declared(fair.get('bound'))} "
             f"({fmt.text(fair.get('statistic'))} {fmt.text(fair.get('comparator'))})"
             if fair
             else "none declared",
@@ -368,9 +381,18 @@ def t8_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
     declared_limit = ((document.get("declarations") or {}).get("ledger") or {}).get(
         "warn_after_acceptance_runs"
     )
+    model = (document.get("declarations") or {}).get("model") or {}
     ctx = {
         "template_name": "T8 · Run manifest, declarations, scope and disclaimer",
         "document": document,
+        # read here with .get: criteria_schema.json requires model.name and model.version
+        # only, and StrictUndefined made a criteria.yaml without prior_version exit 5
+        # after run.json was written (repair 1, lens FA-B5)
+        "model": {
+            "name": fmt.text(model.get("name")),
+            "version": fmt.text(model.get("version")),
+            "prior_version": model.get("prior_version"),
+        },
         "long_form_title": LONG_FORM_TITLE,
         "long_form_items": LONG_FORM_ITEMS,
         "manifest_rows": manifest_rows(document),

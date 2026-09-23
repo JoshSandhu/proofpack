@@ -1,9 +1,14 @@
-"""The claim-binding checker (D1 section 4.4; build day 8, E8).
+"""The claim-binding checker (D1 section 4.4; build day 8, E8; repair 1, 23 September).
 
-:func:`check` is pure - it reads the claims, the document, the template library and the
-guidance map, returns one verdict per claim and raises nothing: malformed input is a
-typed rejection (``not_an_object``, ``missing_key``, ``unknown_key``, ...). The rules,
-applied in this order and stopping at the first that fails:
+:func:`check` reads the claims, the document, the template library and the guidance map
+and returns one verdict per claim. A malformed *claim* is a typed rejection, not an
+exception: ``tests/test_claims.py::test_the_checker_never_raises_on_garbage`` feeds nine
+literal non-claims, and ``tests/test_e8_repair1.py::
+test_two_malformed_documents_are_rejected_not_raised`` feeds two malformed documents (a
+``fairness`` block that is the string ``x`` under a ``FAIRNESS_GAP`` claim bound to four
+``/flow/`` counts; an ``overall.op1.sensitivity`` whose ``ci_lo`` is the string ``0.1``).
+No other input is claimed. The rules, applied in this order and stopping at the first
+that fails:
 
 1. the claim is an object with exactly the keys of ``schema/claims_schema.json``
    (``not_an_object`` / ``missing_key`` / ``unknown_key``), ``claim_id`` matches
@@ -13,49 +18,77 @@ applied in this order and stopping at the first that fails:
    enum (``relation_unknown``); ``status`` is ``null`` or exactly one of ``met`` /
    ``not_met`` / ``not_assessable`` - case-sensitive, so ``Met`` is
    ``status_not_in_enum``; ``comparator_id`` is in its enum (``comparator_unknown``);
-   ``metric_id`` is null or in D1 section 4.3's enum (``metric_unknown``);
+   ``metric_id`` is null, in D1 section 4.3's enum, or ``calibration_by_group`` (the
+   fairness criterion of interest the criteria engine emits, E7) (``metric_unknown``);
 3. the number of ``value_refs`` is within the template's range (``value_refs_count``);
-   every ``value_ref`` is an RFC 6901 pointer that resolves in the document
-   (``value_ref_unresolved``) to a Number object (the eight required keys of D1 section
-   4.1) or to one of the documented scalars in :data:`DOCUMENTED_SCALARS`
-   (``value_ref_not_a_number``); a resolved Number that is suppressed is refused whatever
-   the relation (``value_ref_suppressed``);
-4. ``relation`` equals the engine's recomputation from the bound Numbers
+   no pointer appears twice (``value_ref_duplicate``); every ``value_ref`` is an RFC
+   6901 pointer that resolves in the document (``value_ref_unresolved``) to a Number
+   object (the eight required keys of D1 section 4.1, with ``est``, ``ci_lo`` and
+   ``ci_hi`` each a number or null) or to one of the documented scalars in
+   :data:`DOCUMENTED_SCALARS` (``value_ref_not_a_number``); a resolved Number that is
+   suppressed is refused whatever the relation (``value_ref_suppressed``);
+4. **binding** (repair 1, lens FA-B1): every Number pointer is read for the metric,
+   operating point and row its path names, through the eight pointer shapes in
+   :data:`POINTER_SHAPES`; a Number at any other path carries no facets and this rule
+   does not bind it. A claim that names a ``metric_id`` binds Numbers of that metric
+   only, or of the template's family (:data:`METRIC_FAMILIES`: the calibration cells
+   under ``CALIB_HIERARCHY``, the gap cells under ``FAIRNESS_GAP``)
+   (``metric_mismatch``); a pointer that names an operating point names the claim's, and
+   a claim's ``operating_point`` is a key of ``document.overall``
+   (``operating_point_mismatch``); a template in :data:`OVERALL_TEMPLATES` carries no
+   ``subgroup`` and one in :data:`SUBGROUP_TEMPLATES` carries one
+   (``template_scope_mismatch``). A claim whose ``metric_id`` is null is not bound by
+   metric; the engine sets ``metric_id`` on every claim it builds that binds a Number;
+5. ``relation`` equals the engine's recomputation from the bound Numbers
    (:func:`proofpack.narrate.claims.relation_of`): a Number carrying a typed reason
    presented as an estimate, or a difference whose sign the claim states wrongly, is
-   ``relation_mismatch``;
-5. ``subgroup`` and ``reference`` name rows of ``document.subgroups``
-   (``subgroup_not_in_document`` / ``reference_not_in_document``); every pointer under
-   ``/subgroups/<i>/`` points at the claimed subgroup's own row (``subgroup_mismatch``:
-   the right number attached to the wrong subgroup); ``reference`` is the attribute's
-   declared reference level (``reference_mismatch``: the reference swapped);
-6. ``comparator_id`` matches the row: on a difference claim it is the difference block
-   the second pointer reads; on a criterion claim it is the row's comparator
-   (``comparator_mismatch``);
-7. a criterion claim addresses its row **by position**: ``criterion_index`` is an integer
+   ``relation_mismatch``; a claim that binds no Number (counts only, or nothing) can
+   state ``not_assessable`` and nothing else;
+6. ``subgroup`` and ``reference`` name rows of ``document.subgroups``
+   (``subgroup_not_in_document`` / ``reference_not_in_document``); every Number pointer
+   of a claim with a ``subgroup`` reads that row - ``/subgroups/<i>/`` at the row's
+   index, ``/fairness/gaps/<j>/`` at the gap whose level is the claim's - and every
+   Number pointer of a claim without one reads an overall or calibration path
+   (``subgroup_mismatch``); ``reference`` is the attribute's declared reference level
+   (``reference_mismatch``: the reference swapped);
+7. ``comparator_id`` matches the row: on a difference claim it is the difference block
+   the second pointer reads; on a criterion claim it is the row's comparator; on any
+   other claim it is null (``comparator_mismatch``);
+8. a criterion claim addresses its row **by position**: ``criterion_index`` is an integer
    in range (``criterion_index_missing`` when an id is named and no index -
    two rows may share an id; ``criterion_index_invalid``); ``criterion_id`` equals the
-   row's (``criterion_id_mismatch``); ``status`` equals the row's
-   (``status_mismatch``); and, on a ``met`` / ``not_met`` row, comparing the bound
+   row's (``criterion_id_mismatch``); the claim's ``metric_id``, ``operating_point``,
+   ``subgroup`` (the row's ``scope``) and ``value_refs`` (the row's ``metric_ref`` as a
+   pointer, or none) equal the row's (``criterion_row_mismatch``); ``status`` equals the
+   row's (``status_mismatch``); and, on a ``met`` / ``not_met`` row, comparing the bound
    Number's named statistic with the row's comparator and value gives the same status
    (``status_recomputation_mismatch``). A claim under any other template carries no
    status (``status_on_non_criterion``);
-8. ``guidance_ref`` is null or an ``internal_id`` of the guidance map
+9. ``guidance_ref`` is null or an ``internal_id`` of the guidance map
    (``guidance_ref_unknown``); a draft row - status beginning ``draft`` - must carry the
    qualifier ``not for implementation`` in its status (``guidance_draft_unqualified``);
-9. ``free_text``, when not null, contains no digit in any script (Unicode ``Nd``, ``Nl``
-   and ``No``, so the Arabic-Indic digits and a superscript two are digits; the text is
-   NFKC-normalised first, so a fullwidth per-cent sign is ``%``): ``free_text_digit``;
-   no ``%`` or per-mille sign (``free_text_percent``); none of :data:`VERDICT_WORDS` as
-   a whole word in any case (``free_text_verdict_word``); no section sign
-   (``free_text_section_sign``); not ``CFR`` as a whole word (``free_text_cfr``); not
-   ``guidance`` as a whole word (``free_text_guidance``); none of
-   :data:`CERTIFICATION_WORDS` (``free_text_certification_word``).
+10. ``free_text``, when not null, contains no digit in any script (Unicode ``Nd``, ``Nl``
+    and ``No``, so the Arabic-Indic digits and a superscript two are digits; the text is
+    NFKC-normalised first, so a fullwidth per-cent sign is ``%``): ``free_text_digit``;
+    no ``%`` or per-mille sign (``free_text_percent``); no section sign
+    (``free_text_section_sign``). For the word rules the text goes through
+    :func:`normalise_free_text` - NFKC, case fold (``ß`` to ``ss``, ``ſ`` to ``s``),
+    NFD, drop combining marks (``Mn``) and format characters (``Cf``: zero-width joiner
+    and non-joiner, soft hyphen), map the letters in :data:`CONFUSABLES` to the Latin
+    letter each resembles, and turn U+2010-U+2015 into ``-`` - and a word is matched as
+    the whole hyphenated token and as each hyphen-separated part (:func:`_words`), so
+    the corpus files ``104``-``115`` (``pаss``, ``pa‍ss``, ``pa‌ss``,
+    ``pa­ss``, ``un-biased``, ``pass-``, ``-pass``, ``verdict-like``, ``fail-safe``,
+    ``méets``, ``paß``, ``non‑inferior``) are each rejected: none of
+    :data:`VERDICT_WORDS` (``free_text_verdict_word``); not ``CFR`` (``free_text_cfr``);
+    not ``guidance`` (``free_text_guidance``); none of :data:`CERTIFICATION_WORDS`
+    (``free_text_certification_word``).
 
 At document level, an empty claims list on a document that carries criteria rows is one
 rejection with ``claim_id`` null (``no_claims_for_criteria``): a T8 that printed no
 criterion sentence beside a criteria table would be silent where D4 section 11 item 7
-requires a count.
+requires a count. A ``claim_id`` carried by more than one claim rejects every claim
+carrying it (``claim_id_duplicate``).
 
 On rejection the block is replaced by the deterministic template claim for its slot
 (:func:`resolve`) and the rejection is recorded in the document's ``claim_rejections``
@@ -175,6 +208,101 @@ CERTIFICATION_WORDS: frozenset[str] = frozenset(
         "clearance",
     }
 )
+#: Letters of other scripts shaped like a Latin letter, mapped before the word split
+#: (repair 1, lens FA-B2: ``pаss`` with a Cyrillic ``а``). Upper-case forms
+#: reach this map through the case fold that precedes it.
+CONFUSABLES: dict[str, str] = {
+    "а": "a",  # Cyrillic a
+    "е": "e",  # Cyrillic ie
+    "о": "o",  # Cyrillic o
+    "р": "p",  # Cyrillic er
+    "с": "c",  # Cyrillic es
+    "у": "y",  # Cyrillic u
+    "х": "x",  # Cyrillic ha
+    "і": "i",  # Cyrillic byelorussian-ukrainian i
+    "ј": "j",  # Cyrillic je
+    "ѕ": "s",  # Cyrillic dze
+    "ԁ": "d",  # Cyrillic komi de
+    "һ": "h",  # Cyrillic shha
+    "ԛ": "q",  # Cyrillic qa
+    "ԝ": "w",  # Cyrillic we
+    "ӏ": "l",  # Cyrillic palochka
+    "α": "a",  # Greek alpha
+    "ε": "e",  # Greek epsilon
+    "ι": "i",  # Greek iota
+    "κ": "k",  # Greek kappa
+    "ν": "v",  # Greek nu
+    "ο": "o",  # Greek omicron
+    "ρ": "p",  # Greek rho
+    "τ": "t",  # Greek tau
+    "υ": "u",  # Greek upsilon
+    "χ": "x",  # Greek chi
+    "ɡ": "g",  # Latin script g
+    "ı": "i",  # Latin dotless i
+}
+_UNICODE_HYPHENS = frozenset("‐‑‒–—―")
+
+
+@dataclass(frozen=True)
+class Facets:
+    """What a Number pointer's path names (rule 4): the metric key, the operating point,
+    the row kind (``overall``, ``subgroup`` or ``gap``) and its index, and the difference
+    block when the path reads one."""
+
+    metric: str | None = None
+    operating_point: str | None = None
+    scope: str = "overall"
+    index: int | None = None
+    block: str | None = None
+
+
+#: The eight pointer shapes rule 4 reads, as (pattern, facets). Any other path resolving
+#: to a Number carries no facets.
+POINTER_SHAPES: tuple[tuple[str, Any], ...] = (
+    (r"^/overall/threshold_free/([^/]+)$", lambda m: Facets(metric=m[1])),
+    (r"^/overall/([^/]+)/([^/]+)$", lambda m: Facets(metric=m[2], operating_point=m[1])),
+    (
+        r"^/subgroups/(\d+)/metrics/(auroc|brier)/number$",
+        lambda m: Facets(metric=m[2], scope="subgroup", index=int(m[1])),
+    ),
+    (
+        r"^/subgroups/(\d+)/metrics/([^/]+)/([^/]+)/number$",
+        lambda m: Facets(metric=m[3], operating_point=m[2], scope="subgroup", index=int(m[1])),
+    ),
+    (
+        r"^/subgroups/(\d+)/(diff_vs_reference|diff_vs_complement)/([^/]+)/([^/]+)/number$",
+        lambda m: Facets(
+            metric=m[4], operating_point=m[3], scope="subgroup", index=int(m[1]), block=m[2]
+        ),
+    ),
+    (r"^/calibration/([^/]+)/number$", lambda m: Facets(metric=m[1])),
+    (
+        r"^/fairness/gaps/(\d+)/operating_points/([^/]+)/([^/]+)/number$",
+        lambda m: Facets(metric=m[3], operating_point=m[2], scope="gap", index=int(m[1])),
+    ),
+    (
+        r"^/fairness/gaps/(\d+)/auroc_gap/number$",
+        lambda m: Facets(metric="auroc_gap", scope="gap", index=int(m[1])),
+    ),
+)
+_SHAPE_RES = tuple((re.compile(p), f) for p, f in POINTER_SHAPES)
+#: Templates whose sentence reports a family of cells beside the claim's ``metric_id``.
+METRIC_FAMILIES: dict[str, frozenset[str]] = {
+    "CALIB_HIERARCHY": frozenset(claims_mod.CALIBRATION_REFS),
+    "FAIRNESS_GAP": frozenset(claims_mod.FAIRNESS_GAP_ORDER),
+}
+#: Metric ids whose document key differs from the id (``criteria.CALIBRATION_KEYS``;
+#: ``tests/test_e8_repair1.py`` asserts the two maps agree).
+_DOC_KEY_FOR_METRIC: dict[str, str] = {
+    "calibration_slope": "slope",
+    "calibration_intercept": "intercept",
+}
+OVERALL_TEMPLATES: frozenset[str] = frozenset(
+    {"OVERALL_ESTIMATE", "AUROC_ESTIMATE", "CALIB_HIERARCHY", "CALIB_NA"}
+)
+SUBGROUP_TEMPLATES: frozenset[str] = frozenset(
+    {"SUBGROUP_ESTIMATE", "SUBGROUP_ESTIMATE_WITH_DIFF", "FAIRNESS_GAP"}
+)
 #: Reason codes, closed. ``check`` never emits a code outside this dictionary.
 REASON_CODES: dict[str, str] = {
     "not_an_object": "the claim is not a JSON object",
@@ -186,22 +314,35 @@ REASON_CODES: dict[str, str] = {
     "relation_unknown": "relation is not in its enum",
     "status_not_in_enum": "status is not null, met, not_met or not_assessable (case-sensitive)",
     "comparator_unknown": "comparator_id is not in its enum",
-    "metric_unknown": "metric_id is not a metric id of D1 section 4.3",
+    "metric_unknown": "metric_id is not a metric id of D1 section 4.3 or calibration_by_group",
     "value_refs_count": "the number of value_refs is outside the template's range",
+    "value_ref_duplicate": "the same pointer appears twice in value_refs",
     "value_ref_unresolved": "a value_ref does not resolve in the document",
     "value_ref_not_a_number": "a value_ref resolves to neither a Number nor a documented scalar",
     "value_ref_suppressed": "a value_ref resolves to a suppressed Number",
+    "metric_mismatch": "a value_ref names a metric other than metric_id or the template's family",
+    "operating_point_mismatch": (
+        "a value_ref names another operating point, or operating_point is not in document.overall"
+    ),
+    "template_scope_mismatch": (
+        "an overall template carries a subgroup, or a subgroup template carries none"
+    ),
     "relation_mismatch": "relation differs from the engine's recomputation from the bound Numbers",
     "subgroup_not_in_document": "subgroup names no row of document.subgroups",
     "reference_not_in_document": "reference names no row of document.subgroups",
     "subgroup_mismatch": (
-        "a value_ref under /subgroups points at a row other than the claimed subgroup"
+        "a value_ref reads a row other than the claimed subgroup, or a subgroup row on a claim "
+        "without one"
     ),
     "reference_mismatch": "reference is not the attribute's declared reference level",
     "comparator_mismatch": "comparator_id does not match the row the claim reads",
     "criterion_index_missing": "a criterion is addressed by id without a position",
     "criterion_index_invalid": "criterion_index is not a position in criteria_results",
     "criterion_id_mismatch": "criterion_id differs from the row's at criterion_index",
+    "criterion_row_mismatch": (
+        "metric_id, operating_point, subgroup or value_refs differ from the row at criterion_index"
+    ),
+    "claim_id_duplicate": "claim_id is carried by more than one claim in the list",
     "status_mismatch": "status differs from criteria_results[criterion_index].status",
     "status_recomputation_mismatch": (
         "the row's statistic, comparator and value on the bound Number give another status"
@@ -273,8 +414,27 @@ def resolve_pointer(doc: Any, ref: str) -> tuple[bool, Any]:
     return True, node
 
 
+def _number_or_none(value: Any) -> bool:
+    return value is None or (isinstance(value, (int, float)) and not isinstance(value, bool))
+
+
 def is_number_object(value: Any) -> bool:
-    return isinstance(value, dict) and NUMBER_KEYS <= set(value)
+    """The eight keys of D1 section 4.1, with ``est``, ``ci_lo`` and ``ci_hi`` each a number
+    or null (repair 1, lens RG-N4: a ``ci_lo`` of ``"0.1"`` is not a Number)."""
+    return (
+        isinstance(value, dict)
+        and NUMBER_KEYS <= set(value)
+        and all(_number_or_none(value[k]) for k in ("est", "ci_lo", "ci_hi"))
+    )
+
+
+def pointer_facets(ref: str) -> Facets | None:
+    """The facets of a Number pointer's path (rule 4), or ``None`` off the eight shapes."""
+    for pattern, build in _SHAPE_RES:
+        m = pattern.match(ref)
+        if m:
+            return build(m)
+    return None
 
 
 def is_documented_scalar(ref: str, value: Any) -> bool:
@@ -285,8 +445,27 @@ def is_documented_scalar(ref: str, value: Any) -> bool:
     )
 
 
+def normalise_free_text(text: str) -> str:
+    """The text the word rules read (rule 10): NFKC, case fold, NFD, combining marks and
+    format characters dropped, :data:`CONFUSABLES` mapped, U+2010-U+2015 as ``-``."""
+    folded = unicodedata.normalize("NFKC", text).casefold()
+    out: list[str] = []
+    for ch in unicodedata.normalize("NFD", folded):
+        if unicodedata.category(ch) in ("Mn", "Cf"):
+            continue
+        ch = CONFUSABLES.get(ch, ch)
+        out.append("-" if ch in _UNICODE_HYPHENS else ch)
+    return "".join(out)
+
+
 def _words(text: str) -> set[str]:
-    return set(re.split(r"[^a-z\-]+", text.lower())) - {""}
+    """Whole hyphenated tokens and their hyphen-separated parts, from normalised text."""
+    tokens = set(re.split(r"[^a-z\-]+", text)) - {""}
+    out: set[str] = set()
+    for token in tokens:
+        out.add(token.strip("-"))
+        out.update(token.split("-"))
+    return out - {""}
 
 
 def free_text_reason(text: str) -> str | None:
@@ -299,8 +478,9 @@ def free_text_reason(text: str) -> str | None:
         return "free_text_percent"
     if "§" in norm:
         return "free_text_section_sign"
-    words = _words(norm)
-    if words & VERDICT_WORDS or "well-calibrated" in norm.lower():
+    normalised = normalise_free_text(text)
+    words = _words(normalised)
+    if words & VERDICT_WORDS or "well-calibrated" in normalised:
         return "free_text_verdict_word"
     if "cfr" in words:
         return "free_text_cfr"
@@ -405,6 +585,8 @@ def _check_one(
     lo, hi = template.refs
     if not (lo <= len(refs) <= hi):
         return reject("value_refs_count", count=len(refs), expected=[lo, hi])
+    if len(set(refs)) != len(refs):
+        return reject("value_ref_duplicate", value_refs=list(refs))
     numbers: list[tuple[str, dict[str, Any]]] = []
     for ref in refs:
         found, value = resolve_pointer(doc, ref)
@@ -416,7 +598,31 @@ def _check_one(
             numbers.append((ref, value))
         elif not is_documented_scalar(ref, value):
             return reject("value_ref_not_a_number", value_ref=ref)
-    # 4. relation
+    # 4. binding: metric, operating point and template scope (repair 1, lens FA-B1)
+    facets = [(ref, pointer_facets(ref)) for ref, _ in numbers]
+    op = claim["operating_point"]
+    if metric_id is not None:
+        doc_key = _DOC_KEY_FOR_METRIC.get(metric_id, metric_id)
+        family = METRIC_FAMILIES.get(template_id, frozenset())
+        if family and doc_key not in family:
+            return reject("metric_mismatch", metric_id=metric_id, family=sorted(family))
+        allowed = {doc_key} | family
+        for ref, f in facets:
+            if f is not None and f.metric is not None and f.metric not in allowed:
+                return reject("metric_mismatch", value_ref=ref, metric_id=metric_id)
+    for ref, f in facets:
+        if f is not None and f.operating_point is not None and f.operating_point != op:
+            return reject("operating_point_mismatch", value_ref=ref, operating_point=op)
+    overall = doc.get("overall")
+    if op is not None and isinstance(overall, dict):
+        if op == "threshold_free" or op not in overall:
+            return reject("operating_point_mismatch", operating_point=op)
+    sub = claim["subgroup"]
+    if template_id in OVERALL_TEMPLATES and sub is not None:
+        return reject("template_scope_mismatch", template_id=template_id, subgroup=sub)
+    if template_id in SUBGROUP_TEMPLATES and sub is None:
+        return reject("template_scope_mismatch", template_id=template_id, subgroup=None)
+    # 5. relation
     if template_id in DIFFERENCE_TEMPLATES:
         diff_numbers = [n for r, n in numbers if any(f"/{b}/" in r for b in DIFFERENCE_BLOCKS)]
         if template_id == "FAIRNESS_GAP":
@@ -431,44 +637,37 @@ def _check_one(
     elif numbers:
         expected = claims_mod.relation_of(numbers[0][1])
     else:
-        expected = (
-            claim["relation"] if claim["relation"] in ("estimate", "not_assessable") else None
-        )
+        expected = "not_assessable"
     if claim["relation"] != expected:
         return reject("relation_mismatch", stated=claim["relation"], recomputed=expected)
-    # 5. subgroup and reference
-    sub = claim["subgroup"]
+    # 6. subgroup and reference
+    fairness = doc.get("fairness")
+    fairness = fairness if isinstance(fairness, dict) else {}
+    gaps = [g if isinstance(g, dict) else {} for g in fairness.get("gaps") or []]
     if sub is not None:
+        if not isinstance(sub, dict):
+            return reject("subgroup_not_in_document", subgroup=sub)
+        gap_idx = [j for j, g in enumerate(gaps) if str(g.get("level")) == str(sub.get("level"))]
+        if str(fairness.get("attribute")) != str(sub.get("attribute")):
+            gap_idx = []
         if template_id == "FAIRNESS_GAP":
-            fairness = doc.get("fairness") or {}
-            levels = {
-                str(g.get("level")) for g in fairness.get("gaps") or [] if isinstance(g, dict)
-            }
-            if (
-                not isinstance(sub, dict)
-                or str(fairness.get("attribute")) != str(sub.get("attribute"))
-                or str(sub.get("level")) not in levels
-            ):
+            if not gap_idx:
                 return reject("subgroup_not_in_document", subgroup=sub)
-            gap_idx = [
-                j
-                for j, g in enumerate(fairness.get("gaps") or [])
-                if isinstance(g, dict) and str(g.get("level")) == str(sub.get("level"))
-            ]
-            for ref, _ in numbers:
-                m = re.match(r"^/fairness/gaps/(\d+)/", ref)
-                if m and int(m.group(1)) not in gap_idx:
-                    return reject("subgroup_mismatch", value_ref=ref, subgroup=sub)
+            idx = None
             ref_level = fairness.get("reference_level")
         else:
             idx = _subgroup_index(doc, sub)
             if idx is None:
                 return reject("subgroup_not_in_document", subgroup=sub)
-            for ref, _ in numbers:
-                m = re.match(r"^/subgroups/(\d+)/", ref)
-                if m and int(m.group(1)) != idx:
-                    return reject("subgroup_mismatch", value_ref=ref, subgroup=sub, row=idx)
             ref_level = claims_mod._reference_levels(doc).get(str(sub.get("attribute")))
+        for ref, f in facets:
+            if f is None:
+                continue
+            if f.scope == "subgroup" and f.index == idx:
+                continue
+            if f.scope == "gap" and f.index in gap_idx:
+                continue
+            return reject("subgroup_mismatch", value_ref=ref, subgroup=sub, row=idx)
         reference = claim["reference"]
         if reference is not None:
             if not isinstance(reference, dict) or _subgroup_index(doc, reference) is None:
@@ -479,16 +678,22 @@ def _check_one(
                 return reject("reference_mismatch", reference=reference, declared=ref_level)
             if str(reference.get("level")) == str(sub.get("level")):
                 return reject("reference_mismatch", reference=reference, declared=ref_level)
-    elif claim["reference"] is not None:
-        return reject("reference_not_in_document", reference=claim["reference"])
-    # 6. comparator_id on a difference claim
+    else:
+        if claim["reference"] is not None:
+            return reject("reference_not_in_document", reference=claim["reference"])
+        for ref, f in facets:
+            if f is not None and f.scope != "overall":
+                return reject("subgroup_mismatch", value_ref=ref, subgroup=None)
+    # 7. comparator_id
     if template_id in DIFFERENCE_TEMPLATES:
         blocks = {b for r, _ in numbers for b in DIFFERENCE_BLOCKS if f"/{b}/" in r}
         if template_id == "FAIRNESS_GAP":
             blocks = {"diff_vs_reference"}
         if comparator_id not in blocks or len(blocks) != 1:
             return reject("comparator_mismatch", comparator_id=comparator_id, blocks=sorted(blocks))
-    # 7. criteria by position
+    elif template_id not in CRITERION_TEMPLATES and comparator_id is not None:
+        return reject("comparator_mismatch", comparator_id=comparator_id, blocks=[])
+    # 8. criteria by position
     if template_id in CRITERION_TEMPLATES:
         index = claim["criterion_index"]
         rows = doc.get("criteria_results") or []
@@ -503,6 +708,28 @@ def _check_one(
             return reject(
                 "criterion_id_mismatch", claimed=claim["criterion_id"], row=row.get("criterion_id")
             )
+        row_scope = row.get("scope")
+        row_sub = (
+            {"attribute": str(row_scope.get("attribute")), "level": str(row_scope.get("level"))}
+            if isinstance(row_scope, dict)
+            else None
+        )
+        claim_sub = (
+            {"attribute": str(sub.get("attribute")), "level": str(sub.get("level"))}
+            if isinstance(sub, dict)
+            else None
+        )
+        row_ref = claims_mod._dotted_to_pointer(row.get("metric_ref"))
+        for field_name, claimed, expected_value in (
+            ("metric_id", metric_id, row.get("metric")),
+            ("operating_point", op, row.get("operating_point")),
+            ("subgroup", claim_sub, row_sub),
+            ("value_refs", list(refs), [] if row_ref is None else [row_ref]),
+        ):
+            if claimed != expected_value:
+                return reject(
+                    "criterion_row_mismatch", field=field_name, claimed=claimed, row=expected_value
+                )
         if status != row.get("status"):
             return reject("status_mismatch", claimed=status, row=row.get("status"))
         if comparator_id != row.get("comparator"):
@@ -552,7 +779,8 @@ def check(
     guidance_map: Any = None,
 ) -> CheckResult:
     """One :class:`Verdict` per claim, plus the document-level verdict when the list is
-    empty on a document with criteria rows. Pure; never raises on malformed input."""
+    empty on a document with criteria rows. Pure: it writes nothing and reads no
+    environment; what it raises on is stated in the module docstring."""
     lib = LIBRARY if library is None else library
     guidance = _guidance_rows(guidance_map)
     doc = document if isinstance(document, dict) else {}
@@ -569,7 +797,13 @@ def check(
         )
     if not claims and doc.get("criteria_results"):
         return CheckResult([Verdict(None, False, "no_claims_for_criteria", {})])
+    ids = [c.get("claim_id") for c in claims if isinstance(c, dict)]
+    repeated = {i for i in ids if isinstance(i, str) and ids.count(i) > 1}
     for claim in claims:
+        if isinstance(claim, dict) and claim.get("claim_id") in repeated:
+            cid = claim["claim_id"]
+            verdicts.append(Verdict(cid, False, "claim_id_duplicate", {"count": ids.count(cid)}))
+            continue
         verdicts.append(_check_one(claim, doc, lib, guidance, metric_ids))
     return CheckResult(verdicts)
 
@@ -585,9 +819,11 @@ def resolve(
     ``claims`` defaults to the engine's own :func:`~proofpack.narrate.claims.build_claims`.
     Every claim is checked; a rejected one is replaced by the deterministic template claim
     for its slot (the engine's claim with the same template, metric, operating point,
-    subgroup and criterion position) when that substitute is itself accepted, and dropped
-    otherwise; each rejection is recorded as ``{claim_id, reason_code, template_id,
-    substituted, detail}``.
+    subgroup and criterion position) when that substitute is itself accepted and the slot
+    is not already filled - by an accepted claim or by an earlier substitute (repair 1,
+    lens FA-N4: two rejected claims on one slot gave ``final`` two copies of ``CL-0001``)
+    - and dropped otherwise; each rejection is recorded as ``{claim_id, reason_code,
+    template_id, substituted, detail}``.
     """
     engine = claims_mod.build_claims(document)
     by_slot = {claims_mod.slot_key(c): c for c in engine}
@@ -599,16 +835,20 @@ def resolve(
         v = result.verdicts[0]
         rejections.append({**v.as_rejection(), "template_id": None, "substituted": False})
         return final, rejections
+    filled: set[tuple[Any, ...]] = set()
     for claim, verdict in zip(incoming, result.verdicts, strict=True):
         if verdict.accepted:
             final.append(claim)
+            filled.add(claims_mod.slot_key(claim))
             continue
-        substitute = by_slot.get(claims_mod.slot_key(claim)) if isinstance(claim, dict) else None
+        slot = claims_mod.slot_key(claim) if isinstance(claim, dict) else None
+        substitute = by_slot.get(slot) if slot is not None else None
         substituted = False
-        if substitute is not None and substitute is not claim:
+        if substitute is not None and slot not in filled:
             again = check([substitute], document, guidance_map=guidance_map)
             if again.verdicts and again.verdicts[0].accepted:
                 final.append(substitute)
+                filled.add(slot)
                 substituted = True
         rejections.append(
             {

@@ -1,0 +1,25 @@
+{
+  "name": "criterion_index_moved_between_rows_sharing_an_id",
+  "rule": "CRITERION_STATUS for C_f1_site at index 2 (row scope site=S1) carrying row 3's scope site=S2",
+  "expected_reason_code": "criterion_row_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9109",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "f1",
+    "operating_point": "op1",
+    "subgroup": {
+      "attribute": "site",
+      "level": "S2"
+    },
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": 2,
+    "criterion_id": "C_f1_site",
+    "status": "not_assessable",
+    "relation": "not_assessable",
+    "value_refs": [],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

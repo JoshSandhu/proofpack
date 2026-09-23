@@ -186,9 +186,24 @@ def test_the_corpus_is_numerically_correct_where_it_binds_numbers(document):
             continue
         for ref in entry["claim"].get("value_refs", []):
             found, value = checker.resolve_pointer(document, ref)
-            assert found and checker.is_number_object(value), (path.name, ref)
+            assert found, (path.name, ref)
+            assert checker.is_number_object(value) or checker.is_documented_scalar(ref, value), (
+                path.name,
+                ref,
+            )
             pointer_cases += 1
     assert pointer_cases >= 60
+
+
+def test_every_reason_code_has_at_least_one_corpus_case():
+    """Repair 1: 42 codes in ``checker.REASON_CODES``, 115 corpus files; every code is
+    the expected code of at least one file (``claim_id_duplicate`` and
+    ``no_claims_for_criteria`` through ``claims`` lists)."""
+    expected = {
+        json.loads(p.read_text(encoding="utf-8"))["expected_reason_code"] for p in CORPUS_FILES
+    }
+    assert set(checker.REASON_CODES) - expected == set()
+    assert len(checker.REASON_CODES) == 42 and len(CORPUS_FILES) == 115
 
 
 # ------------------------------------------------------- the engine's own claims (item 4)
@@ -493,6 +508,7 @@ def test_resolve_substitutes_the_deterministic_claim_and_logs_the_rejection(docu
     assert checker.check(final, document).rejected == []
     # a claim with no slot to substitute is dropped and logged as not substituted
     stray = copy.deepcopy(engine[0])
+    stray["claim_id"] = "CL-9999"  # its own id: a repeated id is claim_id_duplicate (repair 1)
     stray["template_id"] = "SUMMARY_POINTERS"
     final2, rejections2 = checker.resolve(document, [*engine, stray])
     assert final2 == engine and rejections2[0]["substituted"] is False

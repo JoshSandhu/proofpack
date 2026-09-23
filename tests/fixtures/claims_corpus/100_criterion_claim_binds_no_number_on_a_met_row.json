@@ -1,0 +1,22 @@
+{
+  "name": "criterion_claim_binds_no_number_on_a_met_row",
+  "rule": "CRITERION_STATUS for C_met (met) with value_refs [] where the row's metric_ref names overall.op1.sensitivity",
+  "expected_reason_code": "criterion_row_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9107",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": 0,
+    "criterion_id": "C_met",
+    "status": "met",
+    "relation": "estimate",
+    "value_refs": [],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

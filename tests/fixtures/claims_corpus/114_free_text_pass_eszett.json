@@ -1,0 +1,24 @@
+{
+  "name": "free_text_pass_eszett",
+  "rule": "pass spelt with an eszett (U+00DF) (lens FA-B2: accepted at 29fc04e)",
+  "expected_reason_code": "free_text_verdict_word",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9101",
+    "template_id": "OVERALL_ESTIMATE",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/sensitivity"
+    ],
+    "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
+    "free_text": "Sensitivity looked paß here."
+  }
+}

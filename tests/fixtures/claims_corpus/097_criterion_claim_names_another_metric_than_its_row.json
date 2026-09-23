@@ -1,0 +1,24 @@
+{
+  "name": "criterion_claim_names_another_metric_than_its_row",
+  "rule": "CRITERION_STATUS at index 0 (row metric sensitivity) naming metric_id npv with the NPV pointer (consistent with itself, not with the row)",
+  "expected_reason_code": "criterion_row_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9107",
+    "template_id": "CRITERION_STATUS",
+    "metric_id": "npv",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": 0,
+    "criterion_id": "C_met",
+    "status": "met",
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/npv"
+    ],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

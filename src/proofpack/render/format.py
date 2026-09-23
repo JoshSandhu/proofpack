@@ -35,6 +35,7 @@ are ``x * 100`` formatted once.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 SUPPRESSED_MARK = "‡"
@@ -97,12 +98,12 @@ def percent(x: float, places: int = 1) -> str:
 
 
 def count(n: Any) -> str:
-    """A bare integer count; ``None`` prints as an em-dash-free blank marker."""
+    """A bare integer count; ``None`` prints as an em dash (U+2014)."""
     return "—" if n is None else str(int(n))
 
 
 def scalar(x: Any, places: int = 3) -> str:
-    """A documented scalar (a declared value, a compared value, a bound) at ``places``."""
+    """An engine scalar (a compared value, an attainability bound) at ``places``."""
     if x is None:
         return "—"
     if isinstance(x, bool):
@@ -110,6 +111,23 @@ def scalar(x: Any, places: int = 3) -> str:
     if isinstance(x, int):
         return str(x)
     return _plain(float(x), places)
+
+
+def declared(x: Any) -> str:
+    """A number the manufacturer declared (a threshold, a criterion value, a prevalence, a
+    fairness bound), printed with every digit ``run.json`` carries and no rounding: the
+    shortest decimal that reads back to the same double (Python's ``repr``), written
+    positionally. ``tests/test_render_format.py::test_declared_values_print_every_digit``
+    feeds ``0.4275`` -> ``0.4275``, ``0.8525`` -> ``0.8525``, ``0.8`` -> ``0.8``,
+    ``0.00001`` -> ``0.00001``, ``1`` -> ``1`` (repair 1, lens FA-B4: ``0.4275`` printed
+    ``0.427`` under a caption saying "as the manufacturer wrote the value")."""
+    if x is None:
+        return "—"
+    if isinstance(x, bool):
+        return "yes" if x else "no"
+    if isinstance(x, int):
+        return str(x)
+    return format(Decimal(repr(float(x))), "f").replace("-", MINUS)
 
 
 def p_value(p: Any) -> str:

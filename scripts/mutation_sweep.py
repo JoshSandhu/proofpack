@@ -1474,6 +1474,7 @@ MUTANTS_DAY7: tuple[Mutant, ...] = (
 #: claim-binding checker, the number formatting, the anchors, the renderer and T8).
 #: ``--marker day8``.
 FORMAT = "src/proofpack/render/format.py"
+GATES = "src/proofpack/gates.py"
 CHECKER = "src/proofpack/narrate/checker.py"
 CLAIMS = "src/proofpack/narrate/claims.py"
 ANCHORS = "src/proofpack/render/anchors.py"
@@ -1603,6 +1604,114 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
         "        if True:\n            block = {k: v.as_dict() for k, v in metrics.items()}",
         day=8,
         what="the overall block takes two_by_two_metrics (Wilson) on a clustered plan",
+    ),
+    # --- repair 1 of day 8 (23 September): one mutant per rule the lenses found missing
+    Mutant(
+        "checker_metric_binding_skipped",
+        CHECKER,
+        r"            if f is not None and f\.metric is not None and f\.metric not in allowed:",
+        "            if False:",
+        day=8,
+        what="a value_ref naming a sibling metric is accepted (FA-B1)",
+    ),
+    Mutant(
+        "checker_operating_point_binding_skipped",
+        CHECKER,
+        r"        if f is not None and f\.operating_point is not None "
+        r"and f\.operating_point != op:",
+        "        if False:",
+        day=8,
+        what="a value_ref naming another operating point is accepted (FA-B1)",
+    ),
+    Mutant(
+        "checker_relation_fallthrough_accepts_estimate",
+        CHECKER,
+        r'        expected = "not_assessable"$',
+        '        expected = claim["relation"]',
+        day=8,
+        what="a claim binding no Number may state relation estimate (FA-B1: the tp count)",
+    ),
+    Mutant(
+        "checker_duplicate_claim_ids_tolerated",
+        CHECKER,
+        r"    repeated = \{i for i in ids if isinstance\(i, str\) and ids\.count\(i\) > 1\}",
+        "    repeated = set()",
+        day=8,
+        what="two claims with one claim_id are both accepted (FA-N4)",
+    ),
+    Mutant(
+        "checker_confusables_unmapped",
+        CHECKER,
+        r"        ch = CONFUSABLES\.get\(ch, ch\)",
+        "        ch = ch",
+        day=8,
+        what="a Cyrillic a in pass is not mapped to a (FA-B2)",
+    ),
+    Mutant(
+        "checker_format_characters_kept",
+        CHECKER,
+        r'        if unicodedata\.category\(ch\) in \("Mn", "Cf"\):',
+        "        if False:",
+        day=8,
+        what="a zero-width joiner or combining mark inside a verdict word is kept (FA-B2)",
+    ),
+    Mutant(
+        "checker_hyphen_parts_not_split",
+        CHECKER,
+        r'        out\.update\(token\.split\("-"\)\)',
+        "        pass",
+        day=8,
+        what="un-biased and pass- are matched as whole tokens only (FA-B2)",
+    ),
+    Mutant(
+        "gates_h02_skips_y_pred",
+        GATES,
+        r'    for column, values in \(\("y_true", table\.y_true\), \("y_pred", table\.y_pred\)\):',
+        '    for column, values in (("y_true", table.y_true),):',
+        day=8,
+        what="a y_pred column outside the declared classes passes H02 (FA-B3)",
+    ),
+    Mutant(
+        "format_declared_rounds_to_three",
+        FORMAT,
+        r'    return format\(Decimal\(repr\(float\(x\)\)\), "f"\)\.replace\("-", MINUS\)',
+        "    return _plain(float(x), 3)",
+        day=8,
+        what="a declared 0.4275 prints 0.427 (FA-B4)",
+    ),
+    Mutant(
+        "t8_prior_version_read_under_strict_undefined",
+        T8_TEMPLATE,
+        r"\{% if model\.prior_version is not none %\}",
+        "{% if document.declarations.model.prior_version %}",
+        day=8,
+        what="a criteria.yaml without model.prior_version fails the render (FA-B5)",
+    ),
+    Mutant(
+        "html_declaration_index_ignored",
+        HTML,
+        r'    index = row\.get\("declaration_index"\)',
+        "    index = 0",
+        day=8,
+        what="every criteria row prints the first entry's author and justification (FA-N1)",
+    ),
+    Mutant(
+        "criteria_declaration_index_dropped",
+        CRITERIA,
+        r"                    declaration_index=k,",
+        "                    declaration_index=None,",
+        day=8,
+        what="criteria rows carry no declaration index (FA-N1)",
+    ),
+    Mutant(
+        "run_prevalence_wrong_key",
+        RUN,
+        r"        prevalence = clustered_proportion\(all_rows, pos, "
+        r'_overall_cell_key\("prevalence"\)\)',
+        "        prevalence = clustered_proportion(all_rows, ~pos, "
+        '_overall_cell_key("prevalence"))',
+        day=8,
+        what="the clustered overall prevalence is the negative share (lens FA-N2's survivor)",
     ),
 )
 

@@ -347,12 +347,14 @@
           },
           "reason_code": {
             "enum": [
+              "claim_id_duplicate",
               "claim_id_invalid",
               "comparator_mismatch",
               "comparator_unknown",
               "criterion_id_mismatch",
               "criterion_index_invalid",
               "criterion_index_missing",
+              "criterion_row_mismatch",
               "free_text_certification_word",
               "free_text_cfr",
               "free_text_digit",
@@ -362,10 +364,12 @@
               "free_text_verdict_word",
               "guidance_draft_unqualified",
               "guidance_ref_unknown",
+              "metric_mismatch",
               "metric_unknown",
               "missing_key",
               "no_claims_for_criteria",
               "not_an_object",
+              "operating_point_mismatch",
               "reference_mismatch",
               "reference_not_in_document",
               "relation_mismatch",
@@ -376,8 +380,10 @@
               "status_recomputation_mismatch",
               "subgroup_mismatch",
               "subgroup_not_in_document",
+              "template_scope_mismatch",
               "template_unknown",
               "unknown_key",
+              "value_ref_duplicate",
               "value_ref_not_a_number",
               "value_ref_suppressed",
               "value_ref_unresolved",
@@ -439,13 +445,14 @@
     "criterionResult": {
       "type": "object",
       "required": [
-        "criterion_id", "metric", "operating_point", "scope", "statistic", "comparator", "value",
+        "criterion_id", "declaration_index", "metric", "operating_point", "scope", "statistic", "comparator", "value",
         "metric_ref", "compared_value", "n", "method", "attainable_at_n", "max_lower_bound_at_n",
         "status", "reason_code", "detail"
       ],
       "additionalProperties": false,
       "properties": {
         "criterion_id": { "type": "string" },
+        "declaration_index": { "type": ["integer", "null"], "minimum": 0, "description": "Position of the criteria.yaml entry this row was evaluated from (a level: * entry yields one row per level, all with its index); null on the fairness-bound rows. Added in repair 1 of build day 8 so the renderer prints each row's own author, date and justification." },
         "metric": { "anyOf": [ { "$ref": "#/$defs/metricId" }, { "const": "calibration_by_group" } ] },
         "operating_point": { "type": ["string", "null"] },
         "scope": {
