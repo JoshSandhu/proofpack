@@ -83,6 +83,7 @@ markers = [
     "day9: Day 9",
     "day10: Day 10",
     "fixture: named fixture register entries (F1-F21)",
+    "ap2: A-P2 egress, telemetry and --offline (build day 8, lane A); every ap2 test also carries day8",
     "slow: slow tests",
 ]
 addopts = "-ra"

@@ -62,6 +62,48 @@ jobs:
       - name: doctor in the CI venv
         run: uv run proofpack doctor --offline
 
+  offline-namespace:
+    # A-P2 (build day 8, lane A; D1 section 6, F19): the whole `proofpack run` on the
+    # synthetic cohort inside a user namespace with no network (`unshare -rn`; if the
+    # runner forbids unprivileged user namespaces, `sudo unshare -n`). First with
+    # --offline: exit 0, run.json written, "telemetry skipped (--offline)". Then WITHOUT
+    # --offline in the same kind of namespace: the send is expected to fail at the name
+    # lookup, so the run should print one [W16] line, still exit 0 and still write run.json
+    # (expected, not measured: this job had not run anywhere as of 23 September 2026 - the
+    # branch has not reached this repository's CI). The venv is used
+    # directly (.venv/bin/python) so nothing inside the namespace asks uv for the network.
+    name: proofpack run inside unshare -rn (no network)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --all-groups --locked
+      - name: full run with --offline, then without, each inside a network namespace
+        run: |
+          set -euo pipefail
+          if unshare -rn true 2>/dev/null; then
+            NS="unshare -rn"
+          else
+            echo "unprivileged user namespaces are unavailable on this runner; using sudo unshare -n"
+            NS="sudo unshare -n"
+          fi
+          echo "namespace command: $NS"
+          if $NS .venv/bin/python -c "import socket; socket.getaddrinfo('proofpack.globalphoenix.co.uk', 443)" 2>/dev/null; then
+            echo "the namespace still resolves names; this job would prove nothing"
+            exit 1
+          fi
+          echo "name lookup fails inside the namespace, as required"
+          $NS .venv/bin/python scripts/ci_namespace_run.py --offline | tee offline.txt
+          grep -q "telemetry skipped (--offline); nothing was sent" offline.txt
+          grep -q "namespace run: --offline exit=0 run.json=written" offline.txt
+          $NS .venv/bin/python scripts/ci_namespace_run.py --online | tee online.txt
+          grep -q "\[W16\] telemetry not sent (" online.txt
+          grep -q "namespace run: --online exit=0 run.json=written" online.txt
+
   audit:
     name: pip-audit
     runs-on: ubuntu-latest

@@ -64,7 +64,12 @@ MAPPING_CODES: dict[str, str] = {
 
 #: Gates that produce a flag/warning rather than a HALT. W14 is the ledger's limit
 #: warning (E7): the run completes and the document carries the count and the limit.
-FLAG_ONLY_CODES = frozenset({"H10", "W14"})
+#: W16 (A-P2, build day 8) is the telemetry send that did not succeed: printed as one
+#: line after run.json is written (``egress.telemetry.SendResult.line``) and not
+#: appended to the document; ``cmd_run`` returns the run's exit code without reading
+#: the result (tests/test_telemetry.py: the 500 / timeout / refused / schema-unreadable
+#: runs each assert ``rc == EXIT_OK`` and the W16 line).
+FLAG_ONLY_CODES = frozenset({"H10", "W14", "W16"})
 
 #: Non-fatal warning codes, closed the way :data:`HALT_CODES` is. ``Finding.code`` used
 #: to be free text, so a typo or a collision between two lanes could not be caught, and
@@ -80,6 +85,11 @@ WARN_CODES: dict[str, str] = {
     # read or written and the count is unknown.
     "W14": "acceptance runs on this test set exceed the declared ledger limit",
     "W15": "the local ledger could not be read or written; acceptance runs not counted",
+    # A-P2 (build day 8), egress.telemetry: the one outbound call did not succeed or was
+    # not made (timeout, unreachable, refused, a non-2xx status, an invalid payload, the
+    # schema resource unreadable). Printed as one line; the line's own words are the
+    # measured ones (tests/test_telemetry.py, the W16 tests named in FLAG_ONLY_CODES).
+    "W16": "telemetry not sent; run.json and the exit code are unchanged",
 }
 
 

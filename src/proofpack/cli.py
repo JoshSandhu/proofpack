@@ -481,6 +481,17 @@ def cmd_run(args: argparse.Namespace) -> int:
     documents, notes = write_documents(outcome, args.out, formats, templates)
     doc = outcome.document
     manifest = doc["manifest"]
+    # A-P2 (build day 8, lane A): the one telemetry call site, after every document is
+    # written. ``sent`` is printed and logged below; the return does not read it
+    # (tests/test_telemetry.py::test_the_exit_code_with_a_failed_send_equals_the_exit_code_offline).
+    from proofpack.egress import telemetry as telemetry_mod  # noqa: PLC0415 - one call site
+
+    sent = telemetry_mod.run_telemetry(
+        doc,
+        offline=args.offline,
+        licence_status=outcome.licence.status,
+        transport=getattr(args, "transport", None),
+    )
     statuses = [r["status"] for r in doc["criteria_results"]]
     warn_lines = "".join(f"\n  [{w.code}] {w.message}" for w in outcome.warnings)
     lic = outcome.licence
@@ -494,6 +505,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         f"criteria rows: {counts['met']} met, {counts['not_met']} not met, "
         f"{counts['not_assessable']} not assessable\n"
         f"  {lic_line}{warn_lines}\n"
+        f"{telemetry_mod.summary_lines(sent, offline=args.offline)}"
     )
     if not lic.usable:
         summary += f"  {LICENCE_FIX}\n"
@@ -518,6 +530,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 "run_id": manifest["run_id"],
                 "exit_code": outcome.exit_code,
                 "licence_status": lic.status,
+                "telemetry": telemetry_mod.log_entry(sent, offline=args.offline),
                 "watermark": manifest["watermark"],
                 "criteria_status_counts": counts,
                 "warnings": [w.code for w in outcome.warnings],
@@ -612,14 +625,18 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return EXIT_WARNINGS if warnings else EXIT_OK
 
 
-def main(argv: list[str] | None = None, *, registry=None) -> int:
+def main(argv: list[str] | None = None, *, registry=None, transport=None) -> int:
     """Entry point. ``registry`` (a :class:`proofpack.licence.keys.KeyRegistry`) is the
     test-only hook for licence verification against an ephemeral key pair: the shipped
-    key is never rebound; a caller that wants another key names it here. The console
-    script and ``python -m proofpack.cli`` always pass ``None`` (the shipped registry)."""
+    key is never rebound; a caller that wants another key names it here. ``transport``
+    (A-P2) is the same kind of hook for the telemetry send - a callable ``(url, body,
+    timeout) -> status`` that ``proofpack.egress.telemetry.send`` uses in place of
+    ``urllib``; the URL itself is the constant ``TELEMETRY_URL`` and has no hook. The
+    console script and ``python -m proofpack.cli`` always pass ``None`` for both."""
     parser = _build_parser()
     args = parser.parse_args(argv)
     args.registry = registry
+    args.transport = transport
     handler = {
         "doctor": cmd_doctor,
         "map": cmd_map,

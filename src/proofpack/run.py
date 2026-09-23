@@ -512,7 +512,13 @@ def assemble_run(
 
 def write_run(outcome: RunOutcome, out: str | Path) -> Path:
     """Serialise (canonical JSON; raises on a non-finite float before anything is
-    written) and write ``run.json`` and ``ingest_report.json`` into ``out``."""
+    written) and write ``run.json``, ``ingest_report.json`` and ``pseudonyms.json`` into
+    ``out``. ``pseudonyms.json`` (A-P2, D1 section 6) is the local map from the
+    pseudonyms an egress document would carry (``Site A`` ...) back to the customer's
+    own level labels; it is written beside ``run.json`` on every run, with or without
+    ``--offline``, and is never part of any payload (``proofpack.egress.pseudonymise``)."""
+    from proofpack.egress import pseudonymise  # noqa: PLC0415 - keeps run.py's imports flat
+
     data = manifest_mod.canonical_json(outcome.document)
     out_dir = Path(out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -520,4 +526,9 @@ def write_run(outcome: RunOutcome, out: str | Path) -> Path:
     target.write_bytes(data)
     report = outcome.ingest.report()
     (out_dir / INGEST_REPORT).write_bytes(manifest_mod.canonical_json(report))
+    pmap = pseudonymise.build_map(outcome.document)
+    run_id = outcome.document.get("manifest", {}).get("run_id")
+    (out_dir / pseudonymise.PSEUDONYMS_JSON).write_bytes(
+        manifest_mod.canonical_json(pseudonymise.pseudonyms_document(pmap, run_id=run_id))
+    )
     return target

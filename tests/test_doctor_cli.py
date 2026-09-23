@@ -166,7 +166,9 @@ def test_egress_telemetry_skeleton_rejects_row_level_fields():
     s = load_json_schema("egress_schema.json")
     ok = {
         "schema": "proofpack-telemetry/1",
-        "licence_id": "L-1",
+        # the site's id form; the day-1 skeleton's illustrative "L-1" stopped matching
+        # when A-P2 (build day 8) gave licence_id its pattern
+        "licence_id": "lic_1",
         "run_id": "123e4567-e89b-12d3-a456-426614174000",
         "engine_version": "0.1.0",
         "platform": "linux-x86_64-cp312",
