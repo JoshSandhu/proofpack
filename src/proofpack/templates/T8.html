@@ -4,6 +4,7 @@
    the guidance map). No arithmetic here. Customer text is rendered verbatim, escaped,
    inside .customer-text. #}
 {% extends "base.html" %}
+{% from "_criteria.html" import criteria_table %}
 {% block pages %}
 <section class="page" id="page-1">
 {{ page_header() }}
@@ -85,37 +86,7 @@
 <h2 id="s5a">5a. Acceptance criteria (Table T1-17)</h2>
 {{ margin_note(anchor.criteria) }}
 {% if has_criteria %}
-<div class="table-wrap">
-<table class="criteria">
-<caption>One row per evaluated criterion, in the order the engine evaluated them (a criterion with <code>level: *</code> yields one row per level; rows are addressed by position, never by id, and each row's author, date and justification are those of the <code>criteria.yaml</code> entry it was evaluated from). Observed values print by the metric's rule of D4 section 1.2; the declared value prints with every digit run.json carries, unrounded; the compared statistic and the largest attainable lower bound, which the engine computed, print on the unit scale to three decimals. Status words are the engine's three and nothing else.</caption>
-<thead><tr><th scope="col">#</th><th scope="col">Id</th><th scope="col">Metric</th><th scope="col">Scope</th><th scope="col">Op.</th><th scope="col">Statistic</th><th scope="col">Comp.</th><th scope="col" class="num">Value</th><th scope="col">Author · date</th><th scope="col">Observed (95% CI)</th><th scope="col" class="num">n</th><th scope="col">Method</th><th scope="col" class="num">Compared</th><th scope="col">Status</th><th scope="col">Reason code</th><th scope="col">Attainable at n</th><th scope="col" class="num">Max LB at n</th><th scope="col">Detail</th></tr></thead>
-<tbody>
-{% for r in criteria_rows %}
-<tr class="criterion-row" data-position="{{ r.position }}">
-<td class="num">{{ r.position }}</td>
-<td class="customer-text mono">{{ r.criterion_id }}</td>
-<td>{{ r.metric }}</td>
-<td class="customer-text">{{ r.scope }}</td>
-<td{% if r.operating_point_is_customer_text %} class="customer-text"{% endif %}>{{ r.operating_point }}</td>
-<td>{{ r.statistic }}</td>
-<td>{{ r.comparator }}</td>
-<td class="num">{{ r.value }}</td>
-<td class="customer-text">{{ r.authored }}</td>
-<td class="num observed">{{ r.observed }}</td>
-<td class="num">{{ r.n }}</td>
-<td class="mono">{{ r.method }}</td>
-<td class="num">{{ r.compared_value }}</td>
-<td class="status">{{ r.status_word }}</td>
-<td class="mono">{{ r.reason_code }}</td>
-<td>{{ r.attainable_at_n }}</td>
-<td class="num">{{ r.max_lower_bound_at_n }}</td>
-<td class="mono">{{ r.detail }}</td>
-</tr>
-<tr class="justification-row"><td colspan="18"><div class="customer-text"><span class="label">Manufacturer text - justification</span>{{ r.justification }}</div></td></tr>
-{% endfor %}
-</tbody>
-</table>
-</div>
+{{ criteria_table(criteria_rows) }}
 {% else %}
 <p>No acceptance criteria were declared; estimates and intervals only.</p>
 {% endif %}

@@ -627,9 +627,9 @@ def test_templates_t1_prints_the_typed_line_and_format_json_writes_no_html(
     )
     assert rc in (EXIT_OK, EXIT_WARNINGS)
     printed = capsys.readouterr().out
-    # E9 item 2 builds T7 (item 3 T1); until T1 lands it prints the typed line
-    assert "T1 not written: template T1 is not built in this engine version" in printed
-    assert (out / "T7.html").exists() and "T7 not written" not in printed
+    # E9 builds T1 and T7: the typed "not built" line is gone and the three are written
+    assert "not written" not in printed and "not built" not in printed
+    assert (out / "T1.html").exists() and (out / "T7.html").exists()
     assert "Traceback" not in printed and (out / "T8.html").exists()
     rc = main(
         [

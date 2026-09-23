@@ -139,14 +139,18 @@ def _fill(
                 )
             )
             continue
+        if slot == "status_word":
+            # before the phrase maps: CRITERION_STATUS's status_word map is STATUS_WORDS,
+            # and the word is a status part (printed inside .status), not fixed text
+            if text.get(slot) not in lib.STATUS_WORDS:
+                raise SentenceError(f"slot 'status_word': no status {text.get(slot)!r}")
+            parts.append(Part(lib.STATUS_WORDS[str(text[slot])], "status"))
+            continue
         if slot in phrases:
             key = text.get(slot)
             if key not in phrases[slot]:
                 raise SentenceError(f"slot {slot!r}: no phrase for key {key!r}")
             parts.extend(_fill(phrases[slot][key], {}, numbers, text, metric_id, phrases))
-            continue
-        if slot == "status_word":
-            parts.append(Part(lib.STATUS_WORDS[str(text[slot])], "status"))
             continue
         if slot not in text:
             raise SentenceError(f"slot {slot!r} has no value in the context")

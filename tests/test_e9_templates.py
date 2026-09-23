@@ -987,6 +987,14 @@ def test_every_claim_of_the_synthetic_run_renders_and_prints_its_own_numbers(doc
             assert kinds[claim["operating_point"]] == "customer"
         if claim.get("subgroup") and claim["template_id"].startswith("SUBGROUP"):
             assert kinds[claim["subgroup"]["level"]] == "customer"
+        # the status word is a status part (printed inside .status), never fixed text
+        if claim["template_id"] == "CRITERION_STATUS":
+            status = [p for p in parts if p.kind == "status"]
+            assert [p.text for p in status] == [
+                {"met": "criterion met", "not_met": "criterion not met"}.get(
+                    claim["status"], "not assessable"
+                )
+            ]
 
 
 def test_the_auroc_sentence_names_the_method_the_number_carries(document):

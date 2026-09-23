@@ -7,8 +7,8 @@ under ``--out``; on a licence that is expired past grace, refused or absent it s
 writes the JSON with the expired watermark and exits 4 (D1 section 7: "after grace
 run/compare emit JSON only; doctor, map, fixtures always work"). Build day 8 (E8):
 ``--format json,html`` (the default) also writes ``T8.html`` beside ``run.json`` when
-the licence is ``ok`` or ``grace``; ``--templates T8`` (default) names the documents,
-and T1 / T7 print a typed "not built in E8" line rather than a traceback.
+the licence is ``ok`` or ``grace``; ``--templates`` names the documents (default T8;
+``T1,T7,T8`` writes all three, E9).
 """
 
 from __future__ import annotations
@@ -88,7 +88,7 @@ def _build_parser() -> argparse.ArgumentParser:
     r.add_argument(
         "--templates",
         default=None,
-        help="comma list of T1, T7, T8 (default T8; T1 and T7 are not built in E8)",
+        help="comma list of T1, T7, T8 (default T8; T1,T7,T8 writes all three)",
     )
 
     c = sub.add_parser(
@@ -514,7 +514,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     for note in notes:
         summary += f"  {note}\n"
     if documents:
-        summary += "Next step: open T8.html beside run.json; T1 and T7 land on E9 (docs: /docs/run)"
+        summary += (
+            "Next step: open the documents beside run.json; --templates T1,T7,T8 writes all "
+            "three (docs: /docs/run)"
+        )
     elif not lic.usable:
         summary += (
             "Next step: proofpack licence install FILE, then run again for T8.html "

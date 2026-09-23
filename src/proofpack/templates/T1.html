@@ -1,0 +1,332 @@
+{# T1 - FDA AI-DSF performance evidence attachment set (D4 section 2): the cover and fifteen
+   sections through base.html's furniture. Every value comes from proofpack.render.t1's
+   context (Number cells carry data-ref / data-kind / data-facet); every sentence is a
+   claim of run.json rendered by proofpack.render.sentences; customer text is escaped
+   inside .customer-text; status words only inside .status. No arithmetic here. #}
+{% extends "base.html" %}
+{% from "_criteria.html" import criteria_table %}
+{% macro ncell(c, extra="") -%}
+<td class="num{% if extra %} {{ extra }}{% endif %}" data-ref="{{ c.ref }}" data-kind="{{ c.kind }}" data-facet="{{ c.facet }}">{{ c.text }}</td>
+{%- endmacro %}
+{% macro notes(key) -%}
+{% for ref in anchors[key] %}{{ margin_note(ref) }}
+{% endfor %}
+{%- endmacro %}
+{% macro narrative(items) -%}
+{% if items %}
+<div class="narrative">
+{% for s in items %}
+<p class="claim" data-claim="{{ s.id }}">{{ s.html }}</p>
+{% endfor %}
+<p class="narrative-footer">{{ narrative_footer }}</p>
+</div>
+{% endif %}
+{%- endmacro %}
+{% block pages %}
+<section class="page" id="page-1">
+{{ page_header() }}
+<h1>{{ template_name }}</h1>
+<p class="cover-note">{{ cover_note }}</p>
+{{ cover_stamps() }}
+<table class="cover-block">
+<caption>Cover block</caption>
+<tbody>
+<tr><th scope="row">Manufacturer</th><td>{% if slots["CT-01"].filled %}{{ manufacturer_text("manufacturer", slots["CT-01"].text) }}{% else %}{{ placeholder(slots["CT-01"]) }}{% endif %}</td></tr>
+<tr><th scope="row">Model</th><td class="customer-text">{{ model.name }} v{{ model.version }}</td></tr>
+{% for label, value, mono in cover_rows %}
+<tr><th scope="row">{{ label }}</th><td{% if mono %} class="mono"{% endif %}>{{ value }}</td></tr>
+{% endfor %}
+<tr><th scope="row">Guidance versions referenced</th><td>{% for ref in guidance_refs %}<a href="#{{ ref.id }}">{{ ref.label }}</a>{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+<tr><th scope="row">Customer sections outstanding</th><td class="num" data-count="outstanding">{{ outstanding }}</td></tr>
+</tbody>
+</table>
+<h2 id="t1-device">Device and intended use</h2>
+{{ placeholder(slots["CT-02"]) }}
+{{ page_footer() }}
+</section>
+<section class="page" id="page-2">
+{{ page_header() }}
+<h2 id="t1-scope-limits">{{ long_form_title }}</h2>
+<ol class="disclaimer disclaimer-long">
+{% for title, body in long_form_items %}
+<li><strong>{{ title }}</strong> {{ body }}</li>
+{% endfor %}
+</ol>
+<table class="guidance">
+<caption>Guidance versions referenced in this render, labelled from the guidance map; a draft is a draft in the label and in the structured data</caption>
+<thead><tr><th scope="col">Internal id</th><th scope="col">Document, version or date, status</th><th scope="col">Draft</th></tr></thead>
+<tbody>
+{% for ref in guidance_refs %}
+<tr id="{{ ref.id }}"{% if ref.draft %} class="draft"{% endif %}><td class="mono">{{ ref.id }}</td><td>{{ ref.label }}</td><td>{% if ref.draft %}yes{% else %}no{% endif %}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{{ page_footer() }}
+</section>
+<section class="page" id="page-3">
+{{ page_header() }}
+<h2 id="t1-s1">1. Scope and declarations summary</h2>
+{{ notes("s1") }}
+<table>
+<caption>Table T1-1 - declarations that shape every number in the pack (all from criteria.yaml; the engine supplies no default)</caption>
+<tbody>
+{% for label, value, highlight in declaration_rows %}
+<tr{% if highlight %} class="highlight"{% endif %}><th scope="row">{{ label }}</th><td class="customer-text">{{ value }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<h2 id="t1-s2">2. Data management - dataset description</h2>
+{{ notes("s2") }}
+{{ placeholder(slots["CT-03"]) }}
+<table class="flow">
+<caption>Table T1-2 - flow of rows (D4 section 5.10)</caption>
+<tbody>
+{% for label, value in flow_rows %}
+<tr><th scope="row">{{ label }}</th><td class="num">{{ value }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<div class="table-wrap">
+<table class="table1">
+<caption>Table T1-3 - Table 1 of the test set{% if dev_note %}; {{ dev_note }}{% endif %}</caption>
+<thead><tr><th scope="col">Attribute</th><th scope="col">Level</th><th scope="col" class="num">Test n (%)</th></tr></thead>
+<tbody>
+{% for r in table1_rows %}
+<tr><td class="customer-text">{{ r.attribute }}</td><td class="customer-text">{{ r.level }}</td><td class="num">{{ r.n }} ({{ r.pct }})</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<h2 id="t1-s3">3. Test-set independence and sequestration</h2>
+{{ notes("s3") }}
+{{ placeholder(slots["CT-04"]) }}
+{% if overlap_note %}{{ no_data(overlap_note) }}{% endif %}
+{{ page_footer() }}
+</section>
+<section class="page" id="page-4">
+{{ page_header() }}
+<h2 id="t1-s4">4. Site diversity</h2>
+{{ notes("s4") }}
+{{ placeholder(slots["CT-05"]) }}
+{% if site_block %}
+<p>Table T1-5 is the site table of section 9 (per site, D4 section 5.3 format).</p>
+{% else %}
+{{ no_data("No site attribute was supplied: per-site performance is not reported.") }}
+{% endif %}
+<h2 id="t1-s5">5. Representativeness</h2>
+{{ notes("s5") }}
+{{ placeholder(slots["CT-06"]) }}
+<p>The distribution of each attribute in the test set is Table T1-3 (section 2); the adequacy of that distribution for the intended use is the manufacturer's judgement.</p>
+<h2 id="t1-s6">6. Reference standard</h2>
+{{ notes("s6") }}
+{{ manufacturer_text("reference standard as declared", reference_standard.type ~ " (" ~ reference_standard.description ~ ")") }}
+{{ placeholder(slots["CT-07"]) }}
+{{ page_footer() }}
+</section>
+<section class="page" id="page-5">
+{{ page_header() }}
+<h2 id="t1-s7">7. Performance validation - overall, per operating point</h2>
+{{ notes("s7") }}
+{{ placeholder(slots["CT-08"]) }}
+{% for p in performance %}
+<h3 id="t1-s7-{{ loop.index }}">Operating point <span class="customer-text inline">{{ p.op }}</span></h3>
+<div class="table-wrap">
+<table class="two-by-two">
+<caption>Table T1-6 - two-by-two at operating point <span class="customer-text inline">{{ p.op }}</span> (threshold <span class="customer-text inline">{{ p.threshold }}</span>, rule {{ p.rule }}); totals are the denominators of the Numbers below</caption>
+<thead><tr><th scope="col"></th><th scope="col" class="num">Device positive</th><th scope="col" class="num">Device negative</th><th scope="col" class="num">Total</th></tr></thead>
+<tbody>
+<tr><th scope="row">{{ p.two_by_two.row_pos }}</th><td class="num">{{ p.two_by_two.tp }}</td><td class="num">{{ p.two_by_two.fn }}</td><td class="num">{{ p.two_by_two.n_pos }}</td></tr>
+<tr><th scope="row">{{ p.two_by_two.row_neg }}</th><td class="num">{{ p.two_by_two.fp }}</td><td class="num">{{ p.two_by_two.tn }}</td><td class="num">{{ p.two_by_two.n_neg }}</td></tr>
+<tr><th scope="row">Total</th><td class="num">{{ p.two_by_two.d_pos }}</td><td class="num">{{ p.two_by_two.d_neg }}</td><td class="num">{{ p.two_by_two.total }}</td></tr>
+</tbody>
+</table>
+</div>
+{% if p.indeterminate_both_ways %}{{ no_data("Indeterminate results allocated both ways (FDA 2007): the allocation tables are not computed in this build.") }}{% endif %}
+<div class="table-wrap">
+<table class="op-metrics">
+<caption>Table T1-7 - operating-point metrics at <span class="customer-text inline">{{ p.op }}</span>; the threshold was <span class="provenance">{{ p.provenance }}</span>. Wilson score without continuity correction for proportions unless the Method column says otherwise</caption>
+<thead><tr><th scope="col">Metric</th><th scope="col" class="num">k/n</th><th scope="col" class="num">Estimate (% for proportions)</th><th scope="col" class="num">95% CI</th><th scope="col">Method</th></tr></thead>
+<tbody>
+{% for r in p.rows %}
+<tr{% if r.supplementary %} class="supplementary"{% endif %}><th scope="row">{{ r.label }}{% if r.supplementary %} (supplementary){% endif %}</th>{{ ncell(r.kn) }}{{ ncell(r.est) }}{{ ncell(r.ci) }}<td class="mono" data-ref="{{ r.method.ref }}" data-facet="method">{{ r.method.text }}</td></tr>
+{% endfor %}
+{% for r in p.prev_rows %}
+<tr><th scope="row" class="customer-text">{{ r.label }}</th><td class="num">—</td>{{ ncell(r.est) }}{{ ncell(r.ci) }}<td class="mono">{{ r.method.text }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{{ narrative(p.sentences) }}
+{% endfor %}
+<div class="table-wrap">
+<table class="threshold-free">
+<caption>Table T1-8 - threshold-free performance (AUROC, AUPRC, prevalence)</caption>
+<thead><tr><th scope="col">Quantity</th><th scope="col" class="num">Estimate [95% CI]</th><th scope="col">Method</th></tr></thead>
+<tbody>
+{% for r in threshold_free %}
+<tr><th scope="row">{{ r.label }}</th>{{ ncell(r.cell) }}<td class="mono">{{ r.method.text }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{{ narrative(auroc_sentences) }}
+{% if figures.get("f2") %}{{ figures.f2 }}{% endif %}
+{% if figures.get("f3") %}{{ figures.f3 }}{% endif %}
+{{ page_footer() }}
+</section>
+<section class="page" id="page-6">
+{{ page_header() }}
+<h2 id="t1-s8">8. Calibration</h2>
+{{ notes("s8") }}
+{{ placeholder(slots["CT-09"]) }}
+{% if calibration.present %}
+<div class="table-wrap">
+<table class="calibration">
+<caption>Table T1-9 - calibration of the declared probability score (D4 section 5.5){% if calibration.curve_note %}; {{ calibration.curve_note }}{% endif %}</caption>
+<thead><tr><th scope="col">Quantity</th><th scope="col" class="num">Estimate [95% CI]</th><th scope="col">Method</th></tr></thead>
+<tbody>
+{% for r in calibration.rows %}
+<tr data-quantity="{{ r.key }}"><th scope="row">{{ r.label }}</th>{{ ncell(r.cell) }}<td class="mono">{{ r.method.text }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="footnote">The IPA row's tier superscript{% if calibration.ipa_tiers %} ({{ calibration.ipa_tiers }}){% endif %} is the proportion tier applied to the IPA's own interval: it states the half-width on the IPA's scale and nothing about a proportion (ProofPack reporting convention; T7, DEC-35).{% if calibration.clustered %} Under the clustered plan every interval above is a cluster-bootstrap interval; each cell keeps its tier annotation and the measured coverage of the route, including the one cell below the bar, is in T7 (DEC-18 (c), DEC-34).{% endif %}</p>
+<div class="table-wrap">
+<table class="deciles">
+<caption>Decile table - ten equal-mass bins by score; observed k/n (%) with its interval</caption>
+<thead><tr><th scope="col" class="num">Decile</th><th scope="col" class="num">n</th><th scope="col" class="num">Mean predicted</th><th scope="col" class="num">Observed k/n (%) [95% CI]</th></tr></thead>
+<tbody>
+{% for d in calibration.deciles %}
+<tr><td class="num">{{ d.bin }}</td><td class="num">{{ d.n }}</td><td class="num">{{ d.mean_pred }}</td>{{ ncell(d.observed) }}</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% if figures.get("f4") %}{{ figures.f4 }}{% endif %}
+{% else %}
+{% if calibration.reason %}
+<p class="calibration-null">calibration: null - reason <span class="mono">{{ calibration.reason.reason }}</span> (score declared {{ calibration.reason.score_type }}, {{ calibration.reason.orientation }}).</p>
+{% else %}
+{{ no_data("calibration: null - the run document records no reason") }}
+{% endif %}
+{% if figures.get("f4_note") %}{{ no_data(figures.f4_note) }}{% endif %}
+{% endif %}
+{{ narrative(calibration.sentences) }}
+{{ page_footer() }}
+</section>
+<section class="page landscape" id="page-7">
+{{ page_header() }}
+<h2 id="t1-s9">9. Subgroup performance</h2>
+{{ notes("s9") }}
+{% if slots["CT-10"].filled %}{{ manufacturer_text("pre-specification source of each subgroup attribute (criteria.yaml)", slots["CT-10"].text) }}{% else %}{{ placeholder(slots["CT-10"]) }}{% endif %}
+{% for s in subgroups %}
+<h3 id="t1-s9-{{ loop.index }}">Attribute <span class="customer-text inline">{{ s.attribute }}</span></h3>
+{% for o in s.ops %}
+<div class="table-wrap">
+<table class="subgroup" data-attribute="{{ s.attribute }}" data-op="{{ o.op }}">
+<caption>Table T1-10 - performance by <span class="customer-text inline">{{ s.attribute }}</span> at operating point <span class="customer-text inline">{{ o.op }}</span>; reference level <span class="customer-text inline">{{ s.reference_level }}</span> (rule {{ s.reference_rule }}); {% if s.prespecified %}pre-specified{% else %}not pre-specified, exploratory{% endif %}. Wilson score for proportions, DeLong for AUROC; tiers are ProofPack reporting conventions</caption>
+<thead><tr><th scope="col">Group</th><th scope="col" class="num">n</th><th scope="col" class="num">Events</th><th scope="col" class="num">Sensitivity k/n (%) [95% CI]</th><th scope="col" class="num">Specificity k/n (%) [95% CI]</th><th scope="col" class="num">AUROC [95% CI]</th><th scope="col">Pre-spec.</th><th scope="col">Tier</th></tr></thead>
+<tbody>
+{% for r in o.table %}
+<tr><th scope="row" class="customer-text">{{ r.level }}{% if r.is_reference %} (ref){% endif %}</th><td class="num">{{ r.n }}</td><td class="num">{{ r.events }}</td>{{ ncell(r.se) }}{{ ncell(r.sp) }}{{ ncell(r.auroc) }}<td>{{ r.prespecified }}</td><td>{{ r.tier }}</td></tr>
+{% endfor %}
+<tr class="overall"><th scope="row">Overall</th><td class="num">{{ o.overall.n }}</td><td class="num">{{ o.overall.events }}</td>{{ ncell(o.overall.se) }}{{ ncell(o.overall.sp) }}{{ ncell(o.overall.auroc) }}<td>—</td><td></td></tr>
+</tbody>
+</table>
+</div>
+{% if o.diffs %}
+<div class="table-wrap">
+<table class="differences">
+<caption>Table T1-11 - differences against the reference level <span class="customer-text inline">{{ s.reference_level }}</span> (Newcombe method 10 for proportions in percentage points, unpaired DeLong for AUROC; differences only, from which no statement about subgroup consistency is drawn)</caption>
+<thead><tr><th scope="col">Group</th><th scope="col" class="num">Δ Sensitivity (pp) [95% CI]</th><th scope="col" class="num">Δ Specificity (pp) [95% CI]</th><th scope="col" class="num">Δ AUROC [95% CI]</th>{% if o.has_criteria %}<th scope="col">Criterion (id) and status; max lower bound at n</th>{% endif %}</tr></thead>
+<tbody>
+{% for d in o.diffs %}
+<tr><th scope="row" class="customer-text">{{ d.level }}</th>{{ ncell(d.se) }}{{ ncell(d.sp) }}{{ ncell(d.auroc) }}{% if o.has_criteria %}<td>{% for c in d.criteria %}<span class="customer-text inline">{{ c.id }}</span> (row {{ c.position }}) → <span class="status">{{ c.status_word }}</span>; max LB {{ c.max_lb }} at n = {{ c.n }}, attainable: {{ c.attainable }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>{% endif %}</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endif %}
+{% if o.tests %}
+<p class="footnote">Exploratory test of homogeneity ({{ o.route or "none" }} route): {% for t in o.tests %}{{ t.metric }} {{ t.test }} p = {{ t.p_raw }} (Holm {{ t.p_holm }}){% if t.reason %} [{{ t.reason }}]{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}; {{ o.sentence }}.</p>
+{% endif %}
+{% endfor %}
+{% for f in (figures.get("f5") or {}).get(s.attribute, []) %}{{ f }}{% endfor %}
+{{ narrative(s.sentences) }}
+{% else %}
+{{ no_data("No subgroup attribute was tabulated in this run.") }}
+{% endfor %}
+{{ no_data("Intersectional subgroups (sex x age, race x site) are not computed in this release (v1.1).") }}
+<table class="tiers">
+<caption>Tier superscripts - ProofPack reporting convention (R2 section 3.3); annotations, never suppression</caption>
+<tbody>
+{% for mark, text in tier_legend %}
+<tr><th scope="row">{{ mark }}</th><td>{{ text }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{{ page_footer() }}
+</section>
+<section class="page" id="page-8">
+{{ page_header() }}
+<h2 id="t1-s10">10. Fairness (descriptive)</h2>
+{{ notes("s10") }}
+{% if fairness %}
+{{ manufacturer_text("fairness declaration (" ~ fairness.author ~ ", " ~ fairness.date ~ ")", "criterion of interest " ~ fairness.criterion_of_interest ~ " on " ~ fairness.attribute ~ "; " ~ fairness.justification) }}
+<div class="table-wrap">
+<table class="fairness">
+<caption>Table T1-13 - gaps of each level against the reference level <span class="customer-text inline">{{ fairness.reference_level }}</span> (percentage points; AUROC on its own scale). The declared criterion of interest is the manufacturer's; every other gap is descriptive and not a target; the selection-rate gap is descriptive only</caption>
+<thead><tr><th scope="col">Level</th><th scope="col">Op.</th><th scope="col" class="num">Δ TPR [95% CI]</th><th scope="col" class="num">Δ FPR [95% CI]</th><th scope="col" class="num">Δ PPV [95% CI]</th><th scope="col" class="num">Δ NPV [95% CI]</th><th scope="col" class="num">Δ AUROC [95% CI]</th><th scope="col" class="num">Selection-rate gap (descriptive)</th><th scope="col">Calibration by group</th></tr></thead>
+<tbody>
+{% for g in fairness.gaps %}
+<tr><th scope="row" class="customer-text">{{ g.level }}</th><td class="customer-text">{{ g.op }}</td>{{ ncell(g.tpr) }}{{ ncell(g.fpr) }}{{ ncell(g.ppv) }}{{ ncell(g.npv) }}{{ ncell(g.auroc) }}{{ ncell(g.selection) }}<td class="mono">{{ g.calibration_reason or "—" }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="footnote">Impossibility statement: {{ fairness.citation }} <span class="unverified">[unverified]</span> citation pending verification (T7).</p>
+{{ narrative(fairness.sentences) }}
+{% else %}
+{{ no_data("No fairness criterion of interest was declared: no fairness block was computed.") }}
+{% endif %}
+<h2 id="t1-s11">11. Robustness</h2>
+{{ notes("s11") }}
+{{ no_data("Robustness analyses (leave-one-site-out, threshold sensitivity, missingness) are not computed in this build (v1.1): the run document carries no robustness block.") }}
+<h2 id="t1-s12">12. Acceptance criteria</h2>
+{{ notes("s12") }}
+{% if has_criteria %}
+{{ criteria_table(criteria_rows) }}
+{{ narrative(criterion_sentences) }}
+{% else %}
+<p>No acceptance criteria were declared; estimates and intervals only.</p>
+{% endif %}
+{{ page_footer() }}
+</section>
+<section class="page" id="page-9">
+{{ page_header() }}
+<h2 id="t1-s13">13. Performance monitoring</h2>
+{{ notes("s13") }}
+{{ placeholder(slots["CT-11"]) }}
+{{ no_data("Monitoring analyses are produced by T3, which is v1.1; they are not part of this attachment set.") }}
+<h2 id="t1-s14">14. Inputs for the public submission summary</h2>
+{{ notes("s14") }}
+<p class="supplement-note">Supplement only: {{ public_summary_note }}.</p>
+<table class="public-summary">
+<caption>Table T1-18 - plain-language numbers (the same Numbers as Tables T1-7 and T1-8)</caption>
+<thead><tr><th scope="col">Metric</th><th scope="col" class="num">Estimate</th><th scope="col" class="num">95% CI</th><th scope="col" class="num">n</th></tr></thead>
+<tbody>
+{% for r in public_summary %}
+<tr><th scope="row">{{ r.metric }}</th>{{ ncell(r.est) }}{{ ncell(r.ci) }}<td class="num">{{ r.n }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<h2 id="t1-s15">15. Model card</h2>
+{{ notes("s15") }}
+<p class="model-card-note">Note: {{ model_card_note }}.</p>
+{{ no_data("The optional model card is not produced in this release; it is scheduled for ProofPack v1.1.") }}
+<h2 id="t1-appendices">Appendices</h2>
+<p>Appendix A, the methods appendix, is T7; appendix B, the run manifest, declarations, scope and disclaimer, is T8. Both are written beside this document from the same run.json.</p>
+{{ page_footer() }}
+</section>
+{% endblock %}

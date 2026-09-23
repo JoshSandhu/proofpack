@@ -42,8 +42,8 @@ The order, and what each step is allowed to do:
 7. **Documents** (:func:`write_documents`, E8): ``<out>/T8.html`` beside ``run.json``
    when ``--format`` includes ``html`` (the default ``json,html``) and the licence is
    ``ok`` or ``grace``; on any other licence state the JSON alone is written and the
-   summary says so; ``--templates`` names T1 / T7 / T8, of which E8 renders T8 and prints
-   a typed one-line note for the other two.
+   summary says so; ``--templates`` names T1 / T7 / T8 (default T8), each written as
+   ``<out>/<id>.html`` (E9 builds T1 and T7).
 
 ``--offline`` opens no socket: nothing in this module or below it imports ``socket``,
 ``urllib`` or ``http``; ``tests/test_run_cli.py`` makes ``socket.socket`` raise and runs
@@ -332,7 +332,7 @@ def overall_block(
 #: through ``design/guidance_map_v1.csv`` into ``{id, label, draft, url}`` items (the
 #: draft status as structured data, D1 section 4.2 / CLAUDE.md).
 NARRATIVE_KEYS: tuple[str, ...] = ("claims", "claim_rejections", "guidance_refs")
-#: ``--templates`` ids the CLI accepts; only T8 is rendered in E8 (T1 and T7: E9).
+#: ``--templates`` ids the CLI accepts (E8 rendered T8; E9 adds T1 and T7).
 TEMPLATE_IDS: tuple[str, ...] = ("T1", "T7", "T8")
 FORMATS: tuple[str, ...] = ("json", "html")
 #: ``--format`` default: the JSON is always written; the HTML documents are written
@@ -415,10 +415,11 @@ def write_documents(
 
 
 def document_writers() -> dict[str, Any]:
-    """``--templates`` id -> the function writing ``<out>/<id>.html`` (E8: T8; E9: T7)."""
-    from proofpack.render.t7 import write_t7  # noqa: PLC0415 - imports jinja2 lazily
+    """``--templates`` id -> the function writing ``<out>/<id>.html`` (E8: T8; E9: T1, T7)."""
+    from proofpack.render.t1 import write_t1  # noqa: PLC0415 - imports jinja2 lazily
+    from proofpack.render.t7 import write_t7  # noqa: PLC0415
 
-    return {"T7": write_t7, "T8": write_t8}
+    return {"T1": write_t1, "T7": write_t7, "T8": write_t8}
 
 
 def _warning_entry(f: Finding) -> dict[str, Any]:

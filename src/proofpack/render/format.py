@@ -185,7 +185,8 @@ def method(num: dict[str, Any] | None) -> str:
 # cell, so a sentence and a table state one figure one way.
 
 
-def _has_interval(num: dict[str, Any]) -> bool:
+def has_interval(num: dict[str, Any]) -> bool:
+    """The Number prints an interval: not suppressed, no typed reason, both bounds."""
     return (
         not num.get("suppressed")
         and num.get("not_estimable_reason") is None
@@ -215,7 +216,7 @@ def estimate(num: dict[str, Any] | None, kind: str) -> str:
         return NOT_ESTIMABLE
     if num.get("suppressed"):
         return SUPPRESSED_MARK
-    if not _has_interval(num):
+    if not has_interval(num):
         return f"{NOT_ESTIMABLE} ({num.get('not_estimable_reason') or 'no_interval'})" + tiers(num)
     body = bound(float(num["est"]), kind)
     return (body + "%" if kind == "proportion" else body) + tiers(num)
@@ -224,14 +225,14 @@ def estimate(num: dict[str, Any] | None, kind: str) -> str:
 def interval(num: dict[str, Any] | None, kind: str) -> str:
     """The two bounds as a table cell prints them inside its brackets: ``25.5, 36.6``;
     ``no interval`` when the Number has none."""
-    if num is None or not _has_interval(num):
+    if num is None or not has_interval(num):
         return "no interval"
     return f"{bound(float(num['ci_lo']), kind)}, {bound(float(num['ci_hi']), kind)}"
 
 
 def one_bound(num: dict[str, Any] | None, which: str, kind: str) -> str:
     """``ci_lo`` or ``ci_hi`` alone, with ``%`` for a proportion (``25.5%``)."""
-    if num is None or not _has_interval(num):
+    if num is None or not has_interval(num):
         return "no interval"
     body = bound(float(num[which]), kind)
     return body + "%" if kind == "proportion" else body
