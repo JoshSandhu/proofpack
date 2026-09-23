@@ -300,8 +300,9 @@ _CONTROL_CELL = re.compile("[\x00-\x1f\x7f-\x9f]")
 def columns_read_by_validate(raw: RawTable, period: dict | None = None) -> list[str]:
     """The column keys :func:`validate` reads cells from, in table order: the canonical
     names of ``schema_v1.json``, the ``attr_`` names matching :data:`_IDENT`, and the
-    declared period column. ``rater_`` columns, ``ignored:`` keys and every other name
-    are not in the list (``validate`` counts them without reading a cell)."""
+    declared period column. ``tests/test_e8_repair6.py::
+    test_the_plants_cover_every_column_validate_reads_from_the_table`` feeds a table of 21
+    columns: the list holds 19 of them, and ``rater_1`` and ``notes`` are not in it."""
     known = set(canonical_columns())
     pcol = period.get("column") if period else None
     return [
@@ -316,10 +317,11 @@ def check_control_characters(raw: RawTable, period: dict | None = None) -> None:
     :func:`columns_read_by_validate` lists, halts S02 naming the column's role, the first
     code point found and the count of rows holding one; no cell value is printed.
 
-    The cell is read after ``_norm_cell``'s ``strip()``, so a character ``str.strip``
-    removes at either end of a cell (tab, line feed, U+001F, U+0085 among them) is gone
-    before this check: ``tests/test_e8_repair6.py::
-    test_a_trailing_tab_in_a_site_cell_is_stripped_before_the_check`` feeds ``S1\\t``.
+    The cell is read after ``_norm_cell``'s ``strip()``: ``S1\\t`` reads as ``S1``
+    (``tests/test_e8_repair6.py::
+    test_a_trailing_tab_in_a_site_cell_is_stripped_before_the_check``). Measured on
+    23 September 2026 with ``("S1" + c).strip()``: U+000A, U+000B, U+000C, U+001C, U+001F
+    and U+0085 are removed there too; U+0001, U+007F and U+009F are kept.
 
     The code: D1 section 5 step 6 (the HALT gate table, ``spec/design/D1_engine_schema_api.md``
     lines 257-272) assigns no code to a malformed table value; its twelve rows H01-H12 are
