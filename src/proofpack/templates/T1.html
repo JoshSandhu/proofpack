@@ -5,6 +5,7 @@
    inside .customer-text; status words only inside .status. No arithmetic here. #}
 {% extends "base.html" %}
 {% from "_criteria.html" import criteria_table %}
+{% from "_figures.html" import curve_figure, calibration_figure, forest_figure %}
 {% macro ncell(c, extra="") -%}
 <td class="num{% if extra %} {{ extra }}{% endif %}" data-ref="{{ c.ref }}" data-kind="{{ c.kind }}" data-facet="{{ c.facet }}">{{ c.text }}</td>
 {%- endmacro %}
@@ -170,8 +171,8 @@
 </table>
 </div>
 {{ narrative(auroc_sentences) }}
-{% if figures.get("f2") %}{{ figures.f2 }}{% endif %}
-{% if figures.get("f3") %}{{ figures.f3 }}{% endif %}
+{% if figures.f2 %}{{ curve_figure(figures.f2) }}{% else %}{{ no_data("F2 (ROC) is not drawn: the run document carries no ROC array.") }}{% endif %}
+{% if figures.f3 %}{{ curve_figure(figures.f3) }}{% else %}{{ no_data(figures.f3_note) }}{% endif %}
 {{ page_footer() }}
 </section>
 <section class="page" id="page-6">
@@ -203,14 +204,14 @@
 </tbody>
 </table>
 </div>
-{% if figures.get("f4") %}{{ figures.f4 }}{% endif %}
+{% if figures.f4 %}{{ calibration_figure(figures.f4) }}{% endif %}
 {% else %}
 {% if calibration.reason %}
 <p class="calibration-null">calibration: null - reason <span class="mono">{{ calibration.reason.reason }}</span> (score declared {{ calibration.reason.score_type }}, {{ calibration.reason.orientation }}).</p>
 {% else %}
 {{ no_data("calibration: null - the run document records no reason") }}
 {% endif %}
-{% if figures.get("f4_note") %}{{ no_data(figures.f4_note) }}{% endif %}
+{% if figures.f4_note %}{{ no_data(figures.f4_note) }}{% endif %}
 {% endif %}
 {{ narrative(calibration.sentences) }}
 {{ page_footer() }}
@@ -252,7 +253,7 @@
 <p class="footnote">Exploratory test of homogeneity ({{ o.route or "none" }} route): {% for t in o.tests %}{{ t.metric }} {{ t.test }} p = {{ t.p_raw }} (Holm {{ t.p_holm }}){% if t.reason %} [{{ t.reason }}]{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}; {{ o.sentence }}.</p>
 {% endif %}
 {% endfor %}
-{% for f in (figures.get("f5") or {}).get(s.attribute, []) %}{{ f }}{% endfor %}
+{% for f in figures.f5.get(s.attribute, []) %}{{ forest_figure(f) }}{% endfor %}
 {{ narrative(s.sentences) }}
 {% else %}
 {{ no_data("No subgroup attribute was tabulated in this run.") }}

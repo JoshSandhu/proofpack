@@ -165,3 +165,20 @@ def test_the_print_css_is_its_own_file_and_nothing_loads_from_outside(document):
         for bad in ("@import", "url(", "<link", "<script"):
             assert bad not in page
         assert page.count("@media print") == 1
+
+
+def test_the_theme_block_reaches_the_style_unescaped_so_the_system_fonts_apply(
+    document, monkeypatch
+):
+    """E9 found the E8 pages rendering in the browser's serif default: autoescape wrote the
+    font stacks' quotes as ``&#34;``, which CSS reads as the end of the declaration."""
+    from proofpack.render import theme
+
+    for render in RENDERERS.values():
+        style = render(document).split("<style>", 1)[1].split("</style>", 1)[0]
+        assert "&#34;" not in style and "&quot;" not in style
+        assert '--pp-type-text: -apple-system, BlinkMacSystemFont, "Segoe UI"' in style
+        assert '--pp-type-mono: ui-monospace, "Cascadia Mono"' in style
+    monkeypatch.setattr(theme, "css_variables", lambda: {"--pp-x": "red;} body{display:none"})
+    with pytest.raises(ValueError, match="cannot hold"):
+        theme.css_root_block()

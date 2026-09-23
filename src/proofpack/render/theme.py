@@ -62,7 +62,18 @@ def css_variables() -> dict[str, str]:
     return out
 
 
+#: Characters a token value may not carry: the block is inserted into ``<style>`` unescaped
+#: (E9: autoescaping turned the font stacks' quotes into ``&#34;``, which CSS reads as the
+#: end of the declaration, so every page fell back to the browser's serif default).
+_CSS_UNSAFE = frozenset("<>{};\\")
+
+
 def css_root_block() -> str:
-    """The ``:root { ... }`` declaration block, one property per line, sorted."""
+    """The ``:root { ... }`` declaration block, one property per line, sorted. A value
+    carrying ``<``, ``>``, a brace, ``;`` or a backslash is refused (``ValueError``): the
+    block is written into the page's ``<style>`` as it is."""
+    for k, v in css_variables().items():
+        if set(v) & _CSS_UNSAFE:
+            raise ValueError(f"token {k} carries a character a <style> block cannot hold: {v!r}")
     lines = [f"  {k}: {v};" for k, v in sorted(css_variables().items())]
     return ":root {\n" + "\n".join(lines) + "\n}"

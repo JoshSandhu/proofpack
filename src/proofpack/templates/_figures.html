@@ -1,0 +1,84 @@
+{# Figures F2-F5 as inline SVG (D4 section 6; D5 section 3.4). Every coordinate comes from
+   proofpack.render.figures, which puts run.json's arrays through the documented linear
+   map written on each plot group as data-map. Marks: the series in ink (solid), reference
+   lines ink-faint dashed, the customer-criterion line ink-faint dashed and heavier with
+   its author and date, intervals 1.5px, operating points hollow circles labelled with
+   their id, the histogram strip the one filled mark (fill line). No shaded region. #}
+{% macro axes(f) -%}
+<g class="fig-axes">
+<path class="fig-axis" fill="none" d="M{{ f.ticks.left }},{{ f.ticks.top }} L{{ f.ticks.left }},{{ f.ticks.bottom }} L{{ f.ticks.right }},{{ f.ticks.bottom }}"/>
+{% for t in f.ticks.x %}<text class="fig-text" x="{{ t.pos }}" y="{{ f.ticks.bottom }}" dy="16" text-anchor="middle">{{ t.label }}</text>
+{% endfor %}
+{% for t in f.ticks.y %}<text class="fig-text" x="{{ f.ticks.left }}" y="{{ t.pos }}" dx="-8" dy="4" text-anchor="end">{{ t.label }}</text>
+{% endfor %}
+</g>
+{%- endmacro %}
+{% macro curve_figure(f) -%}
+<figure class="figure" id="{{ f.id }}">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 {{ f.height }}" width="160mm" role="img" aria-labelledby="{{ f.id }}-title {{ f.id }}-desc">
+<title id="{{ f.id }}-title">{{ f.title }}</title>
+<desc id="{{ f.id }}-desc">{{ f.desc }}</desc>
+{{ axes(f) }}
+<g class="fig-plot" data-map="{{ f.map }}">
+<path class="fig-ref" fill="none" data-role="reference" d="{{ f.reference }}"/>
+<path class="fig-series" fill="none" data-role="series" d="{{ f.curve }}"/>
+{% for mk in f.markers %}<circle class="fig-point" fill="none" data-role="operating-point" data-op="{{ mk.op }}" cx="{{ mk.cx }}" cy="{{ mk.cy }}" r="5"/>
+<text class="fig-text" x="{{ mk.lx }}" y="{{ mk.ly }}">{{ mk.op }}</text>
+{% endfor %}
+</g>
+<text class="fig-text" x="300" y="372" text-anchor="middle">{{ f.xlabel }}</text>
+<text class="fig-text" x="16" y="180" transform="rotate(-90 16 180)" text-anchor="middle">{{ f.ylabel }}</text>
+<text class="fig-text" x="{{ f.legend_x }}" y="{{ f.legend_y }}">{{ f.legend }}</text>
+</svg>
+<figcaption>{{ f.title }}. {{ f.caption }}.</figcaption>
+</figure>
+{%- endmacro %}
+{% macro calibration_figure(f) -%}
+<figure class="figure" id="{{ f.id }}">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 {{ f.height }}" width="160mm" role="img" aria-labelledby="{{ f.id }}-title {{ f.id }}-desc">
+<title id="{{ f.id }}-title">{{ f.title }}</title>
+<desc id="{{ f.id }}-desc">{{ f.desc }}</desc>
+{{ axes(f) }}
+<g class="fig-plot" data-map="{{ f.map }}">
+<path class="fig-ref" fill="none" data-role="reference" d="{{ f.reference }}"/>
+{% for b in f.bars %}<path class="fig-ci" fill="none" data-role="interval" data-bin="{{ b.bin }}" d="{{ b.d }}"/>
+{% endfor %}
+{% for p in f.points %}<circle class="fig-point" fill="none" data-role="decile" data-bin="{{ p.bin }}" cx="{{ p.cx }}" cy="{{ p.cy }}" r="4"/>
+{% endfor %}
+</g>
+<g class="fig-strip" data-map="{{ f.strip_map }}">
+{% for s in f.strip %}<rect class="fig-hist" data-bin="{{ s.bin }}" x="{{ s.x }}" y="{{ s.y }}" width="{{ s.width }}" height="{{ s.height }}"/>
+{% endfor %}
+</g>
+<text class="fig-text" x="300" y="362" text-anchor="middle">{{ f.xlabel }}</text>
+<text class="fig-text" x="16" y="180" transform="rotate(-90 16 180)" text-anchor="middle">{{ f.ylabel }}</text>
+<text class="fig-text" x="90" y="40">{{ f.legend }}</text>
+{% if f.flag %}<text class="fig-text fig-note" x="90" y="58">200/200 convention: fewer than 200 events or non-events</text>{% endif %}
+<text class="fig-text" x="70" y="424">Histogram strip: predicted risks per decile bin (bar height n)</text>
+</svg>
+<figcaption>{{ f.title }}. {{ f.caption }}{% if f.flag %}; {{ f.flag }}{% endif %}.</figcaption>
+</figure>
+{%- endmacro %}
+{% macro forest_figure(f) -%}
+<figure class="figure" id="{{ f.id }}" data-attribute="{{ f.attribute }}" data-metric="{{ f.metric }}">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 {{ f.height }}" width="160mm" role="img" aria-labelledby="{{ f.id }}-title {{ f.id }}-desc">
+<title id="{{ f.id }}-title">{{ f.title }}</title>
+<desc id="{{ f.id }}-desc">{{ f.desc }}</desc>
+<g class="fig-plot" data-map="{{ f.map }}">
+{% if f.reference %}<path class="fig-ref" fill="none" data-role="reference" d="{{ f.reference.d }}"/>{% endif %}
+{% for c in f.criteria %}<path class="fig-criterion" fill="none" data-role="criterion" d="{{ c.d }}"/>
+<text class="fig-text" x="{{ c.x }}" y="14" text-anchor="middle">{{ c.label }}: {{ c.value }}</text>
+{% endfor %}
+{% for r in f.rows %}<text class="fig-text" x="10" y="{{ r.ty }}">{{ r.label }}</text>
+{% if r.drawn %}<path class="fig-ci" fill="none" data-role="interval" d="{{ r.d }}"/>
+<circle class="fig-point" fill="none" data-role="estimate" cx="{{ r.cx }}" cy="{{ r.cy }}" r="4"/>
+{% endif %}<text class="fig-text fig-value" x="{{ f.axis.values_x }}" y="{{ r.ty }}">{{ r.value }}</text>
+{% endfor %}
+<path class="fig-axis" fill="none" d="M{{ f.axis.left }},{{ f.axis.y }} L{{ f.axis.right }},{{ f.axis.y }}"/>
+{% for t in f.axis.ticks %}<text class="fig-text" x="{{ t.pos }}" y="{{ f.axis.y }}" dy="16" text-anchor="middle">{{ t.label }}</text>
+{% endfor %}
+</g>
+</svg>
+<figcaption>{{ f.title }}. {{ f.caption }}.</figcaption>
+</figure>
+{%- endmacro %}

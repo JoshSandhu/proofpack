@@ -53,7 +53,7 @@
   --pp-type-line-height-body: 1.6;
   --pp-type-line-height-headings: 1.25;
   --pp-type-line-height-tables: 1.45;
-  --pp-type-mono: ui-monospace, &#34;Cascadia Mono&#34;, Consolas, Menlo, monospace;
+  --pp-type-mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
   --pp-type-numeric: tabular-nums;
   --pp-type-scale-body: 1rem;
   --pp-type-scale-footnote: 0.85rem;
@@ -63,7 +63,7 @@
   --pp-type-scale-strip: 0.78rem;
   --pp-type-scale-table: 0.92rem;
   --pp-type-scale-tag: 0.72rem;
-  --pp-type-text: -apple-system, BlinkMacSystemFont, &#34;Segoe UI&#34;, Roboto, Helvetica, Arial, sans-serif;
+  --pp-type-text: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --pp-type-tracking-uppercase: 0.06em;
 }
 html { font-size: var(--pp-type-body-px); }
@@ -105,6 +105,14 @@ td.status { font-weight: 600; }
 .narrative p { max-width: var(--pp-layout-measure); }
 figure.figure { margin: var(--pp-space-4) 0; }
 figure.figure svg { max-width: 100%; height: auto; color: var(--pp-color-ink); }
+svg .fig-axis { stroke: var(--pp-color-ink-soft); stroke-width: 1; }
+svg .fig-series { stroke: var(--pp-color-ink); stroke-width: 2; }
+svg .fig-ref { stroke: var(--pp-color-ink-faint); stroke-width: 1; stroke-dasharray: 6 4; }
+svg .fig-criterion { stroke: var(--pp-color-ink-faint); stroke-width: 2.5; stroke-dasharray: 10 4; }
+svg .fig-ci { stroke: var(--pp-color-ink); stroke-width: 1.5; }
+svg .fig-point { stroke: var(--pp-color-ink); stroke-width: 1.5; }
+svg .fig-hist { fill: var(--pp-color-line); stroke: none; }
+svg .fig-text { fill: var(--pp-color-ink); font-family: var(--pp-type-text); font-size: 12px; }
 figure.figure figcaption { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); max-width: var(--pp-layout-measure); }
 a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); outline-offset: var(--pp-layout-focus-offset); }
 @media print {

@@ -63,6 +63,7 @@ from proofpack.narrate import claims as claims_mod
 from proofpack.narrate.checker import resolve_pointer
 from proofpack.narrate.templates import LIBRARY, METRIC_NAMES
 from proofpack.render import anchors, sentences
+from proofpack.render import figures as figures_mod
 from proofpack.render import format as fmt
 from proofpack.render import html as render_html
 from proofpack.render.t7 import flow_rows
@@ -785,7 +786,7 @@ def t1_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
             ("ᶜ", "Wilson half-width > 0.10: imprecise"),
         ),
         "guidance_refs": refs,
-        "figures": {},
+        "figures": figures_mod.figures(document, by_id),
     }
     site = next((s for s in ctx["subgroups"] if s["attribute"] == "site"), None)
     ctx["site_block"] = site
