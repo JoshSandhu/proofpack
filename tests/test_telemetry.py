@@ -1,9 +1,10 @@
 """Build day 8, lane A (A-P2): the telemetry send (D1 section 6).
 
-``send`` makes one HTTP request with a 5 s timeout, does not follow a 3xx answer and
-never raises an ``Exception``; a failure is one W16
-line and nothing else changes - the exit code is the run's and ``run.json`` is untouched
-(hashed before and after). The real ``urllib`` transport is exercised against a loopback
+``send`` makes one HTTP request under a 5 s socket timeout on the connect and a 5 s
+deadline on the reads and writes after it, does not follow a 3xx answer and returns a
+``SendResult`` for every ``Exception`` raised inside it; a failure is one W16 line, the
+run's exit code is returned unread and ``run.json`` is untouched (hashed before and
+after). The real ``urllib`` transport is exercised against a loopback
 ``http.server`` (a socket on 127.0.0.1, opened by this test on purpose); every CLI run in
 this file uses a recording transport, and the suite-wide guard in ``conftest`` would turn
 any reach for the real one into a test failure.
@@ -16,7 +17,7 @@ import json
 import socket
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -314,6 +315,96 @@ def test_send_refuses_a_trailing_newline_in_licence_id_and_platform():
         assert rec.calls == []
 
 
+class _Dripping(BaseHTTPRequestHandler):
+    """A-P2 lens 2 FA-L2-N2's receiver: the 45-byte 204 answer, one byte at a time."""
+
+    interval = 0.3
+    answer = b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n"
+
+    def do_POST(self):  # noqa: N802 - http.server API
+        length = int(self.headers.get("Content-Length", "0"))
+        self.rfile.read(length)
+        try:
+            for byte in self.answer:
+                self.wfile.write(bytes([byte]))
+                self.wfile.flush()
+                time.sleep(self.interval)
+        except OSError:  # the client gave up on us: the case under test
+            return
+
+    def log_message(self, *a):  # silence
+        return
+
+
+class _DripServer(ThreadingHTTPServer):
+    daemon_threads = True
+    block_on_close = False
+
+
+@pytest.fixture
+def dripping():
+    srv = _DripServer(("127.0.0.1", 0), _Dripping)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        yield f"http://127.0.0.1:{srv.server_address[1]}/api/telemetry"
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_a_receiver_that_answers_one_byte_at_a_time_is_cut_off_at_the_deadline(dripping):
+    """A-P2 lens 2 FA-L2-N2: at 0cf9ba5 the 5 s was ``urllib``'s per-read socket timeout,
+    so this receiver (45 bytes at 0.3 s) was answered ``SendResult(sent=True, status=204)``
+    after 13.5 s with ``timeout=1.0``. Now the transport's deadline cuts the read off."""
+    t0 = time.perf_counter()
+    r = telemetry.send(GOOD, url=dripping, transport=REAL_TRANSPORT, timeout=1.0)
+    elapsed = time.perf_counter() - t0
+    assert r == telemetry.SendResult(False, None, "timeout"), elapsed
+    assert elapsed < 3.0, elapsed
+
+
+def _unreadable():
+    raise OSError("egress_schema.json unreadable")
+
+
+def test_send_with_the_schema_resource_unreadable_is_schema_unavailable(monkeypatch):
+    """A-P2 lens 2 FA-L2-N3: at 0cf9ba5 ``send`` caught ``EgressError`` and
+    ``WhitelistError`` only, so ``build.egress_schema`` raising ``OSError`` (a broken
+    wheel) reached the caller. Now it is ``schema_unavailable`` and no transport call."""
+    from proofpack.egress import build as build_mod
+
+    monkeypatch.setattr(build_mod, "egress_schema", _unreadable)
+    rec = Recorder(204)
+    r = telemetry.send(GOOD, transport=rec)
+    assert r == telemetry.SendResult(False, None, "schema_unavailable")
+    assert rec.calls == []
+    assert r.line() == (
+        "[W16] telemetry not sent (schema_unavailable); run.json and the exit code are unchanged"
+    )
+    assert "schema_unavailable" in telemetry.REASON_CODES
+
+
+def test_a_run_with_the_schema_resource_unreadable_prints_w16_and_exits_as_the_run(
+    tmp_path: Path, monkeypatch, capsys
+):
+    """FA-L2-N3 through the CLI: at 0cf9ba5 ``rc=5``, ``run.json`` written, stderr
+    ``internal error: OSError: egress_schema.json unreadable``."""
+    from proofpack.egress import build as build_mod
+
+    csv_path, yml, out = prepare(tmp_path, monkeypatch)
+    monkeypatch.setattr(build_mod, "egress_schema", _unreadable)
+    rec = Recorder(204, out)
+    rc = run_cli(csv_path, yml, out, transport=rec)
+    printed = capsys.readouterr().out
+    assert rc == EXIT_OK, printed
+    assert (out / "run.json").exists() and (out / "pseudonyms.json").exists()
+    assert rec.calls == []
+    lines = [ln.strip() for ln in printed.splitlines() if "[W16]" in ln]
+    assert lines == [
+        "[W16] telemetry not sent (schema_unavailable); run.json and the exit code are unchanged"
+    ]
+
+
 def test_real_transport_connection_refused_on_a_closed_port():
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
@@ -455,12 +546,14 @@ def test_json_log_carries_the_telemetry_result_and_the_skip_reason(
 def test_the_next_step_hint_and_doctor_say_what_is_sent_and_how_to_turn_it_off(
     tmp_path: Path, monkeypatch, capsys
 ):
-    from proofpack.cli import TELEMETRY_SENTENCE, main
+    from proofpack.cli import main
+    from proofpack.egress.telemetry import TELEMETRY_SENTENCE
 
     csv_path, yml, out = prepare(tmp_path, monkeypatch)
     assert run_cli(csv_path, yml, out, transport=Recorder(204)) == EXIT_OK
     printed = capsys.readouterr().out
     assert TELEMETRY_SENTENCE in printed
+    assert "telemetry sent (http 204) to " + telemetry.TELEMETRY_URL in printed
     for key in (
         "schema",
         "licence_id",

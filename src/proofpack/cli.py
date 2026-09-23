@@ -441,35 +441,25 @@ def cmd_map(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-#: The one sentence every telemetry mention carries (A-P2, D1 section 6): what is sent
-#: and how to turn it off. British spelling; the key list is the schema's, in order.
-TELEMETRY_SENTENCE = (
-    "telemetry: after run.json is written the engine sends one record to "
-    "https://proofpack.globalphoenix.co.uk/api/telemetry holding only schema, licence_id, "
-    "run_id, engine_version, platform, manifest_sha256, duration_s, halt_code, "
-    "row_count_bucket and timestamp; turn it off with --offline or egress.telemetry: false "
-    "in criteria.yaml (docs: /docs/egress)"
-)
-
-
 def cmd_run(args: argparse.Namespace) -> int:
-    from proofpack.egress import run_telemetry
     from proofpack.run import LICENCE_FIX, assemble_run, write_run
 
     _tolerant_console()
     outcome = assemble_run(args.input, args.criteria, mapping=args.mapping, registry=args.registry)
     target = write_run(outcome, args.out)
-    # The single telemetry call site (A-P2): after every document is written, decided
-    # before anything is built when --offline or egress.telemetry: false is in force; the
-    # result changes nothing below - not the exit code, not the files.
-    sent = run_telemetry(
-        outcome.document,
+    doc = outcome.document
+    manifest = doc["manifest"]
+    # A-P2 (build day 8, lane A): the one telemetry call site, after every document is
+    # written. ``sent`` is printed and logged below; the return does not read it
+    # (tests/test_telemetry.py::test_the_exit_code_with_a_failed_send_equals_the_exit_code_offline).
+    from proofpack.egress import telemetry as telemetry_mod  # noqa: PLC0415 - one call site
+
+    sent = telemetry_mod.run_telemetry(
+        doc,
         offline=args.offline,
         licence_status=outcome.licence.status,
         transport=getattr(args, "transport", None),
     )
-    doc = outcome.document
-    manifest = doc["manifest"]
     statuses = [r["status"] for r in doc["criteria_results"]]
     warn_lines = "".join(f"\n  [{w.code}] {w.message}" for w in outcome.warnings)
     lic = outcome.licence
@@ -477,25 +467,17 @@ def cmd_run(args: argparse.Namespace) -> int:
         f"; watermark: {manifest['watermark']}" if manifest["watermark"] else ""
     )
     counts = {s: statuses.count(s) for s in ("met", "not_met", "not_assessable")}
-    if sent is None:
-        why = "--offline" if args.offline else "egress.telemetry: false"
-        telemetry_line = f"telemetry skipped ({why}); nothing was sent"
-    else:
-        telemetry_line = sent.line()
     summary = (
         f"run written: {target} (run_id {manifest['run_id']})\n"
         f"  analysed {doc['flow']['analysed']} of {doc['flow']['rows_read']} rows; "
         f"criteria rows: {counts['met']} met, {counts['not_met']} not met, "
         f"{counts['not_assessable']} not assessable\n"
         f"  {lic_line}{warn_lines}\n"
-        f"  {telemetry_line}\n"
+        f"{telemetry_mod.summary_lines(sent, offline=args.offline)}"
     )
     if not lic.usable:
         summary += f"  {LICENCE_FIX}\n"
-    summary += (
-        "Next step: proofpack licence show, then the T1/T7/T8 renderers (docs: /docs/run); "
-        + TELEMETRY_SENTENCE
-    )
+    summary += "Next step: proofpack licence show, then the T1/T7/T8 renderers (docs: /docs/run)"
     _emit(
         args,
         {
@@ -504,14 +486,10 @@ def cmd_run(args: argparse.Namespace) -> int:
                 "run_id": manifest["run_id"],
                 "exit_code": outcome.exit_code,
                 "licence_status": lic.status,
+                "telemetry": telemetry_mod.log_entry(sent, offline=args.offline),
                 "watermark": manifest["watermark"],
                 "criteria_status_counts": counts,
                 "warnings": [w.code for w in outcome.warnings],
-                "telemetry": (
-                    {"skipped": "--offline" if args.offline else "egress.telemetry: false"}
-                    if sent is None
-                    else sent.as_dict()
-                ),
             }
         },
         summary,

@@ -58,7 +58,7 @@
     },
     "level": {
       "type": ["string", "null"],
-      "description": "A pseudonym (Site A, Device A, Protocol A, Level A ... Level ZZ), the engine's own Unknown/missing row, or a short token such as F, M or an age band 40-65. A level of an attribute outside site/device/protocol/attr_* that matches the token branch passes verbatim whatever it reads as (a date-shaped or id-shaped value included: tests/test_egress.py::test_a_date_shaped_level_of_the_sex_column_passes_the_token_rule_verbatim); a longer level is pseudonymised (src/proofpack/egress/pseudonymise.py).",
+      "description": "A pseudonym (Site A, Device A, Protocol A, Level A ... Level ZZ), the engine's own Unknown/missing row, or a short token such as F, M or an age band 40-65. A level of an attribute outside site/device/protocol/attr_* that matches the token branch passes verbatim whatever it reads as (a date-shaped or id-shaped value included: tests/test_egress.py::test_a_date_shaped_level_of_the_sex_column_passes_the_token_rule_verbatim); a level that fails the token pattern (^[A-Za-z0-9][A-Za-z0-9_.+-]{0,15}$: a 17th character, a space, a slash, a leading punctuation mark or any character outside A-Z a-z 0-9 _ . + -) is pseudonymised (src/proofpack/egress/pseudonymise.py; the same test feeds the 13-character 'Jane Doe 1961' and reads Level A).",
       "pattern": "^(Site|Device|Protocol|Level) [A-Z]{1,3}$|^Unknown/missing$|^[A-Za-z0-9][A-Za-z0-9_.+-]{0,15}$",
       "maxLength": 16
     },

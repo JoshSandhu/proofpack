@@ -27,10 +27,11 @@ Usage::
     python scripts/mutation_sweep.py --marker day5            # the day-5 list against -m day5
     python scripts/mutation_sweep.py --marker day6            # both day-6 lists (E and A)
     python scripts/mutation_sweep.py --marker day7            # the day-7 list (E7)
-    python scripts/mutation_sweep.py --marker ap2             # the A-P2 egress list (day 8 A)
     python scripts/mutation_sweep.py --marker day5 --only ref_largest_to_smallest
     python scripts/mutation_sweep.py --list
     python scripts/mutation_sweep.py --marker day5 --fail-on-survivor   # exit 1 if any survive
+
+    python scripts/mutation_sweep.py --marker ap2             # the A-P2 egress list (day 8 A)
 
 The round-7 repair of build day 4 ran this by hand as a scratch file; it found that the
 two changes that round's commit narrated most prominently were unobservable, which is
