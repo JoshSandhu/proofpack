@@ -788,6 +788,10 @@ def t1_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
         "guidance_refs": refs,
         "figures": figures_mod.figures(document, by_id),
     }
+    # D4 section 5.2: Se/Sp rows become PPA/NPA when a comparator is declared (FDA 2007)
+    se, sp = _SE_SP.get(ref_std.get("type") or "reference_standard", _SE_SP["reference_standard"])
+    ctx["se_label"] = "Sensitivity" if se == "sensitivity" else "PPA"
+    ctx["sp_label"] = "Specificity" if sp == "specificity" else "NPA"
     site = next((s for s in ctx["subgroups"] if s["attribute"] == "site"), None)
     ctx["site_block"] = site
     ctx.update(render_html.furniture(document, "T1", refs, outstanding))

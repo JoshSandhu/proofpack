@@ -319,6 +319,12 @@ F5_METRICS: tuple[tuple[str, str], ...] = (
     ("specificity", "Specificity"),
     ("auroc", "AUROC"),
 )
+#: Under a declared comparator the subgroup rows carry PPA / NPA (FDA 2007; D4 5.2).
+F5_METRICS_COMPARATOR: tuple[tuple[str, str], ...] = (
+    ("ppa", "PPA"),
+    ("npa", "NPA"),
+    ("auroc", "AUROC"),
+)
 
 
 def _criterion_lines(
@@ -385,7 +391,11 @@ def f5_forest(
 
         idx.sort(key=rank)
         figs = []
-        for metric, label in F5_METRICS:
+        ref_type = ((document.get("declarations") or {}).get("reference_standard") or {}).get(
+            "type"
+        )
+        metrics = F5_METRICS if ref_type != "comparator" else F5_METRICS_COMPARATOR
+        for metric, label in metrics:
             height = Y0 + ROW_H * len(idx) + 60
             m = PlotMap(FOREST_X0, Y0, FOREST_W, ROW_H * len(idx))
             rows = []

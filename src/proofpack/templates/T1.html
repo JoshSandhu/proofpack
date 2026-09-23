@@ -227,7 +227,7 @@
 <div class="table-wrap">
 <table class="subgroup" data-attribute="{{ s.attribute }}" data-op="{{ o.op }}">
 <caption>Table T1-10 - performance by <span class="customer-text inline">{{ s.attribute }}</span> at operating point <span class="customer-text inline">{{ o.op }}</span>; reference level <span class="customer-text inline">{{ s.reference_level }}</span> (rule {{ s.reference_rule }}); {% if s.prespecified %}pre-specified{% else %}not pre-specified, exploratory{% endif %}. Wilson score for proportions, DeLong for AUROC; tiers are ProofPack reporting conventions</caption>
-<thead><tr><th scope="col">Group</th><th scope="col" class="num">n</th><th scope="col" class="num">Events</th><th scope="col" class="num">Sensitivity k/n (%) [95% CI]</th><th scope="col" class="num">Specificity k/n (%) [95% CI]</th><th scope="col" class="num">AUROC [95% CI]</th><th scope="col">Pre-spec.</th><th scope="col">Tier</th></tr></thead>
+<thead><tr><th scope="col">Group</th><th scope="col" class="num">n</th><th scope="col" class="num">Events</th><th scope="col" class="num">{{ se_label }} k/n (%) [95% CI]</th><th scope="col" class="num">{{ sp_label }} k/n (%) [95% CI]</th><th scope="col" class="num">AUROC [95% CI]</th><th scope="col">Pre-spec.</th><th scope="col">Tier</th></tr></thead>
 <tbody>
 {% for r in o.table %}
 <tr><th scope="row" class="customer-text">{{ r.level }}{% if r.is_reference %} (ref){% endif %}</th><td class="num">{{ r.n }}</td><td class="num">{{ r.events }}</td>{{ ncell(r.se) }}{{ ncell(r.sp) }}{{ ncell(r.auroc) }}<td>{{ r.prespecified }}</td><td>{{ r.tier }}</td></tr>
@@ -240,7 +240,7 @@
 <div class="table-wrap">
 <table class="differences">
 <caption>Table T1-11 - differences against the reference level <span class="customer-text inline">{{ s.reference_level }}</span> (Newcombe method 10 for proportions in percentage points, unpaired DeLong for AUROC; differences only, from which no statement about subgroup consistency is drawn)</caption>
-<thead><tr><th scope="col">Group</th><th scope="col" class="num">Δ Sensitivity (pp) [95% CI]</th><th scope="col" class="num">Δ Specificity (pp) [95% CI]</th><th scope="col" class="num">Δ AUROC [95% CI]</th>{% if o.has_criteria %}<th scope="col">Criterion (id) and status; max lower bound at n</th>{% endif %}</tr></thead>
+<thead><tr><th scope="col">Group</th><th scope="col" class="num">Δ {{ se_label }} (pp) [95% CI]</th><th scope="col" class="num">Δ {{ sp_label }} (pp) [95% CI]</th><th scope="col" class="num">Δ AUROC [95% CI]</th>{% if o.has_criteria %}<th scope="col">Criterion (id) and status; max lower bound at n</th>{% endif %}</tr></thead>
 <tbody>
 {% for d in o.diffs %}
 <tr><th scope="row" class="customer-text">{{ d.level }}</th>{{ ncell(d.se) }}{{ ncell(d.sp) }}{{ ncell(d.auroc) }}{% if o.has_criteria %}<td>{% for c in d.criteria %}<span class="customer-text inline">{{ c.id }}</span> (row {{ c.position }}) → <span class="status">{{ c.status_word }}</span>; max LB {{ c.max_lb }} at n = {{ c.n }}, attainable: {{ c.attainable }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>{% endif %}</tr>

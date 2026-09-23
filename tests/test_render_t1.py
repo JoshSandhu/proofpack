@@ -429,3 +429,24 @@ def test_a_clustered_run_prints_the_calibration_cells_with_their_tiers_dec34():
 def test_run_templates_t1_writes_t1_html_beside_run_json(cli_run):
     doc, page = cli_run
     assert page.startswith("<!DOCTYPE html>") and doc["manifest"]["run_id"][:8] in page
+
+
+def test_a_comparator_run_prints_ppa_and_npa_everywhere_it_printed_se_and_sp():
+    """D4 section 5.2 / FDA 2007: under a declared comparator the Se/Sp wording becomes
+    PPA/NPA. Found in E9's own review: T1-10/T1-11 headers and F5 were fixed to
+    Sensitivity/Specificity, and F5 read the sensitivity key the comparator rows lack."""
+    crit = make_criteria(
+        criteria=[],
+        fairness=None,
+        reference_standard={"type": "comparator", "description": "predicate device"},
+    )
+    doc = assemble(make_cohort(n=200), crit)
+    out = render_t1.render_t1(doc)
+    assert "Sensitivity k/n" not in out and "Δ Sensitivity" not in out
+    assert out.count("PPA k/n (%) [95% CI]") == 3 and out.count("Δ NPA (pp)") == 3
+    assert "Comparator positive" in out and "Reference positive" not in out
+    for attribute in ("sex", "age", "site"):
+        for metric in ("ppa", "npa"):
+            assert f'id="F5-{attribute}-{metric}"' in out
+    assert 'id="F5-sex-sensitivity"' not in out
+    assert out.count('data-role="estimate"') == 27  # every level drawn on all nine forests
