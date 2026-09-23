@@ -27,6 +27,7 @@ Usage::
     python scripts/mutation_sweep.py --marker day5            # the day-5 list against -m day5
     python scripts/mutation_sweep.py --marker day6            # both day-6 lists (E and A)
     python scripts/mutation_sweep.py --marker day7            # the day-7 list (E7)
+    python scripts/mutation_sweep.py --marker day8            # the day-8 list (E8)
     python scripts/mutation_sweep.py --marker day5 --only ref_largest_to_smallest
     python scripts/mutation_sweep.py --list
     python scripts/mutation_sweep.py --marker day5 --fail-on-survivor   # exit 1 if any survive
@@ -1469,7 +1470,143 @@ MUTANTS_DAY7: tuple[Mutant, ...] = (
     ),
 )
 
-MUTANTS = MUTANTS + MUTANTS_DAY6_A + MUTANTS_DAY7
+#: The day-8 list (E8: the overall block on a clustered plan, the claims generator, the
+#: claim-binding checker, the number formatting, the anchors, the renderer and T8).
+#: ``--marker day8``.
+FORMAT = "src/proofpack/render/format.py"
+CHECKER = "src/proofpack/narrate/checker.py"
+CLAIMS = "src/proofpack/narrate/claims.py"
+ANCHORS = "src/proofpack/render/anchors.py"
+HTML = "src/proofpack/render/html.py"
+T8_TEMPLATE = "src/proofpack/templates/T8.html"
+MUTANTS_DAY8: tuple[Mutant, ...] = (
+    Mutant(
+        "format_percent_rounding_place",
+        FORMAT,
+        r"def percent\(x: float, places: int = 1\) -> str:",
+        "def percent(x: float, places: int = 2) -> str:",
+        day=8,
+        what="a percentage prints two decimals instead of D4 section 1.2's one",
+    ),
+    Mutant(
+        "format_suppressed_prints_the_count",
+        FORMAT,
+        r'    if num\.get\("suppressed"\):\n        return SUPPRESSED_MARK',
+        '    if num.get("suppressed"):\n        return f"{SUPPRESSED_MARK} {num.get(\'n\')}"',
+        day=8,
+        what="a suppressed cell prints its n beside the marker (a digit from the cell)",
+    ),
+    Mutant(
+        "checker_status_equality_skipped",
+        CHECKER,
+        r'        if status != row\.get\("status"\):',
+        '        if status is None and status != row.get("status"):',
+        day=8,
+        what="a claim's status is no longer compared with criteria_results[index].status",
+    ),
+    Mutant(
+        "checker_value_ref_unresolved_accepted",
+        CHECKER,
+        r'            return reject\("value_ref_unresolved", value_ref=ref\)',
+        "            pass",
+        day=8,
+        what="an unresolved value_ref is not rejected",
+    ),
+    Mutant(
+        "checker_digit_regex_decimal_only",
+        CHECKER,
+        r'        if ch\.isnumeric\(\) or unicodedata\.category\(ch\) in \("Nd", "Nl", "No"\):',
+        "        if ch.isdecimal():",
+        day=8,
+        what="only decimal digits count as digits (a Roman numeral or a superscript passes)",
+    ),
+    Mutant(
+        "checker_section_sign_unchecked",
+        CHECKER,
+        r'    if "§" in norm:',
+        "    if False:",
+        day=8,
+        what="the section sign is no longer a forbidden token",
+    ),
+    Mutant(
+        "checker_guidance_ref_unchecked",
+        CHECKER,
+        r"        if not isinstance\(gref, str\) or gref not in guidance:",
+        "        if False:",
+        day=8,
+        what="a guidance_ref outside the map is accepted",
+    ),
+    Mutant(
+        "checker_criterion_index_missing_tolerated",
+        CHECKER,
+        r'        if index is None:\n            return reject\("criterion_index_missing"',
+        '        if index is None and claim["criterion_id"] is None:\n'
+        '            return reject("criterion_index_missing"',
+        day=8,
+        what="a criterion addressed by id with no position is not rejected as index-missing",
+    ),
+    Mutant(
+        "claims_relation_above_on_upper_bound",
+        CLAIMS,
+        r'    if lo > 0:\n        return "above"',
+        '    if hi > 0:\n        return "above"',
+        day=8,
+        what="a difference whose interval spans zero is read as above",
+    ),
+    Mutant(
+        "anchors_draft_label_lookup_skipped",
+        ANCHORS,
+        r"        if DRAFT_QUALIFIER not in status\.lower\(\):",
+        "        if False:",
+        day=8,
+        what="a draft map row without the not-for-implementation qualifier is rendered",
+    ),
+    Mutant(
+        "html_autoescape_off",
+        HTML,
+        r"        autoescape=True,",
+        "        autoescape=False,",
+        day=8,
+        what="customer text is rendered unescaped",
+    ),
+    Mutant(
+        "html_criteria_rows_keyed_by_id",
+        HTML,
+        r'    for i, row in enumerate\(document\.get\("criteria_results"\) or \[\]\):',
+        "    for i, row in enumerate(\n"
+        '        {r["criterion_id"]: r for r in document.get("criteria_results") or []}.values()\n'
+        "    ):",
+        day=8,
+        what="the criteria table is keyed by id, so rows sharing an id collapse to one",
+    ),
+    Mutant(
+        "html_claims_generated_off_by_one",
+        HTML,
+        r'        "claims_generated": len\(document\.get\("claims"\) or \[\]\),',
+        '        "claims_generated": len(document.get("claims") or []) + 1,',
+        day=8,
+        what="section 7's claims count is off by one",
+    ),
+    Mutant(
+        "t8_footer_dropped_from_page_two",
+        T8_TEMPLATE,
+        r'\{\{ page_footer\(\) \}\}\n</section>\n<section class="page" id="page-3">',
+        '</section>\n<section class="page" id="page-3">',
+        day=8,
+        what="the second page section has no footer",
+    ),
+    Mutant(
+        "run_clustered_overall_uses_the_analytic_route",
+        RUN,
+        r"        if not clustered:\n"
+        r"            block = \{k: v\.as_dict\(\) for k, v in metrics\.items\(\)\}",
+        "        if True:\n            block = {k: v.as_dict() for k, v in metrics.items()}",
+        day=8,
+        what="the overall block takes two_by_two_metrics (Wilson) on a clustered plan",
+    ),
+)
+
+MUTANTS = MUTANTS + MUTANTS_DAY6_A + MUTANTS_DAY7 + MUTANTS_DAY8
 
 
 def make_copy() -> Path:
