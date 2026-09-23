@@ -425,13 +425,15 @@ def analysis_mask(table: Table, indeterminate_values: set[str]) -> tuple[np.ndar
     lens FA-B1 / RG-B1: at ``657ef11`` a blank ``y_pred`` on a table without a score
     column reached ``overall_block`` as a negative prediction - 60 blanks in 120 rows gave
     ``{tp 21, fn 21, fp 7, tn 71}`` where the 60 non-blank rows give ``{tp 21, fn 3, fp 7,
-    tn 29}``; ``tests/test_e8_repair2.py`` feeds that table). A row whose ``y_true`` is
-    present and whose prediction input is missing counts under ``excluded_missing_score``,
-    the flow's one "missing prediction input" entry (D1 section 2: "excluded-missing"); a
-    row missing both counts under ``excluded_missing_y_true`` (``excl_sc`` below reads
-    ``~yt_missing``). Indeterminate rows - ``y_true`` or ``y_pred`` holding a
-    declared indeterminate value (``schema_v1.json``: the 0/1 column is "an alternative to
-    listing indeterminate values in y_true / y_pred"), or the 0/1 column - are counted
+    tn 29}``; ``tests/test_e8_repair2.py`` feeds that table). A row that is not a ``dev``
+    row, whose ``y_true`` is present and whose prediction input is missing counts under
+    ``excluded_missing_score``, the flow's one "missing prediction input" entry (D1
+    section 2: "excluded-missing"); a non-``dev`` row missing both counts under
+    ``excluded_missing_y_true`` (``excl_sc`` below reads ``base & ~yt_missing``, and
+    ``base`` is ``~dev``); ``tests/test_e8_repair4.py`` feeds 20 ``dev`` rows.
+    Indeterminate rows - ``y_true`` or ``y_pred`` holding a declared indeterminate value
+    (``schema_v1.json``: the 0/1 column is "an alternative to listing indeterminate
+    values in y_true / y_pred"), or the 0/1 column - are counted
     separately and excluded from the default mask (both-way analysis is a later day).
     ``dev`` rows are never analysed.
     """

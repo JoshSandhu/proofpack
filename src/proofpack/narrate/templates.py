@@ -17,10 +17,13 @@ One id is an engine addition to D4's table, recorded here and in the E8 build no
 ``diff_vs_reference`` is null by construction) and for a level whose attribute has no
 reference; the skeleton is ``SUBGROUP_ESTIMATE_WITH_DIFF`` without the difference clause.
 
-One skeleton differs from D4 section 8's text: ``FLOW_COUNTS`` adds "(on a table without
-a score column, a y_pred)" after "lacked a score" (repair 3, lens FA-N4: since repair 2
+Skeletons whose text differs from D4 section 8's, read on 23 September 2026 against spec
+``74837c8`` (repair 4, lens-4 FA-N3): ``FLOW_COUNTS`` adds "(on a table without a score
+column, a y_pred)" after "lacked a score" (repair 3, lens FA-N4: since repair 2
 ``flow.excluded_missing_score`` counts blank ``y_pred`` cells on a table without a score
-column, and D4's words named a score only).
+column, and D4's words named a score only); ``CRITERION_STATUS`` prints " - " where D4
+has an em dash; ``KS_RESULT`` prints "Kolmogorov-Smirnov" where D4 has an en dash.
+``REF_STD_TYPE_NOTE`` carries D4's two sentences as a phrase map.
 """
 
 from __future__ import annotations

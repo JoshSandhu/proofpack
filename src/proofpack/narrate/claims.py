@@ -43,7 +43,9 @@ What is claimed, in this order, one claim per: overall metric at each operating 
 proportions at each operating point (``SUBGROUP_ESTIMATE_WITH_DIFF`` with the
 difference-vs-reference cell when the row has one, ``SUBGROUP_ESTIMATE`` otherwise - the
 reference row and levels without a reference), the calibration block
-(``CALIB_HIERARCHY``, or ``CALIB_NA`` when it is null), each fairness gap at each
+(``CALIB_HIERARCHY``; ``CALIB_NA`` when it is null with the reason
+``score_not_probability``; nothing when it is null with another reason - repair 4), each
+fairness gap at each
 operating point (``FAIRNESS_GAP``), and each criteria row (``CRITERION_STATUS``).
 ``claim_id`` is ``CL-`` and a four-digit sequence in that order, so two runs of the same
 document give the same ids.
@@ -85,6 +87,8 @@ SUBGROUP_METRIC_ORDER: tuple[str, ...] = (
 )
 FAIRNESS_GAP_ORDER: tuple[str, ...] = ("tpr_gap", "fpr_gap", "ppv_gap", "auroc_gap")
 CALIBRATION_REFS: tuple[str, ...] = ("oe", "slope", "intercept", "brier", "brier_ref", "ipa")
+#: The one ``calibration_suppressed_reason.reason`` the ``CALIB_NA`` sentence states.
+CALIB_NA_REASON = "score_not_probability"
 RELATIONS: tuple[str, ...] = ("estimate", "above", "below", "within", "not_assessable")
 COMPARATOR_IDS: tuple[str, ...] = ("diff_vs_reference", "diff_vs_complement", ">=", ">", "<=", "<")
 
@@ -245,11 +249,24 @@ def _subgroup_claims(doc: dict[str, Any], seq: int) -> tuple[list[dict[str, Any]
     return out, seq
 
 
+def calibration_suppression(doc: dict[str, Any]) -> Any:
+    """``calibration_suppressed_reason.reason`` of ``doc``, or ``None``."""
+    reason = doc.get("calibration_suppressed_reason")
+    return reason.get("reason") if isinstance(reason, dict) else None
+
+
 def _calibration_claims(doc: dict[str, Any], seq: int) -> tuple[list[dict[str, Any]], int]:
     cal = doc.get("calibration")
-    seq += 1
     if not isinstance(cal, dict):
+        # repair 4, lens-4 FA-B3: CALIB_NA's sentence ("the score was declared as
+        # {score_type}, not a probability") states the reason score_not_probability; on
+        # no_score_column and score_not_positive_class_probability no calibration claim
+        # is made (a template for each is open question 2 of the repair-3 note)
+        if calibration_suppression(doc) != CALIB_NA_REASON:
+            return [], seq
+        seq += 1
         return [_claim(seq, "CALIB_NA", relation="not_assessable", value_refs=[])], seq
+    seq += 1
     refs = [pointer("calibration", key, "number") for key in CALIBRATION_REFS if key in cal]
     primary = (cal.get("oe") or {}).get("number")
     return [
@@ -319,10 +336,92 @@ def _dotted_to_pointer(metric_ref: str | None) -> str | None:
     return pointer(*parts)
 
 
+_AMBIGUOUS = object()
+
+
+def metric_ref_pointers(doc: dict[str, Any]) -> dict[str, str]:
+    """Each dotted path :mod:`proofpack.criteria` writes as ``metric_ref`` for a Number of
+    ``doc``, mapped to the RFC 6901 pointer of that Number (repair 4, lens-4 FA-B1).
+
+    The map is built from the document's own keys and the forms ``criteria`` writes
+    (``overall.<op>.<metric>``, ``overall.threshold_free.<metric>``,
+    ``calibration.<key>.number``, ``subgroups[i].metrics.<op>.<metric>.number``,
+    ``subgroups[i].metrics.<auroc|brier>.number``,
+    ``fairness.gaps[j].operating_points.<op>.<gap>.number``,
+    ``fairness.gaps[j].auroc_gap.number``); the dotted string is looked up, never split,
+    so an operating-point id holding ``.``, ``[`` or ``]`` is read as the whole id. A path
+    two Numbers would share is left out."""
+    table: dict[str, Any] = {}
+
+    def add(dotted: str, *parts: Any) -> None:
+        ptr = pointer(*parts)
+        table[dotted] = ptr if table.get(dotted, ptr) == ptr else _AMBIGUOUS
+
+    overall = doc.get("overall")
+    if isinstance(overall, dict):
+        for op, block in overall.items():
+            if isinstance(block, dict):
+                for metric in block:
+                    add(f"overall.{op}.{metric}", "overall", op, metric)
+    cal = doc.get("calibration")
+    if isinstance(cal, dict):
+        for key in cal:
+            add(f"calibration.{key}.number", "calibration", key, "number")
+    subgroups = doc.get("subgroups")
+    for i, row in enumerate(subgroups if isinstance(subgroups, list) else []):
+        metrics = row.get("metrics") if isinstance(row, dict) else None
+        for name, block in (metrics if isinstance(metrics, dict) else {}).items():
+            if name in ("auroc", "brier"):
+                add(
+                    f"subgroups[{i}].metrics.{name}.number",
+                    "subgroups",
+                    i,
+                    "metrics",
+                    name,
+                    "number",
+                )
+            elif isinstance(block, dict):
+                for metric in block:
+                    add(
+                        f"subgroups[{i}].metrics.{name}.{metric}.number",
+                        *("subgroups", i, "metrics", name, metric, "number"),
+                    )
+    fairness = doc.get("fairness")
+    if isinstance(fairness, dict):
+        gaps = fairness.get("gaps")
+        for j, gap in enumerate(gaps if isinstance(gaps, list) else []):
+            if not isinstance(gap, dict):
+                continue
+            add(
+                f"fairness.gaps[{j}].auroc_gap.number", "fairness", "gaps", j, "auroc_gap", "number"
+            )
+            per_ops = gap.get("operating_points")
+            for op, per_op in (per_ops if isinstance(per_ops, dict) else {}).items():
+                for metric in per_op if isinstance(per_op, dict) else ():
+                    add(
+                        f"fairness.gaps[{j}].operating_points.{op}.{metric}.number",
+                        *("fairness", "gaps", j, "operating_points", op, metric, "number"),
+                    )
+    return {k: v for k, v in table.items() if v is not _AMBIGUOUS}
+
+
+def criteria_row_pointers(doc: dict[str, Any]) -> list[str | None]:
+    """The pointer of each ``criteria_results`` row's ``metric_ref``, by position, through
+    :func:`metric_ref_pointers` (``None`` where the row names no Number)."""
+    table = metric_ref_pointers(doc)
+    rows = doc.get("criteria_results")
+    out: list[str | None] = []
+    for row in rows if isinstance(rows, list) else []:
+        ref = row.get("metric_ref") if isinstance(row, dict) else None
+        out.append(table.get(ref) if isinstance(ref, str) else None)
+    return out
+
+
 def _criteria_claims(doc: dict[str, Any], seq: int) -> tuple[list[dict[str, Any]], int]:
     out: list[dict[str, Any]] = []
+    row_refs = criteria_row_pointers(doc)
     for i, row in enumerate(doc.get("criteria_results") or []):
-        ref = _dotted_to_pointer(row.get("metric_ref"))
+        ref = row_refs[i]
         scope = row.get("scope")
         subgroup = (
             {"attribute": str(scope["attribute"]), "level": str(scope["level"])}

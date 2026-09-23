@@ -1488,6 +1488,7 @@ CLAIMS = "src/proofpack/narrate/claims.py"
 ANCHORS = "src/proofpack/render/anchors.py"
 HTML = "src/proofpack/render/html.py"
 T8_TEMPLATE = "src/proofpack/templates/T8.html"
+BASE_TEMPLATE = "src/proofpack/templates/base.html"
 MUTANTS_DAY8: tuple[Mutant, ...] = (
     Mutant(
         "format_percent_rounding_place",
@@ -1848,10 +1849,18 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
     Mutant(
         "checker_well_calibrated_substring_dropped",
         CHECKER,
-        r'    if any\("wellcalibrated" in r\.replace\("-", ""\) for r in readings\):',
+        r'    if any\("wellcalibrated" in _LETTERS_ONLY\.sub\("", r\) for r in readings\):',
         "    if False:",
         day=8,
         what="well-calibratedness is accepted (RG-B1)",
+    ),
+    Mutant(
+        "checker_well_calibrated_hyphen_only",
+        CHECKER,
+        r'    if any\("wellcalibrated" in _LETTERS_ONLY\.sub\("", r\) for r in readings\):',
+        '    if any("wellcalibrated" in r.replace("-", "") for r in readings):',
+        day=8,
+        what="well calibratedness (a space, then letters) is accepted (lens-4 FA-B4 / RG-N2)",
     ),
     Mutant(
         "checker_earlier_readings_dropped",
@@ -2017,6 +2026,103 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
         'frozenset({"threshold_free"})',
         day=8,
         what="an operating point declared auroc drops its subgroup cells (repair 3)",
+    ),
+    # repair 4 (lens round 4 at 23f3d9f)
+    Mutant(
+        "checker_tr39_map_empty",
+        CHECKER,
+        r"    for k, v in tr39_mod\.CONFUSABLES\.items\(\)",
+        "    for k, v in {}.items()",
+        day=8,
+        what="the vendored TR39 data is not read: Lisu PA + ass is accepted (FA-B4, DEC-60)",
+    ),
+    Mutant(
+        "checker_tr39_reading_dropped",
+        CHECKER,
+        r'    tr39 = normalise_free_text\(tr\)\.replace\("rn", "m"\)',
+        "    tr39 = full",
+        day=8,
+        what="Lisu PA + assIng is accepted (FA-B4)",
+    ),
+    Mutant(
+        "checker_tr39_capital_i_reading_dropped",
+        CHECKER,
+        r'    tr39_i = normalise_free_text\(tr\.replace\("I", "l"\)\)\.replace\("rn", "m"\)',
+        "    tr39_i = full",
+        day=8,
+        what="Lisu TSA + aiI is accepted (FA-B4)",
+    ),
+    Mutant(
+        "claims_metric_ref_split_again",
+        CLAIMS,
+        r"        ref = row_refs\[i\]",
+        '        ref = _dotted_to_pointer(row.get("metric_ref"))',
+        day=8,
+        what="the criterion claim for operating point [0] binds operating point 0's Number (FA-B1)",
+    ),
+    Mutant(
+        "html_metric_ref_split_again",
+        HTML,
+        r"        ref = row_refs\[i\]",
+        '        ref = claims_mod._dotted_to_pointer(row.get("metric_ref"))',
+        day=8,
+        what="T8 prints operating point 0's Number on the [0] row (FA-B1)",
+    ),
+    Mutant(
+        "checker_metric_ref_split_again",
+        CHECKER,
+        r"        row_ref = row_refs\[index\] if index < len\(row_refs\) else None",
+        '        row_ref = claims_mod._dotted_to_pointer(row.get("metric_ref"))',
+        day=8,
+        what="the engine's criterion claim on operating point [0] is rejected (FA-B1)",
+    ),
+    Mutant(
+        "gates_dec61_y_pred_operating_points_unchecked",
+        GATES,
+        r"    if table\.score is not None or len\(decl\.operating_points\) <= 1:",
+        "    if True:",
+        day=8,
+        what="a y_pred-only table with two operating points runs (FA-B2, DEC-61)",
+    ),
+    Mutant(
+        "run_dec61_gate_not_called_in_overall_block",
+        RUN,
+        r"    gate_h08_y_pred_operating_points\(table, decl\)  # DEC-61",
+        "    pass  # DEC-61",
+        day=8,
+        what="overall_block prints one y_pred two-by-two under two thresholds (FA-B2)",
+    ),
+    Mutant(
+        "claims_calib_na_on_any_reason",
+        CLAIMS,
+        r"        if calibration_suppression\(doc\) != CALIB_NA_REASON:",
+        "        if False:",
+        day=8,
+        what="a y_pred-only document carries CALIB_NA (FA-B3)",
+    ),
+    Mutant(
+        "checker_calib_na_reason_unchecked",
+        CHECKER,
+        r"        and claims_mod\.calibration_suppression\(doc\) != claims_mod\.CALIB_NA_REASON",
+        "        and False",
+        day=8,
+        what="CALIB_NA on a no_score_column document is accepted (FA-B3)",
+    ),
+    Mutant(
+        "html_header_model_not_customer_text",
+        BASE_TEMPLATE,
+        r'<header class="page-header"><span class="customer-text">',
+        '<header class="page-header"><span>',
+        day=8,
+        what="the model name and version in the page header are engine text (DEC-62)",
+    ),
+    Mutant(
+        "t8_operating_point_cell_not_customer_text",
+        T8_TEMPLATE,
+        r'<td\{% if r\.operating_point_is_customer_text %\} class="customer-text"\{% endif %\}>',
+        "<td>",
+        day=8,
+        what="the criteria table's operating-point id is engine text (DEC-62)",
     ),
 )
 

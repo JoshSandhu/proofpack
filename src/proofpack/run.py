@@ -63,7 +63,7 @@ import numpy as np
 from proofpack import criteria as criteria_mod
 from proofpack import manifest as manifest_mod
 from proofpack.errors import EXIT_LICENCE, EXIT_OK, EXIT_WARNINGS, Finding, HaltError
-from proofpack.gates import IngestResult, ingest
+from proofpack.gates import IngestResult, gate_h08_y_pred_operating_points, ingest
 from proofpack.io import declare, ledger
 from proofpack.io import mapping as mapping_mod
 from proofpack.io.declare import Declarations
@@ -204,8 +204,10 @@ def overall_block(
       draw is seeded like a subgroup cell's but is its own stream; ``tests/
       test_overall_carried.py`` calls ``proportion_ci`` with the same key on the same
       rows and asserts the interval equal.
-    * **``y_pred``-only table** (no score column; E7 carried item 42): the operating-point
-      block from ``y_pred == positive`` alone through the same two routes above, and
+    * **``y_pred``-only table** (no score column; E7 carried item 42): with one declared
+      operating point (more than one is H08, DEC-61:
+      :func:`proofpack.gates.gate_h08_y_pred_operating_points`, called first), the
+      operating-point block from ``y_pred == positive`` alone through the same two routes above, and
       ``threshold_free`` carrying an AUROC Number typed ``not_computed_this_run`` (the
       subgroup rows' reason for the same absence), ``roc`` empty and the structured key
       ``suppressed_reason: no_score_column`` (:data:`NO_SCORE_COLUMN`).
@@ -217,6 +219,7 @@ def overall_block(
     bootstrap audit (companion refusal, usable resamples) is not carried into the
     overall block in E8 - the subgroup cells carry theirs.
     """
+    gate_h08_y_pred_operating_points(table, decl)  # DEC-61: one y_pred, one threshold
     yt = table.y_true[mask]
     pos = np.array([v == decl.positive for v in yt.tolist()], dtype=bool)
     n_rows = int(pos.shape[0])

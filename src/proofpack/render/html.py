@@ -19,7 +19,9 @@ What the page carries and where it comes from:
   template), each ``guidance_refs`` row carrying the map's ``internal_id`` as its HTML id;
 * section 7's counts computed here in Python from the document
   (:func:`narrative_integrity`), not typed in the template;
-* customer text (justifications, the ``criteria.yaml`` echo, level labels) rendered
+* customer text (justifications, the ``criteria.yaml`` echo, level labels; since repair
+  4, DEC-62, the model name and version in each page header and the operating-point id
+  in the criteria table - the ``<title>`` carries neither) rendered
   verbatim and escaped, in the ``customer-text`` style D4 section 1.3 asks for, so a
   reviewer cannot mistake it for engine output. The engine never rewrites a customer's
   words: a justification containing ``pass`` is printed as written, escaped; the page's
@@ -138,22 +140,31 @@ def footer_text(document: dict[str, Any], refs: list[dict[str, Any]]) -> str:
     )
 
 
-def header_text(document: dict[str, Any], template_name: str) -> str:
+def header_parts(document: dict[str, Any], template_name: str) -> tuple[str, str]:
+    """D4 section 1.5's header as ``(customer, engine)``: ``<Model name> v<version>``, the
+    manufacturer's words, which the page prints inside ``.customer-text`` (DEC-62), and
+    ``<Template> · ProofPack v<x> · run <run_id[:8]>``."""
     model = (document.get("declarations") or {}).get("model") or {}
     run_id = fmt.text(document["manifest"].get("run_id"))[:8]
-    return (
-        f"{fmt.text(model.get('name'))} v{fmt.text(model.get('version'))} · "
+    customer = f"{fmt.text(model.get('name'))} v{fmt.text(model.get('version'))}"
+    engine = (
         f"{template_name} · ProofPack v{document['manifest'].get('engine_version') or __version__}"
         f" · run {run_id}"
     )
+    return customer, engine
 
 
 def furniture(
     document: dict[str, Any], template_name: str, refs: list[dict[str, Any]]
 ) -> dict[str, Any]:
+    customer, engine = header_parts(document, template_name)
     return {
         "css": css_root_block(),
-        "header": header_text(document, template_name),
+        "header_customer": customer,
+        "header_engine": engine,
+        # <title> holds text, not elements, so it carries the engine part only (DEC-62:
+        # the manufacturer's words are printed inside .customer-text)
+        "title": engine,
         "footer": footer_text(document, refs),
         "watermark": document["manifest"].get("watermark"),
         "narrative_footer": NARRATIVE_FOOTER,
@@ -230,14 +241,18 @@ def _scope_text(scope: Any) -> str:
 
 def criteria_rows(document: dict[str, Any]) -> list[dict[str, Any]]:
     """Table 5.6, one entry per ``criteria_results`` row **by position**; the observed
-    Number is the row's own ``metric_ref`` resolved in the document and printed by the
+    Number is the row's own ``metric_ref`` resolved in the document (through
+    :func:`proofpack.narrate.claims.metric_ref_pointers`) and printed by the
     metric's rule; the declared value prints with every digit ``run.json`` carries
     (:func:`proofpack.render.format.declared`); the compared value and the attainability
     bound, which the engine computed, print on the unit scale to three decimals; the
     author, date and justification are the entry at the row's ``declaration_index``."""
     out: list[dict[str, Any]] = []
+    # looked up, not split (repair 4, lens-4 FA-B1: operating point '[0]' printed
+    # operating point '0''s Number, and 't0.5' printed a dash)
+    row_refs = claims_mod.criteria_row_pointers(document)
     for i, row in enumerate(document.get("criteria_results") or []):
-        ref = claims_mod._dotted_to_pointer(row.get("metric_ref"))
+        ref = row_refs[i]
         number = None
         if ref is not None:
             found, value = resolve_pointer(document, ref)
@@ -252,6 +267,8 @@ def criteria_rows(document: dict[str, Any]) -> list[dict[str, Any]]:
                 "metric": fmt.text(row.get("metric")),
                 "scope": _scope_text(row.get("scope")),
                 "operating_point": fmt.text(row.get("operating_point")) or "—",
+                # DEC-62: the id is the manufacturer's; the dash is the engine's
+                "operating_point_is_customer_text": bool(fmt.text(row.get("operating_point"))),
                 "statistic": fmt.text(row.get("statistic")).replace("_", " "),
                 "comparator": fmt.text(row.get("comparator")),
                 "value": fmt.declared(row.get("value")),

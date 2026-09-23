@@ -6,7 +6,7 @@
 {% extends "base.html" %}
 {% block pages %}
 <section class="page" id="page-1">
-<header class="page-header">{{ header }}</header>
+{{ page_header() }}
 <h1>{{ template_name }}</h1>
 <p class="cover-note">Attachment set prepared for the manufacturer's own submission or record. Not a submission. No regulator has endorsed this tool.</p>
 {% if watermark %}<p class="stamp">{{ watermark }}</p>{% endif %}
@@ -32,7 +32,7 @@
 {{ page_footer() }}
 </section>
 <section class="page" id="page-2">
-<header class="page-header">{{ header }}</header>
+{{ page_header() }}
 <h2 id="s2">2. Run manifest</h2>
 {{ margin_note(anchor.manifest) }}
 <table>
@@ -62,7 +62,7 @@
 {{ page_footer() }}
 </section>
 <section class="page" id="page-3">
-<header class="page-header">{{ header }}</header>
+{{ page_header() }}
 <h2 id="s5">5. HALT and warning log</h2>
 {% if halts %}
 <ul>{% for h in halts %}<li>{{ h | fmt_text }}</li>{% endfor %}</ul>
@@ -96,7 +96,7 @@
 <td class="customer-text mono">{{ r.criterion_id }}</td>
 <td>{{ r.metric }}</td>
 <td class="customer-text">{{ r.scope }}</td>
-<td>{{ r.operating_point }}</td>
+<td{% if r.operating_point_is_customer_text %} class="customer-text"{% endif %}>{{ r.operating_point }}</td>
 <td>{{ r.statistic }}</td>
 <td>{{ r.comparator }}</td>
 <td class="num">{{ r.value }}</td>

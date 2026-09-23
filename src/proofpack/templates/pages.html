@@ -4,7 +4,7 @@
 {% block pages %}
 {% for body in pages %}
 <section class="page" id="page-{{ loop.index }}">
-<header class="page-header">{{ header }}</header>
+{{ page_header() }}
 {{ body }}
 {{ page_footer() }}
 </section>

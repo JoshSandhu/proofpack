@@ -6,6 +6,10 @@
 {% macro page_footer() -%}
 <footer class="page-footer"><p class="disclaimer disclaimer-short">{{ footer }}</p>{% if watermark %}<p class="watermark">{{ watermark }}</p>{% endif %}</footer>
 {%- endmacro %}
+{# DEC-62: the model name and version are the manufacturer's words, inside .customer-text #}
+{% macro page_header() -%}
+<header class="page-header"><span class="customer-text">{{ header_customer }}</span> · {{ header_engine }}</header>
+{%- endmacro %}
 {% macro margin_note(ref) -%}
 <aside class="margin-note{% if ref.draft %} draft{% endif %}">maps to <a href="#{{ ref.id }}">{{ ref.label }}</a></aside>
 {%- endmacro %}
@@ -14,7 +18,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ header }}</title>
+<title>{{ title }}</title>
 <style>
 {{ css }}
 html { font-size: var(--pp-type-body-px); }

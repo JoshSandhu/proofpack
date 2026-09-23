@@ -76,8 +76,9 @@ that fails:
    two rows may share an id; ``criterion_index_invalid``); ``criterion_id`` equals the
    row's (``criterion_id_mismatch``); the claim's ``metric_id``, ``operating_point``,
    ``subgroup`` (the row's ``scope``) and ``value_refs`` (the row's ``metric_ref`` as a
-   pointer, or none) equal the row's (``criterion_row_mismatch``); ``status`` equals the
-   row's (``status_mismatch``); and, on a ``met`` / ``not_met`` row, comparing the bound
+   pointer through :func:`proofpack.narrate.claims.metric_ref_pointers`, or none) equal
+   the row's (``criterion_row_mismatch``); ``status`` equals the row's
+   (``status_mismatch``); and, on a ``met`` / ``not_met`` row, comparing the bound
    Number's named statistic with the row's comparator and value gives the same status
    (``status_recomputation_mismatch``); ``CRITERION_NOT_MET_RECORD`` addresses a
    ``not_met`` row and ``ATTAINABILITY_NOTE`` a row whose ``attainable_at_n`` is ``true``
@@ -92,7 +93,9 @@ that fails:
    :data:`SCALAR_SLOTS`, distinct and in that order (``value_ref_unbound``); a template
    of :data:`SCALAR_SLOTS` carries no metric, operating point, subgroup or reference
    (``template_scope_mismatch``); ``CALIB_NA`` sits on a document whose ``calibration``
-   is not an object (``template_mismatch``). The literals fed are in
+   is not an object and whose ``calibration_suppressed_reason.reason`` is
+   ``score_not_probability`` (``template_mismatch``; the reason since repair 4, lens-4
+   FA-B3: ``tests/test_e8_repair4.py`` feeds a ``y_pred``-only document). The literals fed are in
    ``tests/test_e8_repair3.py::test_the_round_3_template_relabels_are_rejected_with_the_named_code``
    and corpus files ``131``-``140``. The rule inspects the order of the pointers, not
    which slot each fills: that is the sentence renderer's (E9), and a subset of a
@@ -155,6 +158,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from proofpack.narrate import claims as claims_mod
+from proofpack.narrate import tr39_confusables as tr39_mod
 from proofpack.narrate.templates import LIBRARY
 from proofpack.resources import load_guidance_map, load_json_schema
 
@@ -293,8 +297,9 @@ _CONFUSABLES_R1: dict[str, str] = {
     "ɡ": "g",  # Latin script g
     "ı": "i",  # Latin dotless i
 }
-#: The Latin small capitals (U+1D00-U+1D22, U+0262, U+0274, U+0280, U+0299, U+028F,
-#: U+029C, U+029F, U+A730, U+A731): repair 2, lens RG-B2 - ``ᴘᴀss`` was accepted.
+#: Twenty-four Latin small capitals, one per letter below: repair 2, lens RG-B2 - ``ᴘᴀss``
+#: was accepted. Other small capitals are not in this map (lens-4 FA-N3 named U+1D01,
+#: U+1D03, U+1D06, U+1D0C, U+1D0E, U+1D10, U+1D15, U+1D19, U+1D1A, U+A7AF and U+0276).
 _SMALL_CAPITALS: dict[str, str] = {
     "ᴀ": "a",
     "ʙ": "b",
@@ -323,11 +328,11 @@ _SMALL_CAPITALS: dict[str, str] = {
 }
 #: Repair 3, lens FA-B2 at ``7fa690b``: the letters of the lens's nine literals ``pɑss``,
 #: ``unbiɑsed``, ``ƒail``, ``faiǀ``, ``gօօd`` and ``Ꮲass`` (``faiI``, ``rneets`` and
-#: ``ϲonsistent`` are read through :data:`_BEFORE_NFKC` and :func:`_readings`). The
-#: capital forms Ɑ (U+2C6D), Ƒ (U+0191), Օ (U+0555) and ꮲ (U+ABB2) case-fold to these.
-#: DEC-60 (Josh, 23 September) asks for Unicode TR39 ``confusables.txt`` to be vendored
-#: and mapped; it was not fetched in repair 3, so these five letters are hand-mapped and
-#: whether TR39 lists each of them is [unverified] (carried in the repair-3 note).
+#: ``ϲonsistent`` are read through :data:`_BEFORE_NFKC` and :func:`_readings`). Ɑ
+#: (U+2C6D), Ƒ (U+0191) and Օ (U+0555) case-fold to the first, second and fourth key, and
+#: ꮲ (U+ABB2, CHEROKEE SMALL LETTER TLV) case-folds to the fifth. Repair 4 vendored TR39
+#: 18.0.0 (DEC-60, :mod:`proofpack.narrate.tr39_confusables`), which lists the five keys;
+#: this map is kept as it stood, since its reading is one of the pooled readings.
 _HOMOGLYPHS_R3: dict[str, str] = {
     "ɑ": "a",  # Latin alpha, U+0251
     "ƒ": "f",  # Latin f with hook, U+0192
@@ -335,8 +340,9 @@ _HOMOGLYPHS_R3: dict[str, str] = {
     "օ": "o",  # Armenian oh, U+0585
     "Ꮲ": "p",  # Cherokee letter tlv, U+13E2
 }
-#: Mapped in the raw text, before NFKC: NFKC turns the Greek lunate sigma (U+03F2, and
-#: its capital U+03F9) into a final sigma, which the case fold turns into ``σ``.
+#: Mapped in the raw text, before NFKC: NFKC turns the Greek lunate sigma U+03F2 into
+#: U+03C2 (final sigma) and its capital U+03F9 into U+03A3 (capital sigma); the case fold
+#: turns each into ``σ``.
 _BEFORE_NFKC: dict[str, str] = {"ϲ": "c", "Ϲ": "c"}
 CONFUSABLES: dict[str, str] = {**_CONFUSABLES_R1, **_SMALL_CAPITALS, **_HOMOGLYPHS_R3}
 _UNICODE_HYPHENS = frozenset("‐‑‒–—―")
@@ -503,7 +509,8 @@ REASON_CODES: dict[str, str] = {
     "template_mismatch": (
         "the template states what the row or document does not carry: CRITERION_NOT_MET_RECORD "
         "on a row whose status is not not_met, ATTAINABILITY_NOTE on a row without "
-        "attainable_at_n, CALIB_NA on a document whose calibration block is present"
+        "attainable_at_n, CALIB_NA on a document whose calibration block is present or whose "
+        "calibration_suppressed_reason is not score_not_probability"
     ),
     "guidance_ref_unknown": "guidance_ref is not an internal_id of guidance_map_v1.csv",
     "guidance_draft_unqualified": "a draft guidance row lacks the not-for-implementation qualifier",
@@ -627,18 +634,47 @@ _READING_MAPS: tuple[dict[str, str], ...] = (
 )
 
 
+#: DEC-60 (repair 4): the vendored TR39 18.0.0 entries as a character map for the TR39
+#: readings. The two entries whose source is an ASCII letter (``I`` -> ``l`` and ``m`` ->
+#: ``rn``) are left out, so ASCII letters read as written in the first TR39 reading:
+#: ``meets`` stays ``meets``, and ``faiI`` is read by the readings that take an ASCII
+#: capital ``I`` as ``l``. TR39 writes ``m`` as ``rn`` (U+FF4D and U+1D426 map to ``rn``);
+#: both TR39 readings read every ``rn`` as ``m``.
+_TR39: dict[str, str] = {
+    chr(k): v
+    for k, v in tr39_mod.CONFUSABLES.items()
+    if not ("a" <= chr(k) <= "z" or "A" <= chr(k) <= "Z")
+}
+
+
+def _tr39_mapped(text: str) -> str:
+    """``text`` with :data:`_TR39` applied, then NFKC, then :data:`_TR39` again (NFKC can
+    produce a character the map lists)."""
+    once = "".join(_TR39.get(ch, ch) for ch in text)
+    return "".join(_TR39.get(ch, ch) for ch in unicodedata.normalize("NFKC", once))
+
+
 def _readings(text: str) -> tuple[str, ...]:
     """The normalised readings the word rules read, each a :func:`normalise_free_text`:
     one per map in :data:`_READING_MAPS`; the full map after :data:`_BEFORE_NFKC`; the
-    same with every capital ``I`` read as ``l`` (``faiI``); and the full reading with
-    every ``rn`` read as ``m`` (``rneets``). Repair 3, lens FA-B2 at ``7fa690b``."""
+    same with every ASCII capital ``I`` read as ``l`` (``faiI``); and the full reading with
+    every ``rn`` read as ``m`` (``rneets``) - repair 3, lens FA-B2 at ``7fa690b``. Repair
+    4 (DEC-60, lens-4 FA-B4) adds two: the text through :func:`_tr39_mapped` with every
+    ``rn`` read as ``m``, and the same with every ASCII capital ``I`` read as ``l`` first.
+    No word the rules match contains ``rn``. The literals ``tests/test_e8_repair4.py``
+    feeds are named there."""
     early = tuple(normalise_free_text(text, m) for m in _READING_MAPS)
     raw = "".join(_BEFORE_NFKC.get(ch, ch) for ch in text)
     full = normalise_free_text(raw)
     capital_i = normalise_free_text(raw.replace("I", "l"))
     rn = full.replace("rn", "m")
-    return (*early, full, capital_i, rn)
+    tr = _tr39_mapped(text)
+    tr39 = normalise_free_text(tr).replace("rn", "m")
+    tr39_i = normalise_free_text(tr.replace("I", "l")).replace("rn", "m")
+    return (*early, full, capital_i, rn, tr39, tr39_i)
 
+
+_LETTERS_ONLY = re.compile(r"[^a-z]+")
 
 #: The longest run of consecutive tokens :func:`_words` joins. With 13 planted, ``-m day8``
 #: gave 224 passed at ``7fa690b`` (the repair-2 note; lens RG-N3).
@@ -689,8 +725,11 @@ def free_text_reason(text: str) -> str | None:
     if words & VERDICT_WORDS or words & {"well-calibrated", "wellcalibrated"}:
         return "free_text_verdict_word"
     # the phrase with letters touching it (657ef11's substring rule; lens RG-B1 at
-    # 7fa690b: well-calibratedness, well-calibratedly, well-calibrateds were accepted)
-    if any("wellcalibrated" in r.replace("-", "") for r in readings):
+    # 7fa690b: well-calibratedness, well-calibratedly, well-calibrateds were accepted),
+    # read in each reading with every character outside a-z removed (repair 4, lens-4
+    # FA-B4 / RG-N2: well calibratedness, well_calibratedness, well.calibratedness were
+    # accepted when only hyphens were removed)
+    if any("wellcalibrated" in _LETTERS_ONLY.sub("", r) for r in readings):
         return "free_text_verdict_word"
     if "cfr" in words:
         return "free_text_cfr"
@@ -753,6 +792,7 @@ def _check_one(
     library: dict[str, Any],
     guidance: dict[str, dict[str, str]],
     metric_ids: frozenset[str],
+    row_refs: list[str | None] | None = None,
 ) -> Verdict:
     cid = claim.get("claim_id") if isinstance(claim, dict) else None
     cid = cid if isinstance(cid, str) else None
@@ -987,7 +1027,11 @@ def _check_one(
             if isinstance(sub, dict)
             else None
         )
-        row_ref = claims_mod._dotted_to_pointer(row.get("metric_ref"))
+        # the row's Number by lookup, not by splitting the dotted path (repair 4, lens-4
+        # FA-B1: an operating point '[0]' read operating point '0''s Number)
+        if row_refs is None:
+            row_refs = claims_mod.criteria_row_pointers(doc)
+        row_ref = row_refs[index] if index < len(row_refs) else None
         for field_name, claimed, expected_value in (
             ("metric_id", metric_id, row.get("metric")),
             ("operating_point", op, row.get("operating_point")),
@@ -1073,6 +1117,17 @@ def _check_one(
         )
     if template_id == "CALIB_NA" and isinstance(doc.get("calibration"), dict):
         return reject("template_mismatch", template_id=template_id, reason="calibration present")
+    # repair 4, lens-4 FA-B3: the sentence states score_not_probability
+    if (
+        template_id == "CALIB_NA"
+        and not isinstance(doc.get("calibration"), dict)
+        and claims_mod.calibration_suppression(doc) != claims_mod.CALIB_NA_REASON
+    ):
+        return reject(
+            "template_mismatch",
+            template_id=template_id,
+            reason=claims_mod.calibration_suppression(doc),
+        )
     # 9. guidance_ref
     gref = claim["guidance_ref"]
     if gref is not None:
@@ -1118,6 +1173,7 @@ def check(
         )
     if not claims and doc.get("criteria_results"):
         return CheckResult([Verdict(None, False, "no_claims_for_criteria", {})])
+    row_refs = claims_mod.criteria_row_pointers(doc)
     ids = [c.get("claim_id") for c in claims if isinstance(c, dict)]
     repeated = {i for i in ids if isinstance(i, str) and ids.count(i) > 1}
     for claim in claims:
@@ -1125,7 +1181,7 @@ def check(
             cid = claim["claim_id"]
             verdicts.append(Verdict(cid, False, "claim_id_duplicate", {"count": ids.count(cid)}))
             continue
-        verdicts.append(_check_one(claim, doc, lib, guidance, metric_ids))
+        verdicts.append(_check_one(claim, doc, lib, guidance, metric_ids, row_refs))
     return CheckResult(verdicts)
 
 

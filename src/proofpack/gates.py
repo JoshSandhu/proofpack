@@ -5,7 +5,8 @@ Order of evaluation in :func:`ingest`:
 1. H11 (date column without period declaration) - on raw headers, before typing.
 2. H07 (mapping hash, non-interactive rule) - on raw headers.
 3. schema typing (S-codes).
-4. H02, H03, H05, H06, H01, H04 - on the typed table.
+4. H02, H03, H05, H06, H01, H04 - on the typed table; then H08 on a table without a
+   score column that declares more than one operating point (DEC-61, repair 4 of day 8).
 5. H09 (attribute/level references) and H08 (bands) - declarations vs table.
 6. H10 - prevalence flag (warning only).
 
@@ -100,6 +101,25 @@ def gate_h04(table: Table, decl: Declarations, mask: np.ndarray) -> None:
                 f"y_pred not reproducible from score at operating point {op.id}",
                 {"operating_point": op.id, "mismatching_rows": mismatch},
             )
+
+
+def gate_h08_y_pred_operating_points(table: Table, decl: Declarations) -> None:
+    """DEC-61 (Josh, 23 September 2026; lens-4 FA-B2): a table without a score column with
+    more than one declared operating point halts H08, naming the operating points. Without
+    a score the engine has one ``y_pred`` two-by-two, and at ``23f3d9f`` it printed that
+    two-by-two under every threshold (operating points at 0.1 and 0.9 both read ``{tp 85,
+    fn 16, fp 39, tn 160}``). Called by :func:`ingest` and by
+    :func:`proofpack.run.overall_block`."""
+    if table.score is not None or len(decl.operating_points) <= 1:
+        return
+    ids = [op.id for op in decl.operating_points]
+    raise HaltError(
+        "H08",
+        "the table has no score column, so its y_pred is one set of predictions; "
+        f"{len(ids)} operating points are declared ({', '.join(ids)}): declare the one "
+        "y_pred was made at, or map a score column",
+        {"field": "operating_points", "reason": "no_score_column", "operating_points": ids},
+    )
 
 
 def gate_h05(table: Table, decl: Declarations) -> None:
@@ -287,6 +307,7 @@ def ingest(
     warnings = gate_h06(table, decl, mask)
     auc = gate_h01(table, decl, mask)
     gate_h04(table, decl, mask)
+    gate_h08_y_pred_operating_points(table, decl)
     declare_mod.check_references(
         decl, {a: table.levels(a) for a in table.attributes}, has_age=table.age is not None
     )
