@@ -21,9 +21,13 @@ test_f19_a_site_named_like_a_pseudonym_is_remapped_and_the_map_is_a_bijection`` 
 engine's own ``Unknown/missing`` row (``io.schema.UNKNOWN_LEVEL``) keeps its label - it is
 the engine's word, not the customer's. A level of any other attribute (``sex``, ``age``)
 passes through when it is a short token (:data:`TOKEN`: ``F``, ``Male``, ``40-65``) and is
-pseudonymised with the ``Level`` prefix when it is not, so no free string of the
-customer's reaches the ``level`` field whatever column it came from; the schema's
-``level`` pattern is the last line and admits nothing else.
+pseudonymised with the ``Level`` prefix when it is not. The token rule reads the shape,
+not the meaning: a ``sex`` column whose values are ``1987-03-04``, ``NHS4857773456`` and
+``Jane.Doe-1961`` passes all three verbatim into the aggregates document's ``level``
+field (measured 23 September 2026, ``tests/test_egress.py::
+test_a_date_shaped_level_of_the_sex_column_passes_the_token_rule_verbatim``). No code
+path sends the aggregates document at launch (``build.py``); before one does, this rule
+needs an allow-list of engine-made labels in place of :data:`TOKEN`.
 """
 
 from __future__ import annotations

@@ -3,28 +3,38 @@ call*, this one, and *``--offline`` = zero sockets* skips it entirely.
 
 :data:`TELEMETRY_URL` is the one endpoint, ``https://proofpack.globalphoenix.co.uk/api/
 telemetry`` (the site's Pages Function of the same build day, which stores the ten keys in
-its ``runs`` table and answers 204). It is a constant, not a setting: a customer who must
-not reach it runs ``--offline`` or declares ``egress.telemetry: false``; there is no
-environment variable that redirects the send, so nothing can quietly point the runner at
-another host.
+its ``runs`` table and answers 204). It is a constant, not a setting: ``proofpack.cli.
+cmd_run`` passes no url and reads no environment variable for one; a customer who must
+not reach it runs ``--offline`` or declares ``egress.telemetry: false``. :func:`send` and
+:func:`run_telemetry` take a ``url`` parameter, which the loopback tests use
+(``tests/test_telemetry.py``); the CLI never fills it.
 
-:func:`send` makes **one attempt** with a **5 s timeout** through :func:`urllib_transport`
-(the standard library; ``urllib.request`` is imported inside the function, so an
-``--offline`` process never imports a network module) and **never raises to the
-caller**: the result is a :class:`SendResult` - ``sent`` with the HTTP status, or not
-sent with one of :data:`REASON_CODES`. The caller prints one line (``[W16]``, ``errors.
-WARN_CODES``) and nothing else changes: the exit code is the run's, ``run.json`` was
-written before the call and is not touched by it (``tests/test_telemetry.py`` hashes it
-before and after).
+:func:`send` makes **one HTTP request** with a **5 s timeout** through
+:func:`urllib_transport` (the standard library; ``urllib.request`` is imported inside the
+function, so an ``--offline`` process never imports a network module). A 3xx answer is
+**not followed**: the opener's redirect handler returns ``None``, so a 301/302/303/307/308
+is reported as ``http_error`` with that status and no second request is made
+(``test_a_redirect_answer_is_not_followed_and_the_location_host_receives_nothing``: five
+codes against two loopback listeners, the second listener receives nothing). ``send``
+**never raises an** ``Exception`` to the caller (a ``BaseException`` passes through:
+``tests/conftest.py`` relies on that to trap a reach for the real transport): the result
+is a :class:`SendResult` - ``sent`` with the HTTP status, or not sent with one of
+:data:`REASON_CODES`. The caller prints one line (``[W16]``, ``errors.WARN_CODES``) and
+nothing else changes: the exit code is the run's, ``run.json`` was written before the
+call and is not touched by it (``tests/test_telemetry.py`` hashes it before and after).
 
 :func:`run_telemetry` is what the single call site (``proofpack.cli.cmd_run``, after
 ``write_run``) calls: it short-circuits **before building anything** when ``--offline`` is
 set or ``egress.telemetry`` is false (no document is built, no socket, no name lookup),
 otherwise it builds the payload (:func:`~proofpack.egress.build.build_payload`) and sends.
 
-The payload is validated against ``$defs/telemetry`` a second time inside :func:`send`,
-so a caller that hands it a document the schema does not admit gets ``payload_invalid``
-and no bytes leave.
+Inside :func:`send` the payload is projected through the whitelist
+(:func:`~proofpack.egress.whitelist.project`, ``re.fullmatch`` on every pattern) and
+validated against ``$defs/telemetry`` a second time, so a caller that hands it a document
+the schema does not admit - including a string with a trailing newline, which
+``jsonschema``'s ``$`` accepts and the site's ``RegExp`` refuses
+(``test_send_refuses_a_trailing_newline_in_licence_id_and_platform``) - gets
+``payload_invalid`` and no bytes leave.
 """
 
 from __future__ import annotations
@@ -34,7 +44,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from proofpack.egress.build import EgressError, _validate, build_payload
+from proofpack.egress import whitelist
+from proofpack.egress.build import EgressError, _validate, build_payload, egress_schema
 
 #: The one endpoint (see the module docstring). Also recorded in
 #: ``schema/egress_schema.json`` ``x-proofpack.telemetry_url``; the tests hold them equal.
@@ -79,11 +90,20 @@ class SendResult:
 
 
 def urllib_transport(url: str, body: bytes, timeout: float) -> int:
-    """POST ``body`` as ``application/json`` to ``url``; returns the HTTP status. Raises
+    """POST ``body`` as ``application/json`` to ``url``; returns the HTTP status. A 3xx
+    answer is returned as that status, not followed (:class:`_NoRedirect`). Raises
     whatever ``urllib`` raises (``send`` classifies it). Imported lazily so that a
     process that never sends never imports ``urllib.request``."""
     import urllib.error  # noqa: PLC0415 - lazy by design (module docstring)
     import urllib.request  # noqa: PLC0415
+
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        """``build_opener`` puts this in place of the default redirect handler; returning
+        ``None`` makes ``urllib`` raise ``HTTPError`` with the 3xx status instead of
+        issuing a GET to the ``Location`` host."""
+
+        def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: PLR0913
+            return None
 
     req = urllib.request.Request(
         url,
@@ -91,8 +111,9 @@ def urllib_transport(url: str, body: bytes, timeout: float) -> int:
         method="POST",
         headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
     )
+    opener = urllib.request.build_opener(_NoRedirect)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - https constant
+        with opener.open(req, timeout=timeout) as resp:  # noqa: S310 - https constant
             return int(resp.status)
     except urllib.error.HTTPError as exc:
         return int(exc.code)
@@ -129,16 +150,20 @@ def send(
     *,
     timeout: float = TIMEOUT_S,
 ) -> SendResult:
-    """One attempt, never raises (module docstring)."""
+    """One HTTP request; never raises an ``Exception`` (module docstring)."""
     try:
+        schema = egress_schema()
+        projected = whitelist.project(payload, schema, schema["$defs"]["telemetry"])
         _validate("telemetry", payload, "telemetry")
-    except EgressError:
+    except (EgressError, whitelist.WhitelistError):
+        return SendResult(False, None, "payload_invalid")
+    if projected != dict(payload):  # the projection dropped a key the schema does not name
         return SendResult(False, None, "payload_invalid")
     body = json.dumps(dict(payload), sort_keys=True, separators=(",", ":")).encode("utf-8")
     fn = transport if transport is not None else urllib_transport
     try:
         status = int(fn(url, body, timeout))
-    except Exception as exc:  # noqa: BLE001 - the contract is "never raises"
+    except Exception as exc:  # noqa: BLE001 - the contract is "never raises an Exception"
         return SendResult(False, None, classify(exc))
     if 200 <= status < 300:
         return SendResult(True, status, None)

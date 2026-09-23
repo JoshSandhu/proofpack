@@ -67,8 +67,10 @@ jobs:
     # synthetic cohort inside a user namespace with no network (`unshare -rn`; if the
     # runner forbids unprivileged user namespaces, `sudo unshare -n`). First with
     # --offline: exit 0, run.json written, "telemetry skipped (--offline)". Then WITHOUT
-    # --offline in the same kind of namespace: the send cannot resolve the host, the run
-    # prints one [W16] line, still exits 0 and still writes run.json. The venv is used
+    # --offline in the same kind of namespace: the send is expected to fail at the name
+    # lookup, so the run should print one [W16] line, still exit 0 and still write run.json
+    # (expected, not measured: this job had not run anywhere as of 23 September 2026 - the
+    # branch has not reached this repository's CI). The venv is used
     # directly (.venv/bin/python) so nothing inside the namespace asks uv for the network.
     name: proofpack run inside unshare -rn (no network)
     runs-on: ubuntu-latest

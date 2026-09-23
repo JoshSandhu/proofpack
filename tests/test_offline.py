@@ -5,8 +5,10 @@ This extends it: ``socket.socket``, ``socket.getaddrinfo`` and ``socket.create_c
 all raise, the telemetry transport raises too, and ``run``, ``compare``, ``map``,
 ``doctor`` and ``licence verify`` each complete under ``--offline``. ``proofpack
 fixtures`` is not a subcommand at 7b2ca2a (D1 section 7 lists it; it is not built), so
-it is not here. The CI job ``offline-namespace`` (.github/workflows/ci.yml) runs the
-whole ``proofpack run`` inside ``unshare -rn`` with and without ``--offline``.
+it is not here. The CI job ``offline-namespace`` (.github/workflows/ci.yml) is written
+to run one whole ``proofpack run`` inside ``unshare -rn`` with and without ``--offline``;
+it had not run anywhere when this was written (23 September 2026; the branch has not
+reached the public repository's CI), so nothing here relies on it.
 """
 
 from __future__ import annotations
@@ -17,10 +19,16 @@ from pathlib import Path
 
 import pytest
 
-from conftest import NETWORK_ATTEMPTS, confirmed_mapping, ephemeral_registry, write_licence
+from conftest import (
+    NETWORK_ATTEMPTS,
+    REAL_TRANSPORT,
+    confirmed_mapping,
+    ephemeral_registry,
+    write_licence,
+)
 from proofpack.cli import main
 from proofpack.errors import EXIT_OK, EXIT_WARNINGS
-from test_egress import f19_cohort, prepare, run_cli, write_csv
+from test_egress import f19_cohort, f19_criteria, prepare, run_cli, write_csv
 
 pytestmark = [pytest.mark.day8, pytest.mark.ap2]
 
@@ -76,6 +84,21 @@ def test_run_online_with_a_recording_transport_opens_no_socket_itself(
     assert run_cli(csv_path, yml, out, transport=transport) == EXIT_OK
     capsys.readouterr()
     assert no_sockets.calls == [] and len(called) == 1
+
+
+def test_telemetry_false_with_the_real_transport_and_sockets_refused_opens_no_socket(
+    tmp_path: Path, monkeypatch, capsys, no_sockets
+):
+    """A-P2 lens 1 RG-N5: ``egress.telemetry: false`` without ``--offline``, the real
+    ``urllib`` transport handed to ``main`` and the three socket entry points refused
+    (the lens's probe P4, now a test). The sweep's ``ap2_telemetry_false_ignored`` mutant
+    is what fails it."""
+    csv_path, yml, out = prepare(tmp_path, monkeypatch, crit=f19_criteria(telemetry=False))
+    assert run_cli(csv_path, yml, out, transport=REAL_TRANSPORT) == EXIT_OK
+    printed = capsys.readouterr().out
+    assert no_sockets.calls == [] and NETWORK_ATTEMPTS == []
+    assert "telemetry skipped (egress.telemetry: false); nothing was sent" in printed
+    assert (out / "run.json").exists()
 
 
 def test_map_yes_offline_opens_no_socket(tmp_path: Path, monkeypatch, capsys, no_sockets):

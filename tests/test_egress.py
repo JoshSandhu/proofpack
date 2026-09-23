@@ -213,7 +213,13 @@ def test_f19_the_aggregates_document_validates_and_no_key_is_outside_the_schema(
 # --------------------------------------------------------------------- k-suppression F19
 
 
-def test_f19_the_n7_cell_is_suppressed_and_no_digit_of_its_estimates_is_in_the_bytes(f19):
+def test_f19_the_n7_cell_is_suppressed_and_its_ten_wilson_bounds_are_absent_from_the_bytes(
+    f19,
+):
+    # Named for what the body asserts. The earlier id said "no digit of its estimates is in
+    # the bytes"; that sentence was measured false on 22 September (the row's npv estimate
+    # 5/6 = 0.8333333333333334 recurs in a 30/36 cell, and 0.5 is the operating point) and
+    # the id was corrected on 23 September (A-P2 lens 1, RG-B3).
     doc, agg, pmap, rec, out, printed = f19
     row = next(r for r in doc["subgroups"] if r["attribute"] == "site" and r["level"] == ST_MARYS)
     assert (row["n"], row["events"]) == (7, 2)
@@ -233,7 +239,9 @@ def test_f19_the_n7_cell_is_suppressed_and_no_digit_of_its_estimates_is_in_the_b
                 v = block["number"].get(key)
                 if isinstance(v, float) and len(repr(v)) >= 10:
                     locals_.append(repr(v))
-    assert len(locals_) >= 6, locals_
+    # measured 23 September: six Wilson intervals on op1 (accuracy, npv, ppv, selection_rate,
+    # sensitivity, specificity), twelve bounds, the two that equal 1.0 excluded by the length rule
+    assert len(locals_) == 10, locals_
     for s in locals_:
         assert s not in agg_bytes, s
         assert s not in rec.calls[0]["body"].decode("utf-8"), s
@@ -679,3 +687,66 @@ def test_the_mutation_sweep_declares_an_ap2_list_of_at_least_eight():
         "exit_code",
     ):
         assert any(needed in ln for ln in ap2), needed
+
+
+def test_no_ap2_test_id_carries_a_sentence_the_build_note_refused():
+    """A-P2 lens 1 RG-B3: a test id is shipped text. The build note's "Sentences refused"
+    lists two phrases measured false; neither may be a test id in the three ap2 files."""
+    refused = ("no_digit_of_its_estimates", "every_level_label_is_absent")
+    hits = []
+    for name in ("test_egress.py", "test_telemetry.py", "test_offline.py"):
+        src = (REPO / "tests" / name).read_text(encoding="utf-8")
+        for line in src.splitlines():
+            if line.startswith("def test_") and any(p in line for p in refused):
+                hits.append(f"{name}: {line.strip()}")
+    assert hits == []
+
+
+def test_whitelist_refuses_a_trailing_newline_that_re_search_accepts():
+    """A-P2 lens 1 FA-N3: ``re.search("^...$", "lic_abc\\n")`` matches (``$`` before a
+    final newline) and ``jsonschema`` uses the same engine; the projection uses
+    ``re.fullmatch`` and refuses both values the lens fed."""
+    schema = load_json_schema("egress_schema.json")
+    tele = schema["$defs"]["telemetry"]
+    good = {
+        "schema": "proofpack-telemetry/1",
+        "licence_id": "lic_0123456789abcdef0123456789abcdef",
+        "run_id": "9822b658-0a43-4b13-9b86-9ec1a74b0e19",
+        "engine_version": "0.1.0.dev1",
+        "platform": "linux-x86_64-cp312",
+        "manifest_sha256": "f" * 64,
+        "duration_s": 1.5,
+        "halt_code": None,
+        "row_count_bucket": "<1k",
+        "timestamp": "2026-09-22T13:29:12Z",
+    }
+    assert whitelist.project(good, schema, tele) == good
+    validator = jsonschema.Draft202012Validator(
+        {"$ref": "#/$defs/telemetry", "$defs": schema["$defs"]}
+    )
+    for key, value in (("licence_id", "lic_abc\n"), ("platform", "win-amd64-cp314\n")):
+        assert re.search(tele["properties"][key]["pattern"], value) is not None  # the trap
+        assert list(validator.iter_errors({**good, key: value})) == []  # jsonschema alone
+        with pytest.raises(whitelist.WhitelistError) as info:
+            whitelist.project({**good, key: value}, schema, tele)
+        assert info.value.path == f"$.{key}"
+        assert info.value.reason == "the string does not match the schema's pattern"
+
+
+def test_a_date_shaped_level_of_the_sex_column_passes_the_token_rule_verbatim():
+    """A-P2 lens 1 FA-N2, recorded as measured: the token rule reads the shape of a level,
+    not its meaning. The three values the lens fed to a ``sex`` column pass verbatim; the
+    name-shaped one with spaces does not. No code path sends the aggregates document at
+    launch; the docstrings that cite this test say so."""
+    levels = {"sex": {"1987-03-04", "NHS4857773456", "Jane.Doe-1961", "Jane Doe 1961", "F"}}
+    m = pseudonymise.build_map({}, levels=levels)
+    assert m == {"sex": {"Jane Doe 1961": "Level A"}}
+    for verbatim in ("1987-03-04", "NHS4857773456", "Jane.Doe-1961", "F"):
+        assert pseudonymise.pseudonym(m, "sex", verbatim) == verbatim
+    schema = load_json_schema("egress_schema.json")
+    for verbatim in ("1987-03-04", "NHS4857773456", "Jane.Doe-1961"):
+        assert whitelist.project(verbatim, schema, schema["$defs"]["level"]) == verbatim
+    # the same string on a site column is always pseudonymised
+    assert pseudonymise.build_map({}, levels={"site": {"1987-03-04"}}) == {
+        "site": {"1987-03-04": "Site A"}
+    }

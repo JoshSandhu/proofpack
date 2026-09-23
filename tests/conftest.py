@@ -315,12 +315,16 @@ def _refusing_transport(url: str, body: bytes, timeout: float) -> int:
     raise NetworkAttempted(f"telemetry transport reached in a test: {url}")
 
 
-from proofpack.egress import telemetry as _telemetry  # noqa: E402 - after the helpers
+try:
+    from proofpack.egress import telemetry as _telemetry  # noqa: E402 - after the helpers
+except ImportError:  # a tree without src/proofpack/egress (7b2ca2a; lane E's main before the merge)
+    _telemetry = None  # the three ap2 test files fail at their own imports; the rest collect
 
-REAL_TRANSPORT = _telemetry.urllib_transport
+REAL_TRANSPORT = _telemetry.urllib_transport if _telemetry is not None else None
 
 
 @pytest.fixture(autouse=True)
 def _no_network(monkeypatch):
-    monkeypatch.setattr(_telemetry, "urllib_transport", _refusing_transport)
+    if _telemetry is not None:
+        monkeypatch.setattr(_telemetry, "urllib_transport", _refusing_transport)
     yield

@@ -1,6 +1,7 @@
 """Build day 8, lane A (A-P2): the telemetry send (D1 section 6).
 
-``send`` makes one attempt with a 5 s timeout and never raises; a failure is one W16
+``send`` makes one HTTP request with a 5 s timeout, does not follow a 3xx answer and
+never raises an ``Exception``; a failure is one W16
 line and nothing else changes - the exit code is the run's and ``run.json`` is untouched
 (hashed before and after). The real ``urllib`` transport is exercised against a loopback
 ``http.server`` (a socket on 127.0.0.1, opened by this test on purpose); every CLI run in
@@ -209,6 +210,108 @@ def test_real_transport_500_is_http_error_and_a_slow_server_is_a_timeout(loopbac
     r = telemetry.send(GOOD, url=loopback, transport=REAL_TRANSPORT, timeout=0.2)
     assert r == telemetry.SendResult(False, None, "timeout")
     _Handler.delay = 0.0
+
+
+class _Redirecting(BaseHTTPRequestHandler):
+    """Answers every POST with a 3xx and a Location on another listener."""
+
+    status = 302
+    location = ""
+    seen: list[str] = []
+
+    def do_POST(self):  # noqa: N802 - http.server API
+        length = int(self.headers.get("Content-Length", "0"))
+        self.rfile.read(length)
+        _Redirecting.seen.append(f"POST {self.path}")
+        self.send_response(_Redirecting.status)
+        self.send_header("Location", _Redirecting.location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def log_message(self, *a):  # silence
+        return
+
+
+class _Elsewhere(BaseHTTPRequestHandler):
+    """The Location host: records every request it receives, whatever the method."""
+
+    seen: list[str] = []
+
+    def _record(self):
+        _Elsewhere.seen.append(f"{self.command} {self.path} ua={self.headers.get('User-Agent')}")
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    do_GET = do_POST = do_HEAD = _record  # noqa: N815 - http.server API
+
+    def log_message(self, *a):  # silence
+        return
+
+
+@pytest.fixture
+def redirecting():
+    """Two loopback listeners: the first answers a 3xx with a Location on the second."""
+    second = HTTPServer(("127.0.0.1", 0), _Elsewhere)
+    first = HTTPServer(("127.0.0.1", 0), _Redirecting)
+    for srv in (second, first):
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+    _Elsewhere.seen = []
+    _Redirecting.seen = []
+    _Redirecting.location = f"http://127.0.0.1:{second.server_address[1]}/elsewhere"
+    try:
+        yield f"http://127.0.0.1:{first.server_address[1]}/api/telemetry"
+    finally:
+        for srv in (first, second):
+            srv.shutdown()
+            srv.server_close()
+
+
+@pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
+def test_a_redirect_answer_is_not_followed_and_the_location_host_receives_nothing(
+    redirecting, status
+):
+    """A-P2 lens 1 FA-N1: at 4d61b6e ``urllib``'s default opener turned a POST answered
+    301/302/303 into a GET of the Location host and ``send`` reported ``sent`` with the
+    second host's status. Now every 3xx is ``http_error`` with that status and the second
+    listener receives nothing."""
+    _Redirecting.status = status
+    r = telemetry.send(GOOD, url=redirecting, transport=REAL_TRANSPORT)
+    assert r == telemetry.SendResult(False, status, "http_error")
+    assert _Redirecting.seen == ["POST /api/telemetry"]
+    assert _Elsewhere.seen == []
+
+
+def test_a_302_through_the_cli_prints_w16_and_the_location_host_receives_nothing(
+    tmp_path: Path, monkeypatch, capsys, redirecting
+):
+    csv_path, yml, out = prepare(tmp_path, monkeypatch)
+    _Redirecting.status = 302
+
+    def to_loopback(url, body, timeout):
+        assert url == telemetry.TELEMETRY_URL
+        return REAL_TRANSPORT(redirecting, body, timeout)
+
+    rc = run_cli(csv_path, yml, out, transport=to_loopback)
+    printed = capsys.readouterr().out
+    assert rc == EXIT_OK, printed
+    lines = [ln.strip() for ln in printed.splitlines() if "[W16]" in ln]
+    assert lines == [
+        "[W16] telemetry not sent (http_error, http 302); run.json and the exit code are unchanged"
+    ]
+    assert "telemetry sent" not in printed
+    assert _Redirecting.seen == ["POST /api/telemetry"]
+    assert _Elsewhere.seen == []
+
+
+def test_send_refuses_a_trailing_newline_in_licence_id_and_platform():
+    """A-P2 lens 1 FA-N3: ``jsonschema`` alone accepts ``"lic_abc\\n"``; ``send`` projects
+    through the whitelist first and answers ``payload_invalid`` without a transport call."""
+    for key, value in (("licence_id", "lic_abc\n"), ("platform", "win-amd64-cp314\n")):
+        rec = Recorder(204)
+        r = telemetry.send({**GOOD, key: value}, transport=rec)
+        assert r == telemetry.SendResult(False, None, "payload_invalid"), key
+        assert rec.calls == []
 
 
 def test_real_transport_connection_refused_on_a_closed_port():

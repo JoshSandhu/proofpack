@@ -8,17 +8,24 @@ names:
 
 - an object keeps the keys its ``properties`` list and drops every other key - dropped,
   not passed and not reported, because the schema is the whole vocabulary;
-- a string must match the subschema's ``enum``, ``const`` or ``pattern`` (and its
-  ``maxLength``); a string that does not is refused with :class:`WhitelistError`, and so
-  is a string the subschema does not constrain at all - a schema that admitted an
+- a string must match the subschema's ``enum``, ``const`` or ``pattern`` (``re.fullmatch``,
+  so a trailing newline that ``re.search``'s ``$`` accepts is refused -
+  ``tests/test_egress.py::test_whitelist_refuses_a_trailing_newline_that_re_search_accepts``)
+  and its ``maxLength``; a string that does not is refused with :class:`WhitelistError`,
+  and so is a string the subschema does not constrain at all - a schema that admitted an
   unconstrained string would admit an original header, so it is the schema that is refused
   there, not the value;
 - arrays are projected item by item; numbers, booleans and null pass; a value of a type
   the subschema does not allow is refused.
 
-The projection is generic so that it cannot know what the ROC thresholds, the curve
-points, the level labels, the original headers, the dates, the ledger key, the mapping or
-the claims text are: none of them has a key in the schema, so none of them survives it.
+The projection is generic: it reads the schema and the candidate, not the engine. What
+it keeps is decided by the schema's keys and patterns alone. ``tests/test_egress.py::
+test_f19_the_forbidden_bytes_are_absent_from_both_payloads_and_the_captured_bytes`` feeds
+the F19 run and asserts fourteen named strings, four site labels and 400 ROC thresholds
+absent from the projected bytes; a level of an attribute outside ``site``/``device``/
+``protocol``/``attr_*`` that matches the ``level`` pattern's token branch does survive
+(``pseudonymise.py``,
+``test_a_date_shaped_level_of_the_sex_column_passes_the_token_rule_verbatim``).
 ``build.py`` then validates the projected document with ``jsonschema`` as a second,
 independent check.
 """
@@ -106,7 +113,7 @@ def project(
         if "pattern" in sub:
             if "maxLength" in sub and len(value) > sub["maxLength"]:
                 raise WhitelistError(path, "the string is longer than the schema allows")
-            if not re.search(sub["pattern"], value):
+            if not re.fullmatch(sub["pattern"], value):
                 raise WhitelistError(path, "the string does not match the schema's pattern")
             return value
         raise WhitelistError(path, "the schema does not constrain this string; refused")
