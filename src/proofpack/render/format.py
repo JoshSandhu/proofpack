@@ -176,3 +176,62 @@ def number(num: dict[str, Any] | None, kind: str = "three_dp") -> str:
 
 def method(num: dict[str, Any] | None) -> str:
     return "—" if not num else text(num.get("method"))
+
+
+# ------------------------------------------------ facets of one Number (build day 9, E9)
+#
+# The sentence renderer (:mod:`proofpack.render.sentences`) prints a Number's parts in
+# prose; each part is printed here by the same rule :func:`number` applies to the whole
+# cell, so a sentence and a table state one figure one way.
+
+
+def _has_interval(num: dict[str, Any]) -> bool:
+    return (
+        not num.get("suppressed")
+        and num.get("not_estimable_reason") is None
+        and num.get("ci_lo") is not None
+        and num.get("ci_hi") is not None
+    )
+
+
+def bound(x: float, kind: str) -> str:
+    """One value on the printing scale of ``kind``, without a unit sign."""
+    if kind not in KINDS:
+        raise ValueError(f"unknown kind {kind!r}")
+    if kind == "proportion":
+        return percent(x)
+    if kind == "three_dp":
+        return _plain(x, 3)
+    if kind == "difference_pp":
+        return _signed(x * 100.0, 1)
+    return _signed(x, 3)
+
+
+def estimate(num: dict[str, Any] | None, kind: str) -> str:
+    """The estimate alone (``30.8%``, ``0.795``, ``+7.0``) with its tier superscripts;
+    ``‡`` when suppressed; ``n.e. (<reason>)`` when a typed reason or no interval stands,
+    never a digit from ``est`` (D4 section 1.2)."""
+    if num is None:
+        return NOT_ESTIMABLE
+    if num.get("suppressed"):
+        return SUPPRESSED_MARK
+    if not _has_interval(num):
+        return f"{NOT_ESTIMABLE} ({num.get('not_estimable_reason') or 'no_interval'})" + tiers(num)
+    body = bound(float(num["est"]), kind)
+    return (body + "%" if kind == "proportion" else body) + tiers(num)
+
+
+def interval(num: dict[str, Any] | None, kind: str) -> str:
+    """The two bounds as a table cell prints them inside its brackets: ``25.5, 36.6``;
+    ``no interval`` when the Number has none."""
+    if num is None or not _has_interval(num):
+        return "no interval"
+    return f"{bound(float(num['ci_lo']), kind)}, {bound(float(num['ci_hi']), kind)}"
+
+
+def one_bound(num: dict[str, Any] | None, which: str, kind: str) -> str:
+    """``ci_lo`` or ``ci_hi`` alone, with ``%`` for a proportion (``25.5%``)."""
+    if num is None or not _has_interval(num):
+        return "no interval"
+    body = bound(float(num[which]), kind)
+    return body + "%" if kind == "proportion" else body

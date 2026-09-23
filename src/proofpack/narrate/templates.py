@@ -169,6 +169,10 @@ _T: list[Template] = [
                     "cluster bootstrap over {n_cases} cases; DeLong not used because rows are "
                     "clustered"
                 ),
+                # E9: the engine's i.i.d. AUROC Number carries delong_wald (the synthetic
+                # run's), so D4's "logit-transformed" phrase would misstate it; the key
+                # is chosen from the Number's own method (proofpack.render.sentences)
+                "iid_wald": "DeLong, Wald interval",
             }
         },
     ),
@@ -498,3 +502,408 @@ def as_dict() -> dict[str, dict[str, Any]]:
         }
         for t in _T
     }
+
+
+# ------------------------------------------------------------ slot facets (build day 9, E9)
+#
+# D1 section 3.1 keys the library ``{template_id, metric_id, subgroup_id, comparator_id,
+# status}``; D4 section 8 names the slots. E9 adds, per template, **what each slot takes**
+# (E8 carried rows 51 and 52: a slot is filled by the facet of the pointer it names, not
+# by the pointer's position, so a claim binding a subset of a family's pointers leaves the
+# missing slots visibly unfilled instead of shifting a number into the wrong slot).
+#
+# The facet-slot syntax (recorded in the E9 build note): a Number slot binds a string
+# ``<selector>.<facet>``, one string per occurrence of the slot in the skeleton (so the
+# three ``{ci}`` of ``CALIB_HIERARCHY`` bind ``oe.ci``, ``slope.ci`` and
+# ``intercept.ci``). The **selector** names a bound pointer by what its path reads,
+# through :func:`proofpack.narrate.checker.pointer_facets`: ``value`` (the one Number
+# the claim reports, not a difference block), ``diff`` (a ``diff_vs_*`` cell), a metric
+# id of a family (``oe``, ``slope``, ``tpr_gap``, ``auroc_gap``, ...) or a documented
+# scalar's last path segment (``rows_read``, ``n_sites``, ``max_lower_bound_at_n``).
+# The other selectors (``pos``, ``neg``, ``ppv``, ``npv``, ``ref``, ``cur``,
+# ``complete``, ``missing``, ``se_minus`` ...) name Numbers of templates no v1 claim binds
+# (the checker's ``BOUND_TEMPLATES``): they are filled only when a caller passes them by
+# name, as the per-skeleton tests do. The **facet** is one of :data:`FACETS`:
+#
+# ``est``     the estimate by D4 section 1.2's rule for the metric (``30.8%``, ``0.795``,
+#             ``+7.0``), tier superscripts appended; a typed reason prints
+#             ``n.e. (<reason>)`` and no digit from ``est``; suppressed prints the
+#             suppression marker;
+# ``ci_lo`` / ``ci_hi``  one bound by the same rule (``25.5%`` for a proportion);
+# ``ci``      the two bounds as a table cell prints them inside brackets (``25.5, 36.6``);
+# ``estci``   the whole cell as the tables print it (``0.159 [0.140, 0.181]``);
+# ``k`` / ``n``  counts (the only bare integers), an em dash when the Number has none;
+# ``method``  the method phrase from :data:`METHOD_PHRASES`;
+# ``reason``  the typed reason code (the "not estimable" wording is the skeleton's);
+# ``count``   a documented scalar printed as a count; ``p`` a p-value (3 dp, ``<0.001``);
+#             ``scalar`` an engine scalar at 3 dp.
+#
+# A slot with no binding here is a text slot, filled from the context the renderer
+# builds for the claim; :data:`CUSTOMER_SLOTS` are the manufacturer's words (printed
+# inside ``.customer-text``, DEC-62), :data:`DECLARED_SLOTS` are numbers the manufacturer
+# declared (printed by :func:`proofpack.render.format.declared`, every digit), and a slot
+# with a phrase map takes its text from that map only.
+
+FACETS: tuple[str, ...] = (
+    "est",
+    "ci_lo",
+    "ci_hi",
+    "ci",
+    "estci",
+    "k",
+    "n",
+    "method",
+    "reason",
+    "count",
+    "p",
+    "scalar",
+)
+
+_V = "value"
+_ROW_FACETS: dict[str, tuple[str, ...]] = {
+    "k": (f"{_V}.k",),
+    "n": (f"{_V}.n",),
+    "est": (f"{_V}.est",),
+    "ci": (f"{_V}.ci",),
+}
+FACET_BINDINGS: dict[str, dict[str, tuple[str, ...]]] = {
+    "FLOW_COUNTS": {
+        "rows_read": ("rows_read.count",),
+        "excluded_missing_label": ("excluded_missing_label.count",),
+        "excluded_missing_score": ("excluded_missing_score.count",),
+        "indeterminate": ("indeterminate.count",),
+        "analysed": ("analysed.count",),
+        "n_cases": ("n_cases.count",),
+        "n_sites": ("n_sites.count",),
+    },
+    "SIMILARITY_SUMMARY": {"max_std_diff": (f"{_V}.estci",)},
+    "OVERLAP_RESULT": {
+        "shared_ids": ("shared_ids.count",),
+        "shared_sites": ("shared_sites.count",),
+    },
+    "SITE_COUNT": {"n_sites": ("n_sites.count",)},
+    "OVERALL_ESTIMATE": {
+        "k": (f"{_V}.k",),
+        "n": (f"{_V}.n",),
+        "est": (f"{_V}.est",),
+        "ci_lo": (f"{_V}.ci_lo",),
+        "ci_hi": (f"{_V}.ci_hi",),
+        "method": (f"{_V}.method",),
+    },
+    "INDET_BOTH_WAYS": {
+        "est_pos": ("pos.est",),
+        "ci": ("pos.ci", "neg.ci"),
+        "est_neg": ("neg.est",),
+    },
+    "PPV_AT_PREVALENCE": {"ppv": ("ppv.est",), "ci": ("ppv.ci", "npv.ci"), "npv": ("npv.est",)},
+    "PREV_MISMATCH_FLAG": {"obs": ("prevalence.estci",)},
+    "AUROC_ESTIMATE": {
+        "est": (f"{_V}.est",),
+        "ci_lo": (f"{_V}.ci_lo",),
+        "ci_hi": (f"{_V}.ci_hi",),
+    },
+    "CALIB_HIERARCHY": {
+        "oe": ("oe.est",),
+        "ci": ("oe.ci", "slope.ci", "intercept.ci"),
+        "slope": ("slope.est",),
+        "intercept": ("intercept.est",),
+        # D4's skeleton gives these three no interval slot; every number on the page
+        # carries its interval (CLAUDE.md), so each prints as the table cell does
+        "brier": ("brier.estci",),
+        "brier_ref": ("brier_ref.estci",),
+        "ipa": ("ipa.estci",),
+    },
+    "SUBGROUP_ESTIMATE_WITH_DIFF": {
+        **_ROW_FACETS,
+        "diff": ("diff.est",),
+        "diff_ci": ("diff.ci",),
+    },
+    "SUBGROUP_ESTIMATE": dict(_ROW_FACETS),
+    "HETERO_EXPLORATORY_FOOTNOTE": {"p": ("p_raw.p",), "p_adj": ("p_holm.p",)},
+    "CRITERION_STATUS": {"est": (f"{_V}.est",), "ci": (f"{_V}.ci",)},
+    "CRITERION_NOT_MET_RECORD": {"est": (f"{_V}.est",), "ci": (f"{_V}.ci",)},
+    "ATTAINABILITY_NOTE": {"n": ("n.count",), "max_lb": ("max_lower_bound_at_n.scalar",)},
+    "FAIRNESS_GAP": {
+        "tpr_gap": ("tpr_gap.est",),
+        "ci": ("tpr_gap.ci", "fpr_gap.ci", "ppv_gap.ci", "auroc_gap.ci"),
+        "fpr_gap": ("fpr_gap.est",),
+        "ppv_gap": ("ppv_gap.est",),
+        "auroc_gap": ("auroc_gap.est",),
+    },
+    "LOSO_RESULT": {"est": (f"{_V}.est",), "ci": (f"{_V}.ci",), "delta": ("diff.est",)},
+    "THRESH_SENS": {
+        "se_minus": ("se_minus.estci",),
+        "se_plus": ("se_plus.estci",),
+        "sp_minus": ("sp_minus.estci",),
+        "sp_plus": ("sp_plus.estci",),
+    },
+    "MISSINGNESS_SENS": {
+        "est_complete": ("complete.est",),
+        "ci": ("complete.ci", "missing.ci"),
+        "est_missing": ("missing.est",),
+    },
+    "DUPLICATES_NOTE": {"n_dup": ("n_dup.count",)},
+    "PAIRED_DIFF": {
+        "diff": ("diff.est",),
+        "ci": ("diff.ci",),
+        "n_pairs": ("n_pairs.count",),
+        "method": ("diff.method",),
+    },
+    "MCNEMAR_RESULT": {"b": ("b.count",), "c": ("c.count",), "p": ("p.p",)},
+    "LEDGER_STATEMENT": {"n_prior": ("n_prior.count",), "limit": ("limit.count",)},
+    "PSI_RESULT": {
+        "psi": ("psi.estci",),
+        "crit": ("crit.scalar",),
+        "B": ("B.count",),
+        "n": ("n.count",),
+        "m": ("m.count",),
+        "p": ("p.p",),
+    },
+    "KS_RESULT": {"d": ("d.estci",), "p": ("p.p",)},
+    "PREVALENCE_SHIFT": {
+        "ref": ("ref.est",),
+        "ci": ("ref.ci", "cur.ci"),
+        "cur": ("cur.est",),
+    },
+    **{
+        tid: dict(_ROW_FACETS)
+        for tid in (
+            "PERIOD_METRIC_ROW",
+            "SUBGROUP_TREND_ROW",
+            "AGREEMENT_RATE_ROW",
+            "INDET_RATE_ROW",
+            "ATTR_DRIFT_ROW",
+        )
+    },
+}
+
+#: Slots whose text is the manufacturer's (DEC-62): printed verbatim, escaped, inside
+#: ``.customer-text``, so the verdict grep reads them as the customer's words.
+CUSTOMER_SLOTS: frozenset[str] = frozenset(
+    {
+        "value",
+        "author",
+        "date",
+        "source",
+        "op_id",
+        "level",
+        "reference_level",
+        "level_max",
+        "level_list",
+        "levels",
+        "criterion_id",
+        "scope",
+        "label",
+        "description_ref",
+        "site",
+        "rule_text",
+        "tiers",
+        "prior",
+        "new",
+        "period",
+        "variable",
+        "declaration_title",
+        "attribute",
+        "attribute_list",
+        "criterion_of_interest",
+    }
+)
+#: Numbers the manufacturer declared: printed with every digit ``run.json`` carries.
+DECLARED_SLOTS: frozenset[str] = frozenset(
+    {"threshold", "pi", "tol", "thr_minus", "thr_plus", "alpha"}
+)
+
+#: Method phrases (fixed text) for the ``method`` facet, one per ``Number.method``.
+METHOD_PHRASES: dict[str, str] = {
+    "wilson": "Wilson score, no continuity correction",
+    "wilson_cc": "Wilson score with continuity correction",
+    "clopper_pearson": "Clopper-Pearson exact",
+    "newcombe10": "Newcombe method 10",
+    "newcombe11": "Newcombe method 11",
+    "newcombe_paired": "Newcombe paired",
+    "delong_logit": "DeLong, logit-transformed interval",
+    "delong_wald": "DeLong, Wald interval",
+    "cluster_bootstrap_percentile": "cluster bootstrap, percentile interval",
+    "bootstrap_percentile": "bootstrap, percentile interval",
+    "bootstrap_bca": "bootstrap, BCa interval",
+    "irls_wald": "IRLS, Wald interval",
+    "log_delta": "delta method on the log scale",
+    "logit_delta": "delta method on the logit scale",
+    "chi2_psi": "chi-square critical value",
+    "exact_mcnemar": "exact McNemar",
+    "cc_mcnemar": "continuity-corrected McNemar",
+    "none": "no interval method",
+}
+
+#: The name a sentence prints for a metric id (D1 section 4.3's enum plus the two the
+#: engine emits). A sentence that begins with ``{metric_name}`` capitalises its first
+#: letter; the name itself is fixed text.
+METRIC_NAMES: dict[str, str] = {
+    "sensitivity": "sensitivity",
+    "specificity": "specificity",
+    "ppa": "positive percent agreement",
+    "npa": "negative percent agreement",
+    "ppv": "PPV",
+    "npv": "NPV",
+    "accuracy": "accuracy",
+    "balanced_accuracy": "balanced accuracy",
+    "f1": "F1",
+    "mcc": "MCC",
+    "lr_pos": "LR+",
+    "lr_neg": "LR-",
+    "dor": "diagnostic odds ratio",
+    "youden": "Youden J",
+    "auroc": "AUROC",
+    "auprc": "AUPRC",
+    "brier": "Brier score",
+    "ipa": "IPA",
+    "oe": "observed-to-expected ratio",
+    "calibration_slope": "calibration slope",
+    "calibration_intercept": "calibration intercept",
+    "ece": "ECE",
+    "tpr_gap": "TPR gap",
+    "fpr_gap": "FPR gap",
+    "ppv_gap": "PPV gap",
+    "npv_gap": "NPV gap",
+    "auroc_gap": "AUROC gap",
+    "psi": "PSI",
+    "ks_d": "KS D",
+    "prevalence": "prevalence",
+    "selection_rate": "selection rate",
+    "calibration_by_group": "calibration by group",
+}
+STATISTIC_NAMES: dict[str, str] = {
+    "ci_lower_bound": "CI lower bound",
+    "ci_upper_bound": "CI upper bound",
+    "point_estimate": "point estimate",
+}
+
+
+@dataclass(frozen=True)
+class Variant:
+    """A skeleton selected by the library key instead of the template's own. ``None`` in
+    a field matches anything; a variant matches when every non-``None`` field holds the
+    key's value. The first matching variant, in declaration order, wins."""
+
+    name: str
+    skeleton: str
+    facets: dict[str, tuple[str, ...]]
+    metric_ids: frozenset[str] | None = None
+    statuses: frozenset[str] | None = None
+    subgroup: bool | None = None
+    comparator_ids: frozenset[str] | None = None
+
+
+#: Metric ids an ``OVERALL_ESTIMATE`` prints without ``k/n (...)``: the Numbers that are
+#: not proportions (D4 section 1.2's three-decimal rule and the recorded choices).
+NON_PROPORTION_OVERALL: frozenset[str] = frozenset(
+    {"balanced_accuracy", "f1", "mcc", "lr_pos", "lr_neg", "dor", "youden"}
+)
+_NA = frozenset({"not_assessable"})
+
+VARIANTS: dict[str, tuple[Variant, ...]] = {
+    "OVERALL_ESTIMATE": (
+        Variant(
+            "not_estimable",
+            "{metric_name} at operating point {op_id} was not estimable with an interval "
+            "({reason}).",
+            {"reason": (f"{_V}.reason",)},
+            statuses=_NA,
+        ),
+        Variant(
+            "not_a_proportion",
+            "{metric_name} at operating point {op_id} was {est}, 95% CI {ci_lo} to {ci_hi} "
+            "({method}).",
+            {
+                "est": (f"{_V}.est",),
+                "ci_lo": (f"{_V}.ci_lo",),
+                "ci_hi": (f"{_V}.ci_hi",),
+                "method": (f"{_V}.method",),
+            },
+            metric_ids=NON_PROPORTION_OVERALL,
+        ),
+    ),
+    "AUROC_ESTIMATE": (
+        Variant(
+            "not_estimable",
+            "AUROC was not estimable with an interval ({reason}).",
+            {"reason": (f"{_V}.reason",)},
+            statuses=_NA,
+        ),
+    ),
+    "SUBGROUP_ESTIMATE": (
+        Variant(
+            "not_estimable",
+            "For {attribute} = {level}, {metric_name} was not estimable with an interval "
+            "({reason}).",
+            {"reason": (f"{_V}.reason",)},
+            statuses=_NA,
+        ),
+    ),
+    "SUBGROUP_ESTIMATE_WITH_DIFF": (
+        Variant(
+            "difference_not_estimable",
+            "For {attribute} = {level}, {metric_name} was {k}/{n} ({est}) [{ci}]; the "
+            "difference versus {reference_level} was not estimable with an interval "
+            "({reason}).",
+            {**_ROW_FACETS, "reason": ("diff.reason",)},
+            statuses=_NA,
+        ),
+    ),
+    "CRITERION_STATUS": (
+        Variant(
+            "not_assessable",
+            "Criterion {criterion_id} ({metric_name}, {scope}, {statistic} {comparator} "
+            "{value}; {author}, {date}): {status_word}{reason_clause}.",
+            {},
+            statuses=_NA,
+        ),
+    ),
+}
+
+
+def lookup(
+    template_id: str,
+    metric_id: str | None = None,
+    subgroup_id: Any = None,
+    comparator_id: str | None = None,
+    status: str | None = None,
+) -> tuple[str, dict[str, tuple[str, ...]], str]:
+    """The skeleton, its facet bindings and the variant name (``base`` for the template's
+    own) for one library key (D1 section 3.1: ``{template_id, metric_id, subgroup_id,
+    comparator_id, status}``). ``status`` is the criterion status on a criterion claim and
+    ``not_assessable`` on any other claim whose ``relation`` is ``not_assessable``.
+    ``KeyError`` on an unknown template id."""
+    template = LIBRARY[template_id]
+    for v in VARIANTS.get(template_id, ()):
+        if v.metric_ids is not None and metric_id not in v.metric_ids:
+            continue
+        if v.statuses is not None and status not in v.statuses:
+            continue
+        if v.subgroup is not None and (subgroup_id is not None) is not v.subgroup:
+            continue
+        if v.comparator_ids is not None and comparator_id not in v.comparator_ids:
+            continue
+        return v.skeleton, v.facets, v.name
+    return template.skeleton, FACET_BINDINGS.get(template_id, {}), "base"
+
+
+def occurrences(skeleton: str) -> tuple[str, ...]:
+    """Every ``{slot}`` of a skeleton in order, repeats included."""
+    import string
+
+    return tuple(f for _, f, _, _ in string.Formatter().parse(skeleton) if f is not None)
+
+
+def all_skeletons() -> list[tuple[str, str, str]]:
+    """``(template_id, variant, text)`` for every skeleton the library can print and every
+    phrase-map text (``phrase:<slot>:<key>``): the forbidden grep's input."""
+    out: list[tuple[str, str, str]] = []
+    for t in _T:
+        out.append((t.template_id, "base", t.skeleton))
+        for v in VARIANTS.get(t.template_id, ()):
+            out.append((t.template_id, v.name, v.skeleton))
+        for slot, table in (t.phrases or {}).items():
+            for key, text in table.items():
+                out.append((t.template_id, f"phrase:{slot}:{key}", text))
+    return out

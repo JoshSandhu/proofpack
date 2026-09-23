@@ -318,6 +318,13 @@ def test_the_claims_schema_is_final_and_its_enums_agree_with_the_code():
     assert item["properties"]["status"]["enum"] == [*checker.STATUSES, None]
     assert item["properties"]["relation"]["enum"] == list(claims_mod.RELATIONS)
     assert item["properties"]["comparator_id"]["enum"] == [*claims_mod.COMPARATOR_IDS, None]
+    # E9: the facet bindings and the keyed variants name library ids only, so the enum,
+    # the library and the sentence renderer agree on one set of template ids
+    assert set(templates.FACET_BINDINGS) <= set(item["properties"]["template_id"]["enum"])
+    assert set(templates.VARIANTS) <= set(item["properties"]["template_id"]["enum"])
+    assert {tid for tid, _, _ in templates.all_skeletons()} == set(
+        item["properties"]["template_id"]["enum"]
+    )
 
 
 def test_the_library_transcribes_d4_section_8_and_every_slot_is_a_formatter_field():
