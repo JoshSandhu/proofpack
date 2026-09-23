@@ -3,7 +3,8 @@
 Declarations are never inferred. Positive class, score orientation and type,
 operating points (thresholds), intended-use prevalence and the subgroup
 attribute list are MANDATORY; absence is gate H08. A criterion or fairness
-block without ``author``/``date``/``justification`` is also H08. References
+block without ``author``/``date``/``justification`` is also H08, and so is a string
+holding a control character (DEC-65, :func:`control_character_at`). References
 to unknown metric ids, operating points, attributes or levels are gate H09.
 
 The engine supplies no default for anything a customer must own.
@@ -40,6 +41,59 @@ AUTHORED_FIELDS: tuple[str, ...] = ("author", "date", "justification")
 #: these ids is H08 (``tests/test_e8_repair3.py::
 #: test_an_operating_point_id_the_document_reserves_halts_h08``).
 RESERVED_OPERATING_POINT_IDS: frozenset[str] = frozenset({"threshold_free", "auroc", "brier"})
+
+#: DEC-65 (repair 5 of build day 8, lens-5 FA5-B4 at 375719c): C0 controls (U+0000 to
+#: U+001F), DEL (U+007F) and C1 controls (U+0080 to U+009F) in a string of
+#: ``criteria.yaml``, key or value, are H08 naming the field. D1 section 6 calls
+#: ``justification``, ``description`` and ``source`` the free-text declaration fields;
+#: under those keys tab (U+0009) and line feed (U+000A) are allowed, and under every
+#: other key they are H08 too. Carriage return (U+000D) is H08 under every key.
+#: ``tests/test_e8_repair5.py`` names the fields and code points it feeds.
+MULTILINE_FIELDS: frozenset[str] = frozenset({"justification", "description", "source"})
+_CONTROL = re.compile("[\x00-\x1f\x7f-\x9f]")
+_CONTROL_MULTILINE = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+
+
+def control_character_at(value: Any, path: tuple[Any, ...] = ()) -> tuple[str, str] | None:
+    """The first ``(field path, "U+XXXX")`` whose string holds a control character that
+    :data:`_CONTROL` (or, under a key in :data:`MULTILINE_FIELDS`, :data:`_CONTROL_MULTILINE`)
+    matches, walking each mapping item (its key, then its value) and each list item in
+    order; ``None`` if none does.
+    The path is written as the schema halt writes it (``criteria/0/justification``); a key
+    is named by its parent's path and ``(key)``. The value itself is not returned."""
+    if isinstance(value, str):
+        key = path[-1] if path else None
+        rx = _CONTROL_MULTILINE if key in MULTILINE_FIELDS else _CONTROL
+        m = rx.search(value)
+        if m is None:
+            return None
+        return "/".join(str(p) for p in path) or "<root>", f"U+{ord(m.group()):04X}"
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if isinstance(k, str) and _CONTROL.search(k):
+                parent = "/".join(str(p) for p in path) or "<root>"
+                return f"{parent} (key)", f"U+{ord(_CONTROL.search(k).group()):04X}"
+            found = control_character_at(v, (*path, k))
+            if found is not None:
+                return found
+    elif isinstance(value, (list, tuple)):
+        for i, v in enumerate(value):
+            found = control_character_at(v, (*path, i))
+            if found is not None:
+                return found
+    return None
+
+
+def _check_control_characters(data: dict[str, Any]) -> None:
+    """DEC-65: H08 naming the field and the code point (:func:`control_character_at`)."""
+    found = control_character_at(data)
+    if found is not None:
+        field_path, codepoint = found
+        raise HaltError(
+            "H08",
+            f"declaration invalid at {field_path}: control character {codepoint}; remove it",
+            {"field": field_path, "reason": "control_character", "codepoint": codepoint},
+        )
 
 
 def metric_ids() -> frozenset[str]:
@@ -226,6 +280,12 @@ def validate_dict(data: dict[str, Any]) -> Declarations:
             {"missing": missing_declared},
         )
 
+    # DEC-11's E01 first (a tab in clustering.unit is a separator there:
+    # tests/test_mapping_repair1.py::test_separators_the_lens_listed_reach_e01), then
+    # DEC-65, before any message below that prints a criterion id
+    _check_dec11_case_key(data.get("clustering"))
+    _check_control_characters(data)
+
     # authored fields first so the message is specific (D1 section 2 rule)
     criteria_block = data.get("criteria") or []
     if not isinstance(criteria_block, list):
@@ -257,8 +317,6 @@ def validate_dict(data: dict[str, Any]) -> Declarations:
                     "fairness block declares a bound but lacks " + ", ".join(lacking),
                     {"missing": lacking},
                 )
-
-    _check_dec11_case_key(data.get("clustering"))
 
     schema = load_json_schema("criteria_schema.json")
     validator = jsonschema.Draft202012Validator(schema)

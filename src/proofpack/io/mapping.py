@@ -386,9 +386,10 @@ class Mapping:
                 value_summaries=summaries or {},
             )
             m.file_sha256 = hashlib.sha256(raw).hexdigest()
-            return m
         except (ValueError, KeyError, TypeError, AttributeError) as exc:
             raise HaltError("H07", "mapping.json could not be read") from exc
+        _check_control_characters(m)
+        return m
 
     def table(self) -> str:
         """The printed mapping table: original header -> role -> confidence -> summary."""
@@ -400,6 +401,34 @@ class Mapping:
             for n in r.notes:
                 lines.append(f"  {'':32}    note: {n}")
         return "\n".join(lines)
+
+
+def _check_control_characters(m: Mapping) -> None:
+    """DEC-65 on the text a person writes into ``mapping.json``: each entry's ``role`` and
+    ``notes``, ``decided_by`` and ``timestamp``. A control character that
+    :func:`proofpack.io.declare.control_character_at` finds there is H08 naming the field
+    (``tests/test_e8_repair5.py::test_a_control_character_in_mapping_text_halts_h08`` feeds
+    a note, a timestamp and the role ``attr_colour`` with a trailing line feed, which
+    ``_IDENT``'s ``$`` matches). ``original`` is the table's header, not read here."""
+    from proofpack.io.declare import control_character_at
+
+    text = {
+        "roles": [{"role": r.role, "notes": list(r.notes)} for r in m.roles],
+        "decided_by": m.decided_by,
+        "timestamp": m.timestamp,
+    }
+    found = control_character_at(text)
+    if found is not None:
+        field_path, codepoint = found
+        raise HaltError(
+            "H08",
+            f"mapping.json invalid at {field_path}: control character {codepoint}; remove it",
+            {
+                "field": "mapping.json " + field_path,
+                "reason": "control_character",
+                "codepoint": codepoint,
+            },
+        )
 
 
 def _summary_fields(d: dict) -> dict:

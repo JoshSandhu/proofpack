@@ -210,7 +210,8 @@ def _calib_na() -> dict[str, Any]:
 def test_calib_na_is_claimed_and_accepted_only_on_score_not_probability(score, reason, claimed):
     """Lens-4 FA-B3: at ``23f3d9f`` a ``y_pred``-only document (200 rows) carried
     ``CALIB_NA`` - "the score was declared as probability, not a probability" - and the
-    checker accepted it."""
+    checker accepted it. The ``score_not_probability`` case is a guard: it passes at
+    ``23f3d9f`` (the other two cases fail there; lens-5 RG-N6, measured in repair 5)."""
     crit = make_criteria(criteria=[], fairness=None)
     if score is None:
         cols = _y_pred_only(200)
@@ -328,7 +329,8 @@ def test_each_reading_has_a_literal_that_pins_it():
 def test_each_hand_mapped_letter_has_a_literal_the_tr39_readings_do_not_reject():
     """The hand maps of repairs 1-3 beside TR39: each literal carries the Greek capital
     iota, which the full reading takes as ``i`` and TR39 as ``l``, so only the full,
-    capital-I or rn reading rejects it, through the letter named."""
+    capital-I or rn reading rejects it, through the letter named. A guard: it passes at
+    ``23f3d9f`` (lens-5 RG-N6, measured in repair 5)."""
     for text, letter in (
         ("unbΙɑsed", "ɑ"),
         ("ƒaΙled", "ƒ"),
@@ -347,7 +349,8 @@ def test_prose_the_new_readings_leave_accepted():
     """The literals the orchestrator named, the repair-2 and repair-3 guards, and prose
     with the characters TR39 maps from ASCII punctuation (``|``) and from Greek letters
     used in statistics. ``unmet`` is itself a listed word (``VERDICT_WORDS``) and is
-    rejected, at ``23f3d9f`` too."""
+    rejected, at ``23f3d9f`` too. A guard: the whole test passes at ``23f3d9f`` (lens-5
+    RG-N6, measured in repair 5)."""
     for text in (
         "compass",
         "passport",

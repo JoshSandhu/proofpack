@@ -2124,6 +2124,63 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
         day=8,
         what="the criteria table's operating-point id is engine text (DEC-62)",
     ),
+    # repair 5 of build day 8 (lens-5 FA5-B4, DEC-65): the control-character gate
+    Mutant(
+        "declare_dec65_check_not_called",
+        DECLARE,
+        r"^    _check_control_characters\(data\)$",
+        "    pass",
+        day=8,
+        what="a NUL in the model name reaches T8.html raw (FA5-B4, DEC-65)",
+    ),
+    Mutant(
+        "declare_dec65_multiline_everywhere",
+        DECLARE,
+        r"rx = _CONTROL_MULTILINE if key in MULTILINE_FIELDS else _CONTROL",
+        "rx = _CONTROL_MULTILINE",
+        day=8,
+        what="a tab or line feed in the model name passes (DEC-65)",
+    ),
+    Mutant(
+        "declare_dec65_multiline_nowhere",
+        DECLARE,
+        r"rx = _CONTROL_MULTILINE if key in MULTILINE_FIELDS else _CONTROL",
+        "rx = _CONTROL",
+        day=8,
+        what="a line feed in a justification is H08 (DEC-65's recorded choice)",
+    ),
+    Mutant(
+        "declare_dec65_c1_and_del_dropped",
+        DECLARE,
+        r'(^_CONTROL = re\.compile\("\[\\x00-\\x1f)\\x7f-\\x9f\]',
+        r"\1]",
+        day=8,
+        what="DEL and C1 controls (U+007F, U+0085, U+009F) in the model name pass (DEC-65)",
+    ),
+    Mutant(
+        "declare_dec65_keys_unchecked",
+        DECLARE,
+        r"            if isinstance\(k, str\) and _CONTROL\.search\(k\):",
+        "            if False:",
+        day=8,
+        what="a key holding U+0001 passes (DEC-65)",
+    ),
+    Mutant(
+        "mapping_dec65_check_not_called",
+        MAPPING,
+        r"^        _check_control_characters\(m\)$",
+        "        pass",
+        day=8,
+        what="a control character in mapping.json notes or timestamp passes (DEC-65)",
+    ),
+    Mutant(
+        "mapping_dec65_role_not_read",
+        MAPPING,
+        r'\{"role": r\.role, "notes": list\(r\.notes\)\}',
+        '{"notes": list(r.notes)}',
+        day=8,
+        what="the mapping role attr_colour plus a line feed halts H07, not H08 (DEC-65)",
+    ),
 )
 
 MUTANTS = MUTANTS + MUTANTS_DAY6_A + MUTANTS_DAY7 + MUTANTS_DAY8
