@@ -20,22 +20,27 @@ What each figure reads:
   at **the roc vertex** whose ``(fpr, tpr)`` equals ``(1 - specificity, sensitivity)`` of
   ``overall.<op>`` to 1e-9 (the marker's coordinates are the vertex's, read from the
   array; an operating point with no such vertex - a clustered or ``y_pred``-only run - is
-  named in the caption and not drawn), labelled with its id; ``AUROC [CI]`` in the
-  legend. Not drawn when the array is empty.
+  named in the caption and not drawn; one whose sensitivity or specificity has no
+  interval (``format.has_interval`` false) is named in the caption with what that Number
+  prints, and not drawn), labelled with its id; ``AUROC [CI]`` in the legend. Not drawn
+  when the array is empty.
 * **F3 PR** - ``overall.threshold_free.pr`` ``[[recall, precision, thr], ...]`` and the
   prevalence baseline at ``overall.threshold_free.prevalence.est``. The engine emits no
   ``pr`` array in this build (AUPRC is v1.1), so on every v1 run F3 is the no-data line.
-* **F4 calibration** - each ``calibration.decile_curve`` bin at ``(mean_pred,
-  observed.est)`` with its Wilson (or cluster-bootstrap) bar ``observed.ci_lo`` to
-  ``ci_hi``, the identity line ``ink-faint`` dashed, slope and intercept in the legend,
-  the 200/200 note on the plot when ``curve_flag`` is set, and the histogram strip: one
+* **F4 calibration** - each ``calibration.decile_curve`` bin whose observed Number has an
+  interval at ``(mean_pred, observed.est)`` with its bar ``observed.ci_lo`` to ``ci_hi``
+  (the caption names the bars' methods from those Numbers, and names each bin not drawn
+  with what its Number prints), the identity line ``ink-faint`` dashed, slope and
+  intercept in the legend, the note on the plot when ``curve_flag`` is set (its figures
+  read from ``curve_flag.minimum``), and the histogram strip: one
   bar per bin from ``score_min`` to ``score_max`` whose height is the bin's ``n`` under
   the strip's own linear map, filled ``line`` (the only filled mark in any figure).
   **Omitted** when ``calibration`` is null (a score that is not a probability): the
   reason prints instead.
 * **F5 forest** - per attribute and per metric (sensitivity, specificity, AUROC): one row
   per level, the reference level first and Unknown/missing last, each a point with its
-  interval; a vertical ``ink-faint`` dashed line at the overall estimate; a heavier
+  interval; a vertical ``ink-faint`` dashed line at the overall estimate when that Number
+  has an interval (otherwise the caption prints what it prints, and no line); a heavier
   dashed line at a criterion's declared value **only** when a ``ci_lower_bound``
   criterion scoped on that attribute and metric exists, labelled with its id, author and
   date; tier superscripts beside the labels; never a shaded region.
@@ -113,6 +118,13 @@ def _ticks(m: PlotMap) -> dict[str, Any]:
     }
 
 
+def method_list(nums: list[dict[str, Any]]) -> str:
+    """The distinct ``method`` of ``nums``, each by its :data:`METHOD_PHRASES` phrase (the
+    id itself when the map has none), sorted by id and joined with ``; ``."""
+    ids = sorted({str(n.get("method")) for n in nums if isinstance(n, dict)})
+    return "; ".join(METHOD_PHRASES.get(m, m) for m in ids) or "no Number printed"
+
+
 def _anchor_label(refs_by_id: dict[str, dict[str, Any]], internal_id: str) -> str:
     ref = refs_by_id.get(internal_id)
     return ref["label"] if ref else internal_id
@@ -127,12 +139,25 @@ def f2_roc(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> d
     if not roc:
         return None
     m = PlotMap(X0, Y0, W, H)
-    markers, missing = [], []
+    markers, missing, typed = [], [], []
     for op, block in (document.get("overall") or {}).items():
         if op == "threshold_free" or not isinstance(block, dict):
             continue
-        se = (block.get("sensitivity") or block.get("ppa") or {}).get("est")
-        sp = (block.get("specificity") or block.get("npa") or {}).get("est")
+        se_key = "sensitivity" if block.get("sensitivity") else "ppa"
+        sp_key = "specificity" if block.get("specificity") else "npa"
+        se_num = block.get(se_key) or {}
+        sp_num = block.get(sp_key) or {}
+        if not (fmt.has_interval(se_num) and fmt.has_interval(sp_num)):
+            # a typed reason prints the reason, never a bare estimate (E9 repair 1, FA-B3)
+            printed = [
+                f"{name} {fmt.number(num or None, 'proportion')}"
+                for name, num in ((se_key, se_num), (sp_key, sp_num))
+                if not fmt.has_interval(num)
+            ]
+            typed.append(f"{op} ({', '.join(printed)})")
+            continue
+        se = se_num.get("est")
+        sp = sp_num.get("est")
         vertex = None
         if _is_num(se) and _is_num(sp):
             for fpr, tpr, *_ in roc:
@@ -182,6 +207,13 @@ def f2_roc(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> d
                 + ", ".join(missing)
                 + "; "
                 if missing
+                else ""
+            )
+            + (
+                "operating point(s) not drawn, a Number without an interval: "
+                + ", ".join(typed)
+                + "; "
+                if typed
                 else ""
             )
             + _anchor_label(refs_by_id, "FDA_AIDSF_PERF_VALIDATION")
@@ -240,21 +272,26 @@ def f4_calibration(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any
         return None
     m = PlotMap(X0, Y0, W, H)
     bins = cal["decile_curve"]
-    points, bars, strip = [], [], []
+    points, bars, strip, not_drawn, drawn_nums = [], [], [], [], []
     n_max = max(int(b.get("n") or 0) for b in bins) or 1
     s = PlotMap(X0, STRIP_Y0, W, STRIP_H, 0.0, 1.0, 0.0, float(n_max))
     for b in bins:
         obs = (b.get("observed") or {}).get("number") or {}
-        if _is_num(b.get("mean_pred")) and _is_num(obs.get("est")):
+        if _is_num(b.get("mean_pred")) and fmt.has_interval(obs) and _is_num(obs.get("est")):
             x = m.x(b["mean_pred"])
+            drawn_nums.append(obs)
             points.append({"cx": _num(x), "cy": _num(m.y(obs["est"])), "bin": b.get("bin")})
-            if _is_num(obs.get("ci_lo")) and _is_num(obs.get("ci_hi")):
-                bars.append(
-                    {
-                        "d": _path([(x, m.y(obs["ci_lo"])), (x, m.y(obs["ci_hi"]))]),
-                        "bin": b.get("bin"),
-                    }
-                )
+            bars.append(
+                {
+                    "d": _path([(x, m.y(obs["ci_lo"])), (x, m.y(obs["ci_hi"]))]),
+                    "bin": b.get("bin"),
+                }
+            )
+        else:
+            # a typed reason prints the reason, never a bare estimate (E9 repair 1, FA-B3)
+            not_drawn.append(
+                f"bin {fmt.count(b.get('bin'))} {fmt.number(obs or None, 'proportion')}"
+            )
         if _is_num(b.get("score_min")) and _is_num(b.get("score_max")):
             left, right = s.x(b["score_min"]), s.x(b["score_max"])
             top = s.y(int(b.get("n") or 0))
@@ -270,7 +307,7 @@ def f4_calibration(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any
     slope = (cal.get("slope") or {}).get("number")
     intercept = (cal.get("intercept") or {}).get("number")
     flag = cal.get("curve_flag")
-    first = ((bins[0].get("observed") or {}).get("number") or {}).get("method")
+    minimum = flag.get("minimum") if isinstance(flag, dict) else None
     return {
         "id": "F4",
         "title": "F4 - calibration by decile",
@@ -291,12 +328,20 @@ def f4_calibration(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any
             f"intercept {fmt.number(intercept, 'three_dp')}"
         ),
         "flag": fmt.text(flag.get("note")) if isinstance(flag, dict) else None,
+        # the on-plot line reads curve_flag.minimum; no number is typed into the template
+        # (E9 repair 1, lens RG-B1)
+        "flag_short": (
+            f"{fmt.count(minimum)}/{fmt.count(minimum)} convention: fewer than "
+            f"{fmt.count(minimum)} events or non-events"
+            if isinstance(flag, dict) and _is_num(minimum)
+            else None
+        ),
         "xlabel": "Mean predicted risk",
         "ylabel": "Observed proportion",
         "caption": (
             f"n = {fmt.count(cal.get('n'))} rows ({fmt.count(cal.get('events'))} events) in "
-            f"{len(bins)} equal-mass bins; bar interval: "
-            f"{METHOD_PHRASES.get(str(first), fmt.text(first))}; "
+            f"{len(bins)} equal-mass bins; bar interval: {method_list(drawn_nums)}; "
+            + ("not drawn, no interval: " + ", ".join(not_drawn) + "; " if not_drawn else "")
             + _anchor_label(refs_by_id, "FDA_AIDSF_CALIBRATION")
         ),
     }
@@ -439,7 +484,7 @@ def f5_forest(
             else:
                 ref_num = ((document.get("overall") or {}).get(overall_op) or {}).get(metric) or {}
             reference = None
-            if _is_num(ref_num.get("est")):
+            if fmt.has_interval(ref_num) and _is_num(ref_num.get("est")):
                 rx = m.x(ref_num["est"])
                 reference = {
                     "d": _path([(rx, m.y0), (rx, m.y0 + m.h)]),
@@ -452,7 +497,8 @@ def f5_forest(
                     "metric": metric,
                     "title": f"F5 - {label} by {attribute}",
                     "desc": f"One row per level of {attribute}: the point estimate and its "
-                    "95% interval; the dashed line is the overall estimate.",
+                    "95% interval"
+                    + ("; the dashed line is the overall estimate." if reference else "."),
                     "height": _num(height),
                     "map": m.attr(),
                     "rows": rows,
@@ -472,7 +518,15 @@ def f5_forest(
                         + (f" at operating point {overall_op}" if metric != "auroc" else "")
                         + "; n per level as in Table T1-10; interval: "
                         + (", ".join(sorted(METHOD_PHRASES.get(x, x) for x in methods)) or "none")
-                        + "; reference line: the overall estimate; "
+                        + (
+                            "; reference line: the overall estimate; "
+                            if reference is not None
+                            else "; no reference line: the overall estimate is "
+                            + fmt.number(
+                                ref_num or None, "proportion" if metric != "auroc" else "three_dp"
+                            )
+                            + "; "
+                        )
                         + _anchor_label(refs_by_id, "FDA_AIDSF_SUBGROUP_PERF")
                     ),
                 }

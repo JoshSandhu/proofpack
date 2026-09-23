@@ -180,5 +180,25 @@ def test_the_theme_block_reaches_the_style_unescaped_so_the_system_fonts_apply(
         assert '--pp-type-text: -apple-system, BlinkMacSystemFont, "Segoe UI"' in style
         assert '--pp-type-mono: ui-monospace, "Cascadia Mono"' in style
     monkeypatch.setattr(theme, "css_variables", lambda: {"--pp-x": "red;} body{display:none"})
-    with pytest.raises(ValueError, match="cannot hold"):
+    with pytest.raises(ValueError, match=re.escape("the refused characters < > { } ; \\:")):
         theme.css_root_block()
+
+
+def test_the_theme_guard_message_names_the_six_characters_it_refuses_and_no_other_class(
+    monkeypatch,
+):
+    """E9 repair 1, lens RG-N10: the message said "a character a <style> block cannot hold"
+    while the guard refuses six named characters and accepts ``a /* b`` and an unbalanced
+    ``"``. Inspected: each of the six planted alone raises with the list of six in the
+    message; the two values the lens fed are accepted (the guard's scope, recorded)."""
+    from proofpack.render import theme
+
+    for ch in "<>{};\\":
+        monkeypatch.setattr(theme, "css_variables", lambda ch=ch: {"--pp-x": f"a{ch}b"})
+        with pytest.raises(ValueError) as err:
+            theme.css_root_block()
+        assert "the refused characters < > { } ; \\:" in str(err.value)
+        assert "cannot hold" not in str(err.value)
+    for accepted in ("a /* b", '"unbalanced'):
+        monkeypatch.setattr(theme, "css_variables", lambda v=accepted: {"--pp-x": v})
+        assert accepted in theme.css_root_block()

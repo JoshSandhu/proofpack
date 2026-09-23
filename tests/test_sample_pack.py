@@ -27,6 +27,7 @@ from proofpack.render.html import render_t8
 from proofpack.render.t1 import render_t1
 from proofpack.render.t7 import render_t7
 from proofpack.scope import SYNTHETIC_MARK
+from test_render_t8 import footers_per_page
 
 pytestmark = pytest.mark.day9
 
@@ -86,7 +87,7 @@ def test_every_page_of_every_document_is_marked_synthetic(builds):
         page = (a / name).read_text(encoding="utf-8")
         sections = page.count('<section class="page')
         footers = re.findall(r'<footer class="page-footer">(.*?)</footer>', page, re.S)
-        assert sections >= 3 and len(footers) == sections
+        assert sections >= 3 and footers_per_page(page) == [1] * sections, name
         assert all(SYNTHETIC_MARK in f for f in footers), name
         assert SYNTHETIC_MARK in page.split('<div class="print-footer">', 1)[1]
         assert f'<p class="stamp" data-mark="data">{SYNTHETIC_MARK}</p>' in page, name

@@ -37,6 +37,7 @@ from typing import Any
 
 import yaml
 
+from proofpack.narrate.templates import METHOD_PHRASES
 from proofpack.render import anchors, markdown
 from proofpack.render import format as fmt
 from proofpack.render import html as render_html
@@ -54,20 +55,25 @@ T7_ANCHORS: dict[str, str] = {
 UNVERIFIED_MARK = "[unverified]"
 PENDING = "citation pending verification"
 
-#: D1 section 9, verbatim (the T7/T12 tolerance text).
+#: D1 section 9 (the T7/T12 tolerance text) without its F17 sentence ("identical manifest
+#: hash and byte-identical JSON"): two runs of one input differ at ``manifest.run_id``,
+#: ``started`` and ``duration_s`` (E9 repair 1, lens FA-N2), so the manifest hash differs.
 TOLERANCE_POLICY = (
-    "Reference platform: python:3.12-slim linux/amd64 with the pinned lockfile. Same image + "
-    "same inputs → identical manifest hash and byte-identical JSON (F17). Other platforms "
-    "(arm64 laptop, Windows pip, Pyodide) → agreement to tolerance: 1e-9 closed-form (Wilson, "
+    "Reference platform: python:3.12-slim linux/amd64 with the pinned lockfile. Other "
+    "platforms (arm64 laptop, Windows pip, Pyodide) → agreement to tolerance: 1e-9 "
+    "closed-form (Wilson, "
     "2×2, Brier, O/E, PSI), 1e-6 iterative (IRLS slope/intercept, DeLong via placements), "
     "bootstrap CIs to reported rounding with identical seed and "
     "numpy.random.default_rng(seed)."
 )
-#: Master section 5.1 X1, the T7 sentence, verbatim.
+#: Master section 5.1 X1, the T7 sentence, without its method clause ("both use Newcombe
+#: (1998) method 10 for proportions and unpaired DeLong for AUROC"): on a clustered run the
+#: differences are cluster-bootstrap intervals or typed reasons (E9 repair 1, lens FA-B2).
+#: The methods are printed after it from the difference Numbers of the run
+#: (:func:`difference_methods`).
 X1_SENTENCE = (
     "Differences are reported against the declared reference level and against the "
-    "complement of the subgroup (all other rows); both use Newcombe (1998) method 10 for "
-    "proportions and unpaired DeLong for AUROC. No difference is reported against the "
+    "complement of the subgroup (all other rows). No difference is reported against the "
     "overall cohort because the subgroup is part of it."
 )
 #: Master section 3.1 (CHK B5; X3), the conventions sentence, verbatim.
@@ -154,6 +160,36 @@ def number_objects(node: Any):
 def methods_used(document: dict[str, Any]) -> Counter:
     """``{method: count}`` over every Number object of the document."""
     return Counter(str(n.get("method")) for n in number_objects(document))
+
+
+def printed_numbers(node: Any):
+    """The ``number`` of every cell under ``node`` (the Number a table prints), never the
+    ``analytic`` companion beside it."""
+    if isinstance(node, dict):
+        num = node.get("number")
+        if isinstance(num, dict) and "method" in num:
+            yield num
+        for key, value in node.items():
+            if key not in ("number", "analytic"):
+                yield from printed_numbers(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from printed_numbers(value)
+
+
+def difference_methods(document: dict[str, Any]) -> list[dict[str, str]]:
+    """``[{id, phrase, count}]``: the ``method`` of every printed difference Number
+    (``subgroups[*].diff_vs_reference`` and ``diff_vs_complement``), sorted by id."""
+    counts: Counter = Counter()
+    for row in document.get("subgroups") or []:
+        if not isinstance(row, dict):
+            continue
+        for key in ("diff_vs_reference", "diff_vs_complement"):
+            counts.update(str(n.get("method")) for n in printed_numbers(row.get(key)))
+    return [
+        {"id": m, "phrase": METHOD_PHRASES.get(m, m), "count": fmt.count(n)}
+        for m, n in sorted(counts.items())
+    ]
 
 
 def load_citations(path: str | Path | None = None) -> list[dict[str, Any]]:
@@ -256,6 +292,7 @@ def t7_context(
         ],
         "has_subgroups": bool(document.get("subgroups")),
         "x1_sentence": X1_SENTENCE,
+        "x1_methods": difference_methods(document),
         "subgroup_conventions": _section(conv, "Subgroup tables"),
         "has_calibration": isinstance(document.get("calibration"), dict),
         "calibration_reason": (

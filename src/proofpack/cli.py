@@ -520,11 +520,16 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
     elif not lic.usable:
         summary += (
-            "Next step: proofpack licence install FILE, then run again for T8.html "
-            "(docs: /docs/run)"
+            "Next step: proofpack licence install FILE, then run again for "
+            + ", ".join(f"{t}.html" for t in templates)
+            + " (docs: /docs/run)"
         )
     else:
-        summary += "Next step: run again with --format json,html for T8.html (docs: /docs/run)"
+        summary += (
+            "Next step: run again with --format json,html for "
+            + ", ".join(f"{t}.html" for t in templates)
+            + " (docs: /docs/run)"
+        )
     _emit(
         args,
         {

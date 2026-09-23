@@ -12,8 +12,11 @@ into one sentence, and nothing else does:
    pointers are read through :func:`proofpack.narrate.checker.pointer_facets` into
    selectors (``value``, ``diff``, a family metric such as ``oe`` or ``tpr_gap``, a
    documented scalar's key), and each slot's binding ``<selector>.<facet>`` names the one
-   it takes - so a claim binding a subset of ``CALIB_HIERARCHY``'s pointers prints
-   ``not reported`` in the missing slots and never shifts a number into another slot;
+   it takes. ``tests/test_e9_templates.py::
+   test_a_family_claim_fills_each_slot_by_pointer_facet_not_by_position`` feeds a
+   ``CALIB_HIERARCHY`` claim with the slope pointer removed (the slope slot prints ``not
+   reported`` and the intercept prints in its own slot) and one with the pointers reversed
+   (the same sentence as in order);
 3. every facet is printed by :mod:`proofpack.render.format` under the metric's rule of
    D4 section 1.2 (a proportion as ``30.8%``, an AUROC to three decimals, a difference in
    signed percentage points); this module does no arithmetic and never rounds;

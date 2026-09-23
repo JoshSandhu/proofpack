@@ -74,6 +74,8 @@ def css_root_block() -> str:
     block is written into the page's ``<style>`` as it is."""
     for k, v in css_variables().items():
         if set(v) & _CSS_UNSAFE:
-            raise ValueError(f"token {k} carries a character a <style> block cannot hold: {v!r}")
+            raise ValueError(
+                f"token {k} carries one of the refused characters < > {{ }} ; \\: {v!r}"
+            )
     lines = [f"  {k}: {v};" for k, v in sorted(css_variables().items())]
     return ":root {\n" + "\n".join(lines) + "\n}"

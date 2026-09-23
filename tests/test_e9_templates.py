@@ -139,8 +139,8 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
                 "provenance_phrase": "derived_from_this_dataset",
             }
         },
-        "Operating point t0.5 (threshold 0.5, rule >) was derived from this dataset and is "
-        "therefore optimistically biased.",
+        "Operating point t0.5 (threshold 0.5, rule >) was derived from this dataset: the "
+        "threshold was chosen on the same data its performance is estimated on.",
     ),
     (
         "flow_counts",
@@ -907,14 +907,6 @@ def test_the_forbidden_grep_over_every_skeleton_variant_and_phrase_is_zero():
             ("CRITERION_NOT_MET_RECORD", "base"),
         ):
             hit -= {"met"}
-        if (tid, variant) == (
-            "THRESH_PROVENANCE",
-            "phrase:provenance_phrase:derived_from_this_dataset",
-        ):
-            # D4 section 8 / v2 section 3 T1 mandate "optimistically biased" verbatim: the
-            # checker lists "biased" for free_text; here it describes the estimate, and it
-            # is the one exemption (recorded in the E9 build note)
-            hit -= {"biased"}
         if "well-calibrated" in fixed.lower() or "guidance" in words or "cfr" in words:
             hit.add("phrase")
         if hit:

@@ -4,8 +4,8 @@
   T8's and T7's goldens use (assembler, CRITERIA + FAIRNESS, B = 200, seed 20240101;
   ``run_id``, ``started``, ``duration_s`` fixed by the assembler, ``manifest.numpy`` set
   to ``x.y.z``), compared LF-normalised. Regenerate with ``PROOFPACK_REGEN_GOLDEN=1``;
-* **footer on every page** by E8's count: ``<section class="page"`` equals the
-  ``page-footer`` count, one ``print-footer``;
+* **footer on every page**: one ``page-footer`` inside each ``<section class="page"``
+  (``test_render_t8.footers_per_page``; repair 1, lens RG-N3), one ``print-footer``;
 * **every FDA-draft anchor labelled**, and a map row planted without the qualifier in a
   temporary copy of the map makes ``render_t1`` refuse;
 * **the verdict grep** over the rendered text: the status words only inside ``.status``;
@@ -44,7 +44,7 @@ from proofpack.render import anchors
 from proofpack.render import t1 as render_t1
 from proofpack.resources import load_guidance_map
 from test_criteria import CRITERIA, FAIRNESS, cohort_with_a_thirty_row_site
-from test_render_t8 import FORBIDDEN_ON_PAGE, STATUS_TOKENS, text_nodes, words
+from test_render_t8 import FORBIDDEN_ON_PAGE, STATUS_TOKENS, footers_per_page, text_nodes, words
 from test_run_cli import _own_home, _prepare
 
 pytestmark = pytest.mark.day9
@@ -86,7 +86,7 @@ def test_the_fifteen_sections_are_present_in_d4_order(page):
 def test_the_footer_is_on_every_page_and_once_in_print(page):
     sections = page.count('<section class="page')
     assert sections == 9
-    assert page.count('class="page-footer"') == sections
+    assert footers_per_page(page) == [1] * sections  # each page's own (repair 1, RG-N3)
     assert page.count('class="print-footer"') == 1
     assert page.count("no regulator has endorsed this tool.") >= sections + 1
 

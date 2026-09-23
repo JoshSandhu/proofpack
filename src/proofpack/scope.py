@@ -71,10 +71,12 @@ LONG_FORM_ITEMS: tuple[tuple[str, str], ...] = (
     ),
     (
         "Conventions that are ProofPack's, not a regulator's.",
+        # D4 7.2 adds "with Clopper-Pearson alongside at k = 0 or k = n" after the Wilson
+        # clause; the engine prints no Clopper-Pearson interval (row 49), so the clause is
+        # removed (E9 repair 1, lens FA-N3 / RG-N13)
         "Low-n tier labels, the 200/200 calibration-curve convention, the choice of Wilson (no "
-        "continuity correction) with Clopper-Pearson alongside at k = 0 or k = n, and bootstrap "
-        "settings are ProofPack conventions, stated in T7 with citations. No regulator "
-        "specifies per-stratum minimum sizes.",
+        "continuity correction), and bootstrap settings are ProofPack conventions, stated in T7 "
+        "with citations. No regulator specifies per-stratum minimum sizes.",
     ),
     (
         "Synthetic or demonstration data.",

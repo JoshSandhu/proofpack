@@ -181,8 +181,9 @@ def method(num: dict[str, Any] | None) -> str:
 # ------------------------------------------------ facets of one Number (build day 9, E9)
 #
 # The sentence renderer (:mod:`proofpack.render.sentences`) prints a Number's parts in
-# prose; each part is printed here by the same rule :func:`number` applies to the whole
-# cell, so a sentence and a table state one figure one way.
+# prose; each part is rounded here by the same rule :func:`number` applies to the whole
+# cell. The tier superscripts sit on the estimate in a sentence (``30/38 (78.9%ᶜ)``) and
+# after the interval in a table cell (``30/38 (78.9%) [66.6, 89.5]ᶜ``).
 
 
 def has_interval(num: dict[str, Any]) -> bool:

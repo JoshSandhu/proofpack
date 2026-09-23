@@ -53,7 +53,7 @@
 <text class="fig-text" x="300" y="362" text-anchor="middle">{{ f.xlabel }}</text>
 <text class="fig-text" x="16" y="180" transform="rotate(-90 16 180)" text-anchor="middle">{{ f.ylabel }}</text>
 <text class="fig-text" x="90" y="40">{{ f.legend }}</text>
-{% if f.flag %}<text class="fig-text fig-note" x="90" y="58">200/200 convention: fewer than 200 events or non-events</text>{% endif %}
+{% if f.flag_short %}<text class="fig-text fig-note" x="90" y="58">{{ f.flag_short }}</text>{% endif %}
 <text class="fig-text" x="70" y="424">Histogram strip: predicted risks per decile bin (bar height n)</text>
 </svg>
 <figcaption>{{ f.title }}. {{ f.caption }}{% if f.flag %}; {{ f.flag }}{% endif %}.</figcaption>

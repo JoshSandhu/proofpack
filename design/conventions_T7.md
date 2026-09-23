@@ -1,8 +1,7 @@
 # ProofPack reporting conventions for the T7 methods appendix
 
-Paragraphs the T7 template (D4 section 10, build day 9) inserts verbatim. Every number here
-comes from a committed script's output, named with its version and seed. These are
-ProofPack conventions; no regulator specifies them, and none of them is a guarantee.
+These are ProofPack conventions; no regulator specifies them, and none of them is a
+guarantee.
 
 ## Subgroup tables (build day 5, `stats.subgroups`)
 
@@ -32,7 +31,8 @@ because the subgroup is part of it.
 
 **Differences.** Proportion metrics: Newcombe (1998) method 10 on independent rows. AUROC:
 the unpaired DeLong (1988) difference - the two variances add because the samples are
-disjoint - with a Wald interval; z and the two-sided p are detail, never a verdict. The
+disjoint - with a Wald interval; z and the two-sided p are printed as detail, and no status
+is read from them. The
 AUROC difference is refused with `boundary_estimate` (estimate carried, no z, no p) when
 either side's DeLong variance is zero - a perfectly separated side, whose own AUROC the
 engine already refuses for the same reason - because the interval would otherwise be the
@@ -160,10 +160,11 @@ section 9), which pins the resampling algorithm, and most of R2 section 1.3's sm
 route. Every shape below the bar carries the R2 section 3.3 tier annotation ("not evaluable,
 shown for transparency" below 10 units, "very low precision" below 30), so a reader sees the
 shortage; but a cell of 10 to 40 cases at a high proportion renders with an interval that is
-too narrow and only a "very low precision" or no annotation. That is an open decision for
-Josh (day-5 note): a design-effect-adjusted Wilson interval for clustered proportions, an
-effective-units floor per cell, or T7 carrying this table as the statement of what the
-interval does. Until it is taken, this paragraph is the honest one and T7 should carry it.
+too narrow and only a "very low precision" or no annotation. ProofPack's decision of 15
+September 2026 (DEC-18): a design-effect-adjusted Wilson interval for clustered proportions
+is a planned engine item, with its own method name and its own coverage run; until it is
+in the engine, this table is the statement of what the interval does, every clustered cell
+keeps its tier annotation, and `MIN_UNITS_PER_STRATUM` stays at 2.
 
 The AUROC frozen-share half: every shape the constant renders measured at or above the
 bar in the recorded run; the first shape it refuses did in the recorded run and in six of
@@ -173,17 +174,14 @@ at the 0.20 and 0.30 rows).
 The DEC-08 refusal-below-the-bar is **not implemented on either route** for the
 `MIN_UNITS_PER_STRATUM` half: the AUROC route renders the u = 2, m = 0 shape (0.715 /
 0.620 in the table above) and the proportion route renders a clustered cell of 10 cases at
-p = 0.9 (0.672 above), each with its tier annotation and no refusal. That is the open
-decision named in the previous paragraph, not an omission of this file.
+p = 0.9 (0.672 above), each with its tier annotation and no refusal. That is the DEC-18
+position stated two paragraphs above.
 
 ## Calibration (build day 6, `stats.calibration`)
 
 Each convention below is stated in full in the module docstring of `stats.calibration`,
 with the test that feeds the input named; this section is the T7 summary of the same
-rules. Nothing here is a verdict: no target is compared to and no word describes the
-calibration; `test_no_verdict_word_appears_in_any_key_or_engine_string_of_the_day6_output`
-walks every key and string of the assembled day-6 documents for the verdict words the
-brief names.
+rules. No target is compared to and no word describes the calibration.
 
 **Scope.** The block is computed only for a score declared `probability` with
 `higher_is_positive`. A `logit` or `other` score gives a `None` block with the typed
@@ -280,9 +278,10 @@ i.i.d. and under a declared plan; lens 2 of 2026-09-18, FA-N3 / FA-N7:
 So on those rows the O:E says `very_low_precision` and the Brier beside it carries no
 tier. The Brier's choice is day 5's (`_brier_cell` uses `precision_flags(n_cases)` with no
 events) and the cross-check test forces the calibration Brier to match it; the clustered
-O:E and fits inherit `_Ctx.tier`'s `events=None` under a plan. Whether the few-events
-tier should ride on those cells too is an open decision (needs-from-Josh in the repair
-round 2 note), not a rule this file sets.
+O:E and fits inherit `_Ctx.tier`'s `events=None` under a plan. ProofPack's decision
+DEC-35 keeps this as measured: the few-events tier rides on the O:E and the three fits on
+i.i.d. rows only, and is not extended to the Brier, reference Brier, IPA or the clustered
+cells.
 
 `imprecise` means "the interval's half-width exceeds 0.10" (R2 section 3.3, written for a
 proportion). `Number.with_precision_flags` applies that arithmetic to whatever interval
@@ -318,8 +317,8 @@ process measured the O:E at 0.630 / 0.670 / 0.787 and the intercept-in-the-large
 0.90 and one - the intercept-in-the-large on 60 cases x 3 rows at seed 2026 - reads
 0.897, under the bar by less than one Monte-Carlo standard error (0.930 at seed 7; the
 analytic interval on the same cohorts 0.913). That cell is rendered with its tier
-annotation and the decision whether to add a case-count floor for the calibration route
-is Josh's (repair round 1 note, needs 1; DEC-18 (c) applies meanwhile). These are
+annotation, and no case-count floor is added to the calibration route (ProofPack's
+decision DEC-34, under DEC-18 (c)). These are
 measurements on this process at these three shapes and two seeds, not a guarantee.
 
 **What the table does not measure.** In this process the case effect `b_case` is inside

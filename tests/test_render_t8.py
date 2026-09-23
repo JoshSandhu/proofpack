@@ -152,6 +152,14 @@ def words(text: str) -> set[str]:
     return set(re.split(r"[^a-z]+", text.lower())) - {""}
 
 
+def footers_per_page(page: str) -> list[int]:
+    """The number of ``page-footer`` elements inside each ``<section class="page`` (E9
+    repair 1, lens RG-N3: the footer tests compared two totals, so a footer moved from
+    one page to another passed)."""
+    chunks = page.split('<section class="page')[1:]
+    return [c.split("</section>", 1)[0].count('class="page-footer"') for c in chunks]
+
+
 # ------------------------------------------------------------------ golden
 
 

@@ -54,8 +54,12 @@ _T: list[Template] = [
         phrases={
             "provenance_phrase": {
                 "prespecified_sap": "pre-specified in the statistical analysis plan ({source})",
+                # D4 section 8 prints "and is therefore optimistically biased"; "biased"
+                # is a verdict word (checker.VERDICT_WORDS) and no rendered page may carry
+                # one (E9 repair 1, lens FA-B1). The sentence states what was done instead.
                 "derived_from_this_dataset": (
-                    "derived from this dataset and is therefore optimistically biased"
+                    "derived from this dataset: the threshold was chosen on the same data "
+                    "its performance is estimated on"
                 ),
             }
         },

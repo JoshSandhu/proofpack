@@ -162,7 +162,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <li><strong>Out of scope (never performed by ProofPack).</strong> Study design; sample-size calculation; selection of acceptance criteria, margins or thresholds; adjudication and reference-standard construction (rater columns are never used to construct labels); MRMC or reader studies; clinical-outcome or trial evidence; literature review; valid clinical association; benefit-risk conclusions; risk management; cybersecurity documentation; human factors; explainability; complaints, vigilance and incident trend reporting (MDR Art. 88; GB SI 2024/1368 reg. 44ZN); authorship of the 510(k) Summary (21 CFR 807.92).</li>
 <li><strong>Guidance status.</strong> Every guidance reference in this document names the document, its version or date and whether it is draft or final. Where the reference is to the FDA draft guidance &#34;Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations&#34; (January 2025), it is a draft, not for implementation, and section numbering may change on finalisation. References to the FDA PCCP guidance are to the version issued 4 December 2024 and updated 18 August 2025. References to the FDA &#34;Statistical Guidance on Reporting Results from Studies Evaluating Diagnostic Tests&#34; are to the final guidance of 13 March 2007.</li>
 <li><strong>Narrative.</strong> All prose is machine-drafted from a fixed sentence library bound to computed quantities. It must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Every number in the prose is traceable to a JSON path in the accompanying pack.json.</li>
-<li><strong>Conventions that are ProofPack&#39;s, not a regulator&#39;s.</strong> Low-n tier labels, the 200/200 calibration-curve convention, the choice of Wilson (no continuity correction) with Clopper-Pearson alongside at k = 0 or k = n, and bootstrap settings are ProofPack conventions, stated in T7 with citations. No regulator specifies per-stratum minimum sizes.</li>
+<li><strong>Conventions that are ProofPack&#39;s, not a regulator&#39;s.</strong> Low-n tier labels, the 200/200 calibration-curve convention, the choice of Wilson (no continuity correction), and bootstrap settings are ProofPack conventions, stated in T7 with citations. No regulator specifies per-stratum minimum sizes.</li>
 <li><strong>Synthetic or demonstration data.</strong> Where this document is marked &#34;SYNTHETIC - illustrative&#34;, &#34;DEMO&#34; or &#34;TRIAL&#34;, it contains no real evidence and must not be used in any regulatory record.</li>
 </ol>
 <table class="guidance">
@@ -400,7 +400,6 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 </tbody>
 </table>
 </div>
-<p class="footnote">The IPA row's tier superscript is the proportion tier applied to the IPA's own interval: it states the half-width on the IPA's scale and nothing about a proportion (ProofPack reporting convention; T7, DEC-35).</p>
 <div class="table-wrap">
 <table class="deciles">
 <caption>Decile table - ten equal-mass bins by score; observed k/n (%) with its interval</caption>
@@ -489,7 +488,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <div class="placeholder" data-slot="CT-10">[CUSTOMER TEXT REQUIRED - pre-specification source of each subgroup attribute; ProofPack does not draft this]</div><h3 id="t1-s9-1">Attribute <span class="customer-text inline">age</span></h3>
 <div class="table-wrap">
 <table class="subgroup" data-attribute="age" data-op="op1">
-<caption>Table T1-10 - performance by <span class="customer-text inline">age</span> at operating point <span class="customer-text inline">op1</span>; reference level <span class="customer-text inline">40-65</span> (rule declared); pre-specified. Wilson score for proportions, DeLong for AUROC; tiers are ProofPack reporting conventions</caption>
+<caption>Table T1-10 - performance by <span class="customer-text inline">age</span> at operating point <span class="customer-text inline">op1</span>; reference level <span class="customer-text inline">40-65</span> (rule declared); pre-specified. Interval methods in this table: DeLong, logit-transformed interval; DeLong, Wald interval; Wilson score, no continuity correction; tiers are ProofPack reporting conventions</caption>
 <thead><tr><th scope="col">Group</th><th scope="col" class="num">n</th><th scope="col" class="num">Events</th><th scope="col" class="num">Sensitivity k/n (%) [95% CI]</th><th scope="col" class="num">Specificity k/n (%) [95% CI]</th><th scope="col" class="num">AUROC [95% CI]</th><th scope="col">Pre-spec.</th><th scope="col">Tier</th></tr></thead>
 <tbody>
 <tr><th scope="row" class="customer-text">40-65 (ref)</th><td class="num">113</td><td class="num">37</td><td class="num" data-ref="/subgroups/1/metrics/op1/sensitivity/number" data-kind="proportion" data-facet="cell">29/37 (78.4%) [62.8, 88.6]ᶜ</td><td class="num" data-ref="/subgroups/1/metrics/op1/specificity/number" data-kind="proportion" data-facet="cell">52/76 (68.4%) [57.3, 77.8]ᶜ</td><td class="num" data-ref="/subgroups/1/metrics/auroc/number" data-kind="three_dp" data-facet="cell">0.828 [0.748, 0.907]</td><td>yes</td><td></td></tr>
@@ -502,7 +501,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 </div>
 <div class="table-wrap">
 <table class="differences">
-<caption>Table T1-11 - differences against the reference level <span class="customer-text inline">40-65</span> (Newcombe method 10 for proportions in percentage points, unpaired DeLong for AUROC; differences only, from which no statement about subgroup consistency is drawn)</caption>
+<caption>Table T1-11 - differences against the reference level <span class="customer-text inline">40-65</span> (proportions in percentage points; interval methods in this table: DeLong, Wald interval; Newcombe method 10; differences only, from which no statement about subgroup consistency is drawn)</caption>
 <thead><tr><th scope="col">Group</th><th scope="col" class="num">Δ Sensitivity (pp) [95% CI]</th><th scope="col" class="num">Δ Specificity (pp) [95% CI]</th><th scope="col" class="num">Δ AUROC [95% CI]</th></tr></thead>
 <tbody>
 <tr><th scope="row" class="customer-text">0-40</th><td class="num" data-ref="/subgroups/0/diff_vs_reference/op1/sensitivity/number" data-kind="difference_pp" data-facet="cell">+0.6 [−17.8, +19.1]</td><td class="num" data-ref="/subgroups/0/diff_vs_reference/op1/specificity/number" data-kind="difference_pp" data-facet="cell">+9.4 [−4.5, +22.9]</td><td class="num" data-ref="/subgroups/0/diff_vs_reference/auroc/number" data-kind="difference_3dp" data-facet="cell">+0.021 [−0.088, +0.129]</td></tr>
@@ -623,7 +622,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <h3 id="t1-s9-2">Attribute <span class="customer-text inline">sex</span></h3>
 <div class="table-wrap">
 <table class="subgroup" data-attribute="sex" data-op="op1">
-<caption>Table T1-10 - performance by <span class="customer-text inline">sex</span> at operating point <span class="customer-text inline">op1</span>; reference level <span class="customer-text inline">M</span> (rule declared); pre-specified. Wilson score for proportions, DeLong for AUROC; tiers are ProofPack reporting conventions</caption>
+<caption>Table T1-10 - performance by <span class="customer-text inline">sex</span> at operating point <span class="customer-text inline">op1</span>; reference level <span class="customer-text inline">M</span> (rule declared); pre-specified. Interval methods in this table: DeLong, Wald interval; Wilson score, no continuity correction; tiers are ProofPack reporting conventions</caption>
 <thead><tr><th scope="col">Group</th><th scope="col" class="num">n</th><th scope="col" class="num">Events</th><th scope="col" class="num">Sensitivity k/n (%) [95% CI]</th><th scope="col" class="num">Specificity k/n (%) [95% CI]</th><th scope="col" class="num">AUROC [95% CI]</th><th scope="col">Pre-spec.</th><th scope="col">Tier</th></tr></thead>
 <tbody>
 <tr><th scope="row" class="customer-text">M (ref)</th><td class="num">202</td><td class="num">63</td><td class="num" data-ref="/subgroups/5/metrics/op1/sensitivity/number" data-kind="proportion" data-facet="cell">45/63 (71.4%) [59.3, 81.1]ᶜ</td><td class="num" data-ref="/subgroups/5/metrics/op1/specificity/number" data-kind="proportion" data-facet="cell">102/139 (73.4%) [65.5, 80.0]</td><td class="num" data-ref="/subgroups/5/metrics/auroc/number" data-kind="three_dp" data-facet="cell">0.794 [0.730, 0.859]</td><td>yes</td><td></td></tr>
@@ -634,7 +633,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 </div>
 <div class="table-wrap">
 <table class="differences">
-<caption>Table T1-11 - differences against the reference level <span class="customer-text inline">M</span> (Newcombe method 10 for proportions in percentage points, unpaired DeLong for AUROC; differences only, from which no statement about subgroup consistency is drawn)</caption>
+<caption>Table T1-11 - differences against the reference level <span class="customer-text inline">M</span> (proportions in percentage points; interval methods in this table: DeLong, Wald interval; Newcombe method 10; differences only, from which no statement about subgroup consistency is drawn)</caption>
 <thead><tr><th scope="col">Group</th><th scope="col" class="num">Δ Sensitivity (pp) [95% CI]</th><th scope="col" class="num">Δ Specificity (pp) [95% CI]</th><th scope="col" class="num">Δ AUROC [95% CI]</th><th scope="col">Criterion (id) and status; max lower bound at n</th></tr></thead>
 <tbody>
 <tr><th scope="row" class="customer-text">F</th><td class="num" data-ref="/subgroups/4/diff_vs_reference/op1/sensitivity/number" data-kind="difference_pp" data-facet="cell">+7.0 [−7.9, +21.7]</td><td class="num" data-ref="/subgroups/4/diff_vs_reference/op1/specificity/number" data-kind="difference_pp" data-facet="cell">+4.8 [−5.4, +14.8]</td><td class="num" data-ref="/subgroups/4/diff_vs_reference/auroc/number" data-kind="difference_3dp" data-facet="cell">+0.079 [−0.002, +0.160]</td><td><span class="customer-text inline">fairness:tpr_gap</span> (row 9) → <span class="status">criterion not met</span>; max LB — at n = 63, attainable: —</td></tr>
@@ -719,7 +718,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <h3 id="t1-s9-3">Attribute <span class="customer-text inline">site</span></h3>
 <div class="table-wrap">
 <table class="subgroup" data-attribute="site" data-op="op1">
-<caption>Table T1-10 - performance by <span class="customer-text inline">site</span> at operating point <span class="customer-text inline">op1</span>; reference level <span class="customer-text inline">S1</span> (rule largest_tie_first_in_level_order); not pre-specified, exploratory. Wilson score for proportions, DeLong for AUROC; tiers are ProofPack reporting conventions</caption>
+<caption>Table T1-10 - performance by <span class="customer-text inline">site</span> at operating point <span class="customer-text inline">op1</span>; reference level <span class="customer-text inline">S1</span> (rule largest_tie_first_in_level_order); not pre-specified, exploratory. Interval methods in this table: DeLong, logit-transformed interval; DeLong, Wald interval; Wilson score, no continuity correction; tiers are ProofPack reporting conventions</caption>
 <thead><tr><th scope="col">Group</th><th scope="col" class="num">n</th><th scope="col" class="num">Events</th><th scope="col" class="num">Sensitivity k/n (%) [95% CI]</th><th scope="col" class="num">Specificity k/n (%) [95% CI]</th><th scope="col" class="num">AUROC [95% CI]</th><th scope="col">Pre-spec.</th><th scope="col">Tier</th></tr></thead>
 <tbody>
 <tr><th scope="row" class="customer-text">S1 (ref)</th><td class="num">185</td><td class="num">56</td><td class="num" data-ref="/subgroups/6/metrics/op1/sensitivity/number" data-kind="proportion" data-facet="cell">40/56 (71.4%) [58.5, 81.6]ᶜ</td><td class="num" data-ref="/subgroups/6/metrics/op1/specificity/number" data-kind="proportion" data-facet="cell">98/129 (76.0%) [67.9, 82.5]</td><td class="num" data-ref="/subgroups/6/metrics/auroc/number" data-kind="three_dp" data-facet="cell">0.821 [0.757, 0.885]</td><td>no</td><td></td></tr>
@@ -731,7 +730,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 </div>
 <div class="table-wrap">
 <table class="differences">
-<caption>Table T1-11 - differences against the reference level <span class="customer-text inline">S1</span> (Newcombe method 10 for proportions in percentage points, unpaired DeLong for AUROC; differences only, from which no statement about subgroup consistency is drawn)</caption>
+<caption>Table T1-11 - differences against the reference level <span class="customer-text inline">S1</span> (proportions in percentage points; interval methods in this table: DeLong, Wald interval; Newcombe method 10; differences only, from which no statement about subgroup consistency is drawn)</caption>
 <thead><tr><th scope="col">Group</th><th scope="col" class="num">Δ Sensitivity (pp) [95% CI]</th><th scope="col" class="num">Δ Specificity (pp) [95% CI]</th><th scope="col" class="num">Δ AUROC [95% CI]</th><th scope="col">Criterion (id) and status; max lower bound at n</th></tr></thead>
 <tbody>
 <tr><th scope="row" class="customer-text">S2</th><td class="num" data-ref="/subgroups/7/diff_vs_reference/op1/sensitivity/number" data-kind="difference_pp" data-facet="cell">+9.9 [−5.6, +25.1]</td><td class="num" data-ref="/subgroups/7/diff_vs_reference/op1/specificity/number" data-kind="difference_pp" data-facet="cell">−0.6 [−11.1, +9.9]</td><td class="num" data-ref="/subgroups/7/diff_vs_reference/auroc/number" data-kind="difference_3dp" data-facet="cell">+0.037 [−0.048, +0.122]</td><td><span class="customer-text inline">C_f1_site</span> (row 4) → <span class="status">not assessable</span>; max LB — at n = —, attainable: —</td></tr>

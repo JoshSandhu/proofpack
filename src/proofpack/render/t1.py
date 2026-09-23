@@ -475,6 +475,18 @@ def calibration_block(document: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def cell_methods(document: dict[str, Any], cells: list[dict[str, Any]]) -> str:
+    """The interval methods of the Numbers ``cells`` print, for a table's caption (D4
+    section 1.2: the CI method is stated in the caption), read from each Number's own
+    ``method``; never a fixed method name (E9 repair 1, lens FA-B2)."""
+    nums = []
+    for c in cells:
+        found, num = resolve_pointer(document, c["ref"])
+        if found and isinstance(num, dict):
+            nums.append(num)
+    return figures_mod.method_list(nums)
+
+
 def _tier_mark(tier: Any) -> str:
     if not tier:
         return ""
@@ -591,20 +603,26 @@ def subgroup_blocks(document: dict[str, Any]) -> list[dict[str, Any]]:
                 for t in ((meta.get("heterogeneity") or {}).get("tests") or [])
                 if t.get("operating_point") in (op, None)
             ]
+            overall_row = {
+                "n": fmt.count((overall.get("accuracy") or {}).get("n")),
+                "events": fmt.count((overall.get(se) or {}).get("n")),
+                "se": cell(document, _p("overall", op, se), "proportion"),
+                "sp": cell(document, _p("overall", op, sp), "proportion"),
+                "auroc": cell(document, _p("overall", "threshold_free", "auroc"), "three_dp"),
+            }
             per_op.append(
                 {
                     "op": op,
                     "table": table,
-                    "overall": {
-                        "n": fmt.count((overall.get("accuracy") or {}).get("n")),
-                        "events": fmt.count((overall.get(se) or {}).get("n")),
-                        "se": cell(document, _p("overall", op, se), "proportion"),
-                        "sp": cell(document, _p("overall", op, sp), "proportion"),
-                        "auroc": cell(
-                            document, _p("overall", "threshold_free", "auroc"), "three_dp"
-                        ),
-                    },
+                    "overall": overall_row,
+                    "table_methods": cell_methods(
+                        document,
+                        [r[k] for r in [*table, overall_row] for k in ("se", "sp", "auroc")],
+                    ),
                     "diffs": diffs,
+                    "diff_methods": cell_methods(
+                        document, [d[k] for d in diffs for k in ("se", "sp", "auroc")]
+                    ),
                     "has_criteria": any(d["criteria"] for d in diffs),
                     "tests": tests,
                     "sentence": fmt.text((meta.get("heterogeneity") or {}).get("sentence")),

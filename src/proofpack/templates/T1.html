@@ -192,7 +192,7 @@
 </tbody>
 </table>
 </div>
-<p class="footnote">The IPA row's tier superscript{% if calibration.ipa_tiers %} ({{ calibration.ipa_tiers }}){% endif %} is the proportion tier applied to the IPA's own interval: it states the half-width on the IPA's scale and nothing about a proportion (ProofPack reporting convention; T7, DEC-35).{% if calibration.clustered %} Under the clustered plan every interval above is a cluster-bootstrap interval; each cell keeps its tier annotation and the measured coverage of the route, including the one cell below the bar, is in T7 (DEC-18 (c), DEC-34).{% endif %}</p>
+{% if calibration.ipa_tiers or calibration.clustered %}<p class="footnote">{% if calibration.ipa_tiers %}The IPA row's tier superscript ({{ calibration.ipa_tiers }}) is the proportion tier applied to the IPA's own interval: it states the half-width on the IPA's scale and nothing about a proportion (ProofPack reporting convention; T7, DEC-35).{% endif %}{% if calibration.ipa_tiers and calibration.clustered %} {% endif %}{% if calibration.clustered %}Under the clustered plan every interval above is a cluster-bootstrap interval; each cell keeps its tier annotation and the measured coverage of the route, including the one cell below the bar, is in T7 (DEC-18 (c), DEC-34).{% endif %}</p>{% endif %}
 <div class="table-wrap">
 <table class="deciles">
 <caption>Decile table - ten equal-mass bins by score; observed k/n (%) with its interval</caption>
@@ -226,7 +226,7 @@
 {% for o in s.ops %}
 <div class="table-wrap">
 <table class="subgroup" data-attribute="{{ s.attribute }}" data-op="{{ o.op }}">
-<caption>Table T1-10 - performance by <span class="customer-text inline">{{ s.attribute }}</span> at operating point <span class="customer-text inline">{{ o.op }}</span>; reference level <span class="customer-text inline">{{ s.reference_level }}</span> (rule {{ s.reference_rule }}); {% if s.prespecified %}pre-specified{% else %}not pre-specified, exploratory{% endif %}. Wilson score for proportions, DeLong for AUROC; tiers are ProofPack reporting conventions</caption>
+<caption>Table T1-10 - performance by <span class="customer-text inline">{{ s.attribute }}</span> at operating point <span class="customer-text inline">{{ o.op }}</span>; reference level <span class="customer-text inline">{{ s.reference_level }}</span> (rule {{ s.reference_rule }}); {% if s.prespecified %}pre-specified{% else %}not pre-specified, exploratory{% endif %}. Interval methods in this table: {{ o.table_methods }}; tiers are ProofPack reporting conventions</caption>
 <thead><tr><th scope="col">Group</th><th scope="col" class="num">n</th><th scope="col" class="num">Events</th><th scope="col" class="num">{{ se_label }} k/n (%) [95% CI]</th><th scope="col" class="num">{{ sp_label }} k/n (%) [95% CI]</th><th scope="col" class="num">AUROC [95% CI]</th><th scope="col">Pre-spec.</th><th scope="col">Tier</th></tr></thead>
 <tbody>
 {% for r in o.table %}
@@ -239,7 +239,7 @@
 {% if o.diffs %}
 <div class="table-wrap">
 <table class="differences">
-<caption>Table T1-11 - differences against the reference level <span class="customer-text inline">{{ s.reference_level }}</span> (Newcombe method 10 for proportions in percentage points, unpaired DeLong for AUROC; differences only, from which no statement about subgroup consistency is drawn)</caption>
+<caption>Table T1-11 - differences against the reference level <span class="customer-text inline">{{ s.reference_level }}</span> (proportions in percentage points; interval methods in this table: {{ o.diff_methods }}; differences only, from which no statement about subgroup consistency is drawn)</caption>
 <thead><tr><th scope="col">Group</th><th scope="col" class="num">Δ {{ se_label }} (pp) [95% CI]</th><th scope="col" class="num">Δ {{ sp_label }} (pp) [95% CI]</th><th scope="col" class="num">Δ AUROC [95% CI]</th>{% if o.has_criteria %}<th scope="col">Criterion (id) and status; max lower bound at n</th>{% endif %}</tr></thead>
 <tbody>
 {% for d in o.diffs %}
