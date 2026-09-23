@@ -214,7 +214,7 @@ def estimate(num: dict[str, Any] | None, kind: str) -> str:
     never a digit from ``est`` (D4 section 1.2)."""
     if num is None:
         return NOT_ESTIMABLE
-    if num.get("suppressed"):
+    if num.get("suppressed"):  # the marker alone, as number() prints it
         return SUPPRESSED_MARK
     if not has_interval(num):
         return f"{NOT_ESTIMABLE} ({num.get('not_estimable_reason') or 'no_interval'})" + tiers(num)

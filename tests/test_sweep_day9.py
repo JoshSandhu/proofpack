@@ -69,3 +69,26 @@ def test_every_day9_pattern_matches_its_file_the_declared_number_of_times():
     for m in mod.MUTANTS_DAY9:
         text = (ROOT / m.file).read_text(encoding="utf-8")
         assert len(re.findall(m.pattern, text, flags=re.M)) == m.count, m.id
+
+
+def test_every_declared_mutant_of_every_day_still_matches_its_file():
+    """E9 found four stale patterns - three its own code moved, and a day-6 one
+    (``list_key_string_not_split``) matching twice since repair 5 of day 8 - each of
+    which stops a sweep at plant time. This test reads every list, so a moved line fails
+    in CI rather than an evening sweep."""
+    spec = importlib.util.spec_from_file_location(
+        "mutation_sweep_all", ROOT / "scripts" / "mutation_sweep.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        sys.modules.pop(spec.name, None)
+    stale = []
+    for m in (*mod.MUTANTS, *mod.AP2_MUTANTS):
+        text = (ROOT / m.file).read_text(encoding="utf-8")
+        n = len(re.findall(m.pattern, text, flags=re.M))
+        if n != m.count:
+            stale.append((m.id, m.label, n, m.count))
+    assert stale == []

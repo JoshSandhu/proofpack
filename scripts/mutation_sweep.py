@@ -891,8 +891,11 @@ MUTANTS_DAY6_A: tuple[Mutant, ...] = (
     Mutant(
         "list_key_string_not_split",
         DECLARE,
-        r"if isinstance\(value, str\):",
-        "if False:",
+        # anchored to the clustering check's indentation: repair 5 of day 8 added a second
+        # ``if isinstance(value, str):`` (the control-character walk), and the unanchored
+        # pattern matched twice from eda8a35 (found and fixed on day 9)
+        r"^        if isinstance\(value, str\):$",
+        "        if False:",
         day=6,
         what="clustering.columns: 'subject_id, hadm_id' passes silently (FA-N8)",
     ),
@@ -1405,7 +1408,9 @@ MUTANTS_DAY7: tuple[Mutant, ...] = (
     Mutant(
         "refused_licence_no_watermark",
         RUN,
-        r'watermark = licence\.watermark if licence\.status != "refused" else WATERMARK_EXPIRED',
+        # E9 moved the rule into run.watermark_for (DEC-48); the mutant is the same: the
+        # manifest takes the licence's own (null) watermark on a refused licence
+        r"watermark = watermark_for\(licence\)",
         "watermark = licence.watermark",
         day=7,
         what="a refused licence leaves the watermark null",
@@ -2119,7 +2124,8 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
     ),
     Mutant(
         "t8_operating_point_cell_not_customer_text",
-        T8_TEMPLATE,
+        # E9: T8's criteria table is the one macro T1 shares (templates/_criteria.html)
+        "src/proofpack/templates/_criteria.html",
         r'<td\{% if r\.operating_point_is_customer_text %\} class="customer-text"\{% endif %\}>',
         "<td>",
         day=8,
