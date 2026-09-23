@@ -99,6 +99,13 @@ pre { background: var(--pp-color-bg-inset); padding: var(--pp-space-3); border-r
 .highlight { background: var(--pp-color-brand-soft); }
 td.status { font-weight: 600; }
 .narrative-footer { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); font-style: italic; }
+.placeholder { border: var(--pp-layout-rule) dashed var(--pp-color-honesty); background: var(--pp-color-honesty-bg); color: var(--pp-color-honesty); padding: var(--pp-space-2) var(--pp-space-3); border-radius: var(--pp-radius-card); margin: var(--pp-space-2) 0; max-width: var(--pp-layout-measure); }
+.customer-text.inline { display: inline; border-left: 0; padding-left: 0; margin: 0; }
+.unverified { font-family: var(--pp-type-mono); color: var(--pp-color-honesty); }
+.narrative p { max-width: var(--pp-layout-measure); }
+figure.figure { margin: var(--pp-space-4) 0; }
+figure.figure svg { max-width: 100%; height: auto; color: var(--pp-color-ink); }
+figure.figure figcaption { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); max-width: var(--pp-layout-measure); }
 a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); outline-offset: var(--pp-layout-focus-offset); }
 @media print {
   @page { size: var(--pp-print-page-size); margin: var(--pp-print-page-margin); }
@@ -108,6 +115,9 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
   .print-footer { display: block; position: fixed; bottom: 0; left: 0; right: 0; font-size: var(--pp-print-footer-size); color: var(--pp-color-ink-soft); border-top: var(--pp-layout-rule) solid var(--pp-color-line); padding-top: var(--pp-space-1); background: var(--pp-color-bg); }
   thead { display: table-header-group; }
   .table-wrap { overflow-x: visible; }
+  @page landscape { size: A4 landscape; }
+  .landscape { page: landscape; }
+  .placeholder, .stamp { break-inside: avoid; }
 }
 </style>
 </head>

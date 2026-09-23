@@ -87,3 +87,13 @@ LONG_FORM_ITEMS: tuple[tuple[str, str], ...] = (
 SYNTHETIC_MARK = "SYNTHETIC - illustrative"
 DEMO_MARK = "DEMO"
 TRIAL_MARK = "TRIAL"
+
+#: The customer-text placeholder (D4 section 1.3; D5 PK-09), with ``{title}`` the slot's
+#: title. The ASCII hyphen where D4 prints an em dash, as for SYNTHETIC_MARK (the engine's
+#: recorded rule for every printed mark, DEC-01; the deviation is recorded in the E9 note).
+PLACEHOLDER = "[CUSTOMER TEXT REQUIRED - {title}; ProofPack does not draft this]"
+#: The cover stamp of a pack with unfilled customer slots (D4 section 1.3; D5 section 3.5).
+INCOMPLETE_MARK = "INCOMPLETE - customer sections outstanding: {n}"
+#: The marks that say what the data is (D4 section 1.5), set in ``manifest.data_marking``;
+#: the licence marks are the licence module's (``proofpack.licence.verify``).
+DATA_MARKS: tuple[str, ...] = (SYNTHETIC_MARK, DEMO_MARK)

@@ -1,0 +1,130 @@
+{# T7 - Methods appendix (D4 section 10), auto-generated from the run: every list on this
+   page is read from the run document by proofpack.render.t7 (methods from the Numbers'
+   method fields, the software from the manifest, the conventions file's sections for the
+   blocks the run computed, the citations the run's methods name). No arithmetic here. #}
+{% extends "base.html" %}
+{% block pages %}
+<section class="page" id="page-1">
+{{ page_header() }}
+<h1>{{ template_name }}</h1>
+<p class="cover-note">The methods this run used, read from the run document. Attachment set prepared for the manufacturer's own submission or record. Not a submission. No regulator has endorsed this tool.</p>
+{{ cover_stamps() }}
+<h2 id="t7-s1">1. Software, determinism and tolerances</h2>
+{{ margin_note(anchor.software) }}
+<table class="software">
+<caption>As recorded in the manifest of this run</caption>
+<tbody>
+{% for label, value in software_rows %}
+<tr><th scope="row">{{ label }}</th><td class="mono">{{ value }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<p class="tolerance">{{ tolerance_policy }}</p>
+<h2 id="t7-s2">2. Data handling</h2>
+{{ margin_note(anchor.data) }}
+<p>Mapping: rule-based, confirmed before the run; <code>mapping.json</code> SHA-256 <span class="mono">{{ mapping_sha256 }}</span>.</p>
+{% if halts %}
+<ul>{% for h in halts %}<li>{{ h }}</li>{% endfor %}</ul>
+{% else %}
+<p>HALT gates: none fired (a document is written only when none does).</p>
+{% endif %}
+<p>Warnings raised: {% if warning_codes %}{{ warning_codes | join(", ") }}{% else %}none{% endif %}.</p>
+<table class="flow">
+<caption>Table T1-2 - flow of rows (D4 section 5.10)</caption>
+<tbody>
+{% for label, value in flow_rows %}
+<tr><th scope="row">{{ label }}</th><td class="num">{{ value }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<p>Clustering: declared unit <span class="customer-text inline">{{ clustering.declared }}</span>; clustered path used: {% if clustering.clustered %}yes{% else %}no{% endif %} (route <span class="mono">{{ clustering.route }}</span>; {{ clustering.n_cases }} cases).</p>
+{{ page_footer() }}
+</section>
+<section class="page" id="page-2">
+{{ page_header() }}
+<h2 id="t7-s3">3. Methods used in this run</h2>
+{{ margin_note(anchor.methods) }}
+<table class="methods">
+<caption>Every interval method named by a Number in the run document, and how many Numbers carry it (read from run.json, not a list of what ProofPack can do)</caption>
+<thead><tr><th scope="col">Method</th><th scope="col">What it is</th><th scope="col" class="num">Numbers</th></tr></thead>
+<tbody>
+{% for m in methods %}
+<tr data-method="{{ m.id }}"><td class="mono">{{ m.id }}</td><td>{{ m.description }}</td><td class="num">{{ m.count }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% if has_subgroups %}
+<h2 id="t7-s4">4. Subgroups and differences</h2>
+{{ margin_note(anchor.subgroups) }}
+<p class="x1">{{ x1_sentence }}</p>
+<div class="conventions">{{ subgroup_conventions | safe }}</div>
+{% endif %}
+<h2 id="t7-s5">5. Calibration</h2>
+{{ margin_note(anchor.calibration) }}
+{% if has_calibration %}
+<div class="conventions">{{ calibration_conventions | safe }}</div>
+{% else %}
+{% if calibration_reason %}
+<p class="calibration-null">calibration: null - reason <span class="mono">{{ calibration_reason.reason }}</span> (score declared {{ calibration_reason.score_type }}, {{ calibration_reason.orientation }}).</p>
+{% else %}
+{{ no_data("calibration: null - the run document records no reason") }}
+{% endif %}
+{% endif %}
+{% if has_cluster_bootstrap %}
+<h2 id="t7-s6">6. Cluster-bootstrap coverage</h2>
+<div class="conventions">{{ coverage_conventions | safe }}</div>
+{% endif %}
+{% if fairness %}
+<h2 id="t7-s7">7. Fairness</h2>
+<table class="gap-definitions">
+<caption>Gap definitions, as the engine computed them</caption>
+<tbody>
+{% for key, text in fairness.definitions %}
+<tr><th scope="row" class="mono">{{ key }}</th><td>{{ text }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<p class="impossibility">Impossibility statement: {{ fairness.citation }} <span class="unverified">[unverified]</span> {{ fairness.pending }}.</p>
+{% endif %}
+{{ page_footer() }}
+</section>
+<section class="page" id="page-3">
+{{ page_header() }}
+<h2 id="t7-s8">8. Reporting conventions</h2>
+{{ margin_note(anchor.conventions) }}
+<p class="conventions-sentence">{{ conventions_sentence }}</p>
+<div class="conventions">{{ conventions_intro | safe }}</div>
+<table class="tiers">
+<caption>Tier superscripts - ProofPack reporting convention (R2 section 3.3); annotations, never suppression</caption>
+<tbody>
+{% for mark, text in tier_legend %}
+<tr><th scope="row">{{ mark }}</th><td>{{ text }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% if not_run %}
+<p class="not-run">Not part of this run: {{ not_run | join("; ") }}.</p>
+{% endif %}
+<h2 id="t7-s9">9. Library and reference citations</h2>
+{% if citations_used %}
+<ul class="citations">
+{% for c in citations_used %}
+<li data-citation="{{ c.id }}">{{ c.text }}{% if c.url %} ({{ c.url }}){% endif %}{% if c.mark %} <span class="unverified">{{ c.mark }}</span>{% endif %}</li>
+{% endfor %}
+</ul>
+{% else %}
+{{ no_data("No citation in the register names a method or block this run used.") }}
+{% endif %}
+<h2 id="t7-s10">10. Open verification items</h2>
+{% if open_items %}
+<ul class="open-items">
+{% for c in open_items %}
+<li data-open="{{ c.id }}">{{ c.text }} - <span class="unverified">{{ c.mark }}</span> (source: {{ c.source }})</li>
+{% endfor %}
+</ul>
+{% else %}
+<p>No open verification item is recorded in the citation register.</p>
+{% endif %}
+{{ page_footer() }}
+</section>
+{% endblock %}

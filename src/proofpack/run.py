@@ -405,12 +405,20 @@ def write_documents(
         )
         return written, notes
     for template in templates:
-        if template == "T8":
-            written.append(write_t8(outcome.document, out))
+        writer = document_writers().get(template)
+        if writer is not None:
+            written.append(writer(outcome.document, out))
             continue
-        exc = TemplateNotBuilt(f"template {template} is not built in E8 (E9 renders T1 and T7)")
+        exc = TemplateNotBuilt(f"template {template} is not built in this engine version")
         notes.append(f"{template} not written: {exc}")
     return written, notes
+
+
+def document_writers() -> dict[str, Any]:
+    """``--templates`` id -> the function writing ``<out>/<id>.html`` (E8: T8; E9: T7)."""
+    from proofpack.render.t7 import write_t7  # noqa: PLC0415 - imports jinja2 lazily
+
+    return {"T7": write_t7, "T8": write_t8}
 
 
 def _warning_entry(f: Finding) -> dict[str, Any]:

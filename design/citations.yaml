@@ -1,0 +1,75 @@
+# Citations the T7 methods appendix prints (D4 section 10 items 12-13; build day 9, E9).
+#
+# One entry per reference. T7 lists an entry under "Library and reference citations" when
+# the run used a method or block it names in used_by (method ids are Number.method values;
+# the words subgroups, calibration, fairness, clustered and prevalence name a block of
+# run.json), and lists every entry with verified: false under "Open verification items".
+#
+# verified is true only when the reference was read in its primary source and the reading
+# is recorded; no entry here meets that bar in the engine repository on 24 September 2026,
+# so every entry is false and T7 prints each one "citation pending verification" with its
+# [unverified] marking kept (CLAUDE.md: anything not checked against a primary source
+# stays marked). The text of each entry is the spec's own wording (the source field names
+# the line); no page, volume or title was added from memory.
+schema_version: 1
+citations:
+  - id: wilson_1927
+    text: "Wilson (1927): the score interval for a binomial proportion"
+    source: "R2 sections 0 and 1.2 (Wilson score as FDA 2007's first choice); D4 section 7.2 item 7"
+    url: null
+    verified: false
+    used_by: [wilson]
+  - id: newcombe_1998
+    text: "Newcombe (1998): interval estimation for proportions and for the difference between independent proportions (method 10)"
+    source: "R2 sections 1.2 and 9; D1 section 10 (Newcombe 1998 Table II transcription open, F14)"
+    url: "http://www.stats.org.uk/statistical-inference/Newcombe1998.pdf"
+    verified: false
+    used_by: [newcombe10, newcombe11, newcombe_paired]
+  - id: delong_1988
+    text: "DeLong (1988): the variance of the area under the ROC curve from placements"
+    source: "R2 section 1.3 (AUROC with DeLong SE/CI via structural components)"
+    url: null
+    verified: false
+    used_by: [delong_wald, delong_logit]
+  - id: sun_xu_2014
+    text: "Sun and Xu (2014): a fast implementation of DeLong's algorithm"
+    source: "R2 section 1.3 and its source list"
+    url: "https://www.researchgate.net/publication/264007033_Fast_Implementation_of_DeLong's_Algorithm_for_Comparing_the_Areas_Under_Correlated_Receiver_Operating_Characteristic_Curves"
+    verified: false
+    used_by: [delong_wald, delong_logit]
+  - id: mercaldo_2007
+    text: "Mercaldo (2007): logit-scale intervals for predictive values at a declared prevalence"
+    source: "D1 section 10; D4 sections 5.2 and 10 item 4 (rendered citation pending verification until closed)"
+    url: null
+    verified: false
+    used_by: [logit_delta]
+  - id: van_calster_2019
+    text: "Van Calster et al. (2019): the calibration hierarchy and the 200/200 suggestion for a flexible curve"
+    source: "R2 section 1.4 and its source list; D4 section 10 item 6"
+    url: "https://link.springer.com/article/10.1186/s12916-019-1466-7"
+    verified: false
+    used_by: [calibration]
+  - id: riley_2021
+    text: "Riley et al. (2021): sample size and precision for external validation of a prediction model"
+    source: "R2 sections 7 and 10 (the page returned 403 in the research session)"
+    url: "https://onlinelibrary.wiley.com/doi/full/10.1002/sim.9025"
+    verified: false
+    used_by: [calibration]
+  - id: efron_tibshirani_bootstrap
+    text: "Efron and Tibshirani: the percentile bootstrap and the choice of B"
+    source: "R2 section 10 (cited from memory)"
+    url: null
+    verified: false
+    used_by: [bootstrap_percentile, cluster_bootstrap_percentile, bootstrap_bca]
+  - id: kleinberg_2016
+    text: "Kleinberg (2016): equalised error rates and calibration by group cannot in general hold together"
+    source: "R2 section 4 (cited from memory); D1 section 10; D4 section 10 item 8"
+    url: null
+    verified: false
+    used_by: [fairness]
+  - id: chouldechova_2017
+    text: "Chouldechova (2017): the same impossibility for error-rate balance and predictive parity"
+    source: "R2 section 4 (cited from memory); D1 section 10; D4 section 10 item 8"
+    url: null
+    verified: false
+    used_by: [fairness]

@@ -61,7 +61,7 @@ from proofpack.narrate.templates import NARRATIVE_FOOTER, STATUS_WORDS
 from proofpack.render import anchors
 from proofpack.render import format as fmt
 from proofpack.render.theme import css_root_block
-from proofpack.scope import LONG_FORM_ITEMS, LONG_FORM_TITLE, SHORT_FORM
+from proofpack.scope import INCOMPLETE_MARK, LONG_FORM_ITEMS, LONG_FORM_TITLE, SHORT_FORM
 
 #: Inside the package, so a built wheel carries the templates with the code (a
 #: repository-root ``templates/`` directory would not ship; D4 section 9 names the
@@ -154,8 +154,35 @@ def header_parts(document: dict[str, Any], template_name: str) -> tuple[str, str
     return customer, engine
 
 
+def marks(document: dict[str, Any], outstanding: int = 0) -> list[dict[str, str]]:
+    """The cover stamp's marks (D5 section 3.5), each the string the engine's own constant
+    spells, read from the manifest (never retyped in a template): the licence mark
+    (``manifest.watermark``), the data mark (``manifest.data_marking``, E9) and, when
+    customer-text slots are unfilled, :data:`proofpack.scope.INCOMPLETE_MARK`."""
+    manifest = document.get("manifest") or {}
+    out: list[dict[str, str]] = []
+    if manifest.get("watermark"):
+        out.append({"kind": "licence", "text": str(manifest["watermark"])})
+    if manifest.get("data_marking"):
+        out.append({"kind": "data", "text": str(manifest["data_marking"])})
+    if outstanding:
+        out.append({"kind": "incomplete", "text": INCOMPLETE_MARK.format(n=outstanding)})
+    return out
+
+
+def footer_marks(document: dict[str, Any]) -> str | None:
+    """The watermark word(s) the footer of every page carries: the licence mark and the
+    data mark, joined with `` · `` (D4 section 1.5)."""
+    manifest = document.get("manifest") or {}
+    words = [str(manifest[k]) for k in ("watermark", "data_marking") if manifest.get(k)]
+    return " · ".join(words) or None
+
+
 def furniture(
-    document: dict[str, Any], template_name: str, refs: list[dict[str, Any]]
+    document: dict[str, Any],
+    template_name: str,
+    refs: list[dict[str, Any]],
+    outstanding: int = 0,
 ) -> dict[str, Any]:
     customer, engine = header_parts(document, template_name)
     return {
@@ -166,7 +193,8 @@ def furniture(
         # the manufacturer's words are printed inside .customer-text)
         "title": engine,
         "footer": footer_text(document, refs),
-        "watermark": document["manifest"].get("watermark"),
+        "watermark": footer_marks(document),
+        "marks": marks(document, outstanding),
         "narrative_footer": NARRATIVE_FOOTER,
     }
 

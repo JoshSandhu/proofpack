@@ -28,6 +28,9 @@ _CANDIDATES = {
     "guidance_map_v1.csv": ["_schema/guidance_map_v1.csv", "../../design/guidance_map_v1.csv"],
     # D5 section 4 (build day 8): the theme, read by proofpack.render.theme
     "tokens.json": ["_schema/tokens.json", "../../design/tokens.json"],
+    # build day 9 (E9): the T7 methods appendix prints these two (D4 section 10)
+    "conventions_T7.md": ["_schema/conventions_T7.md", "../../design/conventions_T7.md"],
+    "citations.yaml": ["_schema/citations.yaml", "../../design/citations.yaml"],
 }
 
 

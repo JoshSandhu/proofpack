@@ -1,0 +1,15 @@
+{# A4 print rules (D5 section 3.5), included into base.html's one <style> block. Every
+   value is a theme custom property; no @import, url() or <link> (tests grep the rendered
+   page and this file). #}
+@media print {
+  @page { size: var(--pp-print-page-size); margin: var(--pp-print-page-margin); }
+  body { font-size: var(--pp-type-scale-table); }
+  .page { max-width: none; padding: 0; border-bottom: 0; }
+  .page-footer { display: none; }
+  .print-footer { display: block; position: fixed; bottom: 0; left: 0; right: 0; font-size: var(--pp-print-footer-size); color: var(--pp-color-ink-soft); border-top: var(--pp-layout-rule) solid var(--pp-color-line); padding-top: var(--pp-space-1); background: var(--pp-color-bg); }
+  thead { display: table-header-group; }
+  .table-wrap { overflow-x: visible; }
+  @page landscape { size: A4 landscape; }
+  .landscape { page: landscape; }
+  .placeholder, .stamp { break-inside: avoid; }
+}

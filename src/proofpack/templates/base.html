@@ -13,6 +13,23 @@
 {% macro margin_note(ref) -%}
 <aside class="margin-note{% if ref.draft %} draft{% endif %}">maps to <a href="#{{ ref.id }}">{{ ref.label }}</a></aside>
 {%- endmacro %}
+{# D5 section 3.5 furniture (build day 9). The cover stamp prints each mark the manifest
+   carries, spelled as the engine's constants spell it (proofpack.scope, the licence
+   module); the placeholder box prints proofpack.scope.PLACEHOLDER for a customer-text
+   slot with no text, or the engine's own line for a section with no data; the
+   Manufacturer-text block labels the customer's words. #}
+{% macro cover_stamps() -%}
+{% for mark in marks %}<p class="stamp" data-mark="{{ mark.kind }}">{{ mark.text }}</p>{% endfor %}
+{%- endmacro %}
+{% macro placeholder(slot) -%}
+<div class="placeholder" data-slot="{{ slot.id }}">{{ slot.text }}</div>
+{%- endmacro %}
+{% macro no_data(text) -%}
+<div class="placeholder" data-slot="none">{{ text }}</div>
+{%- endmacro %}
+{% macro manufacturer_text(label, body) -%}
+<div class="customer-text"><span class="label">Manufacturer text - {{ label }}</span>{{ body }}</div>
+{%- endmacro %}
 <!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -54,17 +71,15 @@ pre { background: var(--pp-color-bg-inset); padding: var(--pp-space-3); border-r
 .highlight { background: var(--pp-color-brand-soft); }
 td.status { font-weight: 600; }
 .narrative-footer { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); font-style: italic; }
+.placeholder { border: var(--pp-layout-rule) dashed var(--pp-color-honesty); background: var(--pp-color-honesty-bg); color: var(--pp-color-honesty); padding: var(--pp-space-2) var(--pp-space-3); border-radius: var(--pp-radius-card); margin: var(--pp-space-2) 0; max-width: var(--pp-layout-measure); }
+.customer-text.inline { display: inline; border-left: 0; padding-left: 0; margin: 0; }
+.unverified { font-family: var(--pp-type-mono); color: var(--pp-color-honesty); }
+.narrative p { max-width: var(--pp-layout-measure); }
+figure.figure { margin: var(--pp-space-4) 0; }
+figure.figure svg { max-width: 100%; height: auto; color: var(--pp-color-ink); }
+figure.figure figcaption { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); max-width: var(--pp-layout-measure); }
 a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); outline-offset: var(--pp-layout-focus-offset); }
-@media print {
-  @page { size: var(--pp-print-page-size); margin: var(--pp-print-page-margin); }
-  body { font-size: var(--pp-type-scale-table); }
-  .page { max-width: none; padding: 0; border-bottom: 0; }
-  .page-footer { display: none; }
-  .print-footer { display: block; position: fixed; bottom: 0; left: 0; right: 0; font-size: var(--pp-print-footer-size); color: var(--pp-color-ink-soft); border-top: var(--pp-layout-rule) solid var(--pp-color-line); padding-top: var(--pp-space-1); background: var(--pp-color-bg); }
-  thead { display: table-header-group; }
-  .table-wrap { overflow-x: visible; }
-}
-</style>
+{% include "_print.css.j2" %}</style>
 </head>
 <body>
 {% block pages %}{% endblock %}

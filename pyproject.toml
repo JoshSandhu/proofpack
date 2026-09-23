@@ -56,6 +56,9 @@ packages = ["src/proofpack"]
 # line, design/tokens.json, the resources.py entry); tests/test_render_theme.py installs a
 # built wheel into a fresh venv and asserts resource_path("tokens.json") resolves inside it.
 "design/tokens.json" = "proofpack/_schema/tokens.json"
+# build day 9 (E9): T7 prints the conventions file and the citation register
+"design/conventions_T7.md" = "proofpack/_schema/conventions_T7.md"
+"design/citations.yaml" = "proofpack/_schema/citations.yaml"
 
 [tool.hatch.build.targets.sdist]
 include = ["src/proofpack", "schema", "fixtures", "README.md", "pyproject.toml"]
@@ -80,7 +83,7 @@ markers = [
     "day6: Day 6",
     "day7: Day 7",
     "day8: Day 8 (E8) claims, checker, HTML renderer, T8, tokens.json",
-    "day9: Day 9",
+    "day9: Day 9 (E9) template library, T1, T7, D5 furniture, figures F2-F5, /sample-pack",
     "day10: Day 10",
     "fixture: named fixture register entries (F1-F21)",
     "ap2: A-P2 egress, telemetry and --offline (build day 8, lane A); every ap2 test also carries day8",
