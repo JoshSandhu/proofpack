@@ -68,6 +68,9 @@ STATUSES: tuple[str, ...] = ("ok", "grace", "expired", "refused")
 TIERS: tuple[str, ...] = ("trial", "quarterly", "annual")
 WATERMARK_TRIAL = "TRIAL"
 WATERMARK_EXPIRED = "LICENCE EXPIRED - not for submission"
+#: DEC-48 (23 September 2026): a run with no licence file carries its own mark; a file
+#: that is present and refused keeps WATERMARK_EXPIRED (proofpack.run.watermark_for).
+WATERMARK_NO_LICENCE = "NO LICENCE - not for submission"
 CLOCK_SKEW = timedelta(hours=24)
 TRIAL_DAYS = 30
 

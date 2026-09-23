@@ -278,7 +278,10 @@ def t7_context(
         "citations_used": used,
         "open_items": open_items,
         "guidance_refs": refs,
-        "anchor": {key: by_id[value] for key, value in T7_ANCHORS.items()},
+        "anchor": {
+            key: anchors.with_note_fields(by_id[value], guidance_map)
+            for key, value in T7_ANCHORS.items()
+        },
     }
     ctx.update(render_html.furniture(document, "T7", refs))
     return ctx

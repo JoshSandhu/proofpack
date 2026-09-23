@@ -126,6 +126,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <header class="page-header"><span class="customer-text">synthetic-classifier v1.3</span> · T8 · ProofPack v0.1.0.dev1 · run test-onl</header>
 <h1>T8 · Run manifest, declarations, scope and disclaimer</h1>
 <p class="cover-note">Attachment set prepared for the manufacturer's own submission or record. Not a submission. No regulator has endorsed this tool.</p>
+<p class="stamp" data-mark="incomplete">INCOMPLETE - customer sections outstanding: 11</p>
 <table class="cover-block">
 <caption>Cover block</caption>
 <tbody>
@@ -135,11 +136,11 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <tr><th scope="row">Reference platform</th><td>no (test)</td></tr>
 <tr><th scope="row">Input SHA-256</th><td class="mono"></td></tr>
 <tr><th scope="row">Guidance versions referenced</th><td><a href="#FDA_AIDSF_DATA_MGMT">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_AIDSF_PERF_VALIDATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_AIDSF_SUBGROUP_PERF">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_AIDSF_CALIBRATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_PCCP_MP1_DATA">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a>; <a href="#PP_SCOPE">ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</a>; <a href="#PP_METHODS">ProofPack internal: methods appendix conventions (T7) (engine version, internal)</a></td></tr>
-<tr><th scope="row">Customer sections outstanding</th><td>0</td></tr>
+<tr><th scope="row">Customer sections outstanding</th><td>11</td></tr>
 </tbody>
 </table>
 <h2 id="s1">1. Scope and limits of this document</h2>
-<aside class="margin-note">maps to <a href="#PP_SCOPE">ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</a></aside>
+<aside class="margin-note">maps to <a href="#PP_SCOPE">ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</a> · section n/a · eSTAR: n/a</aside>
 <ol class="disclaimer disclaimer-long">
 <li><strong>What ProofPack is.</strong> ProofPack is statistical software that computes performance estimates, confidence intervals, differences and distribution comparisons from a customer-supplied test table and renders them into document templates. It is not a certification, an audit, a regulatory opinion, a clinical evaluation or a submission. No regulator has reviewed, accepted, approved or endorsed this tool or its outputs.</li>
 <li><strong>What is warranted.</strong> Global Phoenix Solutions Ltd warrants the computational correctness of the numbers in this document to the tolerances stated in the Methods Appendix (T7), on the reference platform stated in the Run Manifest (T8). Nothing else is warranted.</li>
@@ -155,7 +156,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <section class="page" id="page-2">
 <header class="page-header"><span class="customer-text">synthetic-classifier v1.3</span> · T8 · ProofPack v0.1.0.dev1 · run test-onl</header>
 <h2 id="s2">2. Run manifest</h2>
-<aside class="margin-note">maps to <a href="#PP_METHODS">ProofPack internal: methods appendix conventions (T7) (engine version, internal)</a></aside>
+<aside class="margin-note">maps to <a href="#PP_METHODS">ProofPack internal: methods appendix conventions (T7) (engine version, internal)</a> · section n/a · eSTAR: n/a</aside>
 <table>
 <caption>Manifest, as recorded by the engine at run time (every field a fact about the run)</caption>
 <tbody>
@@ -180,7 +181,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 </tbody>
 </table>
 <h2 id="s3">3. Declarations echo</h2>
-<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_DATA_MGMT">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a></aside>
+<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_DATA_MGMT">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a> · section to confirm · eSTAR: to confirm</aside>
 <p>Every declaration below was written by the manufacturer in <code>criteria.yaml</code>; the engine infers none and supplies no default. The positive class and the score orientation are highlighted.</p>
 <table>
 <caption>Table T1-1 - declarations that shape every number in the pack</caption>
@@ -198,7 +199,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <tr><th scope="row">Fairness criterion of interest</th><td class="customer-text">tpr_gap on sex; bound 0.1 (ci_upper_bound &lt;=)</td></tr>
 </tbody>
 </table>
-<div class="customer-text"><span class="label">Manufacturer text - the declarations block of run.json as YAML (keys in canonical order; the file's SHA-256 is in the manifest)</span>
+<div class="customer-text"><span class="label">Manufacturer text - the declarations block of run.json as YAML (keys in canonical order; the file&#39;s SHA-256 is in the manifest)</span>
 <pre>bootstrap:
   B: 200
   interval: percentile
@@ -349,7 +350,7 @@ task: binary
 <p>No HALT gate fired (a document is only written when none does).</p>
 <p>No warnings were raised.</p>
 <h2 id="s5a">5a. Acceptance criteria (Table T1-17)</h2>
-<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_PERF_VALIDATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a></aside>
+<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_PERF_VALIDATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a> · section to confirm · eSTAR: to confirm</aside>
 <div class="table-wrap">
 <table class="criteria">
 <caption>One row per evaluated criterion, in the order the engine evaluated them (a criterion with <code>level: *</code> yields one row per level; rows are addressed by position, never by id, and each row's author, date and justification are those of the <code>criteria.yaml</code> entry it was evaluated from). Observed values print by the metric's rule of D4 section 1.2; the declared value prints with every digit run.json carries, unrounded; the compared statistic and the largest attainable lower bound, which the engine computed, print on the unit scale to three decimals. Status words are the engine's three and nothing else.</caption>
@@ -548,7 +549,7 @@ task: binary
 </table>
 </div>
 <h2 id="s6">6. Ledger</h2>
-<aside class="margin-note">maps to <a href="#FDA_PCCP_MP1_DATA">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a></aside>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_MP1_DATA">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a> · section to confirm · eSTAR: to confirm</aside>
 <table>
 <caption>Acceptance-decision runs recorded against this test set in the local ledger</caption>
 <tbody>
@@ -560,7 +561,7 @@ task: binary
 </tbody>
 </table>
 <h2 id="s7">7. Narrative integrity</h2>
-<aside class="margin-note">maps to <a href="#PP_SCOPE">ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</a></aside>
+<aside class="margin-note">maps to <a href="#PP_SCOPE">ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</a> · section n/a · eSTAR: n/a</aside>
 <table class="integrity">
 <caption>Counts computed from the document by the renderer</caption>
 <tbody>
@@ -613,7 +614,18 @@ task: binary
 </tbody>
 </table>
 <h2 id="s10">10. Customer sections outstanding</h2>
-<p>This template version defines no customer text slots; none are outstanding.</p>
+<p>The customer-text slots of the attachment set (T1) that no text filled in this build; T1 prints each as below and ProofPack drafts none of them.</p>
+<div class="placeholder" data-slot="CT-01">[CUSTOMER TEXT REQUIRED - manufacturer name and address; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-02">[CUSTOMER TEXT REQUIRED - device name and intended use (one paragraph); ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-03">[CUSTOMER TEXT REQUIRED - data collection method, cleaning, annotation and storage; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-04">[CUSTOMER TEXT REQUIRED - test-set sequestration and governance statement; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-05">[CUSTOMER TEXT REQUIRED - site characteristics, US and non-US; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-06">[CUSTOMER TEXT REQUIRED - intended-use population description; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-07">[CUSTOMER TEXT REQUIRED - how the reference standard was established: uncertainty, grading, blinding, number and qualification of clinicians; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-08">[CUSTOMER TEXT REQUIRED - statistical analysis plan reference and pre-specified primary endpoint; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-09">[CUSTOMER TEXT REQUIRED - calibration method used in development, if any; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-10">[CUSTOMER TEXT REQUIRED - pre-specification source of each subgroup attribute; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-11">[CUSTOMER TEXT REQUIRED - monitoring plan summary; ProofPack does not draft this]</div>
 <h2 id="s11">11. Data status</h2>
 <p>No synthetic, demonstration or trial marking applies to this run.</p>
 <footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-18T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final); ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal); ProofPack internal: methods appendix conventions (T7) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>

@@ -209,7 +209,7 @@ def claim_sentences(
 # ------------------------------------------------------------------ sections
 
 
-def _slots(document: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def customer_slots(document: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Every CT slot: its placeholder text, or the customer's text when the engine has it
     (CT-10 from the subgroups' declared sources)."""
     out: dict[str, dict[str, Any]] = {}
@@ -718,7 +718,7 @@ def t1_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
     ids += list(render_html.T8_ANCHORS.values())
     refs = anchors.resolve(ids, guidance_map)
     by_id = {r["id"]: r for r in refs}
-    slots = _slots(document)
+    slots = customer_slots(document)
     outstanding = sum(1 for s in slots.values() if not s["filled"])
     decl = document.get("declarations") or {}
     model = decl.get("model") or {}
@@ -745,7 +745,10 @@ def t1_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
         "long_form_items": render_html.LONG_FORM_ITEMS,
         "slots": slots,
         "outstanding": outstanding,
-        "anchors": {k: [by_id[i] for i in v] for k, v in T1_ANCHORS.items()},
+        "anchors": {
+            k: [anchors.with_note_fields(by_id[i], guidance_map) for i in v]
+            for k, v in T1_ANCHORS.items()
+        },
         "declaration_rows": render_html.declaration_rows(document),
         "flow_rows": flow_rows(document),
         "table1_rows": table1_rows(document),

@@ -14,7 +14,7 @@
     "schema_version": { "const": 1 },
     "manifest": {
       "type": "object",
-      "description": "Build day 7 (E7, proofpack.manifest): every key present. F17 as measured (tests/test_manifest.py::test_f17_two_runs_in_one_process_differ_only_in_run_id_started_duration_s_and_the_ledger_count): two runs of the same input, criteria and mapping in one process; the test asserts that run_id and ledger_count differ, that no manifest key outside run_id, started, duration_s and ledger_count differs (started and duration_s may or may not, run to run), that ledger.acceptance_runs in the body reads 1 then 2, that input_sha256, criteria_sha256 and mapping_sha256 are equal, and that the JSON bytes are identical once those keys are blanked. watermark is the licence state the footer prints (D4 section 3): null, TRIAL, or 'LICENCE EXPIRED - not for submission'.",
+      "description": "Build day 7 (E7, proofpack.manifest): every key present. F17 as measured (tests/test_manifest.py::test_f17_two_runs_in_one_process_differ_only_in_run_id_started_duration_s_and_the_ledger_count): two runs of the same input, criteria and mapping in one process; the test asserts that run_id and ledger_count differ, that no manifest key outside run_id, started, duration_s and ledger_count differs (started and duration_s may or may not, run to run), that ledger.acceptance_runs in the body reads 1 then 2, that input_sha256, criteria_sha256 and mapping_sha256 are equal, and that the JSON bytes are identical once those keys are blanked. watermark is the licence state the footer prints (D4 section 3): null, TRIAL, 'LICENCE EXPIRED - not for submission' (grace, expiry, a refused file), or 'NO LICENCE - not for submission' (no licence file; DEC-48, build day 9). data_marking (build day 9, optional, present only when set) is the data mark the footer and cover stamp print beside it: 'SYNTHETIC - illustrative' or 'DEMO' (proofpack.scope).",
       "required": [
         "run_id", "engine_version", "platform", "python", "numpy", "scipy", "input_sha256",
         "criteria_sha256", "mapping_sha256", "seed", "B", "started", "duration_s",
@@ -39,7 +39,15 @@
         "licence_id": { "type": ["string", "null"] },
         "tier": { "type": ["string", "null"] },
         "ledger_count": { "type": ["integer", "null"] },
-        "watermark": { "enum": [null, "TRIAL", "LICENCE EXPIRED - not for submission"] }
+        "watermark": {
+          "enum": [
+            null,
+            "TRIAL",
+            "LICENCE EXPIRED - not for submission",
+            "NO LICENCE - not for submission"
+          ]
+        },
+        "data_marking": { "enum": [null, "SYNTHETIC - illustrative", "DEMO"] }
       }
     },
     "declarations": { "type": "object" },

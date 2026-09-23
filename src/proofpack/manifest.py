@@ -81,9 +81,13 @@ def build_manifest(
     tier: str | None,
     ledger_count: int | None,
     watermark: str | None,
+    data_marking: str | None = None,
 ) -> dict[str, Any]:
+    """The manifest (D1 section 4.2). ``data_marking`` (E9) is written only when set, so
+    a customer's run.json keeps E7's key set; ``scripts/build_sample_pack.py`` sets it to
+    ``proofpack.scope.SYNTHETIC_MARK``."""
     plat = platform_tag()
-    return {
+    out = {
         "run_id": str(uuid.uuid4()),
         "engine_version": __version__,
         "platform": plat,
@@ -103,6 +107,9 @@ def build_manifest(
         "ledger_count": ledger_count,
         "watermark": watermark,
     }
+    if data_marking is not None:
+        out["data_marking"] = data_marking
+    return out
 
 
 def canonical_json(doc: dict[str, Any]) -> bytes:

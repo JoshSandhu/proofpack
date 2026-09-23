@@ -11,7 +11,7 @@
 <header class="page-header"><span class="customer-text">{{ header_customer }}</span> · {{ header_engine }}</header>
 {%- endmacro %}
 {% macro margin_note(ref) -%}
-<aside class="margin-note{% if ref.draft %} draft{% endif %}">maps to <a href="#{{ ref.id }}">{{ ref.label }}</a></aside>
+<aside class="margin-note{% if ref.draft %} draft{% endif %}">maps to <a href="#{{ ref.id }}">{{ ref.label }}</a> · section {{ ref.section }} · eSTAR: {{ ref.estar }}</aside>
 {%- endmacro %}
 {# D5 section 3.5 furniture (build day 9). The cover stamp prints each mark the manifest
    carries, spelled as the engine's constants spell it (proofpack.scope, the licence
@@ -21,15 +21,7 @@
 {% macro cover_stamps() -%}
 {% for mark in marks %}<p class="stamp" data-mark="{{ mark.kind }}">{{ mark.text }}</p>{% endfor %}
 {%- endmacro %}
-{% macro placeholder(slot) -%}
-<div class="placeholder" data-slot="{{ slot.id }}">{{ slot.text }}</div>
-{%- endmacro %}
-{% macro no_data(text) -%}
-<div class="placeholder" data-slot="none">{{ text }}</div>
-{%- endmacro %}
-{% macro manufacturer_text(label, body) -%}
-<div class="customer-text"><span class="label">Manufacturer text - {{ label }}</span>{{ body }}</div>
-{%- endmacro %}
+{% from "_furniture.html" import placeholder, no_data, manufacturer_text %}
 <!DOCTYPE html>
 <html lang="en-GB">
 <head>

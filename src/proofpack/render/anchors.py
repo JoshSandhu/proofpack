@@ -104,3 +104,19 @@ def short_list(items: list[dict[str, Any]]) -> str:
         if it["label"] not in seen:
             seen.append(it["label"])
     return "; ".join(seen) if seen else "none"
+
+
+def with_note_fields(item: dict[str, Any], guidance_map: Any = None) -> dict[str, Any]:
+    """``item`` (from :func:`resolve`) plus the two parts of D4 section 1.1's margin note
+    the label does not carry: ``section`` and ``estar``, from the map row, each printed
+    ``to confirm`` while the row leaves it empty (every AI-DSF row today: D4 section 15's
+    open item; E9 prints the gap instead of hiding it)."""
+    row = _rows(guidance_map)[item["id"]]
+    if row.get("status", "").strip().lower() == "internal":
+        # ProofPack's own text (PP_SCOPE, PP_METHODS): no document section, no eSTAR slot
+        return {**item, "section": "n/a", "estar": "n/a"}
+    return {
+        **item,
+        "section": row.get("section", "").strip() or "to confirm",
+        "estar": row.get("estar_section", "").strip() or "to confirm",
+    }

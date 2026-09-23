@@ -459,8 +459,8 @@ def cmd_run(args: argparse.Namespace) -> int:
     from proofpack.run import (
         DEFAULT_FORMAT,
         DEFAULT_TEMPLATES,
-        LICENCE_FIX,
         assemble_run,
+        licence_fix,
         parse_formats,
         parse_templates,
         write_documents,
@@ -508,7 +508,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         f"{telemetry_mod.summary_lines(sent, offline=args.offline)}"
     )
     if not lic.usable:
-        summary += f"  {LICENCE_FIX}\n"
+        summary += f"  {licence_fix(manifest['watermark'])}\n"
     for path in documents:
         summary += f"  document written: {path}\n"
     for note in notes:

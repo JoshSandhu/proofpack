@@ -70,7 +70,7 @@ from proofpack.io.declare import Declarations
 from proofpack.io.schema import Table, analysis_mask, load_table
 from proofpack.licence import LicenceResult, resolve
 from proofpack.licence.keys import KeyRegistry
-from proofpack.licence.verify import WATERMARK_EXPIRED
+from proofpack.licence.verify import WATERMARK_EXPIRED, WATERMARK_NO_LICENCE
 from proofpack.narrate import checker as checker_mod
 from proofpack.render import anchors as anchors_mod
 from proofpack.render.html import TemplateNotBuilt, write_t8
@@ -100,12 +100,23 @@ RUN_JSON = "run.json"
 INGEST_REPORT = "ingest_report.json"
 MAPPING_SUFFIX = ".mapping.json"
 
-#: The one-line fix printed with exit 4.
-LICENCE_FIX = (
-    "no usable licence: install one with `proofpack licence install FILE` "
-    "(docs: /docs/licence); run.json was written with the watermark "
-    f"'{WATERMARK_EXPIRED}'"
-)
+
+def licence_fix(watermark: str | None) -> str:
+    """The one-line fix printed with exit 4, naming the mark run.json carries."""
+    return (
+        "no usable licence: install one with `proofpack licence install FILE` "
+        f"(docs: /docs/licence); run.json was written with the watermark '{watermark}'"
+    )
+
+
+def watermark_for(licence: LicenceResult) -> str | None:
+    """The licence mark of the manifest: DEC-48's ``NO LICENCE - not for submission``
+    when no licence file exists, ``LICENCE EXPIRED - not for submission`` for any other
+    refusal (a file present and not trusted) and for grace / expiry, the licence's own
+    (``TRIAL`` or none) otherwise."""
+    if licence.status == "refused":
+        return WATERMARK_NO_LICENCE if licence.reason_code == "no_file" else WATERMARK_EXPIRED
+    return licence.watermark
 
 
 def default_mapping_path(input_path: str | Path) -> Path:
@@ -449,6 +460,7 @@ def assemble_run(
     mapping: str | Path | None = None,
     registry: KeyRegistry | None = None,
     ledger_home: Path | None = None,
+    data_marking: str | None = None,
 ) -> RunOutcome:
     """Everything ``proofpack run`` computes, as one document. Writes nothing under
     ``--out``; the one file it writes is ``<PROOFPACK_HOME>/ledger.json`` through
@@ -504,7 +516,7 @@ def assemble_run(
     if led.warning is not None:
         warnings.append(led.warning)
     doc["warnings"] = [_warning_entry(w) for w in warnings]
-    watermark = licence.watermark if licence.status != "refused" else WATERMARK_EXPIRED
+    watermark = watermark_for(licence)
     doc["manifest"] = manifest_mod.build_manifest(
         input_path=input_path,
         criteria_path=criteria_path,
@@ -517,6 +529,7 @@ def assemble_run(
         tier=licence.tier,
         ledger_count=led.count,
         watermark=watermark,
+        data_marking=data_marking,
     )
     doc["ledger"] = led.as_dict()
     return RunOutcome(doc, result, licence, warnings, led, mapping_path)

@@ -10,7 +10,7 @@
 {{ page_header() }}
 <h1>{{ template_name }}</h1>
 <p class="cover-note">Attachment set prepared for the manufacturer's own submission or record. Not a submission. No regulator has endorsed this tool.</p>
-{% if watermark %}<p class="stamp">{{ watermark }}</p>{% endif %}
+{{ cover_stamps() }}
 <table class="cover-block">
 <caption>Cover block</caption>
 <tbody>
@@ -55,9 +55,7 @@
 {% endfor %}
 </tbody>
 </table>
-<div class="customer-text"><span class="label">Manufacturer text - the declarations block of run.json as YAML (keys in canonical order; the file's SHA-256 is in the manifest)</span>
-<pre>{{ criteria_yaml }}</pre>
-</div>
+{{ manufacturer_text("the declarations block of run.json as YAML (keys in canonical order; the file's SHA-256 is in the manifest)", criteria_yaml_block) }}
 <h2 id="s4">4. Mapping report</h2>
 <p>The confirmed mapping is not printed in this pack: its SHA-256 is in the manifest above, and the original headers and value summaries stay in the <code>mapping.json</code> beside the input, never in a document a customer hands over.</p>
 {{ page_footer() }}
@@ -152,13 +150,16 @@
 </table>
 <h2 id="s10">10. Customer sections outstanding</h2>
 {% if customer_sections_outstanding %}
-<ul>{% for slot in customer_sections_outstanding %}<li>{{ slot }}</li>{% endfor %}</ul>
+<p>The customer-text slots of the attachment set (T1) that no text filled in this build; T1 prints each as below and ProofPack drafts none of them.</p>
+{% for slot in customer_sections_outstanding %}
+{{ placeholder(slot) }}
+{% endfor %}
 {% else %}
-<p>This template version defines no customer text slots; none are outstanding.</p>
+<p>No customer-text slot of the attachment set is outstanding.</p>
 {% endif %}
 <h2 id="s11">11. Data status</h2>
 {% if watermark %}
-<p class="stamp">{{ watermark }}</p>
+{{ cover_stamps() }}
 <p>This document carries the marking above and must not be used in any regulatory record while it does.</p>
 {% else %}
 <p>No synthetic, demonstration or trial marking applies to this run.</p>

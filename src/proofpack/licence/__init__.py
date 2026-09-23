@@ -27,6 +27,7 @@ from proofpack.licence.keys import (
 from proofpack.licence.verify import (
     STATUSES,
     WATERMARK_EXPIRED,
+    WATERMARK_NO_LICENCE,
     WATERMARK_TRIAL,
     LicenceResult,
     verify,
@@ -42,6 +43,7 @@ __all__ = [
     "SHIPPED_PUBLIC_KEY_B64",
     "STATUSES",
     "WATERMARK_EXPIRED",
+    "WATERMARK_NO_LICENCE",
     "WATERMARK_TRIAL",
     "KeyRegistry",
     "LicenceResult",

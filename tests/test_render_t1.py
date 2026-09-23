@@ -365,7 +365,7 @@ def test_no_heading_is_empty_and_each_outstanding_slot_prints_the_placeholder(pa
         nxt = re.split(r"<h[23][^>]*>|</section>", after)[0]
         content = re.sub(r'<aside class="margin-note[^"]*">.*?</aside>', "", nxt, flags=re.S)
         assert re.sub(r"<[^>]+>|\s", "", content), chunk[:80]
-    slots = render_t1._slots(document)
+    slots = render_t1.customer_slots(document)
     outstanding = [s for s in slots.values() if not s["filled"]]
     assert page.count('class="placeholder" data-slot="CT-') == len(outstanding) == 11
     assert "INCOMPLETE - customer sections outstanding: 11" in page

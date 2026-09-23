@@ -1,0 +1,11 @@
+{# D5 section 3.5 furniture shared by base.html and _criteria.html (E9): the placeholder
+   box, the no-data box and the Manufacturer-text block. #}
+{% macro placeholder(slot) -%}
+<div class="placeholder" data-slot="{{ slot.id }}">{{ slot.text }}</div>
+{%- endmacro %}
+{% macro no_data(text) -%}
+<div class="placeholder" data-slot="none">{{ text }}</div>
+{%- endmacro %}
+{% macro manufacturer_text(label, body) -%}
+<div class="customer-text"><span class="label">Manufacturer text - {{ label }}</span>{{ body }}</div>
+{%- endmacro %}

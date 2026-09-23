@@ -316,6 +316,14 @@ def criteria_rows(document: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
+def _pre_block(text: str) -> Any:
+    """``text`` escaped inside ``<pre>`` with a newline either side, as T8 printed the
+    declarations echo before the Manufacturer-text macro existed (E9: same bytes)."""
+    from markupsafe import Markup, escape  # noqa: PLC0415 - MarkupSafe ships with jinja2
+
+    return Markup("\n<pre>") + escape(text) + Markup("</pre>\n")
+
+
 def manifest_rows(document: dict[str, Any]) -> list[tuple[str, str]]:
     m = document["manifest"]
     order = (
@@ -427,6 +435,10 @@ def t8_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
         "warn_after_acceptance_runs"
     )
     model = (document.get("declarations") or {}).get("model") or {}
+    # D4 section 11 item 10: the pack's unfilled customer-text slots, which are T1's (E9)
+    from proofpack.render.t1 import customer_slots  # noqa: PLC0415 - t1 imports this module
+
+    outstanding = [s for s in customer_slots(document).values() if not s["filled"]]
     ctx = {
         "template_name": "T8 · Run manifest, declarations, scope and disclaimer",
         "document": document,
@@ -449,6 +461,9 @@ def t8_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
             document.get("declarations") or {}, sort_keys=True, allow_unicode=True
         ),
         "criteria_rows": criteria_rows(document),
+        "criteria_yaml_block": _pre_block(
+            yaml.safe_dump(document.get("declarations") or {}, sort_keys=True, allow_unicode=True)
+        ),
         # a criteria row exists for every criteria.yaml entry and for the fairness bound,
         # so the table is gated on the rows, not on the criteria list alone (repair 2,
         # lens FA-B3: a fairness bound with no criteria list gave a not_met row in
@@ -470,11 +485,14 @@ def t8_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
         "rejections": document.get("claim_rejections") or [],
         "out_of_scope": out_of_scope_items(),
         "guidance_refs": refs,
-        "anchor": {key: by_id[value] for key, value in T8_ANCHORS.items()},
-        "customer_sections_outstanding": [],
+        "anchor": {
+            key: anchors.with_note_fields(by_id[value], guidance_map)
+            for key, value in T8_ANCHORS.items()
+        },
+        "customer_sections_outstanding": outstanding,
         "status_words": STATUS_WORDS,
     }
-    ctx.update(furniture(document, "T8", refs))
+    ctx.update(furniture(document, "T8", refs, len(outstanding)))
     return ctx
 
 

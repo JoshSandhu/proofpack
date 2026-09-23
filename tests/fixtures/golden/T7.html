@@ -128,7 +128,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <p class="cover-note">The methods this run used, read from the run document. Attachment set prepared for the manufacturer's own submission or record. Not a submission. No regulator has endorsed this tool.</p>
 
 <h2 id="t7-s1">1. Software, determinism and tolerances</h2>
-<aside class="margin-note">maps to <a href="#PP_METHODS">ProofPack internal: methods appendix conventions (T7) (engine version, internal)</a></aside>
+<aside class="margin-note">maps to <a href="#PP_METHODS">ProofPack internal: methods appendix conventions (T7) (engine version, internal)</a> · section n/a · eSTAR: n/a</aside>
 <table class="software">
 <caption>As recorded in the manifest of this run</caption>
 <tbody>
@@ -145,7 +145,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 </table>
 <p class="tolerance">Reference platform: python:3.12-slim linux/amd64 with the pinned lockfile. Same image + same inputs → identical manifest hash and byte-identical JSON (F17). Other platforms (arm64 laptop, Windows pip, Pyodide) → agreement to tolerance: 1e-9 closed-form (Wilson, 2×2, Brier, O/E, PSI), 1e-6 iterative (IRLS slope/intercept, DeLong via placements), bootstrap CIs to reported rounding with identical seed and numpy.random.default_rng(seed).</p>
 <h2 id="t7-s2">2. Data handling</h2>
-<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_DATA_MGMT">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a></aside>
+<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_DATA_MGMT">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a> · section to confirm · eSTAR: to confirm</aside>
 <p>Mapping: rule-based, confirmed before the run; <code>mapping.json</code> SHA-256 <span class="mono">not recorded</span>.</p>
 <p>HALT gates: none fired (a document is written only when none does).</p>
 <p>Warnings raised: none.</p>
@@ -168,7 +168,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <section class="page" id="page-2">
 <header class="page-header"><span class="customer-text">synthetic-classifier v1.3</span> · T7 · ProofPack v0.1.0.dev1 · run test-onl</header>
 <h2 id="t7-s3">3. Methods used in this run</h2>
-<aside class="margin-note">maps to <a href="#FDA_STAT2007_CI">FDA Statistical Guidance on Reporting Results from Studies Evaluating Diagnostic Tests (2007-03-13, final)</a></aside>
+<aside class="margin-note">maps to <a href="#FDA_STAT2007_CI">FDA Statistical Guidance on Reporting Results from Studies Evaluating Diagnostic Tests (2007-03-13, final)</a> · section to confirm · eSTAR: n/a</aside>
 <table class="methods">
 <caption>Every interval method named by a Number in the run document, and how many Numbers carry it (read from run.json, not a list of what ProofPack can do)</caption>
 <thead><tr><th scope="col">Method</th><th scope="col">What it is</th><th scope="col" class="num">Numbers</th></tr></thead>
@@ -184,7 +184,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 </tbody>
 </table>
 <h2 id="t7-s4">4. Subgroups and differences</h2>
-<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_SUBGROUP_PERF">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a></aside>
+<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_SUBGROUP_PERF">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a> · section to confirm · eSTAR: to confirm</aside>
 <p class="x1">Differences are reported against the declared reference level and against the complement of the subgroup (all other rows); both use Newcombe (1998) method 10 for proportions and unpaired DeLong for AUROC. No difference is reported against the overall cohort because the subgroup is part of it.</p>
 <div class="conventions"><p><strong>Attributes tabulated.</strong> Every attribute column the mapping recognised is tabulated. An attribute declared in <code>criteria.yaml</code> carries the manufacturer&#x27;s own <code>prespecified</code> flag and <code>source</code>; an attribute present in the table but not declared is tabulated with <code>prespecified: false</code> and <code>source: exploratory</code>.</p>
 <p><strong>Age bands.</strong> Half-open, <code>lo &lt;= age &lt; hi</code>, labelled <code>lo-hi</code>. The declared bands are used when the <code>age</code> declaration carries them. When <code>age</code> is not declared the engine uses <code>[0,40), [40,65), [65,80), [80,200)</code> - the bands shown in D1 section 2 - and records <code>bands_source: engine_default</code>. Ages in no band, and missing ages, sit in the Unknown row and are counted separately (<code>n_outside_bands</code>, <code>n_unknown_missing</code>).</p>
@@ -199,7 +199,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <p><strong>Fairness</strong> is measured, never mitigated. Gaps against the reference level are the reference-level differences read as gaps: <code>tpr_gap</code> = sensitivity difference; <code>fpr_gap</code> = (1 - specificity) difference; <code>ppv_gap</code>, <code>npv_gap</code>, <code>auroc_gap</code>; plus a selection-rate gap labelled <code>descriptive_not_target</code>. The <code>criterion_of_interest</code> and <code>bound</code> are the manufacturer&#x27;s declaration echoed verbatim. Calibration by group is not computed in this build (<code>not_computed_this_run</code>). The equalised-odds / calibration impossibility result is cited in R2 section 4 from memory and is marked <strong>[unverified]</strong> there and in the output.</p>
 <p><strong>Declaration boundary.</strong> Clustering is detected from repeated <code>case_id</code> values. A manufacturer who assigns one <code>case_id</code> per lesion of a patient will receive independent-row intervals; the engine cannot see a case column it was not given.</p></div>
 <h2 id="t7-s5">5. Calibration</h2>
-<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_CALIBRATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a></aside>
+<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_CALIBRATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a> · section to confirm · eSTAR: to confirm</aside>
 <div class="conventions"><p>Each convention below is stated in full in the module docstring of <code>stats.calibration</code>, with the test that feeds the input named; this section is the T7 summary of the same rules. Nothing here is a verdict: no target is compared to and no word describes the calibration; <code>test_no_verdict_word_appears_in_any_key_or_engine_string_of_the_day6_output</code> walks every key and string of the assembled day-6 documents for the verdict words the brief names.</p>
 <p><strong>Scope.</strong> The block is computed only for a score declared <code>probability</code> with <code>higher_is_positive</code>. A <code>logit</code> or <code>other</code> score gives a <code>None</code> block with the typed reason <code>score_not_probability</code>; a <code>lower_is_positive</code> probability is refused with <code>score_not_positive_class_probability</code> and never transformed to <code>1 - p</code>.</p>
 <p><strong>O:E ratio.</strong> <code>O = sum(y)</code> over <code>E = sum(p)</code>; interval on the log scale by the delta method, <code>ln(O/E) +/- z * sqrt((1 - O/N) / O)</code>, exponentiated (<code>log_delta</code>). <code>E = 0</code> is <code>zero_denominator</code>; <code>O = 0</code> and <code>O = N</code> are <code>single_class</code> before any interval is formed.</p>
@@ -240,7 +240,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <section class="page" id="page-3">
 <header class="page-header"><span class="customer-text">synthetic-classifier v1.3</span> · T7 · ProofPack v0.1.0.dev1 · run test-onl</header>
 <h2 id="t7-s8">8. Reporting conventions</h2>
-<aside class="margin-note">maps to <a href="#PP_METHODS">ProofPack internal: methods appendix conventions (T7) (engine version, internal)</a></aside>
+<aside class="margin-note">maps to <a href="#PP_METHODS">ProofPack internal: methods appendix conventions (T7) (engine version, internal)</a> · section n/a · eSTAR: n/a</aside>
 <p class="conventions-sentence">Reporting conventions, not acceptance criteria: the vendor-set numbers in ProofPack are k-suppression (n&lt;10, events&lt;5, non-events&lt;5), AUROC &#34;not evaluable&#34; below 10 positives/10 negatives, low-n tiers (n&lt;10, n&lt;30), the 200/200 calibration-curve flag (after Van Calster 2019), and the bootstrap B. Each is labelled &#34;ProofPack reporting convention&#34; wherever it appears (T7, T8, /trust) and none produces a status word.</p>
 <div class="conventions"><p>Paragraphs the T7 template (D4 section 10, build day 9) inserts verbatim. Every number here comes from a committed script&#x27;s output, named with its version and seed. These are ProofPack conventions; no regulator specifies them, and none of them is a guarantee.</p></div>
 <table class="tiers">

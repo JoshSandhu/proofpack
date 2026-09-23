@@ -36,7 +36,7 @@ from conftest import (
 )
 from proofpack.cli import main
 from proofpack.errors import EXIT_HALT, EXIT_LICENCE, EXIT_OK, EXIT_WARNINGS
-from proofpack.licence.verify import WATERMARK_EXPIRED, WATERMARK_TRIAL
+from proofpack.licence.verify import WATERMARK_EXPIRED, WATERMARK_NO_LICENCE, WATERMARK_TRIAL
 from proofpack.manifest import REFERENCE_PLATFORM
 from proofpack.resources import load_json_schema
 from proofpack.run import assemble_run, default_mapping_path
@@ -400,7 +400,8 @@ def test_no_licence_still_writes_the_json_with_the_watermark_and_exits_4(
     assert _run(csv_path, yml, out, registry=None) == EXIT_LICENCE
     printed = capsys.readouterr().out
     doc = json.loads((out / "run.json").read_text(encoding="utf-8"))
-    assert doc["manifest"]["watermark"] == WATERMARK_EXPIRED
+    # DEC-48 (built in E9): no licence file carries its own mark
+    assert doc["manifest"]["watermark"] == WATERMARK_NO_LICENCE
     assert doc["manifest"]["licence_id"] is None and doc["manifest"]["tier"] is None
     assert doc["criteria_results"]  # the numbers are never withheld
     assert "licence refused (no_file)" in printed and "licence install FILE" in printed
@@ -597,9 +598,9 @@ def test_python_m_proofpack_cli_run_in_a_subprocess_without_a_licence(tmp_path: 
     )
     assert proc.returncode == EXIT_LICENCE, proc.stderr
     assert "run written:" in proc.stdout and "licence refused (no_file)" in proc.stdout
-    assert WATERMARK_EXPIRED in proc.stdout and "Traceback" not in proc.stderr
+    assert WATERMARK_NO_LICENCE in proc.stdout and "Traceback" not in proc.stderr  # DEC-48
     doc = json.loads((out / "run.json").read_text(encoding="utf-8"))
-    assert doc["manifest"]["watermark"] == WATERMARK_EXPIRED
+    assert doc["manifest"]["watermark"] == WATERMARK_NO_LICENCE
 
 
 def test_the_mutation_sweep_declares_a_day7_list_with_no_duplicate_ids():
