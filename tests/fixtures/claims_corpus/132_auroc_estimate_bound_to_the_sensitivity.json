@@ -1,11 +1,11 @@
 {
-  "name": "free_text_pass_spaced_letters",
-  "rule": "free_text 'p a s s' (lens FA-B4: accepted at 657ef11; every run of two to fourteen consecutive tokens is joined)",
-  "expected_reason_code": "free_text_verdict_word",
+  "name": "auroc_estimate_bound_to_the_sensitivity",
+  "rule": "CL-0001 (sensitivity op1, est 0.75) re-labelled AUROC_ESTIMATE: 'AUROC was 0.75' (lenses RG-B2 / FA-B1 at 7fa690b: accepted)",
+  "expected_reason_code": "value_ref_unbound",
   "note": "",
   "claim": {
-    "claim_id": "CL-9129",
-    "template_id": "OVERALL_ESTIMATE",
+    "claim_id": "CL-9132",
+    "template_id": "AUROC_ESTIMATE",
     "metric_id": "sensitivity",
     "operating_point": "op1",
     "subgroup": null,
@@ -19,6 +19,6 @@
       "/overall/op1/sensitivity"
     ],
     "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
-    "free_text": "Sensitivity looked p a s s here."
+    "free_text": null
   }
 }

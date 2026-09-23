@@ -47,8 +47,9 @@ def _oriented(scores: np.ndarray, orientation: str) -> np.ndarray:
 def gate_h02(table: Table, decl: Declarations) -> None:
     """Every non-blank value of ``y_true`` and, when the column is present, of ``y_pred``
     is a declared class or a declared indeterminate value; a blank cell (``None`` after
-    the missing-token normalisation) is not read here - :func:`proofpack.io.schema.
-    analysis_mask` excludes it and counts it. ``y_pred`` joined the gate in repair 1 of
+    the missing-token normalisation) is not read here (repair 3, lens FA-N3: the clause
+    that followed, "analysis_mask excludes it and counts it", was false for a blank
+    ``y_pred`` beside a score column and is deleted). ``y_pred`` joined the gate in repair 1 of
     build day 8 (lens FA-B3): a ``y_pred`` column of ``yes`` / ``no`` beside classes
     ``1`` / ``0`` and no score column reached ``overall_block`` as every row predicted
     negative and printed sensitivity ``0/42``; ``tests/test_e8_repair1.py`` feeds that

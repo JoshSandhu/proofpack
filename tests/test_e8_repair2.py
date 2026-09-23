@@ -372,7 +372,7 @@ def test_free_text_separated_control_and_small_capital_spellings_are_rejected():
         "pa ss",  # a thin space
         "non inferior",
         "un biased",
-        "w e l l c a l i b r a t e d",  # fourteen single letters: the longest run joined
+        "w e l l c a l i b r a t e d",  # fourteen single letters; pins no _JOIN_RUN (lens RG-N3)
     ):
         assert f(f"Sensitivity looked {text} here.") == "free_text_verdict_word", repr(text)
     assert f("the C F R part") == "free_text_cfr"
@@ -413,7 +413,12 @@ def test_a_claim_bound_to_a_documented_scalar_must_state_not_assessable(document
     claim["value_refs"] = ["/flow/analysed"]
     for relation in ("estimate", "above", "within"):
         assert _code({**claim, "relation": relation}, document) == "relation_mismatch", relation
-    assert _code({**claim, "relation": "not_assessable"}, document) is None
+    # repair 3 (lens FA-B1 at 7fa690b; the lens-3 notes' N6): the same claim stating
+    # not_assessable was accepted with metric_id sensitivity and op1 on a run-level count;
+    # rule 8b refuses it, and accepts it once the claim names no metric or operating point
+    assert _code({**claim, "relation": "not_assessable"}, document) == "template_scope_mismatch"
+    bare = {**claim, "relation": "not_assessable", "metric_id": None, "operating_point": None}
+    assert _code(bare, document) is None
 
 
 def test_the_longest_listed_words_spelled_out_letter_by_letter_are_rejected():

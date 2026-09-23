@@ -1,0 +1,24 @@
+{
+  "name": "site_count_bound_to_rows_read",
+  "rule": "SITE_COUNT bound to /flow/rows_read (lens FA-B1 at 7fa690b: accepted)",
+  "expected_reason_code": "value_ref_unbound",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9137",
+    "template_id": "SITE_COUNT",
+    "metric_id": null,
+    "operating_point": null,
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "not_assessable",
+    "value_refs": [
+      "/flow/rows_read"
+    ],
+    "guidance_ref": "FDA_AIDSF_SITE_DIVERSITY",
+    "free_text": null
+  }
+}

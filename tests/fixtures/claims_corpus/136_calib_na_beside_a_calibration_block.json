@@ -1,0 +1,22 @@
+{
+  "name": "calib_na_beside_a_calibration_block",
+  "rule": "CALIB_NA with no pointers on a document whose calibration block is present (lens FA-B1 at 7fa690b: accepted)",
+  "expected_reason_code": "template_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9136",
+    "template_id": "CALIB_NA",
+    "metric_id": null,
+    "operating_point": null,
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "not_assessable",
+    "value_refs": [],
+    "guidance_ref": "FDA_AIDSF_CALIBRATION",
+    "free_text": null
+  }
+}

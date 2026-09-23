@@ -42,7 +42,8 @@ that fails:
    of that metric only, or of the template's family (:data:`METRIC_FAMILIES`: the
    calibration cells under ``CALIB_HIERARCHY``, the gap cells under ``FAIRNESS_GAP``)
    (``metric_mismatch``); every pointer's operating point equals the claim's - null
-   equals null, so ``AUROC_ESTIMATE`` with ``op1`` is refused; ``FAIRNESS_GAP``'s
+   equals null (the literal fed: the engine's ``AUROC_ESTIMATE`` claim ``CL-0014``, bound
+   to ``/overall/threshold_free/auroc``, given ``operating_point`` ``op1``); ``FAIRNESS_GAP``'s
    ``auroc_gap`` pointer is the one exemption - and a claim's ``operating_point`` is a
    key of ``document.overall`` (``operating_point_mismatch``); a template in
    :data:`OVERALL_TEMPLATES` carries no ``subgroup`` and one in
@@ -78,8 +79,24 @@ that fails:
    pointer, or none) equal the row's (``criterion_row_mismatch``); ``status`` equals the
    row's (``status_mismatch``); and, on a ``met`` / ``not_met`` row, comparing the bound
    Number's named statistic with the row's comparator and value gives the same status
-   (``status_recomputation_mismatch``). A claim under any other template carries no
-   status (``status_on_non_criterion``);
+   (``status_recomputation_mismatch``); ``CRITERION_NOT_MET_RECORD`` addresses a
+   ``not_met`` row and ``ATTAINABILITY_NOTE`` a row whose ``attainable_at_n`` is ``true``
+   or ``false`` (``template_mismatch``, repair 3). A claim under any other template
+   carries no status (``status_on_non_criterion``);
+8b. (repair 3, lenses RG-B2 and FA-B1 at ``7fa690b``) the template against its pointers
+   and the document: an estimate template's pointers match the shapes
+   :data:`TEMPLATE_SHAPES` gives it (``value_ref_unbound``); ``AUROC_ESTIMATE`` carries
+   ``metric_id`` ``auroc`` (``metric_mismatch``); ``CALIB_HIERARCHY``'s and
+   ``FAIRNESS_GAP``'s pointers name distinct slots of :data:`SLOT_ORDER` in that order,
+   and a documented scalar outside a criterion template is one of the template's
+   :data:`SCALAR_SLOTS`, distinct and in that order (``value_ref_unbound``); a template
+   of :data:`SCALAR_SLOTS` carries no metric, operating point, subgroup or reference
+   (``template_scope_mismatch``); ``CALIB_NA`` sits on a document whose ``calibration``
+   is not an object (``template_mismatch``). The literals fed are in
+   ``tests/test_e8_repair3.py::test_the_round_3_template_relabels_are_rejected_with_the_named_code``
+   and corpus files ``131``-``140``. The rule inspects the order of the pointers, not
+   which slot each fills: that is the sentence renderer's (E9), and a subset of a
+   family's pointers leaves the other slots without a pointer;
 9. ``guidance_ref`` is null or an ``internal_id`` of the guidance map
    (``guidance_ref_unknown``); a draft row - status beginning ``draft`` - must carry the
    qualifier ``not for implementation`` in its status (``guidance_draft_unqualified``);
@@ -87,13 +104,22 @@ that fails:
     and ``No``, so the Arabic-Indic digits and a superscript two are digits; the text is
     NFKC-normalised first, so a fullwidth per-cent sign is ``%``): ``free_text_digit``;
     no ``%`` or per-mille sign (``free_text_percent``); no section sign
-    (``free_text_section_sign``). For the word rules the text goes through
-    :func:`normalise_free_text` - NFKC, case fold (``ß`` to ``ss``, ``ſ`` to ``s``),
-    NFD, drop combining marks (``Mn``) and format characters (``Cf``: zero-width joiner
-    and non-joiner, soft hyphen), map the letters in :data:`CONFUSABLES` to the Latin
-    letter each resembles, and turn U+2010-U+2015 into ``-`` - and a word is matched as
+    (``free_text_section_sign``). For the word rules the text is read five ways
+    (:func:`_readings`), each through :func:`normalise_free_text` - NFKC, case fold
+    (``ß`` to ``ss``, ``ſ`` to ``s``), NFD, drop combining marks (``Mn``) and format
+    characters (``Cf``: zero-width joiner and non-joiner, soft hyphen), map the letters
+    of a confusable map to the Latin letter each resembles, and turn U+2010-U+2015 into
+    ``-``; the words of all five readings are pooled - and a word is matched as
     the whole hyphenated token, as each hyphen-separated part, as the token with its
-    hyphens removed, and as every run of two to fourteen consecutive tokens joined
+    hyphens removed, and as every run of two to fourteen consecutive tokens joined; a
+    reading that contains ``wellcalibrated`` once its hyphens are removed is
+    ``free_text_verdict_word`` whatever letters touch it (repair 3, lens RG-B1:
+    ``well-calibratedness``, ``well-calibratedly``, ``well-calibrateds``; and
+    ``passᴀ``, rejected at ``657ef11`` and accepted at ``7fa690b``; lens FA-B2's nine
+    literals ``pɑss``, ``unbiɑsed``, ``faiI``, ``ƒail``, ``faiǀ``, ``gօօd``,
+    ``ϲonsistent``, ``Ꮲass``, ``rneets``: ``tests/test_e8_repair3.py`` feeds each;
+    spellings built from other letters are an open class, needs-from-Josh in the
+    repair-3 note)
     (:func:`_words`; repair 2, lenses FA-B4 and RG-B2: ``p a s s``, ``p.a.s.s``,
     ``pa-ss``, ``fa-il``, ``unaccept-able``, ``well-cali-brated``, ``pa\\x01ss``,
     ``pa\\x1fss``, ``pa\\x7fss``, ``pa\\x85ss``, ``pa\\x00ss`` and the small capitals
@@ -102,7 +128,7 @@ that fails:
     each; accepted there and recorded, not defended: ``p@ss`` - the ``@`` splits ``p``
     from ``ss`` and no run of tokens joins to a listed word - and the unlisted words
     ``ninety``, ``guidances``, ``unsafe``, ``FDAcleared``, needs-from-Josh 2 of the
-    repair-1 note), so the corpus files ``104``-``115`` and ``127``-``130``
+    repair-1 note), so the corpus files ``104``-``115``, ``129``, ``130``, ``139`` and ``140``
     (``pаss``, ``pa‍ss``, ``pa‌ss``,
     ``pa­ss``, ``un-biased``, ``pass-``, ``-pass``, ``verdict-like``, ``fail-safe``,
     ``méets``, ``paß``, ``non‑inferior``) are each rejected: none of
@@ -125,7 +151,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from proofpack.narrate import claims as claims_mod
@@ -236,8 +262,9 @@ CERTIFICATION_WORDS: frozenset[str] = frozenset(
 )
 #: Letters of other scripts shaped like a Latin letter, mapped before the word split
 #: (repair 1, lens FA-B2: ``pаss`` with a Cyrillic ``а``). Upper-case forms
-#: reach this map through the case fold that precedes it.
-CONFUSABLES: dict[str, str] = {
+#: reach this map through the case fold that precedes it. These 27 are the map as it
+#: stood at ``657ef11``; :data:`CONFUSABLES` is the union of the three maps.
+_CONFUSABLES_R1: dict[str, str] = {
     "а": "a",  # Cyrillic a
     "е": "e",  # Cyrillic ie
     "о": "o",  # Cyrillic o
@@ -265,8 +292,10 @@ CONFUSABLES: dict[str, str] = {
     "χ": "x",  # Greek chi
     "ɡ": "g",  # Latin script g
     "ı": "i",  # Latin dotless i
-    # the Latin small capitals (U+1D00-U+1D22, U+0262, U+0274, U+0280, U+0299, U+028F,
-    # U+029C, U+029F, U+A730, U+A731): repair 2, lens RG-B2 - ``ᴘᴀss`` was accepted
+}
+#: The Latin small capitals (U+1D00-U+1D22, U+0262, U+0274, U+0280, U+0299, U+028F,
+#: U+029C, U+029F, U+A730, U+A731): repair 2, lens RG-B2 - ``ᴘᴀss`` was accepted.
+_SMALL_CAPITALS: dict[str, str] = {
     "ᴀ": "a",
     "ʙ": "b",
     "ᴄ": "c",
@@ -292,6 +321,24 @@ CONFUSABLES: dict[str, str] = {
     "ʏ": "y",
     "ᴢ": "z",
 }
+#: Repair 3, lens FA-B2 at ``7fa690b``: the letters of the lens's nine literals ``pɑss``,
+#: ``unbiɑsed``, ``ƒail``, ``faiǀ``, ``gօօd`` and ``Ꮲass`` (``faiI``, ``rneets`` and
+#: ``ϲonsistent`` are read through :data:`_BEFORE_NFKC` and :func:`_readings`). The
+#: capital forms Ɑ (U+2C6D), Ƒ (U+0191), Օ (U+0555) and ꮲ (U+ABB2) case-fold to these.
+#: DEC-60 (Josh, 23 September) asks for Unicode TR39 ``confusables.txt`` to be vendored
+#: and mapped; it was not fetched in repair 3, so these five letters are hand-mapped and
+#: whether TR39 lists each of them is [unverified] (carried in the repair-3 note).
+_HOMOGLYPHS_R3: dict[str, str] = {
+    "ɑ": "a",  # Latin alpha, U+0251
+    "ƒ": "f",  # Latin f with hook, U+0192
+    "ǀ": "l",  # Latin letter dental click, U+01C0
+    "օ": "o",  # Armenian oh, U+0585
+    "Ꮲ": "p",  # Cherokee letter tlv, U+13E2
+}
+#: Mapped in the raw text, before NFKC: NFKC turns the Greek lunate sigma (U+03F2, and
+#: its capital U+03F9) into a final sigma, which the case fold turns into ``σ``.
+_BEFORE_NFKC: dict[str, str] = {"ϲ": "c", "Ϲ": "c"}
+CONFUSABLES: dict[str, str] = {**_CONFUSABLES_R1, **_SMALL_CAPITALS, **_HOMOGLYPHS_R3}
 _UNICODE_HYPHENS = frozenset("‐‑‒–—―")
 
 
@@ -306,6 +353,8 @@ class Facets:
     scope: str = "overall"
     index: int | None = None
     block: str | None = None
+    #: the index of the shape in :data:`POINTER_SHAPES` the path matched (repair 3)
+    shape: int | None = None
 
 
 #: The eight pointer shapes rule 4 reads, as (pattern, facets). Any other path resolving
@@ -364,6 +413,40 @@ BOUND_TEMPLATES: frozenset[str] = OVERALL_TEMPLATES | SUBGROUP_TEMPLATES | CRITE
 #: The templates whose every ``value_ref`` is a Number (a count is not an estimate;
 #: ``CALIB_NA`` binds nothing).
 ESTIMATE_TEMPLATES: frozenset[str] = (OVERALL_TEMPLATES | SUBGROUP_TEMPLATES) - {"CALIB_NA"}
+#: Rule 8b (repair 3): the shapes of :data:`POINTER_SHAPES`, by index, each estimate
+#: template's pointers may match (``OVERALL_ESTIMATE`` the operating-point cells,
+#: ``AUROC_ESTIMATE`` the threshold-free ones, and so on).
+TEMPLATE_SHAPES: dict[str, frozenset[int]] = {
+    "OVERALL_ESTIMATE": frozenset({1}),
+    "AUROC_ESTIMATE": frozenset({0}),
+    "SUBGROUP_ESTIMATE": frozenset({2, 3}),
+    "SUBGROUP_ESTIMATE_WITH_DIFF": frozenset({3, 4}),
+    "CALIB_HIERARCHY": frozenset({5}),
+    "FAIRNESS_GAP": frozenset({6, 7}),
+}
+#: Rule 8b: the ``metric_id`` a template whose skeleton names its metric may carry.
+TEMPLATE_METRICS: dict[str, frozenset[str]] = {"AUROC_ESTIMATE": frozenset({"auroc"})}
+#: Rule 8b: the slots of a family template, in skeleton order; its pointers' metrics
+#: are distinct and follow this order.
+SLOT_ORDER: dict[str, tuple[str, ...]] = {
+    "CALIB_HIERARCHY": claims_mod.CALIBRATION_REFS,
+    "FAIRNESS_GAP": claims_mod.FAIRNESS_GAP_ORDER,
+}
+#: Rule 8b: the documented scalars a count template may bind, in skeleton order. A
+#: documented scalar under any other template outside :data:`CRITERION_TEMPLATES` is
+#: ``value_ref_unbound`` (``LEDGER_STATEMENT`` and ``DUPLICATES_NOTE`` bind none in v1).
+SCALAR_SLOTS: dict[str, tuple[str, ...]] = {
+    "FLOW_COUNTS": (
+        "/flow/rows_read",
+        "/flow/excluded_missing_label",
+        "/flow/excluded_missing_score",
+        "/flow/indeterminate",
+        "/flow/analysed",
+        "/flow/n_cases",
+        "/flow/n_sites",
+    ),
+    "SITE_COUNT": ("/flow/n_sites",),
+}
 #: Reason codes, closed. ``check`` never emits a code outside this dictionary.
 REASON_CODES: dict[str, str] = {
     "not_an_object": "the claim is not a JSON object",
@@ -417,6 +500,11 @@ REASON_CODES: dict[str, str] = {
         "the row's statistic, comparator and value on the bound Number give another status"
     ),
     "status_on_non_criterion": "a status is carried by a claim that is not a criterion claim",
+    "template_mismatch": (
+        "the template states what the row or document does not carry: CRITERION_NOT_MET_RECORD "
+        "on a row whose status is not not_met, ATTAINABILITY_NOTE on a row without "
+        "attainable_at_n, CALIB_NA on a document whose calibration block is present"
+    ),
     "guidance_ref_unknown": "guidance_ref is not an internal_id of guidance_map_v1.csv",
     "guidance_draft_unqualified": "a draft guidance row lacks the not-for-implementation qualifier",
     "free_text_digit": "free_text contains a digit",
@@ -499,10 +587,10 @@ def is_number_object(value: Any) -> bool:
 
 def pointer_facets(ref: str) -> Facets | None:
     """The facets of a Number pointer's path (rule 4), or ``None`` off the eight shapes."""
-    for pattern, build in _SHAPE_RES:
+    for i, (pattern, build) in enumerate(_SHAPE_RES):
         m = pattern.match(ref)
         if m:
-            return build(m)
+            return replace(build(m), shape=i)
     return None
 
 
@@ -514,27 +602,53 @@ def is_documented_scalar(ref: str, value: Any) -> bool:
     )
 
 
-def normalise_free_text(text: str) -> str:
-    """The text the word rules read (rule 10): NFKC, case fold, NFD, combining marks and
-    format characters dropped, :data:`CONFUSABLES` mapped, U+2010-U+2015 as ``-``."""
+def normalise_free_text(text: str, confusables: dict[str, str] = CONFUSABLES) -> str:
+    """One reading of the text for the word rules (rule 10): NFKC, case fold, NFD,
+    combining marks and format characters dropped, ``confusables`` mapped (by default
+    :data:`CONFUSABLES`), U+2010-U+2015 as ``-``."""
     folded = unicodedata.normalize("NFKC", text).casefold()
     out: list[str] = []
     for ch in unicodedata.normalize("NFD", folded):
         if unicodedata.category(ch) in ("Mn", "Cf"):
             continue
-        ch = CONFUSABLES.get(ch, ch)
+        ch = confusables.get(ch, ch)
         out.append("-" if ch in _UNICODE_HYPHENS else ch)
     return "".join(out)
 
 
-#: The longest run of consecutive tokens :func:`_words` joins (``w e l l c a l i b r a t e d``
-#: is fourteen single letters; ``well-calibrated`` is the longest listed phrase).
+#: The confusable maps of the two earlier readings: ``657ef11``'s 27 letters, and
+#: ``7fa690b``'s 27 plus the small capitals. A letter a later map adds stops acting as a
+#: word boundary, so ``passᴀ`` - rejected at ``657ef11`` (``ᴀ`` split it from ``pass``) -
+#: read ``passa`` at ``7fa690b`` and was accepted (repair 3: found beside lens RG-B1's
+#: ``well-calibratedness``). Each earlier reading is kept beside the full one.
+_READING_MAPS: tuple[dict[str, str], ...] = (
+    _CONFUSABLES_R1,
+    {**_CONFUSABLES_R1, **_SMALL_CAPITALS},
+)
+
+
+def _readings(text: str) -> tuple[str, ...]:
+    """The normalised readings the word rules read, each a :func:`normalise_free_text`:
+    one per map in :data:`_READING_MAPS`; the full map after :data:`_BEFORE_NFKC`; the
+    same with every capital ``I`` read as ``l`` (``faiI``); and the full reading with
+    every ``rn`` read as ``m`` (``rneets``). Repair 3, lens FA-B2 at ``7fa690b``."""
+    early = tuple(normalise_free_text(text, m) for m in _READING_MAPS)
+    raw = "".join(_BEFORE_NFKC.get(ch, ch) for ch in text)
+    full = normalise_free_text(raw)
+    capital_i = normalise_free_text(raw.replace("I", "l"))
+    rn = full.replace("rn", "m")
+    return (*early, full, capital_i, rn)
+
+
+#: The longest run of consecutive tokens :func:`_words` joins. With 13 planted, ``-m day8``
+#: gave 224 passed at ``7fa690b`` (the repair-2 note; lens RG-N3).
 _JOIN_RUN = 14
 
 
 def _tokens(text: str) -> list[str]:
-    """The runs of letters and hyphens in normalised text, in order; a control character,
-    a space, a full stop or any other non-letter ends a run."""
+    """The maximal runs of the characters ``a``-``z`` and ``-`` in normalised text, in
+    order, dropping a run made of hyphens only; every other character ends a run
+    (``pɑss`` at ``7fa690b``, before ``ɑ`` was mapped, gave ``p`` and ``ss``)."""
     return [t for t in re.split(r"[^a-z\-]+", text) if t.strip("-")]
 
 
@@ -568,9 +682,15 @@ def free_text_reason(text: str) -> str | None:
         return "free_text_percent"
     if "§" in norm:
         return "free_text_section_sign"
-    normalised = normalise_free_text(text)
-    words = _words(normalised)
+    readings = _readings(text)
+    words: set[str] = set()
+    for reading in readings:
+        words |= _words(reading)
     if words & VERDICT_WORDS or words & {"well-calibrated", "wellcalibrated"}:
+        return "free_text_verdict_word"
+    # the phrase with letters touching it (657ef11's substring rule; lens RG-B1 at
+    # 7fa690b: well-calibratedness, well-calibratedly, well-calibrateds were accepted)
+    if any("wellcalibrated" in r.replace("-", "") for r in readings):
         return "free_text_verdict_word"
     if "cfr" in words:
         return "free_text_cfr"
@@ -896,11 +1016,64 @@ def _check_one(
             met = _compare(float(stat), str(row.get("comparator")), float(value))
             if met is None or ("met" if met else "not_met") != status:
                 return reject("status_recomputation_mismatch", claimed=status, recomputed=met)
+        # 8b (repair 3, lenses RG-B2 / FA-B1 at 7fa690b): the template's own status
+        if template_id == "CRITERION_NOT_MET_RECORD" and row.get("status") != "not_met":
+            return reject("template_mismatch", template_id=template_id, row=row.get("status"))
+        if template_id == "ATTAINABILITY_NOTE" and not isinstance(row.get("attainable_at_n"), bool):
+            return reject(
+                "template_mismatch", template_id=template_id, row=row.get("attainable_at_n")
+            )
     elif status is not None:
         return reject("status_on_non_criterion", status=status)
     elif claim["criterion_index"] is not None or claim["criterion_id"] is not None:
         return reject("status_on_non_criterion", criterion_index=claim["criterion_index"])
-    # 8. guidance_ref
+    # 8b. the template against its pointers and the document (repair 3, lenses RG-B2 and
+    # FA-B1 at 7fa690b: CL-0001 re-labelled AUROC_ESTIMATE, CL-0014 re-labelled
+    # OVERALL_ESTIMATE, gap and calibration pointers permuted, CALIB_NA beside a
+    # calibration block, count templates over other counts - each was accepted)
+    shapes = TEMPLATE_SHAPES.get(template_id)
+    for ref, f in facets:
+        if shapes is not None and f.shape not in shapes:
+            return reject(
+                "value_ref_unbound",
+                value_ref=ref,
+                template_id=template_id,
+                reason="the template reads another pointer shape",
+            )
+    template_metrics = TEMPLATE_METRICS.get(template_id)
+    if template_metrics is not None and metric_id not in template_metrics:
+        return reject("metric_mismatch", metric_id=metric_id, template_id=template_id)
+    order = SLOT_ORDER.get(template_id)
+    if order is not None:
+        slot_positions = [order.index(f.metric) if f.metric in order else -1 for _, f in facets]
+        if -1 in slot_positions or slot_positions != sorted(set(slot_positions)):
+            return reject(
+                "value_ref_unbound",
+                value_refs=list(refs),
+                reason="the pointers do not name the skeleton's slots in its order",
+            )
+    bound = {r for r, _ in numbers}
+    scalars = [r for r in refs if r not in bound]
+    if scalars and template_id not in CRITERION_TEMPLATES:
+        scalar_slots = SCALAR_SLOTS.get(template_id, ())
+        scalar_positions = [scalar_slots.index(r) if r in scalar_slots else -1 for r in scalars]
+        if -1 in scalar_positions or scalar_positions != sorted(set(scalar_positions)):
+            return reject(
+                "value_ref_unbound",
+                value_refs=scalars,
+                reason="a count the template's skeleton does not name, or out of its order",
+            )
+    if template_id in SCALAR_SLOTS and any(
+        claim[k] is not None for k in ("metric_id", "operating_point", "subgroup", "reference")
+    ):
+        return reject(
+            "template_scope_mismatch",
+            template_id=template_id,
+            reason="a run-level count template carries a metric, operating point or row",
+        )
+    if template_id == "CALIB_NA" and isinstance(doc.get("calibration"), dict):
+        return reject("template_mismatch", template_id=template_id, reason="calibration present")
+    # 9. guidance_ref
     gref = claim["guidance_ref"]
     if gref is not None:
         if not isinstance(gref, str) or gref not in guidance:
@@ -909,7 +1082,7 @@ def _check_one(
             return reject(
                 "guidance_draft_unqualified", guidance_ref=gref, status=guidance[gref].get("status")
             )
-    # 9. free_text
+    # 10. free_text
     text = claim["free_text"]
     if text is not None:
         if not isinstance(text, str):

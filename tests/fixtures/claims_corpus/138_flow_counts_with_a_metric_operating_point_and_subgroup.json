@@ -1,0 +1,27 @@
+{
+  "name": "flow_counts_with_a_metric_operating_point_and_subgroup",
+  "rule": "FLOW_COUNTS over /flow/analysed carrying metric_id sensitivity, op1 and subgroup sex = F (lens FA-B1 at 7fa690b: accepted)",
+  "expected_reason_code": "template_scope_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9138",
+    "template_id": "FLOW_COUNTS",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": {
+      "attribute": "sex",
+      "level": "F"
+    },
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "not_assessable",
+    "value_refs": [
+      "/flow/analysed"
+    ],
+    "guidance_ref": "FDA_AIDSF_DATA_MGMT",
+    "free_text": null
+  }
+}

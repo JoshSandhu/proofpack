@@ -1,0 +1,24 @@
+{
+  "name": "criterion_not_met_record_on_a_met_row",
+  "rule": "CRITERION_NOT_MET_RECORD on CL-0062 (C_met, status met): 'Record of criterion not met' on a met row (lenses RG-B2 / FA-B1 at 7fa690b: accepted)",
+  "expected_reason_code": "template_mismatch",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9131",
+    "template_id": "CRITERION_NOT_MET_RECORD",
+    "metric_id": "sensitivity",
+    "operating_point": "op1",
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": ">=",
+    "criterion_index": 0,
+    "criterion_id": "C_met",
+    "status": "met",
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/op1/sensitivity"
+    ],
+    "guidance_ref": null,
+    "free_text": null
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "overall_estimate_bound_to_the_auroc",
+  "rule": "CL-0014 (the AUROC) re-labelled OVERALL_ESTIMATE (lens RG-B2 at 7fa690b: accepted)",
+  "expected_reason_code": "value_ref_unbound",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9133",
+    "template_id": "OVERALL_ESTIMATE",
+    "metric_id": "auroc",
+    "operating_point": null,
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/overall/threshold_free/auroc"
+    ],
+    "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
+    "free_text": null
+  }
+}

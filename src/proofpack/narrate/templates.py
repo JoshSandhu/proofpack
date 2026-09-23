@@ -16,6 +16,11 @@ One id is an engine addition to D4's table, recorded here and in the E8 build no
 ``SUBGROUP_ESTIMATE`` - D4 has no sentence for the reference level's own row (its
 ``diff_vs_reference`` is null by construction) and for a level whose attribute has no
 reference; the skeleton is ``SUBGROUP_ESTIMATE_WITH_DIFF`` without the difference clause.
+
+One skeleton differs from D4 section 8's text: ``FLOW_COUNTS`` adds "(on a table without
+a score column, a y_pred)" after "lacked a score" (repair 3, lens FA-N4: since repair 2
+``flow.excluded_missing_score`` counts blank ``y_pred`` cells on a table without a score
+column, and D4's words named a score only).
 """
 
 from __future__ import annotations
@@ -55,7 +60,8 @@ _T: list[Template] = [
     Template(
         "FLOW_COUNTS",
         "{rows_read} rows were read; {excluded_missing_label} lacked a label and "
-        "{excluded_missing_score} lacked a score and were excluded; {indeterminate} were "
+        "{excluded_missing_score} lacked a score (on a table without a score column, a "
+        "y_pred) and were excluded; {indeterminate} were "
         "indeterminate; {analysed} rows from {n_cases} cases across {n_sites} sites were "
         "analysed.",
         refs=(0, 7),

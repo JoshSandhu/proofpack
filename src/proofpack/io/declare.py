@@ -34,6 +34,12 @@ MANDATORY_BLOCKS: tuple[str, ...] = (
 DECLARED_BLOCKS: tuple[str, ...] = ("reference_standard", "indeterminates", "clustering")
 
 AUTHORED_FIELDS: tuple[str, ...] = ("author", "date", "justification")
+#: Operating-point ids the run document uses as keys beside the operating points (repair
+#: 3 of build day 8, lens FA-B3 at 7fa690b): ``overall.threshold_free``, and ``auroc`` /
+#: ``brier`` in each subgroup row's ``metrics``. An operating point declared with one of
+#: these ids is H08 (``tests/test_e8_repair3.py::
+#: test_an_operating_point_id_the_document_reserves_halts_h08``).
+RESERVED_OPERATING_POINT_IDS: frozenset[str] = frozenset({"threshold_free", "auroc", "brier"})
 
 
 def metric_ids() -> frozenset[str]:
@@ -273,6 +279,13 @@ def validate_dict(data: dict[str, Any]) -> Declarations:
     op_ids = [op.id for op in ops]
     if len(set(op_ids)) != len(op_ids):
         raise HaltError("H08", "operating point ids are not unique")
+    reserved = [i for i in op_ids if i in RESERVED_OPERATING_POINT_IDS]
+    if reserved:
+        raise HaltError(
+            "H08",
+            "operating point id is a key the run document reserves: " + ", ".join(reserved),
+            {"field": "operating_points", "reserved": reserved},
+        )
 
     known_metrics = metric_ids()
     for c in criteria_block:

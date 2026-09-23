@@ -1,0 +1,33 @@
+{
+  "name": "fairness_gap_tpr_and_fpr_pointers_swapped",
+  "rule": "CL-0061 with its tpr_gap and fpr_gap pointers swapped (lens FA-B1 at 7fa690b: accepted)",
+  "expected_reason_code": "value_ref_unbound",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9134",
+    "template_id": "FAIRNESS_GAP",
+    "metric_id": "tpr_gap",
+    "operating_point": "op1",
+    "subgroup": {
+      "attribute": "sex",
+      "level": "F"
+    },
+    "reference": {
+      "attribute": "sex",
+      "level": "M"
+    },
+    "comparator_id": "diff_vs_reference",
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "within",
+    "value_refs": [
+      "/fairness/gaps/0/operating_points/op1/fpr_gap/number",
+      "/fairness/gaps/0/operating_points/op1/tpr_gap/number",
+      "/fairness/gaps/0/operating_points/op1/ppv_gap/number",
+      "/fairness/gaps/0/auroc_gap/number"
+    ],
+    "guidance_ref": "FDA_AIDSF_SUBGROUP_PERF",
+    "free_text": null
+  }
+}

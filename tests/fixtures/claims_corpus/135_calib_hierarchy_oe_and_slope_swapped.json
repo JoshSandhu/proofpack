@@ -1,0 +1,29 @@
+{
+  "name": "calib_hierarchy_oe_and_slope_swapped",
+  "rule": "CL-0060 with its oe and slope pointers swapped (lens FA-B1 at 7fa690b: accepted)",
+  "expected_reason_code": "value_ref_unbound",
+  "note": "",
+  "claim": {
+    "claim_id": "CL-9135",
+    "template_id": "CALIB_HIERARCHY",
+    "metric_id": "oe",
+    "operating_point": null,
+    "subgroup": null,
+    "reference": null,
+    "comparator_id": null,
+    "criterion_index": null,
+    "criterion_id": null,
+    "status": null,
+    "relation": "estimate",
+    "value_refs": [
+      "/calibration/slope/number",
+      "/calibration/oe/number",
+      "/calibration/intercept/number",
+      "/calibration/brier/number",
+      "/calibration/brier_ref/number",
+      "/calibration/ipa/number"
+    ],
+    "guidance_ref": "FDA_AIDSF_CALIBRATION",
+    "free_text": null
+  }
+}

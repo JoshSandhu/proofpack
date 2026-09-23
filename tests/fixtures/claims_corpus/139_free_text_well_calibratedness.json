@@ -1,10 +1,10 @@
 {
-  "name": "free_text_pass_spaced_letters",
-  "rule": "free_text 'p a s s' (lens FA-B4: accepted at 657ef11; every run of two to fourteen consecutive tokens is joined)",
+  "name": "free_text_well_calibratedness",
+  "rule": "free_text 'well-calibratedness' (lens RG-B1: rejected at 657ef11, accepted at 7fa690b)",
   "expected_reason_code": "free_text_verdict_word",
   "note": "",
   "claim": {
-    "claim_id": "CL-9129",
+    "claim_id": "CL-9139",
     "template_id": "OVERALL_ESTIMATE",
     "metric_id": "sensitivity",
     "operating_point": "op1",
@@ -19,6 +19,6 @@
       "/overall/op1/sensitivity"
     ],
     "guidance_ref": "FDA_AIDSF_PERF_VALIDATION",
-    "free_text": "Sensitivity looked p a s s here."
+    "free_text": "The model looked well-calibratedness here."
   }
 }

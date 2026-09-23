@@ -196,15 +196,16 @@ def test_the_corpus_is_numerically_correct_where_it_binds_numbers(document):
 
 
 def test_every_reason_code_has_at_least_one_corpus_case():
-    """Repair 2 of day 8: 43 codes in ``checker.REASON_CODES`` (``value_ref_unbound``
-    joined in repair 2), 130 corpus files (``116``-``130`` joined in repair 2); every
-    code is the expected code of at least one file (``claim_id_duplicate`` and
+    """Repair 3 of day 8: 44 codes in ``checker.REASON_CODES`` (``value_ref_unbound``
+    joined in repair 2, ``template_mismatch`` in repair 3), 140 corpus files
+    (``116``-``130`` joined in repair 2, ``131``-``140`` in repair 3); every code is the
+    expected code of at least one file (``claim_id_duplicate`` and
     ``no_claims_for_criteria`` through ``claims`` lists)."""
     expected = {
         json.loads(p.read_text(encoding="utf-8"))["expected_reason_code"] for p in CORPUS_FILES
     }
     assert set(checker.REASON_CODES) - expected == set()
-    assert len(checker.REASON_CODES) == 43 and len(CORPUS_FILES) == 130
+    assert len(checker.REASON_CODES) == 44 and len(CORPUS_FILES) == 140
 
 
 # ------------------------------------------------------- the engine's own claims (item 4)

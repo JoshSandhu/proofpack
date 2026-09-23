@@ -336,8 +336,11 @@ and the same bytes are `manifest.mapping_sha256` in `run.json` (DEC-27).
   (`tests/test_e8_repair2.py`); each exits 3 and writes no directory.
 * **A blank `y_pred` cell and an indeterminate-valued one** (repair 2 of build day 8): on
   a table without a score column a blank `y_pred` is a missing prediction input, excluded
-  from every statistic and counted under `flow.excluded_missing_score` (the flow's one
-  missing-prediction-input entry; beside a score column the score is the input and a
+  from every statistic, and counted under `flow.excluded_missing_score` when the row's
+  `y_true` is present (a row whose `y_true` is also blank counts under
+  `flow.excluded_missing_label`: 12 blank `y_pred` cells, 6 of them on blank-label rows,
+  give `excluded_missing_label 6` and `excluded_missing_score 6` in
+  `tests/test_e8_repair3.py`; beside a score column the score is the input and a
   blank `y_pred` changes nothing); a `y_pred` equal to a declared `indeterminates.values`
   entry marks the row indeterminate (`flow.indeterminate`), as a `y_true` equal to it
   does. Measured on 120 rows without a score: 60 blank `y_pred` cells give

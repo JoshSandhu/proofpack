@@ -1650,15 +1650,14 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
     Mutant(
         "checker_confusables_unmapped",
         CHECKER,
-        r"        ch = CONFUSABLES\.get\(ch, ch\)",
+        r"        ch = confusables\.get\(ch, ch\)",
         "        ch = ch",
         day=8,
         what="a Cyrillic a in pass is not mapped to a (FA-B2)",
     ),
-    # checker_format_characters_kept (repair 1, FA-B2) was withdrawn in repair 2: once
-    # _words joins up to _JOIN_RUN = 14 consecutive tokens, a kept Mn / Cf character only
-    # splits a word into more tokens, never more than its letters, and no listed word has
-    # more than 14 letters - the mutant became equivalent (it survived at repair 2).
+    # checker_format_characters_kept (repair 1, FA-B2) was withdrawn at 7fa690b; lens RG-B3
+    # of round 3 fed com­pass (real code: accepted; mutant: rejected). It is restored
+    # in the repair-3 block below with the test that feeds that literal.
     Mutant(
         "checker_join_window_short",
         CHECKER,
@@ -1836,6 +1835,188 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
         '        "has_criteria": False\n        or bool(',
         day=8,
         what="a fairness bound without a criteria list prints no criteria table (FA-B3)",
+    ),
+    # --- repair 3 of day 8 (23 September): the lens-3 pair's findings at 7fa690b
+    Mutant(
+        "checker_format_characters_kept",
+        CHECKER,
+        r'        if unicodedata\.category\(ch\) in \("Mn", "Cf"\):',
+        "        if False:",
+        day=8,
+        what="a soft hyphen or zero-width joiner is kept: com\\u00adpass reads com + pass (RG-B3)",
+    ),
+    Mutant(
+        "checker_well_calibrated_substring_dropped",
+        CHECKER,
+        r'    if any\("wellcalibrated" in r\.replace\("-", ""\) for r in readings\):',
+        "    if False:",
+        day=8,
+        what="well-calibratedness is accepted (RG-B1)",
+    ),
+    Mutant(
+        "checker_earlier_readings_dropped",
+        CHECKER,
+        r"_READING_MAPS: tuple\[dict\[str, str\], \.\.\.\] = \(\n    _CONFUSABLES_R1,\n"
+        r"    \{\*\*_CONFUSABLES_R1, \*\*_SMALL_CAPITALS\},\n\)",
+        "_READING_MAPS: tuple[dict[str, str], ...] = ()",
+        day=8,
+        what="pass + small capital A reads passa only and is accepted (RG-B1)",
+    ),
+    Mutant(
+        "checker_capital_i_reading_dropped",
+        CHECKER,
+        r'    capital_i = normalise_free_text\(raw\.replace\("I", "l"\)\)',
+        "    capital_i = full",
+        day=8,
+        what="faiI is accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_rn_reading_dropped",
+        CHECKER,
+        r'    rn = full\.replace\("rn", "m"\)',
+        "    rn = full",
+        day=8,
+        what="rneets is accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_latin_alpha_unmapped",
+        CHECKER,
+        r'    "ɑ": "a",  # Latin alpha, U\+0251',
+        '    "ɑ": "ɑ",  # Latin alpha, U+0251',
+        day=8,
+        what="p + Latin alpha U+0251 + ss is accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_f_with_hook_unmapped",
+        CHECKER,
+        r'    "ƒ": "f",',
+        '    "ƒ": "ƒ",',
+        day=8,
+        what="U+0192 f with hook + ail is accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_dental_click_unmapped",
+        CHECKER,
+        r'    "ǀ": "l",',
+        '    "ǀ": "ǀ",',
+        day=8,
+        what="fai + U+01C0 dental click is accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_armenian_oh_unmapped",
+        CHECKER,
+        r'    "օ": "o",',
+        '    "օ": "օ",',
+        day=8,
+        what="g + two Armenian oh U+0585 + d is accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_cherokee_p_unmapped",
+        CHECKER,
+        r'    "Ꮲ": "p",',
+        '    "Ꮲ": "Ꮲ",',
+        day=8,
+        what="Cherokee U+13E2 + ass is accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_lunate_sigma_read_after_nfkc",
+        CHECKER,
+        r'_BEFORE_NFKC: dict\[str, str\] = \{"ϲ": "c", "Ϲ": "c"\}',
+        "_BEFORE_NFKC: dict[str, str] = {}",
+        day=8,
+        what="Greek lunate sigma U+03F2 + onsistent is accepted (FA-B2)",
+    ),
+    Mutant(
+        "checker_not_met_record_on_any_row",
+        CHECKER,
+        r'        if template_id == "CRITERION_NOT_MET_RECORD" and row\.get\("status"\) '
+        r'!= "not_met":',
+        "        if False:",
+        day=8,
+        what="CRITERION_NOT_MET_RECORD is accepted on a met row (RG-B2 / FA-B1)",
+    ),
+    Mutant(
+        "checker_attainability_note_on_any_row",
+        CHECKER,
+        r'        if template_id == "ATTAINABILITY_NOTE" and not isinstance\('
+        r'row\.get\("attainable_at_n"\), bool\):',
+        "        if False:",
+        day=8,
+        what="ATTAINABILITY_NOTE is accepted on a row without attainable_at_n (RG-B2)",
+    ),
+    Mutant(
+        "checker_template_shapes_unchecked",
+        CHECKER,
+        r"        if shapes is not None and f\.shape not in shapes:",
+        "        if False:",
+        day=8,
+        what="the overall sensitivity is accepted as AUROC_ESTIMATE (RG-B2 / FA-B1)",
+    ),
+    Mutant(
+        "checker_auroc_template_metric_unchecked",
+        CHECKER,
+        r"    if template_metrics is not None and metric_id not in template_metrics:",
+        "    if False:",
+        day=8,
+        what="AUROC_ESTIMATE over the threshold-free prevalence is accepted (FA-B1)",
+    ),
+    Mutant(
+        "checker_slot_order_unchecked",
+        CHECKER,
+        r"        if -1 in slot_positions or slot_positions != sorted\(set\(slot_positions\)\):",
+        "        if -1 in slot_positions:",
+        day=8,
+        what="FAIRNESS_GAP with tpr_gap and fpr_gap swapped is accepted (FA-B1)",
+    ),
+    Mutant(
+        "checker_scalar_slots_unchecked",
+        CHECKER,
+        r"        if -1 in scalar_positions or scalar_positions != "
+        r"sorted\(set\(scalar_positions\)\):",
+        "        if False:",
+        day=8,
+        what="SITE_COUNT over /flow/rows_read is accepted (FA-B1)",
+    ),
+    Mutant(
+        "checker_scalar_slot_order_unchecked",
+        CHECKER,
+        r"        if -1 in scalar_positions or scalar_positions != "
+        r"sorted\(set\(scalar_positions\)\):",
+        "        if -1 in scalar_positions:",
+        day=8,
+        what="FLOW_COUNTS with its seven counts reversed is accepted (FA-B1)",
+    ),
+    Mutant(
+        "checker_count_template_scope_unchecked",
+        CHECKER,
+        r"    if template_id in SCALAR_SLOTS and any\(",
+        "    if False and any(",
+        day=8,
+        what="FLOW_COUNTS carrying sensitivity, op1 and sex = F is accepted (FA-B1)",
+    ),
+    Mutant(
+        "checker_calib_na_beside_calibration",
+        CHECKER,
+        r'    if template_id == "CALIB_NA" and isinstance\(doc\.get\("calibration"\), dict\):',
+        "    if False:",
+        day=8,
+        what="CALIB_NA is accepted on a document with a calibration block (FA-B1)",
+    ),
+    Mutant(
+        "declare_reserved_operating_point_ids_accepted",
+        DECLARE,
+        r"    reserved = \[i for i in op_ids if i in RESERVED_OPERATING_POINT_IDS\]",
+        "    reserved = []",
+        day=8,
+        what="an operating point declared threshold_free loses its block (FA-B3)",
+    ),
+    Mutant(
+        "declare_reserved_ids_threshold_free_only",
+        DECLARE,
+        r'frozenset\(\{"threshold_free", "auroc", "brier"\}\)',
+        'frozenset({"threshold_free"})',
+        day=8,
+        what="an operating point declared auroc drops its subgroup cells (repair 3)",
     ),
 )
 
@@ -2050,12 +2231,17 @@ def restore(copy: Path, mutant: Mutant) -> None:
 
 
 def run_marker(copy: Path, marker: str) -> tuple[int, str]:
+    # UTF-8 both ways (repair 3 of day 8): a failing day-8 test prints its non-ASCII
+    # literals, and a cp1252 read of that output left proc.stdout None and ended the sweep
+    # with a TypeError at checker_capital_i_reading_dropped
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-x", "-m", marker],
         cwd=copy,
-        env=env_for(copy),
+        env={**env_for(copy), "PYTHONIOENCODING": "utf-8"},
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     tail = "\n".join((proc.stdout + proc.stderr).strip().splitlines()[-3:])
     return proc.returncode, tail
