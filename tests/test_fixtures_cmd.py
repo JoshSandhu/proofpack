@@ -221,7 +221,7 @@ def test_r_captures_prints_the_typed_not_captured_line(tmp_path: Path, capsys):
     assert fx.r_captures_status()["status"] == fx.R_CAPTURES_NOT_CAPTURED
 
 
-def test_the_committed_oracles_equal_a_fresh_capture():
+def test_capture_check_exits_0_on_the_committed_oracles():
     pytest.importorskip("statsmodels")
     pytest.importorskip("sklearn")
     proc = subprocess.run(

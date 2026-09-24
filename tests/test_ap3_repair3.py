@@ -3,14 +3,16 @@ on main ``78ae8dc``, each as the literal input fed and the figure asserted.
 
 * CI-1: ``scripts/capture_fixture_oracles.py --check`` exited 1 on ubuntu / Python 3.12
   with nothing printed. Fed here, through ``--check --committed <copy>``: the committed
-  file with ``captured.F1-wilson.values.wilson_lo`` moved by +2e-9 and
+  file (repair round 1, RG3-B1: a capture made in the test, labelled as captured on
+  ``linux-x86_64 cp312``) with ``captured.F1-wilson.values.wilson_lo`` moved by +2e-9 and
   ``captured.F3-delong.values.paired_p`` by +1e-12 gives exit 1, one line per moved value
   with both figures (``OUTSIDE`` for the first, ``within`` for the second) and the count
   line ``63 identical, 1 differ within their tolerance, 1 differ outside it``; the second
-  move alone gives exit 0. Through ``compare()``: ``F6-homogeneity`` ``chi2_p`` moved by
-  +5e-7 is within (iterative, 1e-6) and ``chi2`` moved by +5e-7 is not (closed form,
-  1e-9); a changed ``source``, an extra value name and a value ``true`` are each reported
-  and give False. The committed file names the platform it was captured on, and each
+  move alone gives exit 0. Through ``compare()``, the committed side labelled
+  ``linux-x86_64 cp312``: ``F6-homogeneity`` ``chi2_p`` moved by +5e-7 is within
+  (iterative, 1e-6) and ``chi2`` moved by +5e-7 is not (closed form, 1e-9); a changed
+  ``source``, an extra value name and a value ``true`` are each reported and give
+  False. The committed file names the platform it was captured on, and each
   value's class in the script equals the tolerance the ``proofpack fixtures`` rows apply
   to it.
 * CI-2: with ``PYTHONUSERBASE`` set to an empty directory and the dependencies reachable
@@ -64,6 +66,28 @@ def _moved(doc: dict, entry: str, name: str, by: float) -> tuple[dict, float, fl
     return out, before, before + by
 
 
+#: The platform a committed side is labelled with when a test needs the tolerance
+#: comparison (repair round 1: the same platform and library versions compare exactly).
+OTHER_PLATFORM = "linux-x86_64 cp312"
+
+
+def fresh_capture() -> dict:
+    """A capture made in this process, as ``--check`` reads it (repair round 1, RG3-B1:
+    the CI-1 subprocess tests move values in this, not in fixtures/oracles_v1.json, so
+    their counts do not depend on the committed file equalling this machine's capture)."""
+    pytest.importorskip("statsmodels")
+    pytest.importorskip("sklearn")
+    mod = _capture_module()
+    return json.loads(mod.dumps(mod.capture()))
+
+
+def elsewhere(doc: dict) -> dict:
+    """A copy of ``doc`` whose ``captured_on_platform`` is :data:`OTHER_PLATFORM`."""
+    out = copy.deepcopy(doc)
+    out["captured_on_platform"] = OTHER_PLATFORM
+    return out
+
+
 def _check(tmp_path: Path, doc: dict) -> subprocess.CompletedProcess:
     pytest.importorskip("statsmodels")
     pytest.importorskip("sklearn")
@@ -80,7 +104,7 @@ def _check(tmp_path: Path, doc: dict) -> subprocess.CompletedProcess:
 
 
 def test_ci1_check_prints_each_moved_value_with_both_figures_and_exits_1(tmp_path: Path):
-    doc, lo_c, lo_f = _moved(_committed(), "F1-wilson", "wilson_lo", 2e-9)
+    doc, lo_c, lo_f = _moved(elsewhere(fresh_capture()), "F1-wilson", "wilson_lo", 2e-9)
     doc, p_c, p_f = _moved(doc, "F3-delong", "paired_p", 1e-12)
     proc = _check(tmp_path, doc)
     assert proc.returncode == 1, proc.stdout + proc.stderr
@@ -88,7 +112,7 @@ def test_ci1_check_prints_each_moved_value_with_both_figures_and_exits_1(tmp_pat
     lo = [ln for ln in lines if ln.startswith("captured.F1-wilson.values.wilson_lo:")]
     p = [ln for ln in lines if ln.startswith("captured.F3-delong.values.paired_p:")]
     assert len(lo) == 1 and len(p) == 1, proc.stdout
-    # the file on disk is the "committed" side; the fresh capture equals the real file
+    # the file on disk is the "committed" side; the script's own capture is the fresh side
     assert f"committed {lo_f!r} fresh {lo_c!r}" in lo[0] and lo[0].endswith(
         "closed_form tolerance 1e-09 OUTSIDE"
     )
@@ -102,7 +126,7 @@ def test_ci1_check_prints_each_moved_value_with_both_figures_and_exits_1(tmp_pat
 
 
 def test_ci1_a_value_moved_within_its_class_is_printed_and_exits_0(tmp_path: Path):
-    doc, p_c, p_f = _moved(_committed(), "F3-delong", "paired_p", 1e-12)
+    doc, p_c, p_f = _moved(elsewhere(fresh_capture()), "F3-delong", "paired_p", 1e-12)
     proc = _check(tmp_path, doc)
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert f"captured.F3-delong.values.paired_p: committed {p_f!r} fresh {p_c!r}" in proc.stdout
@@ -112,10 +136,10 @@ def test_ci1_a_value_moved_within_its_class_is_printed_and_exits_0(tmp_path: Pat
 def test_ci1_chi2_p_is_compared_as_iterative_and_chi2_as_closed_form():
     mod = _capture_module()
     base = _committed()
-    doc, _, _ = _moved(base, "F6-homogeneity", "chi2_p", 5e-7)
+    doc, _, _ = _moved(elsewhere(base), "F6-homogeneity", "chi2_p", 5e-7)
     lines, ok = mod.compare(doc, base)
     assert ok is True and any(ln.endswith("iterative tolerance 1e-06 within") for ln in lines)
-    doc, _, _ = _moved(base, "F6-homogeneity", "chi2", 5e-7)
+    doc, _, _ = _moved(elsewhere(base), "F6-homogeneity", "chi2", 5e-7)
     lines, ok = mod.compare(doc, base)
     assert ok is False and any(ln.endswith("closed_form tolerance 1e-09 OUTSIDE") for ln in lines)
 
@@ -142,7 +166,8 @@ def test_ci1_a_changed_source_an_extra_value_and_a_bool_are_each_reported():
     doc["register"]["F1"]["wilson_lo"] = 0.2554
     lines, ok = mod.compare(doc, base)
     assert ok is False and "register: differs (compared for equality)" in lines
-    # the platform and the library versions are recorded, not compared
+    # a changed platform and numpy version select the tolerance classes; with no value
+    # moved the result is True
     doc = copy.deepcopy(base)
     doc["captured_on_platform"] = "linux-x86_64 cp312"
     doc["library_versions"]["numpy"] = "2.5.3"

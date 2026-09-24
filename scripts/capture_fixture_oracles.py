@@ -18,25 +18,24 @@ Nothing here imports ``proofpack``. Each value is computed by one of:
 
 The register values (D1 section 3.2, from R2 section 9) are typed from D1 section 3.2 as
 printed there, with the number of decimals printed; they are the "published table"
-oracles. ``tests/test_fixtures_cmd.py::test_the_committed_oracles_equal_a_fresh_capture``
-re-runs this capture and compares it with the committed file (skipped where statsmodels
-or scikit-learn is absent, as in a customer's install).
+oracles. ``tests/test_fixtures_cmd.py::test_capture_check_exits_0_on_the_committed_oracles``
+runs ``--check`` on the committed file (skipped where statsmodels or scikit-learn is
+absent, as in a customer's install).
 
-``--check`` (A-P3 repair 3, CI-1). The committed file records the platform it was captured
-on (``captured_on_platform``: ``sysconfig.get_platform()`` and the CPython tag). A fresh
-capture is compared with it in two parts. Everything outside ``captured`` (``register``,
+``--check`` (A-P3 repair 3, CI-1; repair round 1, FA-N1). The committed file records the
+platform it was captured on (``captured_on_platform``: ``sysconfig.get_platform()`` and the
+CPython tag) and ``library_versions``. A fresh capture is compared with it in two parts.
+Everything outside ``captured`` apart from those two keys (``register``,
 ``register_decimals``, ``schema``, ``captured_by``, ``register_source``) and each entry's
 ``kind``, ``source`` and value names are compared for equality. Each captured value is
-compared as a number, under the tolerance class the ``proofpack fixtures`` row that reads
-it uses (:data:`CAPTURED_CLASS`; D1 section 9 gives 1e-9 for closed-form values and 1e-6
-for iterative ones on platforms other than the reference platform, and the committed file
-was not captured on the reference platform). Each value whose float differs is printed
-with both figures, the absolute difference and its tolerance. The exit code is 1 when
-:func:`compare` returns False and 0 when it returns True. ``tests/test_ap3_repair3.py``
-feeds: ``F1-wilson`` ``wilson_lo`` +2e-9 (exit 1), ``F3-delong`` ``paired_p`` +1e-12
-(exit 0), ``F6-homogeneity`` ``chi2`` and ``chi2_p`` each +5e-7 (False, True), a changed
-``source``, an extra value name, a value ``true`` and a changed ``register`` value (each
-False), and a changed platform and numpy version (True).
+compared as a number: exactly when both files name the same platform and library
+versions, and otherwise under the tolerance class the ``proofpack fixtures`` row that
+reads it uses (:data:`CAPTURED_CLASS`; D1 section 9 gives 1e-9 for closed-form values and
+1e-6 for iterative ones on platforms other than the reference platform). Each value whose
+float differs is printed with both figures, the absolute difference and the tolerance
+applied. The exit code is 1 when :func:`compare` returns False and 0 when it returns True.
+The inputs ``tests/test_ap3_repair3.py`` and ``tests/test_ap3_r3_repair1.py`` feed are
+listed in their module docstrings.
 """
 
 from __future__ import annotations
@@ -407,11 +406,32 @@ def _is_number(v: object) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
+def same_capture_setting(committed: dict, fresh: dict) -> bool:
+    """True when the two files name the same ``captured_on_platform`` and the same
+    ``library_versions`` (A-P3 repair round 1, lens FA-N1)."""
+    return all(committed.get(k) == fresh.get(k) for k in NOT_COMPARED)
+
+
 def compare(committed: dict, fresh: dict) -> tuple[list[str], bool]:
     """The lines ``--check`` prints, and False when a line reports a value outside its
-    tolerance or a part compared for equality that differs."""
+    tolerance or a part compared for equality that differs.
+
+    When :func:`same_capture_setting` is True each captured value is compared exactly
+    (tolerance 0); otherwise under its :data:`CAPTURED_CLASS` tolerance. A committed file
+    without ``captured_on_platform`` or ``library_versions`` gives False."""
     lines: list[str] = []
     ok = True
+    for key in NOT_COMPARED:
+        if committed.get(key) is None:
+            ok = False
+            lines.append(f"{key}: not recorded in the committed file")
+    exact = ok and same_capture_setting(committed, fresh)
+    lines.append(
+        "comparison: exact (same captured_on_platform and library_versions)"
+        if exact
+        else "comparison: D1 section 9 tolerance classes (captured_on_platform or "
+        "library_versions differ)"
+    )
     a, b = comparable(committed), comparable(fresh)
     for key in sorted((set(a) | set(b)) - {"captured"}):
         if a.get(key) != b.get(key):
@@ -452,7 +472,7 @@ def compare(committed: dict, fresh: dict) -> tuple[list[str], bool]:
                 counts["identical"] += 1
                 continue
             dev = abs(float(x) - float(y))
-            tol = TOLERANCE[cls]
+            cls, tol = ("exact", 0.0) if exact else (cls, TOLERANCE[cls])
             within = dev <= tol
             counts["within" if within else "outside"] += 1
             ok = ok and within

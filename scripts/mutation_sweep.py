@@ -2856,6 +2856,102 @@ AP3_MUTANTS: tuple[Mutant, ...] = (
         day=9,
         marker="ap3",
     ),
+    # A-P3 repair 3, repair round 1: the lens findings FA-N1, FA-N6, FA-N7, RG3-N3, RG3-N4
+    Mutant(
+        "ap3_oracle_check_same_platform_uses_tolerance",
+        CAPTURE_SCRIPT,
+        r"^    exact = ok and same_capture_setting\(committed, fresh\)$",
+        "    exact = False",
+        what="--check applies the tolerance classes on the capture's own platform (FA-N1)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_oracle_check_unrecorded_platform_passes",
+        CAPTURE_SCRIPT,
+        r"^            ok = False\n(?=            lines\.append\(f\"\{key\}: not recorded)",
+        "",
+        what="--check passes a committed file with no captured_on_platform (FA-N1)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_oracle_check_entry_symdiff_ignored",
+        CAPTURE_SCRIPT,
+        r"^(    for entry in sorted\(set\(ca\) \^ set\(cb\)\):\n)        ok = False\n",
+        r"\1",
+        what="--check passes a captured entry present on one side only (FA-N6)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_oracle_check_unclassed_value_passes",
+        CAPTURE_SCRIPT,
+        r"^                ok = False\n"
+        r"(?=                lines\.append\(f\"\{label\}: no tolerance)",
+        "",
+        what="--check passes a captured value with no tolerance class (FA-N6)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_oracle_check_toplevel_only_committed_keys",
+        CAPTURE_SCRIPT,
+        r"^    for key in sorted\(\(set\(a\) \| set\(b\)\) - \{\"captured\"\}\):$",
+        '    for key in sorted(set(a) - {"captured"}):',
+        what="--check ignores a top-level key present in the fresh capture only (FA-N6)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_oracle_check_kind_not_compared",
+        CAPTURE_SCRIPT,
+        r"^        for field in \(\"kind\", \"source\"\):$",
+        '        for field in ("source",):',
+        what="--check no longer compares each entry's kind (RG3-N3)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_ci_oracle_step_removed",
+        ".github/workflows/ci.yml",
+        r"^      - name: oracle capture compared with fixtures/oracles_v1\.json\n"
+        r"        if: \$\{\{ !cancelled\(\) \}\}\n"
+        r"        run: uv run python scripts/capture_fixture_oracles\.py --check\n",
+        "",
+        what="ci.yml's test job loses the oracle --check step (FA-N7)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_ci_oracle_step_no_if",
+        ".github/workflows/ci.yml",
+        r"^        if: \$\{\{ !cancelled\(\) \}\}\n(?=        run: uv run python scripts/capture)",
+        "",
+        what="ci.yml's oracle --check step loses if: !cancelled() (FA-N7)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_wheel_probe_drops_runtime_imports",
+        "tests/test_wheel_fixtures.py",
+        r"^    f\"import \{', '\.join\(RUNTIME_MODULES\)\}; \"\n",
+        "",
+        what="the wheel test's probe no longer imports the 14 runtime modules (RG3-N4)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_wheel_probe_failure_skips",
+        "tests/test_wheel_fixtures.py",
+        r"^    assert probe\.returncode == 0, f\"PYTHONPATH=\{pythonpath\}",
+        "    if probe.returncode != 0:\n"
+        "        pytest.skip(pythonpath)\n"
+        '    assert True, f"{pythonpath}',
+        what="a failed wheel-test probe skips instead of failing (RG3-N4)",
+        day=9,
+        marker="ap3",
+    ),
 )
 MUTANTS = MUTANTS + AP3_MUTANTS
 

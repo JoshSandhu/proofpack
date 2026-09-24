@@ -27,11 +27,11 @@ jobs:
       - run: uv run ruff format --check .
       - name: pytest (all markers)
         run: uv run pytest -q -p no:cacheprovider
-      # A-P3 repair 3 (CI-1): the comparison tests/test_fixtures_cmd.py runs, here outside
-      # pytest, whose capture would hold its printed lines (each captured value whose float
-      # differs from fixtures/oracles_v1.json, with both figures) unless the test fails.
-      # `if: !cancelled()` runs it after a failed pytest step. Written 24 September 2026;
-      # it has not run yet.
+      # A-P3 repair 3 (CI-1): the --check tests/test_fixtures_cmd.py runs, here outside
+      # pytest, so its printed lines (each captured value whose float differs from
+      # fixtures/oracles_v1.json, with both figures) reach the job log. The step name, the
+      # command and the if: line are read by tests/test_ap3_r3_repair1.py::
+      # test_fan7_ci_runs_the_oracle_check_after_pytest_unless_cancelled.
       - name: oracle capture compared with fixtures/oracles_v1.json
         if: ${{ !cancelled() }}
         run: uv run python scripts/capture_fixture_oracles.py --check
@@ -118,8 +118,9 @@ jobs:
     # it with no network: doctor, fixtures, one run on the synthetic sample (exit 4: no
     # licence in the image, run.json written) and F17 (scripts/f17_determinism.py, two runs
     # of 5,000 rows compared under the three-key mask). No push: this job has no packages
-    # permission and names no registry; the GHCR push is release.yml's, on a tag. Written
-    # on 24 September 2026; it has not run anywhere yet.
+    # permission and names no registry; the GHCR push is release.yml's, on a tag. In run
+    # 36005620750 (24 September 2026, at 78ae8dc) the steps up to and including the build
+    # completed, the digest step failed and the smoke step did not start.
     name: Docker image smoke (linux/amd64, no push)
     runs-on: ubuntu-latest
     steps:
@@ -139,7 +140,7 @@ jobs:
       # build log shows it resolving and pulling the base itself. This step greps the base
       # reference from the build log (tests/test_ap3_repair3.py::
       # test_ci3_the_digest_step_reads_the_build_log feeds it three lines of that log).
-      # Written 24 September 2026; it has not run yet.
+      # Written at 5440295, after run 36005620750.
       - name: record the base image digest (the Dockerfile pin is [unverified] until this is read)
         run: |
           set -euo pipefail

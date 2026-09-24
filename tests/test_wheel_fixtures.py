@@ -10,13 +10,17 @@ the interpreter running pytest imports each module of :data:`RUNTIME_MODULES` (A
 3, CI-2: at ``78ae8dc`` the path was ``site.getusersitepackages()``; in GitHub Actions
 run 36005620750 the fixtures run then exited 5 with ``ModuleNotFoundError: No module
 named 'numpy'``). ``PYTHONNOUSERSITE=1`` is set, as at ``78ae8dc``. Asserted:
-the probe imports proofpack and each of :data:`RUNTIME_MODULES` in the fresh venv (no
-skip when it cannot: the test fails), ``proofpack.__file__`` and the oracle files resolve
-inside the venv; the report has 29 matched rows and 0 not matched, exit 0 (F14 is 'no
-oracle recorded': its [unverified] Newcombe transcription is not packaged); ``git_sha`` is
-null with the reason "not a git checkout (an installed wheel carries no git metadata)".
-The test is skipped only when the interpreter running pytest cannot import one of
-:data:`RUNTIME_MODULES` itself, and the skip names it.
+:data:`PROBE` (it imports proofpack and each of :data:`RUNTIME_MODULES`) exits 0 in the
+fresh venv (:func:`assert_probe_ran`; ``tests/test_ap3_r3_repair1.py::
+test_rgn4_a_failed_probe_is_an_assertion_error_not_a_skip`` feeds it a return code of 1),
+``proofpack.__file__`` and the oracle files resolve inside the venv; the report has 29
+matched rows and 0 not matched, exit 0 (F14 is 'no oracle recorded': its [unverified]
+Newcombe transcription is not packaged); ``git_sha`` is null with the reason "not a git
+checkout (an installed wheel carries no git metadata)".
+Two skips are written in the code this test calls: ``_build_wheel``
+(``tests/test_render_theme.py``) when neither ``uv build`` nor ``pip wheel`` produces a
+wheel, and :func:`dependency_paths`, naming the module, when the interpreter running pytest
+cannot import one of :data:`RUNTIME_MODULES`.
 """
 
 from __future__ import annotations
@@ -71,6 +75,19 @@ def dependency_paths() -> list[str]:
     return out
 
 
+#: The command the fresh venv's interpreter runs before the fixtures run.
+PROBE = (
+    f"import {', '.join(RUNTIME_MODULES)}; "
+    "import proofpack, proofpack.resources as r; print(proofpack.__file__); "
+    "print(r.resource_path('oracles_v1.json'))"
+)
+
+
+def assert_probe_ran(probe: subprocess.CompletedProcess, pythonpath: str) -> None:
+    """An AssertionError, naming ``PYTHONPATH`` and the probe's stderr, unless it exited 0."""
+    assert probe.returncode == 0, f"PYTHONPATH={pythonpath}\n{probe.stderr}"
+
+
 def test_fixtures_runs_from_a_built_wheel_in_a_fresh_venv(tmp_path: Path):
     wheel = _build_wheel(tmp_path / "dist")
     venv = tmp_path / "venv"
@@ -110,19 +127,13 @@ def test_fixtures_runs_from_a_built_wheel_in_a_fresh_venv(tmp_path: Path):
         PROOFPACK_HOME=str(tmp_path / "home"),
     )
     probe = subprocess.run(
-        [
-            str(py),
-            "-c",
-            f"import {', '.join(RUNTIME_MODULES)}; "
-            "import proofpack, proofpack.resources as r; print(proofpack.__file__); "
-            "print(r.resource_path('oracles_v1.json'))",
-        ],
+        [str(py), "-c", PROBE],
         capture_output=True,
         text=True,
         env=env,
         cwd=str(tmp_path),
     )
-    assert probe.returncode == 0, f"PYTHONPATH={env['PYTHONPATH']}\n{probe.stderr}"
+    assert_probe_ran(probe, env["PYTHONPATH"])
     for line in probe.stdout.strip().splitlines():
         assert Path(line).resolve().is_relative_to(venv.resolve()), line
     out = tmp_path / "fx"
