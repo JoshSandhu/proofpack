@@ -4,12 +4,12 @@ on main ``78ae8dc``, each as the literal input fed and the figure asserted.
 * CI-1: ``scripts/capture_fixture_oracles.py --check`` exited 1 on ubuntu / Python 3.12
   with nothing printed. Fed here, through ``--check --committed <copy>``: the committed
   file (repair round 1, RG3-B1: a capture made in the test, labelled as captured on
-  ``linux-x86_64 cp312``) with ``captured.F1-wilson.values.wilson_lo`` moved by +2e-9 and
+  ``planted-platform cp0``) with ``captured.F1-wilson.values.wilson_lo`` moved by +2e-9 and
   ``captured.F3-delong.values.paired_p`` by +1e-12 gives exit 1, one line per moved value
   with both figures (``OUTSIDE`` for the first, ``within`` for the second) and the count
   line ``63 identical, 1 differ within their tolerance, 1 differ outside it``; the second
   move alone gives exit 0. Through ``compare()``, the committed side labelled
-  ``linux-x86_64 cp312``: ``F6-homogeneity`` ``chi2_p`` moved by +5e-7 is within
+  ``planted-platform cp0``: ``F6-homogeneity`` ``chi2_p`` moved by +5e-7 is within
   (iterative, 1e-6) and ``chi2`` moved by +5e-7 is not (closed form, 1e-9); a changed
   ``source``, an extra value name and a value ``true`` are each reported and give
   False. The committed file names the platform it was captured on, and each
@@ -68,7 +68,7 @@ def _moved(doc: dict, entry: str, name: str, by: float) -> tuple[dict, float, fl
 
 #: The platform a committed side is labelled with when a test needs the tolerance
 #: comparison (repair round 1: the same platform and library versions compare exactly).
-OTHER_PLATFORM = "linux-x86_64 cp312"
+OTHER_PLATFORM = "planted-platform cp0"
 
 
 def fresh_capture() -> dict:

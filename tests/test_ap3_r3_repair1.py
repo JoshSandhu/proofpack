@@ -8,7 +8,7 @@ at ``5440295``, each as the literal input fed and the figure asserted.
   committed file against itself: ``F1-clopper-pearson`` ``cp_hi`` moved by one ulp gives
   False; the 18 iterative values each moved by +9.9e-7 give False and ``47 identical, 0
   differ within their tolerance, 18 differ outside it``, and give True with ``18 differ
-  within`` when the committed side is labelled ``linux-x86_64 cp312``. A committed side
+  within`` when the committed side is labelled ``planted-platform cp0``. A committed side
   without ``captured_on_platform``, or without ``library_versions``, gives False.
 * FA-N6 / RG3-N3 (branches of ``compare()`` no test fed at ``5440295``): the entry
   ``F2-exact`` deleted from one side, an entry ``F99-planted`` with no tolerance class on
@@ -43,7 +43,7 @@ pytestmark = [pytest.mark.day9, pytest.mark.ap3]
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "scripts" / "capture_fixture_oracles.py"
 COMMITTED = REPO / "fixtures" / "oracles_v1.json"
-OTHER_PLATFORM = "linux-x86_64 cp312"
+OTHER_PLATFORM = "planted-platform cp0"
 
 
 def _capture_module():
