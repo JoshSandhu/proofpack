@@ -46,8 +46,9 @@ def instructions(text: str) -> list[tuple[str, str]]:
 
 @pytest.fixture(scope="module")
 def text() -> str:
-    if not DOCKERFILE.exists():
-        pytest.skip("no Dockerfile in this tree")
+    # no skip: the mutation sweep copies the Dockerfile (scripts/mutation_sweep.py COPIED),
+    # so a missing file fails here (lens FA-R11 / RG-N1)
+    assert DOCKERFILE.exists(), f"no Dockerfile at {DOCKERFILE}"
     return DOCKERFILE.read_text(encoding="utf-8")
 
 

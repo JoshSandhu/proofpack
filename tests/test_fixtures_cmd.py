@@ -12,8 +12,10 @@ What each test feeds and asserts:
 * a row built with no oracle (status ``no_oracle_recorded``, ``not_built``, ``suite_only``)
   has ``matched`` false and is not counted in ``summary.matched``, and a report claiming
   such a row matched fails the schema;
-* ``clopper_pearson_bounds`` returning ``None`` (scipy absent) makes the three interior
-  Clopper-Pearson rows not matched with reason ``optional_dependency_missing: scipy``;
+* ``clopper_pearson_bounds`` returning ``None`` for an interior count (scipy absent) makes
+  four rows not matched with reason ``optional_dependency_missing: scipy``: F1-clopper-pearson,
+  F1-register, F1b-clopper-pearson and F1b-register (F1 and F1b are the two interior
+  cases);
 * ``--r-captures`` prints the typed ``r_captures_not_captured`` line.
 
 The socket test for this command is in ``tests/test_offline.py``
@@ -233,7 +235,7 @@ def test_the_committed_oracles_equal_a_fresh_capture():
 def test_git_sha_is_read_from_the_package_checkout_only(report):
     sha, source = fx.git_sha()
     if (REPO / ".git").exists():
-        assert sha is not None and len(sha) == 40 and "package's checkout" in source
+        assert sha is not None and len(sha) == 40 and source.startswith(fx.GIT_SHA_SOURCE)
     assert report["git_sha"] == sha
 
 

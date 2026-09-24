@@ -43,7 +43,9 @@
       "additionalProperties": false,
       "required": ["source", "closed_form", "iterative", "reported_rounding", "register"],
       "properties": {
-        "source": {"const": "D1 section 9"},
+        "source": {
+          "const": "D1 section 9 (closed_form, iterative, reported_rounding); D1 section 3.2 (register)"
+        },
         "closed_form": {"const": 1e-9},
         "iterative": {"const": 1e-6},
         "reported_rounding": {"type": "string", "minLength": 1},
@@ -140,7 +142,7 @@
             "properties": {
               "name": {"type": "string"},
               "engine": {"type": ["number", "null"]},
-              "oracle": {"type": "number"},
+              "oracle": {"type": ["number", "null"]},
               "abs_deviation": {"type": ["number", "null"], "minimum": 0},
               "tolerance": {"type": "number", "exclusiveMinimum": 0},
               "within": {"type": "boolean"}

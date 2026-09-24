@@ -143,7 +143,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <p>The manufacturer states here what ProofPack is used for in their process and which of their records its output enters. ProofPack does not draft this text.</p>
 <div class="placeholder" data-slot="CT-T12">[CUSTOMER TEXT REQUIRED - intended use of ProofPack in the manufacturer&#39;s process, and the records its output enters; ProofPack does not draft this]</div>
 <h2 id="t12-s2">2. Failure modes the engine inspects</h2>
-<p>Each code below is raised by the engine itself (<code>proofpack/errors.py</code>). The second column is the condition the code inspects; the third is what the engine does when it fires. The last column is for the manufacturer's own risk rating.</p>
+<p>Each code below is defined in <code>proofpack/errors.py</code>. The second column is the condition the code inspects; the third is the engine action, or that no engine path raises the code in this version. The last column is for the manufacturer's own risk rating.</p>
 <div class="table-wrap">
 <table class="failure-modes">
 <caption>Engine codes, from the engine's own code table</caption>
@@ -158,7 +158,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <tr data-code="H07"><td class="mono">H07</td><td>header-set hash differs from mapping.json in non-interactive mode</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
 <tr data-code="H08"><td class="mono">H08</td><td>mandatory declaration missing or criterion lacking author/date/justification</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
 <tr data-code="H09"><td class="mono">H09</td><td>criterion references unknown metric/operating point/attribute/level</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
-<tr data-code="H10"><td class="mono">H10</td><td>observed vs declared intended-use prevalence differ by &gt; 0.10 absolute (flag only)</td><td>flag only: the run completes and the code is recorded</td><td class="signoff"></td></tr>
+<tr data-code="H10"><td class="mono">H10</td><td>observed vs declared intended-use prevalence differ by &gt; 0.10 absolute (flag only)</td><td>not raised in this version: gates.gate_h10 emits W10 (a warning, below)</td><td class="signoff"></td></tr>
 <tr data-code="H11"><td class="mono">H11</td><td>date-like column present with no period declaration</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
 <tr data-code="H12"><td class="mono">H12</td><td>compare paired mode with unmatched row_ids</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
 <tr data-code="S01"><td class="mono">S01</td><td>required column missing</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
@@ -173,8 +173,8 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <tr data-code="W13"><td class="mono">W13</td><td>clustering detected from repeated case_id although clustering.unit is &#39;none&#39;</td><td>warning: the run completes; exit 2 unless another code sets it</td><td class="signoff"></td></tr>
 <tr data-code="W14"><td class="mono">W14</td><td>acceptance runs on this test set exceed the declared ledger limit</td><td>warning: the run completes; exit 2 unless another code sets it</td><td class="signoff"></td></tr>
 <tr data-code="W15"><td class="mono">W15</td><td>the local ledger could not be read or written; acceptance runs not counted</td><td>warning: the run completes; exit 2 unless another code sets it</td><td class="signoff"></td></tr>
-<tr data-code="W16"><td class="mono">W16</td><td>telemetry not sent; run.json and the exit code are unchanged</td><td>warning: the run completes; exit 2 unless another code sets it</td><td class="signoff"></td></tr>
-<tr data-code="exit 0"><td class="mono">exit 0</td><td>no HALT, no warning, a usable licence</td><td></td><td class="signoff"></td></tr>
+<tr data-code="W16"><td class="mono">W16</td><td>telemetry not sent; run.json and the exit code are unchanged</td><td>flag only: one line printed after run.json is written, not in the document; the exit code is the run&#39;s own (exit 0 with the W16 line in tests/test_telemetry.py::test_a_302_through_the_cli_prints_w16_and_the_location_host_receives_nothing)</td><td class="signoff"></td></tr>
+<tr data-code="exit 0"><td class="mono">exit 0</td><td>no HALT, no warning other than W16, a usable licence</td><td></td><td class="signoff"></td></tr>
 <tr data-code="exit 2"><td class="mono">exit 2</td><td>one or more warnings</td><td></td><td class="signoff"></td></tr>
 <tr data-code="exit 3"><td class="mono">exit 3</td><td>a HALT code fired; nothing written</td><td></td><td class="signoff"></td></tr>
 <tr data-code="exit 4"><td class="mono">exit 4</td><td>no usable licence; run.json written with the watermark</td><td></td><td class="signoff"></td></tr>
@@ -210,7 +210,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <tbody>
 <tr><th scope="row">closed form</th><td>1e-09</td></tr>
 <tr><th scope="row">iterative</th><td>1e-06</td></tr>
-<tr><th scope="row">reported rounding</th><td>absolute deviation at most half a unit in the last printed decimal of each value, plus 1e-12 (D1 section 9, bootstrap intervals and published tables)</td></tr>
+<tr><th scope="row">reported rounding</th><td>absolute deviation at most half a unit in the last printed decimal of each value, plus 1e-12. D1 section 9 gives reported rounding for bootstrap CIs (F3-bootstrap, F9-cluster-bootstrap); this report also applies it to F14-newcombe&#39;s published table, for which D1 section 9 gives no tolerance</td></tr>
 <tr><th scope="row">register</th><td>absolute deviation at most 1e-4 on the printed value (D1 section 3.2: &#39;tolerance 1e-4 on the shown rounding&#39;)</td></tr>
 </tbody>
 </table>
@@ -228,7 +228,7 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 </table>
 <div class="table-wrap">
 <table class="evidence">
-<caption>One row per comparison or register entry; deviations are the largest absolute difference between engine and oracle values in the row</caption>
+<caption>One row per comparison or register entry; the largest deviation is the largest absolute difference between engine and oracle values in the row, and "—" where a value was not compared (the note names it) or the row has no comparison</caption>
 <thead><tr><th scope="col">Row</th><th scope="col">What is compared</th><th scope="col">Oracle</th><th scope="col">Tolerance</th><th scope="col" class="num">Values</th><th scope="col" class="num">Largest deviation</th><th scope="col">Status</th><th scope="col">Note</th></tr></thead>
 <tbody>
 <tr data-row="F1-wilson"><td class="mono">F1-wilson</td><td>Wilson 95% interval of 81/263 (proportion(), the rendered Number)</td><td class="mono">fixtures/oracles_v1.json (captured.F1-wilson)</td><td>closed form: 1e-09</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
@@ -285,25 +285,25 @@ a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); o
 <p>ProofPack prints the results below; the person, the date and the signature are the manufacturer's. ProofPack signs nothing.</p>
 <h3 id="t12-s4-1">4.1 proofpack doctor --offline, as run by proofpack fixtures</h3>
 <table class="doctor">
-<caption>Environment checks recorded in the report (0 with the condition not held)</caption>
-<thead><tr><th scope="col">Check</th><th scope="col">Condition held</th><th scope="col">Essential</th><th scope="col">Recorded</th></tr></thead>
+<caption>Environment checks recorded in the report (0 flagged by doctor); the last column is what doctor recorded, which the manufacturer reads</caption>
+<thead><tr><th scope="col">Check</th><th scope="col">Flagged by doctor</th><th scope="col">Essential</th><th scope="col">Recorded</th></tr></thead>
 <tbody>
-<tr><td>python</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
-<tr><td>numpy</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
-<tr><td>yaml</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
-<tr><td>jsonschema</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
-<tr><td>scipy (optional extra)</td><td>yes</td><td>no</td><td class="mono">masked</td></tr>
-<tr><td>docx extra</td><td>yes</td><td>no</td><td class="mono">masked</td></tr>
-<tr><td>schema schema_v1.json</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
-<tr><td>schema criteria_schema.json</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
-<tr><td>schema claims_schema.json</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
-<tr><td>schema egress_schema.json</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
-<tr><td>schema output_schema_v1.json</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
-<tr><td>guidance_map_v1.csv</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
-<tr><td>write access</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
-<tr><td>network</td><td>yes</td><td>no</td><td class="mono">masked</td></tr>
-<tr><td>reference platform</td><td>yes</td><td>no</td><td class="mono">masked</td></tr>
-<tr><td>engine version</td><td>yes</td><td>no</td><td class="mono">masked</td></tr>
+<tr data-check="python"><td>python</td><td>no</td><td>yes</td><td class="mono">masked</td></tr>
+<tr data-check="numpy"><td>numpy</td><td>no</td><td>yes</td><td class="mono">masked</td></tr>
+<tr data-check="yaml"><td>yaml</td><td>no</td><td>yes</td><td class="mono">masked</td></tr>
+<tr data-check="jsonschema"><td>jsonschema</td><td>no</td><td>yes</td><td class="mono">masked</td></tr>
+<tr data-check="scipy (optional extra)"><td>scipy (optional extra)</td><td>no</td><td>no</td><td class="mono">masked</td></tr>
+<tr data-check="docx extra"><td>docx extra</td><td>no</td><td>no</td><td class="mono">masked</td></tr>
+<tr data-check="schema schema_v1.json"><td>schema schema_v1.json</td><td>no</td><td>yes</td><td class="mono">masked</td></tr>
+<tr data-check="schema criteria_schema.json"><td>schema criteria_schema.json</td><td>no</td><td>yes</td><td class="mono">masked</td></tr>
+<tr data-check="schema claims_schema.json"><td>schema claims_schema.json</td><td>no</td><td>yes</td><td class="mono">masked</td></tr>
+<tr data-check="schema egress_schema.json"><td>schema egress_schema.json</td><td>no</td><td>yes</td><td class="mono">masked</td></tr>
+<tr data-check="schema output_schema_v1.json"><td>schema output_schema_v1.json</td><td>no</td><td>yes</td><td class="mono">masked</td></tr>
+<tr data-check="guidance_map_v1.csv"><td>guidance_map_v1.csv</td><td>no</td><td>yes</td><td class="mono">masked</td></tr>
+<tr data-check="write access"><td>write access</td><td>no</td><td>yes</td><td class="mono">masked</td></tr>
+<tr data-check="network"><td>network</td><td>no</td><td>no</td><td class="mono">masked</td></tr>
+<tr data-check="reference platform"><td>reference platform</td><td>no</td><td>no</td><td class="mono">masked</td></tr>
+<tr data-check="engine version"><td>engine version</td><td>no</td><td>no</td><td class="mono">masked</td></tr>
 </tbody>
 </table>
 <p>The licence check is not printed in this table: T12 is written only under a licence that is usable (not refused, not expired past grace); its mark, if any, is on the cover.</p>

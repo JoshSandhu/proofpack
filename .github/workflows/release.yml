@@ -1,10 +1,13 @@
 name: release
 
 # A-P3 (build day 9, lane A). Written, never run: it runs when a tag v* is pushed, and no
-# tag exists (24 September 2026). Every engine command below carries --offline
-# (tests/test_workflows.py asserts it on every line that runs the engine). The only secret
-# named is GITHUB_TOKEN; TestPyPI is reached by trusted publishing (the id-token
-# permission of the testpypi job), which Josh configures on TestPyPI before the first tag.
+# tag exists (24 September 2026). tests/test_workflows.py::
+# test_every_engine_run_in_a_workflow_carries_offline asserts --offline on each command
+# its ENGINE_CALL, IMAGE_CALL and MAIN_CALL patterns match: six here. It does not read
+# inside scripts/build_sample_pack.py or scripts/f17_determinism.py, which run the engine
+# from Python. The only secret named is GITHUB_TOKEN (test_no_secret_other_than_github_token).
+# The testpypi job is written for trusted publishing (id-token: write, no password or
+# token); Josh configures the publisher on TestPyPI before the first tag.
 
 on:
   push:

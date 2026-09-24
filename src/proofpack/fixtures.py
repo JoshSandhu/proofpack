@@ -32,10 +32,12 @@ decimal of each value, plus 1e-12) for the bootstrap intervals and the Newcombe 
 ``register`` 1e-4 for the D1 section 3.2 register values, the tolerance D1 section 3.2
 states for them. The register's printed F3 logit lower bound 0.3748 is 5.8e-5 from the
 engine's 0.374858 and from the captured O(m n) DeLong oracle's (both print 0.3749): it
-lies within the register's 1e-4 and outside half a unit of its fourth decimal. The command
-imports no network module; ``git_sha`` is read with ``git rev-parse HEAD`` in the
-package's own checkout when one exists (an installed wheel has none: ``git_sha`` is
-``null`` with the reason).
+lies within the register's 1e-4 and outside half a unit of its fourth decimal.
+
+``git_sha`` (:func:`git_sha`) is read with ``git rev-parse HEAD`` only in a directory whose
+``src/proofpack`` is the imported package and whose ``pyproject.toml`` names the project
+``proofpack``; otherwise it is ``null`` with the reason
+(``tests/test_ap3_repair1.py::test_git_sha_is_null_for_a_wheel_vendored_inside_another_git_repository``).
 """
 
 from __future__ import annotations
@@ -69,13 +71,26 @@ TOLERANCES: dict[str, float | None] = {
 }
 #: The rule each class applies, printed in the report and in T12.
 TOLERANCE_RULES: dict[str, str] = {
-    "closed_form": "absolute deviation at most 1e-9 (D1 section 9, closed form)",
-    "iterative": "absolute deviation at most 1e-6 (D1 section 9, iterative)",
+    "closed_form": "absolute deviation at most 1e-9. D1 section 9 gives 1e-9 for closed "
+    "forms and names Wilson, 2x2, Brier, O/E and PSI; this report also applies it to "
+    "F3-auroc, the ECE, reference Brier and IPA values of F4-closed-form and the chi-square "
+    "statistic of F6-closed-form, which D1 section 9 does not name",
+    "iterative": "absolute deviation at most 1e-6. D1 section 9 gives 1e-6 for iterative "
+    "methods and names IRLS slope/intercept and DeLong via placements (F4-irls, F3-delong); "
+    "this report also applies it to the Clopper-Pearson rows (a beta quantile) and F6-p, "
+    "which D1 section 9 does not name",
     "reported_rounding": "absolute deviation at most half a unit in the last printed decimal "
-    "of each value, plus 1e-12 (D1 section 9, bootstrap intervals and published tables)",
+    "of each value, plus 1e-12. D1 section 9 gives reported rounding for bootstrap CIs "
+    "(F3-bootstrap, F9-cluster-bootstrap); this report also applies it to F14-newcombe's "
+    "published table, for which D1 section 9 gives no tolerance",
     "register": "absolute deviation at most 1e-4 on the printed value (D1 section 3.2: "
     "'tolerance 1e-4 on the shown rounding')",
 }
+#: Where each class's number is written: :data:`TOLERANCE_RULES` names the rows each class
+#: covers beyond what that section names.
+TOLERANCE_SOURCE = (
+    "D1 section 9 (closed_form, iterative, reported_rounding); D1 section 3.2 (register)"
+)
 ROUNDING_SLACK = 1e-12
 STATUSES = ("matched", "not_matched", "no_oracle_recorded", "not_built", "suite_only")
 #: The R captures D1 section 3.2 names (F13, F13b); none is committed at A-P3.
@@ -101,16 +116,33 @@ def rounding_tolerance(decimals: int) -> float:
 # ----------------------------------------------------------------------- oracle files
 
 
+class OracleFileMissing(LookupError):
+    """An oracle file other than the Newcombe table is not in this install: every row that
+    cites it is ``not_matched`` with reason ``oracle_file_missing: <file>``."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(name)
+
+
+class Oracles(dict):
+    """The loaded oracle files; looking up a file that did not load raises
+    :class:`OracleFileMissing` (a ``KeyError`` would read as an engine error)."""
+
+    def __missing__(self, key: str) -> Any:
+        raise OracleFileMissing(key)
+
+
 def load_oracles() -> dict[str, Any]:
-    """The committed oracle files, keyed by the file name each row cites."""
-    out: dict[str, Any] = {}
+    """The committed oracle files, keyed by the file name each row cites. A file that is
+    absent is left out of the mapping (F14's Newcombe table: :data:`NEWCOMBE_ABSENT`; the
+    others: :class:`OracleFileMissing` when a row looks it up)."""
+    out: dict[str, Any] = Oracles()
     for name in ("oracles_v1.json", "f4_expected.json", "newcombe_table2.json"):
         try:
             out[name] = json.loads(resource_path(name).read_text(encoding="utf-8"))
         except FileNotFoundError:
-            if name != "newcombe_table2.json":
-                raise
-            # not in a wheel (NEWCOMBE_ABSENT): F14 is then 'no oracle recorded'
+            continue
     return out
 
 
@@ -929,9 +961,36 @@ def _f6_p_oracle() -> Callable:
 # ----------------------------------------------------------------------- comparing
 
 
+def _number(value: Any) -> float | None:
+    """``value`` as a finite float, or ``None`` when it is absent, not a number, or not
+    finite (NaN and infinity cannot be written to JSON, and are not compared)."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return None
+    return out if math.isfinite(out) else None
+
+
+def _why_not_compared(value: Any) -> str:
+    if value is None:
+        return "missing"
+    try:
+        return f"not finite ({float(value)!r})"
+    except (TypeError, ValueError):
+        return f"not a number ({type(value).__name__})"
+
+
 def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
-    """One report row. Never raises: an engine error is a ``not_matched`` row with the
-    exception's type as the reason."""
+    """One report row. The inputs the tests feed and the rows they read back
+    (``tests/test_ap3_repair1.py`` unless named): ``f4_expected.json`` absent gives the
+    three F4 rows ``not_matched``, ``oracle_file_missing: f4_expected.json``; the entry
+    ``captured.F1-wilson`` deleted gives ``oracle_error: KeyError``; ``paired_delong``
+    raising ``ZeroDivisionError`` gives ``engine_error: ZeroDivisionError``
+    (``tests/test_fixtures_cmd.py``); F8's ``half_width_n50`` left out, or NaN, is written
+    as ``engine: null``, ``within: false``, and the row's ``max_abs_deviation`` is
+    ``null``."""
     out: dict[str, Any] = {
         "id": row.id,
         "fixture": row.fixture,
@@ -953,6 +1012,12 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
     except OracleAbsent as exc:
         out.update(status="no_oracle_recorded", reason=str(exc))
         return out
+    except OracleFileMissing as exc:
+        out.update(status="not_matched", reason=f"oracle_file_missing: {exc.name}")
+        return out
+    except Exception as exc:  # noqa: BLE001 - reported as the row's reason
+        out.update(status="not_matched", reason=f"oracle_error: {type(exc).__name__}")
+        return out
     out["oracle_source"] = source
     out["tolerance"] = {
         "class": row.tolerance_class,
@@ -964,27 +1029,37 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
     except OptionalDependencyMissing as exc:
         out.update(status="not_matched", reason=f"optional_dependency_missing: {exc.package}")
         return out
-    except Exception as exc:  # noqa: BLE001 - a row reports, never raises
+    except Exception as exc:  # noqa: BLE001 - reported as the row's reason
         out.update(status="not_matched", reason=f"engine_error: {type(exc).__name__}")
         return out
-    worst = 0.0
+    if not isinstance(got, dict):
+        out.update(status="not_matched", reason=f"engine_error: returned {type(got).__name__}")
+        return out
+    worst: float | None = 0.0
     all_in = True
     values = []
+    not_compared: list[str] = []
     for name in sorted(expected):
-        oracle_value = float(expected[name])
-        engine_value = got.get(name)
-        if engine_value is None or not math.isfinite(float(engine_value)):
+        oracle_value = _number(expected[name])
+        engine_value = _number(got.get(name))
+        if oracle_value is None or engine_value is None:
             dev = None
             within = False
+            worst = None
+            if engine_value is None:
+                not_compared.append(f"engine value {_why_not_compared(got.get(name))}: {name}")
+            if oracle_value is None:
+                not_compared.append(f"oracle value {_why_not_compared(expected[name])}: {name}")
         else:
-            dev = abs(float(engine_value) - oracle_value)
+            dev = abs(engine_value - oracle_value)
             within = dev <= tol[name]
-            worst = max(worst, dev)
+            if worst is not None:
+                worst = max(worst, dev)
         all_in = all_in and within
         values.append(
             {
                 "name": name,
-                "engine": None if engine_value is None else float(engine_value),
+                "engine": engine_value,
                 "oracle": oracle_value,
                 "abs_deviation": dev,
                 "tolerance": tol[name],
@@ -993,20 +1068,53 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
         )
     out["values"] = values
     out["n_values_compared"] = len(values)
-    out["max_abs_deviation"] = worst
+    out["max_abs_deviation"] = worst if values else None
     out["matched"] = bool(values) and all_in
     out["status"] = "matched" if out["matched"] else "not_matched"
     if not out["matched"] and out["reason"] is None:
-        outside = [v["name"] for v in values if not v["within"]]
-        out["reason"] = "outside tolerance: " + ", ".join(outside)
+        outside = [v["name"] for v in values if v["abs_deviation"] is not None and not v["within"]]
+        parts = list(not_compared)
+        if outside:
+            parts.append("outside tolerance: " + ", ".join(outside))
+        out["reason"] = "; ".join(parts) or "no value compared"
     return out
 
 
+#: :func:`git_sha`'s reason when the directory three levels up has ``.git`` and
+#: ``pyproject.toml`` but is not the proofpack source checkout the package was imported
+#: from (lens FA-R1: a wheel installed with ``pip --target vendor`` inside the customer's
+#: own git repository recorded that repository's HEAD).
+NOT_THE_PROOFPACK_CHECKOUT = (
+    "not a proofpack source checkout (the package is not <checkout>/src/proofpack of a "
+    "pyproject.toml naming proofpack); the enclosing git repository is not read"
+)
+GIT_SHA_SOURCE = (
+    "git rev-parse HEAD in the proofpack source checkout the package was imported from "
+    "(src/proofpack; pyproject.toml names proofpack)"
+)
+
+
+def _is_proofpack_checkout(root: Path, package_dir: Path) -> bool:
+    import tomllib  # noqa: PLC0415
+
+    if package_dir != (root / "src" / "proofpack").resolve():
+        return False
+    try:
+        project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return (project.get("project") or {}).get("name") == "proofpack"
+
+
 def git_sha() -> tuple[str | None, str]:
-    """``(sha, source)`` of the package's own checkout; ``(None, reason)`` otherwise."""
-    root = Path(__file__).resolve().parent.parent.parent
+    """``(sha, source)`` of the proofpack source checkout the package was imported from;
+    ``(None, reason)`` otherwise."""
+    package_dir = Path(__file__).resolve().parent
+    root = package_dir.parent.parent
     if not (root / ".git").exists() or not (root / "pyproject.toml").exists():
         return None, "not a git checkout (an installed wheel carries no git metadata)"
+    if not _is_proofpack_checkout(root, package_dir):
+        return None, NOT_THE_PROOFPACK_CHECKOUT
     try:
         proc = subprocess.run(
             ["git", "-C", str(root), "rev-parse", "HEAD"],
@@ -1025,8 +1133,11 @@ def git_sha() -> tuple[str | None, str]:
     sha = proc.stdout.strip()
     if proc.returncode != 0 or len(sha) != 40:
         return None, "git rev-parse HEAD did not return a commit"
-    state = "tracked files modified" if dirty.stdout.strip() else "tracked files unmodified"
-    return sha, f"git rev-parse HEAD in the package's checkout ({state})"
+    if dirty.returncode != 0:
+        state = "tracked-file state not read (git status failed)"
+    else:
+        state = "tracked files modified" if dirty.stdout.strip() else "tracked files unmodified"
+    return sha, f"{GIT_SHA_SOURCE}; {state}"
 
 
 def _numpy_version() -> str:
@@ -1090,7 +1201,7 @@ def run_fixtures(
         "generated": utc_now_iso(),
         "offline": True,
         "tolerance_policy": {
-            "source": "D1 section 9",
+            "source": TOLERANCE_SOURCE,
             "closed_form": TOLERANCES["closed_form"],
             "iterative": TOLERANCES["iterative"],
             "reported_rounding": TOLERANCE_RULES["reported_rounding"],

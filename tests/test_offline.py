@@ -7,10 +7,11 @@ all raise, the telemetry transport raises too, and ``run``, ``compare``, ``map``
 fixtures`` (A-P3, build day 9) joined the list: ``test_fixtures_offline_opens_no_socket``
 runs it with ``--html`` under a licence and with ``--r-captures`` (it carries ``day9`` and
 ``ap3`` beside this module's markers). The CI job ``offline-namespace``
-(.github/workflows/ci.yml) is written to run one whole ``proofpack run`` inside
-``unshare -rn`` with and without ``--offline``; it had not run anywhere when this was
-written (23 September 2026; the branch has not reached the public repository's CI), so
-nothing here relies on it.
+(.github/workflows/ci.yml) runs one whole ``proofpack run`` inside ``unshare -rn`` with
+and without ``--offline``; its first run is GitHub Actions run 35911876338 at ``eda8a35``
+(23 September 2026), job "proofpack run inside unshare -rn (no network)", conclusion
+success (read with ``gh run view`` on 24 September 2026). The tests here do not depend
+on it.
 """
 
 from __future__ import annotations

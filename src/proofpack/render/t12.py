@@ -4,7 +4,9 @@ A CSA-structured page (intended use, failure modes, assurance evidence, the manu
 installation and operational checks) rendered from ``fixtures_report.json`` alone, through
 ``base.html``'s furniture. It is written by ``proofpack fixtures --html`` beside the
 report, under the licence rule ``run`` applies to T8 (the page is written only when the
-licence is ``ok`` or ``grace``; the report itself is always written, D1 section 7).
+licence is ``ok`` or ``grace``; ``tests/test_t12.py::
+test_fixtures_html_writes_t12_under_a_licence_and_not_without`` writes the report without
+a licence and no T12).
 
 Where each part comes from:
 
@@ -13,7 +15,8 @@ Where each part comes from:
   (:data:`proofpack.scope.PLACEHOLDER`) and the cover carries the INCOMPLETE stamp;
 * **failure modes** - every code in :mod:`proofpack.errors` (the twelve H-gates, the S- and
   E-codes, the W-codes and the exit codes) with the condition it inspects (the module's
-  own one-line text) and what the engine does when it fires;
+  own one-line text) and the engine action :func:`failure_mode_rows` gives it; the codes
+  no engine path raises (:data:`NOT_RAISED`) say so in that column;
 * **assurance evidence** - every row of the report, whatever its status
   (``tests/test_t12.py::test_every_report_row_appears_in_t12``);
 * **installation and operational checks** - the report's ``doctor`` rows, the report's
@@ -74,12 +77,28 @@ CSA_UNVERIFIED = (
 )
 
 
+#: Codes defined in :mod:`proofpack.errors` that no engine path raises in this version, and
+#: what fires instead (lens FA-R4: ``gates.gate_h10`` creates ``Finding("W10", ...)``).
+NOT_RAISED: dict[str, str] = {
+    "H10": "not raised in this version: gates.gate_h10 emits W10 (a warning, below)",
+}
+#: Warning codes whose exit behaviour differs from the other W-codes' (lens RG-B1).
+WARNING_ACTIONS: dict[str, str] = {
+    "W16": "flag only: one line printed after run.json is written, not in the document; "
+    "the exit code is the run's own (exit 0 with the W16 line in tests/test_telemetry.py::"
+    "test_a_302_through_the_cli_prints_w16_and_the_location_host_receives_nothing)",
+}
+WARNING_ACTION = "warning: the run completes; exit 2 unless another code sets it"
+
+
 def failure_mode_rows() -> list[dict[str, str]]:
-    """One row per engine code: what it inspects and what the engine does when it fires."""
+    """One row per engine code: what it inspects and the engine action printed for it."""
     rows: list[dict[str, str]] = []
     for code, text in errors.HALT_CODES.items():
         does = (
-            "flag only: the run completes and the code is recorded"
+            NOT_RAISED[code]
+            if code in NOT_RAISED
+            else "flag only: the run completes and the code is recorded"
             if code in errors.FLAG_ONLY_CODES
             else "HALT: exit 3, no document written"
         )
@@ -107,12 +126,12 @@ def failure_mode_rows() -> list[dict[str, str]]:
             {
                 "code": code,
                 "inspects": text,
-                "does": "warning: the run completes; exit 2 unless another code sets it",
+                "does": WARNING_ACTIONS.get(code, WARNING_ACTION),
                 "kind": "warning",
             }
         )
     exits = (
-        (errors.EXIT_OK, "no HALT, no warning, a usable licence"),
+        (errors.EXIT_OK, "no HALT, no warning other than W16, a usable licence"),
         (errors.EXIT_WARNINGS, "one or more warnings"),
         (errors.EXIT_HALT, "a HALT code fired; nothing written"),
         (errors.EXIT_LICENCE, "no usable licence; run.json written with the watermark"),
@@ -190,10 +209,14 @@ def environment_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
 
 
 def doctor_rows(report: dict[str, Any]) -> list[dict[str, str]]:
+    """``flagged`` is doctor's own mark: "yes" where doctor printed the check as not ok. The
+    column does not say that a check's condition holds: ``doctor.run_checks`` passes
+    ``ok=True`` as a literal for the reference platform, network, scipy and docx rows
+    (lens FA-R3)."""
     return [
         {
             "name": d["name"],
-            "held": "yes" if d["ok"] else "no",
+            "flagged": "no" if d["ok"] else "yes",
             "essential": "yes" if d["essential"] else "no",
             "info": d["info"],
         }
@@ -232,7 +255,7 @@ def t12_context(
         "evidence": evidence_rows(report),
         "environment": environment_rows(report),
         "doctor": doctor_rows(report),
-        "doctor_not_held": sum(1 for d in report.get("doctor") or [] if not d["ok"]),
+        "doctor_flagged": sum(1 for d in doctor_rows(report) if d["flagged"] == "yes"),
         "summary": s,
         "tolerance_rules": [
             (k.replace("_", " "), v) for k, v in report["tolerance_policy"].items() if k != "source"

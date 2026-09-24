@@ -622,7 +622,9 @@ def cmd_licence(args: argparse.Namespace) -> int:
 
 def cmd_fixtures(args: argparse.Namespace) -> int:
     """``proofpack fixtures`` (A-P3): exit 0 when no row is not matched, 6 otherwise
-    (``errors.EXIT_FIXTURES_NOT_MATCHED``). Opens no socket, with or without --offline."""
+    (``errors.EXIT_FIXTURES_NOT_MATCHED``). ``tests/test_offline.py::
+    test_fixtures_offline_opens_no_socket`` runs it with and without --offline with the
+    socket functions refusing."""
     from proofpack import fixtures as fx  # noqa: PLC0415
 
     _tolerant_console()

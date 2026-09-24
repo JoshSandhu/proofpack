@@ -7,11 +7,13 @@
 # "FROM --platform=linux/amd64 python:3.12-slim@sha256:<digest>" is added from that printed
 # value (tests/test_dockerfile.py accepts the tag alone only while this comment is here).
 #
-# Build context (.dockerignore admits nothing else): requirements.lock, written by
+# This file COPYs two inputs: requirements.lock, written by
 #   uv export --locked --no-dev --extra stats --no-emit-project --format requirements-txt
-# (every line hash-pinned), and dist/*.whl from `uv build --wheel`. No key material enters
-# the image: the licence signing key is an environment variable of the issuer only, and a
-# customer's licence file is supplied at run time (PROOFPACK_LICENCE or a mounted home).
+# (every line hash-pinned), and dist/*.whl from `uv build --wheel` (.dockerignore is
+# written to admit those two; docker build has never run with it). The licence signing
+# key is not among the inputs: it is an environment variable of the issuer only. The wheel
+# carries the Ed25519 public verify key (licence/keys.py SHIPPED_PUBLIC_KEY). A customer's
+# licence file is supplied at run time (PROOFPACK_LICENCE or a mounted home).
 FROM --platform=linux/amd64 python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
