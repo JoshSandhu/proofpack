@@ -27,12 +27,12 @@ Exit code (:func:`exit_code_for`): ``EXIT_OK`` (0) when every row with an oracle
 the exit code and are never counted as matched
 (``tests/test_fixtures_cmd.py::test_rows_without_an_oracle_are_never_counted_as_matched``).
 
-The value names each compared row declares (``Row.compares``) are compared whether or
-not the oracle or the engine carries them: a declared name the oracle file lacks gives
-``oracle value missing: <name>`` and the row ``not_matched``
-(``tests/test_ap3_repair2.py::test_a_deleted_oracle_value_is_not_matched_and_exits_6``
+:func:`compare_row` iterates over the value names the row declares (``Row.compares``)
+together with the oracle's own keys.
+``tests/test_ap3_repair2.py::test_a_deleted_oracle_value_is_not_matched_and_exits_6``
 deletes ``captured.F1-wilson.values.wilson_lo``, ``register.F1.wilson_lo`` and the
-Newcombe example ``9/10 - 3/10``).
+Newcombe example ``9/10 - 3/10`` in turn; each gives its row ``not_matched`` with
+``oracle value missing: <name>``, and exit 6.
 
 Tolerances (:data:`TOLERANCES`): D1 section 9's ``closed_form`` 1e-9 and ``iterative`` 1e-6
 against the captured oracles; ``reported_rounding`` (half a unit in the last printed
