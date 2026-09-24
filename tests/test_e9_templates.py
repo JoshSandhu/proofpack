@@ -571,8 +571,9 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
             "numbers": {"tpr_gap": TPR, "fpr_gap": FPR, "ppv_gap": PPVG, "auroc_gap": DIFF3},
             "text": {"level": "F", "reference_level": "M", "op_id": "op1"},
         },
-        "For F versus M at operating point op1: TPR gap +7.0 [−7.9, +21.7], FPR gap −4.8 "
-        "[−14.8, +5.4], PPV gap +8.9 [−6.2, +23.3], AUROC gap −0.012 [−0.041, +0.017].",
+        "For F versus M: at operating point op1, TPR gap +7.0 [−7.9, +21.7], FPR gap −4.8 "
+        "[−14.8, +5.4], PPV gap +8.9 [−6.2, +23.3]; AUROC gap (no operating point) −0.012 "
+        "[−0.041, +0.017].",
     ),
     (
         "selection_rate",

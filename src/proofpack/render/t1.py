@@ -497,7 +497,8 @@ def subgroup_blocks(document: dict[str, Any]) -> list[dict[str, Any]]:
     """Section 9 (and section 4's site table): per attribute and operating point, T1-10
     (5.3) with the reference level first, the other levels in the engine's order, the
     Unknown/missing row and Overall last; T1-11 (5.3b) differences against the reference
-    level with each criterion scoped on the attribute; the exploratory footnote."""
+    level with each criterion scoped on the attribute and level and declared on that
+    operating point or on none; the exploratory footnote."""
     decl = document.get("declarations") or {}
     ref_type = (decl.get("reference_standard") or {}).get("type") or "reference_standard"
     se, sp = _SE_SP.get(ref_type, _SE_SP["reference_standard"])
@@ -555,10 +556,17 @@ def subgroup_blocks(document: dict[str, Any]) -> list[dict[str, Any]]:
                 crits = []
                 for k, row in enumerate(crit_rows):
                     scope = row.get("scope")
+                    row_op = row.get("operating_point")
+                    # E9 repair 3, lens-3 FA-B1: a row declared on another operating point
+                    # is not printed beside this operating point's differences. A row with
+                    # no operating point (an ``auroc`` criterion: D1 section 2's H09 rules,
+                    # io/declare.py) is printed under every operating point, as the
+                    # Δ AUROC column is. The status is criteria_results' own, by position.
                     if (
                         isinstance(scope, dict)
                         and str(scope.get("attribute")) == attribute
                         and str(scope.get("level")) == lv
+                        and (row_op is None or str(row_op) == op)
                     ):
                         crits.append(
                             {

@@ -42,8 +42,9 @@ What each figure reads:
   interval; a vertical ``ink-faint`` dashed line at the overall estimate when that Number
   has an interval (otherwise the caption prints what it prints, and no line); a heavier
   dashed line at a criterion's declared value **only** when a ``ci_lower_bound``
-  criterion scoped on that attribute and metric exists, labelled with its id, author and
-  date; tier superscripts beside the labels; never a shaded region.
+  criterion scoped on that attribute and metric, and declared on the operating point the
+  plot draws (none for AUROC), exists, labelled with its id, author and date; tier
+  superscripts beside the labels; never a shaded region.
 
 Every series has a dash pattern and a text label, so colour is never the only encoding;
 every caption repeats n, the CI method and the guidance anchor.
@@ -376,18 +377,30 @@ F5_METRICS_COMPARATOR: tuple[tuple[str, str], ...] = (
 
 
 def _criterion_lines(
-    document: dict[str, Any], attribute: str, metric: str, m: PlotMap
+    document: dict[str, Any], attribute: str, metric: str, op: str | None, m: PlotMap
 ) -> list[dict[str, Any]]:
+    """The dashed criterion lines of one F5 plot. ``op`` is the operating point the plot
+    draws, or ``None`` for the AUROC plot. This reads each criteria row's
+    ``operating_point`` and draws the row only when it equals ``op``. The ``None`` case
+    follows D1 section 2's H09 rules as io/declare.py applies them: an operating point on
+    an ``auroc`` criterion is H09 (``test_criteria.py::
+    test_a_threshold_free_metric_with_an_operating_point_is_h09``) and a threshold
+    metric's criterion without one is H09 (``test_a_threshold_metric_without_an_
+    operating_point_is_h09``). E9 repair 3, lens-3 FA-B1: before this, a criterion
+    declared on op2 was drawn on the plot captioned op1
+    (``test_e9_repair3.py::test_an_op2_criterion_draws_no_line_on_the_op1_f5_plot``)."""
     decl = document.get("declarations") or {}
     entries = decl.get("criteria") or []
     seen: set[tuple[str, float]] = set()
     out = []
     for row in document.get("criteria_results") or []:
         scope = row.get("scope")
+        row_op = row.get("operating_point")
         if not (
             isinstance(scope, dict)
             and str(scope.get("attribute")) == attribute
             and row.get("metric") == metric
+            and (None if row_op is None else str(row_op)) == op
             and row.get("statistic") == "ci_lower_bound"
             and _is_num(row.get("value"))
         ):
@@ -506,7 +519,9 @@ def f5_forest(
                     "map": m.attr(),
                     "rows": rows,
                     "reference": reference,
-                    "criteria": _criterion_lines(document, attribute, metric, m),
+                    "criteria": _criterion_lines(
+                        document, attribute, metric, None if metric == "auroc" else overall_op, m
+                    ),
                     "axis": {
                         "left": _num(m.x0),
                         "right": _num(m.x0 + m.w),

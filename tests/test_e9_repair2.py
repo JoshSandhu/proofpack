@@ -9,9 +9,10 @@ found correct and untested (RG-N2); they pass at ``dd94874``.
   ``FAIRNESS`` and a second operating point ``op2`` (threshold 0.3, rule ``>=``), each of
   the 92 ``SUBGROUP_ESTIMATE_WITH_DIFF`` / ``SUBGROUP_ESTIMATE`` / ``FAIRNESS_GAP``
   sentences on T1 names its claim's operating point;
-* **FA-N1, FA-N2** (fail at dd94874) - T7's AUROC-difference sentence names where z and p
-  are written, and the calibration sentence "No target is compared to ..." is gone, on a
-  document whose T1 compares ``C_slope`` to the calibration slope;
+* **FA-N1, FA-N2** (fail at dd94874) - T7's "printed as detail" and the calibration
+  sentence "No target is compared to ..." are gone, on a document whose T1 compares
+  ``C_slope`` to the calibration slope (repair 3 deleted the z/p sentence repair 2 wrote
+  in their place: lens-3 FA-N3, ``test_e9_repair3.py``);
 * **FA-N3, FA-N4 / RG-N1** (fails at dd94874) - the repair-1 test name and module
   docstring the lenses found overclaiming;
 * **FA-N6** (fails at dd94874) - with no licence and ``--format json`` the next-step line
@@ -92,15 +93,19 @@ def test_a_two_operating_point_t1_names_the_operating_point_in_each_bound_senten
     for op, k in (("op1", "30/38 (78.9%ᶜ)"), ("op2", "36/38 (94.7%)")):
         assert f"For {age} = {lv} at operating point {OP.format(op)}, sensitivity was {k}" in page
     f, m = OP.format("F"), OP.format("M")
+    # repair 3 (lens-3 FA-N1): the operating-point clause moved after the colon
     for op, gap in (("op1", "+7.0"), ("op2", "+6.4")):
-        assert f"For {f} versus {m} at operating point {OP.format(op)}: TPR gap {gap}" in page
+        assert f"For {f} versus {m}: at operating point {OP.format(op)}, TPR gap {gap}" in page
     assert ref in page
 
 
 # ------------------------------------------------------------------ FA-N1 / FA-N2
 
 
-def test_t7_says_where_z_and_p_are_written_and_prints_no_calibration_target_sentence():
+def test_t7_prints_no_z_p_location_sentence_and_no_calibration_target_sentence():
+    # repair 3 (lens-3 FA-N3): repair 2's sentence "z and the two-sided p are written to
+    # run.json beside the difference" printed on clustered T7s, whose detail is empty; it
+    # is deleted, and this test (renamed) now asserts it absent
     crit = make_criteria(
         criteria=[
             _criterion(id="C_slope", metric="calibration_slope", operating_point=None, value=0.8)
@@ -118,11 +123,7 @@ def test_t7_says_where_z_and_p_are_written_and_prints_no_calibration_target_sent
     t7 = render_t7.render_t7(doc)
     assert "No target is compared to" not in t7
     assert "printed as detail" not in t7
-    assert (
-        "z and the two-sided p are written to run.json beside the difference "
-        "(<code>diff_vs_reference.auroc.detail</code> and "
-        "<code>diff_vs_complement.auroc.detail</code>)" in t7
-    )
+    assert "z and the two-sided p are written to run.json beside the difference" not in t7
     detail = next(
         s["diff_vs_reference"]["auroc"]["detail"]
         for s in doc["subgroups"]
@@ -134,7 +135,9 @@ def test_t7_says_where_z_and_p_are_written_and_prints_no_calibration_target_sent
 # ------------------------------------------------------------------ FA-N3 / FA-N4 / RG-N1
 
 
-def test_the_repair_1_test_name_and_docstring_state_what_they_inspect():
+def test_the_repair_1_file_carries_the_new_name_and_footer_clause_not_the_old():
+    # renamed in repair 3 (lens-3 FA-N2 = RG-N1): the body reads four literal substrings of
+    # test_e9_repair1.py, two absent and two present
     src = (REPO / "tests" / "test_e9_repair1.py").read_text(encoding="utf-8")
     assert "no_internal_decision_text" not in src
     assert "no_josh_or_open_decision" in src

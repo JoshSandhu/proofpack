@@ -25,10 +25,14 @@ column, and D4's words named a score only); ``CRITERION_STATUS`` prints " - " wh
 has an em dash; ``KS_RESULT`` prints "Kolmogorov-Smirnov" where D4 has an en dash.
 ``REF_STD_TYPE_NOTE`` carries D4's two sentences as a phrase map.
 ``SUBGROUP_ESTIMATE_WITH_DIFF``, ``SUBGROUP_ESTIMATE`` (and their not-estimable variants)
-and ``FAIRNESS_GAP`` add " at operating point {op_id}" after the group (E9 repair 2, lens-2
-FA-B1: on a run declaring op1 and op2, T1 printed "For age = 0-40, sensitivity was 30/38"
-and "... was 36/38" with nothing naming which operating point each figure belongs to; the
-claim already carries ``operating_point``).
+add " at operating point {op_id}" after the group (E9 repair 2, lens-2 FA-B1: on a run
+declaring op1 and op2, T1 printed "For age = 0-40, sensitivity was 30/38" and "... was
+36/38" with nothing naming which operating point each figure belongs to; the claim already
+carries ``operating_point``). ``FAIRNESS_GAP`` reads "For {level} versus {reference_level}:
+at operating point {op_id}, TPR gap ..., FPR gap ..., PPV gap ...; AUROC gap (no operating
+point) ..." (E9 repair 3, lens-3 FA-N1: repair 2's "For F versus M at operating point op1:
+... AUROC gap +0.079" placed the gap read from ``/fairness/gaps/0/auroc_gap/number``, a
+pointer with no operating point, at op1, and printed it again at op2).
 """
 
 from __future__ import annotations
@@ -291,8 +295,9 @@ _T: list[Template] = [
     ),
     Template(
         "FAIRNESS_GAP",
-        "For {level} versus {reference_level} at operating point {op_id}: TPR gap {tpr_gap} "
-        "[{ci}], FPR gap {fpr_gap} [{ci}], PPV gap {ppv_gap} [{ci}], AUROC gap {auroc_gap} [{ci}].",
+        "For {level} versus {reference_level}: at operating point {op_id}, TPR gap {tpr_gap} "
+        "[{ci}], FPR gap {fpr_gap} [{ci}], PPV gap {ppv_gap} [{ci}]; AUROC gap (no operating "
+        "point) {auroc_gap} [{ci}].",
         refs=(4, 4),
         guidance_ref="FDA_AIDSF_SUBGROUP_PERF",
     ),

@@ -2309,6 +2309,22 @@ MUTANTS_DAY9: tuple[Mutant, ...] = (
         what="F5 draws a criterion line for a point-estimate criterion",
     ),
     Mutant(
+        "f5_criterion_line_for_any_operating_point",
+        FIGURES,
+        r"and \(None if row_op is None else str\(row_op\)\) == op",
+        "and True",
+        day=9,
+        what="F5's op1 plot draws a criterion declared on op2 (repair 3, lens-3 FA-B1)",
+    ),
+    Mutant(
+        "t1_11_criteria_for_any_operating_point",
+        T1_RENDER,
+        r"and \(row_op is None or str\(row_op\) == op\)",
+        "and True",
+        day=9,
+        what="op1's T1-11 prints a criterion declared on op2 (repair 3, lens-3 FA-B1)",
+    ),
+    Mutant(
         "svg_map_y_axis_not_inverted",
         FIGURES,
         r"return self\.y0 \+ self\.h - \(float\(v\) - self\.ymin\) / \(self\.ymax - self\.ymin\) "
