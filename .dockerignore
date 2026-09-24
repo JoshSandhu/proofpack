@@ -1,0 +1,7 @@
+# A-P3: written to admit the two inputs the Dockerfile copies, requirements.lock and
+# dist/*.whl (tests/test_dockerfile.py reads these lines; docker build has never run).
+*
+!requirements.lock
+!dist
+dist/*
+!dist/*.whl

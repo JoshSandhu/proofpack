@@ -14,7 +14,6 @@ from functools import cache
 from pathlib import Path
 
 _PKG_DIR = Path(__file__).resolve().parent
-_REPO_ROOT = _PKG_DIR.parent.parent
 
 _CANDIDATES = {
     "schema_v1.json": ["_schema/schema_v1.json", "../../schema/schema_v1.json"],
@@ -31,6 +30,14 @@ _CANDIDATES = {
     # build day 9 (E9): the T7 methods appendix prints these two (D4 section 10)
     "conventions_T7.md": ["_schema/conventions_T7.md", "../../design/conventions_T7.md"],
     "citations.yaml": ["_schema/citations.yaml", "../../design/citations.yaml"],
+    # A-P3 (build day 9): proofpack fixtures reads its schema and the oracle files
+    "fixtures_report_schema.json": [
+        "_schema/fixtures_report_schema.json",
+        "../../schema/fixtures_report_schema.json",
+    ],
+    "oracles_v1.json": ["_fixtures/oracles_v1.json", "../../fixtures/oracles_v1.json"],
+    "f4_expected.json": ["_fixtures/f4_expected.json", "../../fixtures/f4_expected.json"],
+    "f4_calibration.csv": ["_fixtures/f4_calibration.csv", "../../fixtures/f4_calibration.csv"],
 }
 
 

@@ -10,3 +10,4 @@ build/
 pack/
 mapping.json
 proofpack.lic
+requirements.lock

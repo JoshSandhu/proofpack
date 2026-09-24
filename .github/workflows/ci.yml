@@ -104,6 +104,43 @@ jobs:
           grep -q "\[W16\] telemetry not sent (" online.txt
           grep -q "namespace run: --online exit=0 run.json=written" online.txt
 
+  docker-smoke:
+    # A-P3 (build day 9, lane A): the reference-platform image (Dockerfile: python:3.12-slim,
+    # linux/amd64) built from the wheel and the hash-pinned lock, and the engine run inside
+    # it with no network: doctor, fixtures, one run on the synthetic sample (exit 4: no
+    # licence in the image, run.json written) and F17 (scripts/f17_determinism.py, two runs
+    # of 5,000 rows compared under the three-key mask). No push: this job has no packages
+    # permission and names no registry; the GHCR push is release.yml's, on a tag. Written
+    # on 24 September 2026; it has not run anywhere yet.
+    name: Docker image smoke (linux/amd64, no push)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv build --wheel --out-dir dist
+      - run: uv export --locked --no-dev --extra stats --no-emit-project --format requirements-txt --output-file requirements.lock
+      - run: docker build --platform linux/amd64 -t proofpack:ci .
+      - name: record the base image digest (the Dockerfile pin is [unverified] until this is read)
+        run: docker image inspect python:3.12-slim --format '{{index .RepoDigests 0}}'
+      - name: smoke inside the image with --network none
+        run: |
+          set -euo pipefail
+          mkdir -p smoke && chmod 777 smoke
+          docker run --rm --network none proofpack:ci doctor --offline
+          docker run --rm --network none -v "$PWD/smoke:/work" -w /work proofpack:ci fixtures --offline --out /work/fixtures
+          docker run --rm --network none -v "$PWD:/src:ro" -v "$PWD/smoke:/work" -w /work --entrypoint python proofpack:ci /src/scripts/f17_determinism.py --out /work/in --n 400 --inputs-only
+          set +e
+          docker run --rm --network none -v "$PWD/smoke:/work" -w /work proofpack:ci run --input /work/in/synthetic.csv --criteria /work/in/criteria.yaml --mapping /work/in/synthetic.csv.mapping.json --out /work/pack --format json --offline
+          rc=$?
+          set -e
+          echo "proofpack run exit code in the image: ${rc} (4 = no licence installed; run.json is still written)"
+          test "${rc}" = "4"
+          test -s smoke/pack/run.json
+          docker run --rm --network none -v "$PWD:/src:ro" -v "$PWD/smoke:/work" -w /work --entrypoint python proofpack:ci /src/scripts/f17_determinism.py --out /work/f17 --n 5000
+
   audit:
     name: pip-audit
     runs-on: ubuntu-latest
