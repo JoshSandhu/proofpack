@@ -49,7 +49,7 @@ jobs:
         run: uv run python scripts/build_t12.py --report release/fixtures_report.json --out release
       - name: requirements.lock for the image (hash-pinned, runtime and the stats extra)
         run: uv export --locked --no-dev --extra stats --no-emit-project --format requirements-txt --output-file requirements.lock
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-assets
           path: |
@@ -183,7 +183,7 @@ jobs:
           mkdir -p zap && chmod 777 zap
           docker run --rm -v "$PWD/zap:/zap/wrk" ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py -t https://proofpack.globalphoenix.co.uk -r zap-baseline.html -I
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: zap-baseline
