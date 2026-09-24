@@ -39,10 +39,10 @@ _CANDIDATES = {
     "oracles_v1.json": ["_fixtures/oracles_v1.json", "../../fixtures/oracles_v1.json"],
     "f4_expected.json": ["_fixtures/f4_expected.json", "../../fixtures/f4_expected.json"],
     "f4_calibration.csv": ["_fixtures/f4_calibration.csv", "../../fixtures/f4_calibration.csv"],
-    "newcombe_table2.json": [
-        "_fixtures/newcombe_table2.json",
-        "../../fixtures/newcombe_table2.json",
-    ],
+    # a source checkout only: the transcription is [unverified against the primary PDF]
+    # and stays out of the wheel (tests/test_invariants.py::
+    # test_the_fixture_is_not_packaged_into_the_wheel)
+    "newcombe_table2.json": ["../../fixtures/newcombe_table2.json"],
 }
 
 

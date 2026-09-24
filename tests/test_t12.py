@@ -254,3 +254,27 @@ def test_fixtures_html_writes_t12_under_a_licence_and_not_without(tmp_path, monk
     assert rc == 0 and not (tmp_path / "b" / "T12.html").exists()
     assert (tmp_path / "b" / "fixtures_report.json").exists()
     assert "T12.html not written: licence refused (no_file)" in out
+
+
+def test_the_release_script_renders_t12_from_a_report_with_the_no_licence_mark(tmp_path, report):
+    import subprocess
+    import sys
+
+    path = fx.write_report(report, tmp_path)
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(REPO / "scripts" / "build_t12.py"),
+            "--report",
+            str(path),
+            "--out",
+            str(tmp_path / "out"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    page = (tmp_path / "out" / "T12.html").read_text(encoding="utf-8")
+    assert "NO LICENCE - not for submission" in page
+    assert page.count('<tr data-row="') == len(report["rows"])
+    assert forbidden_hits(page)[0] == []

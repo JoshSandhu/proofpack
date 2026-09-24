@@ -13,7 +13,8 @@ tolerance. The five row statuses:
   the engine raised, or an optional dependency the comparison needs is absent: the row
   carries the typed ``reason``);
 * ``no_oracle_recorded`` - no oracle file exists for the fixture yet (F13, F13b: the R
-  captures carried to build days 11-14); never matched;
+  captures carried to build days 11-14), or the file is not in this install (F14 in an
+  installed wheel: :data:`NEWCOMBE_ABSENT`); never matched;
 * ``not_built`` - the engine has no function for the fixture in this version (F5, F7,
   F15, F16, F21, F3's AUPRC); never matched;
 * ``suite_only`` - a behaviour the test suite inspects (F12, F17-F20; the row names the
@@ -104,8 +105,27 @@ def load_oracles() -> dict[str, Any]:
     """The committed oracle files, keyed by the file name each row cites."""
     out: dict[str, Any] = {}
     for name in ("oracles_v1.json", "f4_expected.json", "newcombe_table2.json"):
-        out[name] = json.loads(resource_path(name).read_text(encoding="utf-8"))
+        try:
+            out[name] = json.loads(resource_path(name).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            if name != "newcombe_table2.json":
+                raise
+            # not in a wheel (NEWCOMBE_ABSENT): F14 is then 'no oracle recorded'
     return out
+
+
+#: F14's reason when ``fixtures/newcombe_table2.json`` is absent (an installed wheel): the
+#: transcription is [unverified against the primary PDF], and an unverified fixture is not
+#: packaged (``tests/test_invariants.py::test_the_fixture_is_not_packaged_into_the_wheel``).
+NEWCOMBE_ABSENT = (
+    "[unverified against the primary PDF] fixtures/newcombe_table2.json is not shipped in "
+    "the wheel (an unverified transcription stays out of the package); F14 is compared in "
+    "a source checkout only"
+)
+
+
+class OracleAbsent(LookupError):
+    """The oracle file a row cites is not present in this install."""
 
 
 def _f4_rows() -> tuple[np.ndarray, np.ndarray]:
@@ -566,6 +586,8 @@ def _f4_register_oracle(o: dict[str, Any]):
 
 
 def _f14_oracle(o: dict[str, Any]):
+    if "newcombe_table2.json" not in o:
+        raise OracleAbsent(NEWCOMBE_ABSENT)
     doc = o["newcombe_table2.json"]
     values = {}
     for ex in doc["examples"]:
@@ -926,7 +948,11 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
     }
     if row.engine is None or row.oracle is None:
         return out
-    expected, tol, source = row.oracle(oracles)
+    try:
+        expected, tol, source = row.oracle(oracles)
+    except OracleAbsent as exc:
+        out.update(status="no_oracle_recorded", reason=str(exc))
+        return out
     out["oracle_source"] = source
     out["tolerance"] = {
         "class": row.tolerance_class,

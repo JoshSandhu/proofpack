@@ -8,7 +8,8 @@ installed with ``pip --no-deps --no-index --target`` into a venv created here, a
 so they are put on ``PYTHONPATH`` from the user site-packages directory, with
 ``PYTHONNOUSERSITE=1`` so its ``.pth`` files (the editable install pointing at the main
 tree) are not processed. Asserted: ``proofpack.__file__`` and the oracle files resolve
-inside the venv; the report has 30 matched rows and 0 not matched, exit 0; ``git_sha`` is
+inside the venv; the report has 29 matched rows and 0 not matched, exit 0 (F14 is 'no
+oracle recorded': its [unverified] Newcombe transcription is not packaged); ``git_sha`` is
 null with the reason "not a git checkout (an installed wheel carries no git metadata)".
 """
 
@@ -89,7 +90,11 @@ def test_fixtures_runs_from_a_built_wheel_in_a_fresh_venv(tmp_path: Path):
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     report = json.loads((out / "fixtures_report.json").read_text(encoding="utf-8"))
-    assert report["summary"]["matched"] == 30 and report["summary"]["not_matched"] == 0
+    assert report["summary"]["matched"] == 29 and report["summary"]["not_matched"] == 0
+    # the Newcombe transcription is [unverified] and not packaged: F14 has no oracle here
+    f14 = next(r for r in report["rows"] if r["id"] == "F14-newcombe")
+    assert f14["status"] == "no_oracle_recorded" and f14["matched"] is False
+    assert f14["reason"].startswith("[unverified against the primary PDF] fixtures/newcombe")
     assert report["git_sha"] is None
     assert report["git_sha_source"] == (
         "not a git checkout (an installed wheel carries no git metadata)"

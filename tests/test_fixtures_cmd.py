@@ -235,3 +235,15 @@ def test_git_sha_is_read_from_the_package_checkout_only(report):
     if (REPO / ".git").exists():
         assert sha is not None and len(sha) == 40 and "package's checkout" in source
     assert report["git_sha"] == sha
+
+
+def test_without_the_newcombe_file_f14_has_no_oracle_recorded_and_the_exit_is_0():
+    """An installed wheel carries no fixtures/newcombe_table2.json (it is [unverified] and
+    stays out of the package): F14 is then 'no oracle recorded', never matched."""
+    oracles = {k: v for k, v in fx.load_oracles().items() if k != "newcombe_table2.json"}
+    rep = fx.run_fixtures(oracles=oracles, doctor=False)
+    f14 = next(r for r in rep["rows"] if r["id"] == "F14-newcombe")
+    assert f14["status"] == "no_oracle_recorded" and f14["matched"] is False
+    assert f14["reason"] == fx.NEWCOMBE_ABSENT and f14["oracle_source"] is None
+    assert rep["summary"]["matched"] == 29 and rep["exit_code"] == 0
+    fx.validate_report(rep)

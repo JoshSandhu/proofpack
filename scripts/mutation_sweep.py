@@ -34,6 +34,7 @@ Usage::
     python scripts/mutation_sweep.py --marker day5 --fail-on-survivor   # exit 1 if any survive
 
     python scripts/mutation_sweep.py --marker ap2             # the A-P2 egress list (day 8 A)
+    python scripts/mutation_sweep.py --marker ap3             # the A-P3 release list (day 9 A)
 
 The round-7 repair of build day 4 ran this by hand as a scratch file; it found that the
 two changes that round's commit narrated most prominently were unobservable, which is
@@ -57,7 +58,22 @@ REPO = Path(__file__).resolve().parent.parent
 #: README.md joined the copy in repair 4.2 of A-P1: tests/test_mapping_repair4_2.py reads
 #: it (a test that cannot open it would fail against every mutant and count each killed);
 #: scripts joined it on day 6 E (the sentences test reads scripts/coverage_calibration.py).
-COPIED = ("src", "tests", "schema", "fixtures", "design", "scripts", "pyproject.toml", "README.md")
+#: A-P3 (build day 9) added the Dockerfile, .dockerignore, .github (the workflow files its
+#: tests read and its mutants change) and uv.lock (tests/test_sbom.py reads it).
+COPIED = (
+    "src",
+    "tests",
+    "schema",
+    "fixtures",
+    "design",
+    "scripts",
+    "pyproject.toml",
+    "README.md",
+    "Dockerfile",
+    ".dockerignore",
+    ".github",
+    "uv.lock",
+)
 SUBGROUPS = "src/proofpack/stats/subgroups.py"
 DISCRIMINATION = "src/proofpack/stats/discrimination.py"
 CALIBRATION = "src/proofpack/stats/calibration.py"
@@ -2531,6 +2547,129 @@ AP2_MUTANTS: tuple[Mutant, ...] = (
     ),
 )
 MUTANTS = MUTANTS + AP2_MUTANTS
+
+FIXTURES = "src/proofpack/fixtures.py"
+T12 = "src/proofpack/render/t12.py"
+F17_SCRIPT = "scripts/f17_determinism.py"
+SBOM_SCRIPT = "scripts/sbom.py"
+RELEASE_YML = ".github/workflows/release.yml"
+
+#: A-P3 (build day 9, lane A): proofpack fixtures, F17, T12, the Dockerfile, the SBOM and
+#: the workflow files. Run with ``--marker ap3`` (the tests carry ``day9`` and ``ap3``).
+AP3_MUTANTS: tuple[Mutant, ...] = (
+    Mutant(
+        "ap3_closed_form_tolerance_1e_8",
+        FIXTURES,
+        r'^    "closed_form": 1e-9,$',
+        '    "closed_form": 1e-8,',
+        what="the closed-form tolerance class loosened from 1e-9 to 1e-8",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_matched_at_ten_times_the_tolerance",
+        FIXTURES,
+        r"within = dev <= tol\[name\]",
+        "within = dev <= 10 * tol[name]",
+        what="a value counts as within at ten times its tolerance",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_no_oracle_row_counted_matched",
+        FIXTURES,
+        r"    if row\.engine is None or row\.oracle is None:\n        return out\n",
+        '    if row.engine is None or row.oracle is None:\n        out["matched"] = True\n'
+        "        return out\n",
+        what="a row with no oracle (not built, suite only, no oracle recorded) is matched",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_exit_code_ignores_not_matched",
+        FIXTURES,
+        r"    return EXIT_FIXTURES_NOT_MATCHED if any\(.*\) else EXIT_OK",
+        "    return EXIT_OK",
+        what="proofpack fixtures exits 0 with a row not matched",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_missing_dependency_counted_matched",
+        FIXTURES,
+        r'out\.update\(status="not_matched", reason=f"optional_dependency_missing',
+        'out.update(status="matched", matched=True, reason=f"optional_dependency_missing',
+        what="a comparison that could not run for want of scipy is reported matched",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_f17_mask_drops_duration_s",
+        F17_SCRIPT,
+        r'^MASKED_KEYS = \("run_id", "started", "duration_s"\)$',
+        'MASKED_KEYS = ("run_id", "started")',
+        what="F17's mask leaves duration_s unmasked",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_t12_not_matched_printed_matched",
+        T12,
+        r'^    "not_matched": "not matched",$',
+        '    "not_matched": "matched",',
+        what="T12 prints a not-matched row as matched",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_dockerfile_base_python_3_slim",
+        "Dockerfile",
+        r"^FROM --platform=linux/amd64 python:3\.12-slim$",
+        "FROM --platform=linux/amd64 python:3-slim",
+        what="the Dockerfile's base image loses its 3.12 pin",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_dockerfile_user_root",
+        "Dockerfile",
+        r"^USER proofpack$",
+        "USER root",
+        what="the image runs as root",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_release_fixtures_without_offline",
+        RELEASE_YML,
+        r"run: uv run proofpack fixtures --offline --out release",
+        "run: uv run proofpack fixtures --out release",
+        what="the release workflow runs proofpack fixtures without --offline",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_release_names_a_publishing_secret",
+        RELEASE_YML,
+        r"          repository-url: https://test\.pypi\.org/legacy/\n",
+        "          repository-url: https://test.pypi.org/legacy/\n"
+        "          password: ${{ secrets.TEST_PYPI_TOKEN }}\n",
+        what="the TestPyPI step names a token secret instead of trusted publishing",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_sbom_drops_dev_packages",
+        SBOM_SCRIPT,
+        r"        if pkg is project:\n            continue\n",
+        "        if pkg is project or (name not in runtime and name not in stats):\n"
+        "            continue\n",
+        what="the SBOM leaves out the locked packages outside the runtime closure",
+        day=9,
+        marker="ap3",
+    ),
+)
+MUTANTS = MUTANTS + AP3_MUTANTS
 
 
 def env_for(copy: Path) -> dict[str, str]:

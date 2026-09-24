@@ -64,7 +64,6 @@ packages = ["src/proofpack"]
 "fixtures/oracles_v1.json" = "proofpack/_fixtures/oracles_v1.json"
 "fixtures/f4_expected.json" = "proofpack/_fixtures/f4_expected.json"
 "fixtures/f4_calibration.csv" = "proofpack/_fixtures/f4_calibration.csv"
-"fixtures/newcombe_table2.json" = "proofpack/_fixtures/newcombe_table2.json"
 
 [tool.hatch.build.targets.sdist]
 include = ["src/proofpack", "schema", "fixtures", "README.md", "pyproject.toml"]
