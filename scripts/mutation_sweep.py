@@ -2577,6 +2577,7 @@ T12 = "src/proofpack/render/t12.py"
 F17_SCRIPT = "scripts/f17_determinism.py"
 SBOM_SCRIPT = "scripts/sbom.py"
 RELEASE_YML = ".github/workflows/release.yml"
+CAPTURE_SCRIPT = "scripts/capture_fixture_oracles.py"
 
 #: A-P3 (build day 9, lane A): proofpack fixtures, F17, T12, the Dockerfile, the SBOM and
 #: the workflow files. Run with ``--marker ap3`` (the tests carry ``day9`` and ``ap3``).
@@ -2814,6 +2815,44 @@ AP3_MUTANTS: tuple[Mutant, ...] = (
         r'^ENTRYPOINT \["proofpack"\]$',
         'COPY --from=ghcr.io/x/y:latest /k /k\nENTRYPOINT ["proofpack"]',
         what="the Dockerfile copies a file from an unpinned remote image (lens FA2-R7)",
+        day=9,
+        marker="ap3",
+    ),
+    # A-P3 repair 3: the GitHub Actions findings of run 36005620750 (CI-1, CI-2, CI-3)
+    Mutant(
+        "ap3_oracle_check_ignores_tolerance",
+        CAPTURE_SCRIPT,
+        r"^            within = dev <= tol$",
+        "            within = True",
+        what="--check counts every moved captured value as within its tolerance (CI-1)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_oracle_check_per_value_class_ignored",
+        CAPTURE_SCRIPT,
+        r'^        return cls\.get\(name, cls\["_default"\]\)$',
+        '        return cls["_default"]',
+        what="--check compares F6 chi2_p under the closed-form class, not iterative (CI-1)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_wheel_deps_package_dir_not_its_parent",
+        "tests/test_wheel_fixtures.py",
+        r"^        if spec\.submodule_search_locations:  # a package: its directory's parent\n"
+        r"            where = where\.parent\n",
+        "",
+        what="the wheel test puts each package's own directory on PYTHONPATH (CI-2)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_ci_digest_step_inspects_the_daemon_store",
+        ".github/workflows/ci.yml",
+        r"^          grep -o -m1 -E '[^'\n]*' docker-build\.log$",
+        "          docker image inspect python:3.12-slim --format '{{index .RepoDigests 0}}'",
+        what="ci.yml's digest step goes back to docker image inspect of the base (CI-3)",
         day=9,
         marker="ap3",
     ),

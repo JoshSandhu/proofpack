@@ -73,10 +73,20 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: release-assets
-      - name: build the image
-        run: docker build --platform linux/amd64 -t proofpack:ci .
+      - name: build the image (the build log is kept in docker-build.log)
+        run: |
+          set -euo pipefail
+          docker build --platform linux/amd64 -t proofpack:ci . --progress plain 2>&1 | tee docker-build.log
+      # A-P3 repair 3 (CI-3): in run 36005620750 (24 September 2026) `docker image inspect
+      # python:3.12-slim` after the build answered "No such image: python:3.12-slim"; the
+      # build log shows it resolving and pulling the base itself. This step greps the base
+      # reference from the build log (tests/test_ap3_repair3.py::
+      # test_ci3_the_digest_step_reads_the_build_log feeds it three lines of that log).
+      # Written 24 September 2026; it has not run yet.
       - name: record the base image digest (the Dockerfile pin is [unverified] until this is read)
-        run: docker image inspect python:3.12-slim --format '{{index .RepoDigests 0}}'
+        run: |
+          set -euo pipefail
+          grep -o -m1 -E 'docker\.io/library/python:3\.12-slim@sha256:[0-9a-f]{64}' docker-build.log
       - name: smoke (no network in the container)
         run: |
           set -euo pipefail

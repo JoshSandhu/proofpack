@@ -3,7 +3,8 @@
 #
 # Base image digest: [unverified] - not pinned in this file. No image was pulled on the
 # build machine, so no digest was read there. The CI job docker-smoke
-# (.github/workflows/ci.yml) prints the digest of the image it pulled; the pin
+# (.github/workflows/ci.yml) is written to print the base reference from its build log
+# (not yet run with that step; run 36005620750's log shows the reference); the pin
 # "FROM --platform=linux/amd64 python:3.12-slim@sha256:<digest>" is added from that printed
 # value (tests/test_dockerfile.py accepts the tag alone only while this comment is here).
 #

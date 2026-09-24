@@ -1,7 +1,8 @@
 """Capture the full-precision oracles ``proofpack fixtures`` compares against (A-P3, day 9).
 
     python scripts/capture_fixture_oracles.py            # rewrites fixtures/oracles_v1.json
-    python scripts/capture_fixture_oracles.py --check    # exit 1 if the file differs
+    python scripts/capture_fixture_oracles.py --check    # compares a fresh capture with it
+    python scripts/capture_fixture_oracles.py --check --committed PATH   # ... with PATH
 
 Nothing here imports ``proofpack``. Each value is computed by one of:
 
@@ -20,6 +21,22 @@ printed there, with the number of decimals printed; they are the "published tabl
 oracles. ``tests/test_fixtures_cmd.py::test_the_committed_oracles_equal_a_fresh_capture``
 re-runs this capture and compares it with the committed file (skipped where statsmodels
 or scikit-learn is absent, as in a customer's install).
+
+``--check`` (A-P3 repair 3, CI-1). The committed file records the platform it was captured
+on (``captured_on_platform``: ``sysconfig.get_platform()`` and the CPython tag). A fresh
+capture is compared with it in two parts. Everything outside ``captured`` (``register``,
+``register_decimals``, ``schema``, ``captured_by``, ``register_source``) and each entry's
+``kind``, ``source`` and value names are compared for equality. Each captured value is
+compared as a number, under the tolerance class the ``proofpack fixtures`` row that reads
+it uses (:data:`CAPTURED_CLASS`; D1 section 9 gives 1e-9 for closed-form values and 1e-6
+for iterative ones on platforms other than the reference platform, and the committed file
+was not captured on the reference platform). Each value whose float differs is printed
+with both figures, the absolute difference and its tolerance. The exit code is 1 when
+:func:`compare` returns False and 0 when it returns True. ``tests/test_ap3_repair3.py``
+feeds: ``F1-wilson`` ``wilson_lo`` +2e-9 (exit 1), ``F3-delong`` ``paired_p`` +1e-12
+(exit 0), ``F6-homogeneity`` ``chi2`` and ``chi2_p`` each +5e-7 (False, True), a changed
+``source``, an extra value name, a value ``true`` and a changed ``register`` value (each
+False), and a changed platform and numpy version (True).
 """
 
 from __future__ import annotations
@@ -28,6 +45,7 @@ import argparse
 import json
 import math
 import sys
+import sysconfig
 from fractions import Fraction
 from pathlib import Path
 
@@ -42,6 +60,27 @@ F3_S2 = [0.85, 0.6, 0.65, 0.4, 0.3, 0.7, 0.55, 0.45, 0.35, 0.25]
 F6_SITES = [(45, 5), (38, 12), (27, 3)]
 F6_HOLM_INPUT = [0.012, 0.04, 0.30]
 F8_N = (50, 100, 300)
+
+#: D1 section 9's tolerances for agreement off the reference platform.
+TOLERANCE = {"closed_form": 1e-9, "iterative": 1e-6}
+#: The tolerance class each captured value is compared under by ``--check``: the class of
+#: the ``proofpack fixtures`` row that reads it (src/proofpack/fixtures.py ``register()``;
+#: ``tests/test_ap3_repair3.py::test_the_check_classes_are_the_fixtures_rows_classes``
+#: compares the two value by value). A str applies to every value of the entry; a dict
+#: names the values of another class and the ``_default``.
+CAPTURED_CLASS: dict[str, str | dict[str, str]] = {
+    **{f"{fid}-wilson": "closed_form" for fid in F1_CASES},
+    **{f"{fid}-clopper-pearson": "iterative" for fid in F1_CASES},
+    "F2-exact": "closed_form",
+    "F3-auroc": "closed_form",
+    "F3-delong": "iterative",
+    "F6-homogeneity": {"chi2_p": "iterative", "_default": "closed_form"},
+    "F8-half-width": "closed_form",
+    "F10-exact": "closed_form",
+    "F11-ppa-npa": "closed_form",
+}
+#: Keys of the file that record where and with what it was captured; not compared.
+NOT_COMPARED = ("library_versions", "captured_on_platform")
 
 #: D1 section 3.2 as printed (R2 section 9); decimals = digits after the point there.
 REGISTER = {
@@ -331,6 +370,7 @@ def capture() -> dict:
     return {
         "schema": "proofpack-fixture-oracles/1",
         "captured_by": "scripts/capture_fixture_oracles.py",
+        "captured_on_platform": platform_tag(),
         "library_versions": versions,
         "register_source": (
             "D1 section 3.2 fixture register (values computed in R2 section 9), typed as printed"
@@ -345,20 +385,109 @@ def dumps(doc: dict) -> str:
     return json.dumps(doc, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
 
 
+def platform_tag() -> str:
+    """``sysconfig.get_platform()`` and the CPython tag, e.g. ``win-amd64 cp314``."""
+    return f"{sysconfig.get_platform()} cp{sys.version_info[0]}{sys.version_info[1]}"
+
+
 def comparable(doc: dict) -> dict:
-    """The file without the library versions (a fresh capture on another machine carries
-    its own versions; the values are what the check compares)."""
-    return {k: v for k, v in doc.items() if k != "library_versions"}
+    """The file without :data:`NOT_COMPARED` (a fresh capture on another machine carries its
+    own versions and platform)."""
+    return {k: v for k, v in doc.items() if k not in NOT_COMPARED}
+
+
+def value_class(entry: str, name: str) -> str | None:
+    cls = CAPTURED_CLASS.get(entry)
+    if isinstance(cls, dict):
+        return cls.get(name, cls["_default"])
+    return cls
+
+
+def _is_number(v: object) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def compare(committed: dict, fresh: dict) -> tuple[list[str], bool]:
+    """The lines ``--check`` prints, and False when a line reports a value outside its
+    tolerance or a part compared for equality that differs."""
+    lines: list[str] = []
+    ok = True
+    a, b = comparable(committed), comparable(fresh)
+    for key in sorted((set(a) | set(b)) - {"captured"}):
+        if a.get(key) != b.get(key):
+            ok = False
+            lines.append(f"{key}: differs (compared for equality)")
+    ca, cb = a.get("captured", {}), b.get("captured", {})
+    for entry in sorted(set(ca) ^ set(cb)):
+        ok = False
+        where = "committed file" if entry in ca else "fresh capture"
+        lines.append(f"captured.{entry}: present in the {where} only")
+    counts = {"identical": 0, "within": 0, "outside": 0}
+    for entry in sorted(set(ca) & set(cb)):
+        ea, eb = ca[entry], cb[entry]
+        for field in ("kind", "source"):
+            if ea.get(field) != eb.get(field):
+                ok = False
+                lines.append(
+                    f"captured.{entry}.{field}: committed {ea.get(field)!r} fresh {eb.get(field)!r}"
+                )
+        va, vb = ea.get("values", {}), eb.get("values", {})
+        for name in sorted(set(va) ^ set(vb)):
+            ok = False
+            where = "committed file" if name in va else "fresh capture"
+            lines.append(f"captured.{entry}.values.{name}: present in the {where} only")
+        for name in sorted(set(va) & set(vb)):
+            x, y = va[name], vb[name]
+            cls = value_class(entry, name)
+            label = f"captured.{entry}.values.{name}"
+            if cls is None:
+                ok = False
+                lines.append(f"{label}: no tolerance class in CAPTURED_CLASS")
+                continue
+            if not (_is_number(x) and _is_number(y)):
+                ok = False
+                lines.append(f"{label}: not a number (committed {x!r}, fresh {y!r})")
+                continue
+            if float(x) == float(y):
+                counts["identical"] += 1
+                continue
+            dev = abs(float(x) - float(y))
+            tol = TOLERANCE[cls]
+            within = dev <= tol
+            counts["within" if within else "outside"] += 1
+            ok = ok and within
+            lines.append(
+                f"{label}: committed {float(x)!r} fresh {float(y)!r} abs difference "
+                f"{dev:.3e} {cls} tolerance {tol:g} {'within' if within else 'OUTSIDE'}"
+            )
+    lines.append(
+        f"captured values: {counts['identical']} identical, {counts['within']} differ within "
+        f"their tolerance, {counts['outside']} differ outside it"
+    )
+    lines.append(
+        f"committed file captured on {committed.get('captured_on_platform', '(not recorded)')} "
+        f"with {committed.get('library_versions')}; fresh capture on "
+        f"{fresh.get('captured_on_platform')} with {fresh.get('library_versions')}"
+    )
+    return lines, ok
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true")
+    ap.add_argument(
+        "--committed",
+        type=Path,
+        default=TARGET,
+        help="with --check: the file to compare with (default fixtures/oracles_v1.json)",
+    )
     args = ap.parse_args(argv)
     doc = capture()
     if args.check:
-        committed = json.loads(TARGET.read_text(encoding="utf-8"))
-        return 0 if comparable(committed) == comparable(json.loads(dumps(doc))) else 1
+        committed = json.loads(args.committed.read_text(encoding="utf-8"))
+        lines, ok = compare(committed, json.loads(dumps(doc)))
+        print("\n".join(lines))
+        return 0 if ok else 1
     TARGET.write_bytes(dumps(doc).encode("utf-8"))
     print(f"wrote {TARGET.relative_to(REPO)}")
     return 0

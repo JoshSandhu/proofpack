@@ -157,6 +157,7 @@
   }
  },
  "captured_by": "scripts/capture_fixture_oracles.py",
+ "captured_on_platform": "win-amd64 cp314",
  "library_versions": {
   "numpy": "2.5.1",
   "python": "3.14.6",
