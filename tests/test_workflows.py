@@ -6,14 +6,16 @@ Neither ``release.yml`` nor ``ci.yml``'s ``docker-smoke`` job has run anywhere (
 * each shell command in ``ci.yml`` and ``release.yml`` (a ``run:`` line split at ``&&``,
   ``||``, ``;`` and ``|``; a ``uses: docker://`` step's image and ``with.args``; comment
   lines and commands beginning ``echo`` left out) that one of ``ENGINE_CALL``,
-  ``IMAGE_CALL`` or ``MAIN_CALL`` matches contains ``--offline``; the one exempt job is
+  ``IMAGE_CALL`` or ``MAIN_CALL`` matches carries ``--offline`` as a word of its own
+  (``OFFLINE_FLAG``) before any `` #`` comment mark; the one exempt job is
   the A-P2 job ``offline-namespace``, whose script runs ``--online`` inside a network
   namespace on purpose and is listed here by name. The patterns do not match
   ``scripts/build_sample_pack.py`` or ``scripts/f17_determinism.py``, which run the engine
   from Python; ``test_the_f17_script_runs_the_engine_offline`` reads the second's command
   list. ``test_the_lens_counter_examples_are_caught`` feeds the seven lines lens 1 planted
-  as ``run:`` steps (FA-R5, RG-B2) and ``test_a_docker_uses_step_with_engine_args_is_caught``
-  the ``uses: docker://`` step, and each asserts one violation reported;
+  (FA-R5, RG-B2) and four lens-2 lines (FA2-R3, RG2-S1, RG2-N2) as ``run:`` steps and
+  ``test_a_docker_uses_step_with_engine_args_is_caught`` the ``uses: docker://`` step,
+  and each asserts one violation reported;
 * the only ``secrets.<name>`` in any workflow is ``GITHUB_TOKEN``; ``id-token: write``
   appears in the ``testpypi`` job only; ``packages: write`` in ``release.yml``'s ``image``
   job only; ``contents: write`` in ``github-release`` only; top-level permissions are
@@ -40,16 +42,22 @@ REPO = Path(__file__).resolve().parent.parent
 WF = REPO / ".github" / "workflows"
 SUBCOMMANDS = r"(run|fixtures|doctor|compare|map)\b"
 ENGINE_CALL = re.compile(r"(?:(?<![\w.-])proofpack(?::ci)?|proofpack\.cli)\s+" + SUBCOMMANDS)
-#: An image or program named by a word containing ``proofpack`` (``proofpack:latest``,
-#: ``ghcr.io/x/proofpack:ci``) or by a shell variable (``$PP``, ``"${IMAGE}:${TAG}"``),
-#: followed by an engine subcommand.
+#: The image and program words the tests feed before a subcommand: ``proofpack:latest``,
+#: ``proofpack:ci``, ``ghcr.io/x/proofpack:ci``,
+#: ``ghcr.io/globalphoenix/proofpack@sha256:0123abcd`` (lens RG2-S1), ``$PP`` and
+#: ``"${IMAGE}:${GITHUB_REF_NAME}"``.
 IMAGE_CALL = re.compile(
-    r"(?:^|\s)\"?(?:[\w./:-]*proofpack[\w.:/${}-]*|\$\{?[A-Za-z_]\w*\}?[\w.:/${}-]*)\"?\s+"
+    r"(?:^|\s)\"?(?:[\w./:-]*proofpack[\w.:/@${}-]*|\$\{?[A-Za-z_]\w*\}?[\w.:/@${}-]*)\"?\s+"
     + SUBCOMMANDS
 )
 #: ``main(["run", ...])`` written inline, as in ``python -c``.
 MAIN_CALL = re.compile(r"main\(\s*\[\s*['\"]" + SUBCOMMANDS)
 SEPARATORS = re.compile(r"&&|\|\||;|\|")
+#: ``--offline`` as a word of its own: ``--out out--offline`` and ``./--offline-dir`` are
+#: not it (lens FA2-R3, RG2-N2).
+OFFLINE_FLAG = re.compile(r"(?<![\w./-])--offline(?![\w/-])")
+#: A shell comment: `` #`` to the end of the line (lens FA2-R3: ``# --offline``).
+COMMENT = re.compile(r"(?:^|\s)#.*$")
 #: Jobs whose engine runs are deliberately not --offline (A-P2's namespace job).
 OFFLINE_EXEMPT_JOBS = {"offline-namespace"}
 
@@ -97,13 +105,13 @@ def offline_violations(doc: dict) -> list[tuple[str, str]]:
     for job_id, command in shell_lines(doc):
         if job_id in OFFLINE_EXEMPT_JOBS:
             continue
-        if is_engine_call(command) and "--offline" not in command:
+        if is_engine_call(command) and not OFFLINE_FLAG.search(COMMENT.sub("", command)):
             out.append((job_id, command))
     return out
 
 
 @pytest.mark.parametrize("name", ["ci.yml", "release.yml"])
-def test_every_engine_run_in_a_workflow_carries_offline(name):
+def test_each_command_the_three_patterns_match_carries_offline(name):
     doc = _load(name)
     calls = [line for job, line in shell_lines(doc) if is_engine_call(line)]
     assert calls, name
@@ -136,6 +144,7 @@ def test_a_planted_line_without_offline_is_caught():
 
 #: The run: lines lens 1 planted in release.yml's build job at 1a967d8 (FA-R5's six run:
 #: lines and RG-B2's python -c line); offline_violations at 1a967d8 reported none of them.
+#: The last four are lens 2's at a09a0ef.
 LENS_COUNTER_EXAMPLES = (
     "echo start && proofpack run --input a --criteria b",
     "proofpack run --input a && proofpack fixtures --offline --out x",
@@ -145,6 +154,11 @@ LENS_COUNTER_EXAMPLES = (
     "PP=proofpack; $PP run --input a",
     "uv run python -c \"from proofpack.cli import main; main(['run', '--input', 'a.csv', "
     "'--criteria', 'c.yaml', '--out', 'o'])\"",
+    # lens 2 at a09a0ef (FA2-R3, RG2-S1, RG2-N2): offline_violations reported none of these
+    "docker run --rm ghcr.io/globalphoenix/proofpack@sha256:0123abcd run --input a",
+    "proofpack run --input a --criteria b  # --offline is added later",
+    "proofpack run --input a --criteria b --out out--offline",
+    "proofpack run --input a --out ./--offline-dir",
 )
 
 
@@ -171,7 +185,7 @@ def test_the_release_header_names_what_the_test_inspects_and_no_more():
     assert "every line that runs the engine" not in head
     assert "Every engine command below carries --offline" not in head
     assert "TestPyPI is reached by trusted publishing" not in head
-    assert "test_every_engine_run_in_a_workflow_carries_offline" in head
+    assert "test_each_command_the_three_patterns_match_carries_offline" in head
 
 
 def test_the_f17_script_runs_the_engine_offline():

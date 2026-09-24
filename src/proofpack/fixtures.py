@@ -13,8 +13,9 @@ tolerance. The five row statuses:
   the engine raised, or an optional dependency the comparison needs is absent: the row
   carries the typed ``reason``);
 * ``no_oracle_recorded`` - no oracle file exists for the fixture yet (F13, F13b: the R
-  captures carried to build days 11-14), or the file is not in this install (F14 in an
-  installed wheel: :data:`NEWCOMBE_ABSENT`); never matched;
+  captures carried to build days 11-14), or F14's Newcombe file is not read (the package
+  is not ``<root>/src/proofpack`` of a ``pyproject.toml`` naming ``proofpack``:
+  :data:`NEWCOMBE_ABSENT`); never matched;
 * ``not_built`` - the engine has no function for the fixture in this version (F5, F7,
   F15, F16, F21, F3's AUPRC); never matched;
 * ``suite_only`` - a behaviour the test suite inspects (F12, F17-F20; the row names the
@@ -25,6 +26,13 @@ Exit code (:func:`exit_code_for`): ``EXIT_OK`` (0) when every row with an oracle
 ``not_matched``. ``no_oracle_recorded``, ``not_built`` and ``suite_only`` rows do not move
 the exit code and are never counted as matched
 (``tests/test_fixtures_cmd.py::test_rows_without_an_oracle_are_never_counted_as_matched``).
+
+The value names each compared row declares (``Row.compares``) are compared whether or
+not the oracle or the engine carries them: a declared name the oracle file lacks gives
+``oracle value missing: <name>`` and the row ``not_matched``
+(``tests/test_ap3_repair2.py::test_a_deleted_oracle_value_is_not_matched_and_exits_6``
+deletes ``captured.F1-wilson.values.wilson_lo``, ``register.F1.wilson_lo`` and the
+Newcombe example ``9/10 - 3/10``).
 
 Tolerances (:data:`TOLERANCES`): D1 section 9's ``closed_form`` 1e-9 and ``iterative`` 1e-6
 against the captured oracles; ``reported_rounding`` (half a unit in the last printed
@@ -72,22 +80,22 @@ TOLERANCES: dict[str, float | None] = {
 #: The rule each class applies, printed in the report and in T12.
 TOLERANCE_RULES: dict[str, str] = {
     "closed_form": "absolute deviation at most 1e-9. D1 section 9 gives 1e-9 for closed "
-    "forms and names Wilson, 2x2, Brier, O/E and PSI; this report also applies it to "
-    "F3-auroc, the ECE, reference Brier and IPA values of F4-closed-form and the chi-square "
-    "statistic of F6-closed-form, which D1 section 9 does not name",
+    "forms and lists Wilson, 2x2, Brier, O/E and PSI; this report applies it to the rows "
+    "F1-wilson, F1b-wilson, F1c-wilson, F1d-wilson, F2-exact, F3-auroc, F4-closed-form, "
+    "F6-closed-form, F8-half-width, F10-exact and F11-ppa-npa",
     "iterative": "absolute deviation at most 1e-6. D1 section 9 gives 1e-6 for iterative "
-    "methods and names IRLS slope/intercept and DeLong via placements (F4-irls, F3-delong); "
-    "this report also applies it to the Clopper-Pearson rows (a beta quantile) and F6-p, "
-    "which D1 section 9 does not name",
+    "methods and lists IRLS slope/intercept and DeLong via placements; this report applies "
+    "it to the rows F1-clopper-pearson, F1b-clopper-pearson, F1c-clopper-pearson, "
+    "F1d-clopper-pearson, F3-delong, F4-irls and F6-p",
     "reported_rounding": "absolute deviation at most half a unit in the last printed decimal "
-    "of each value, plus 1e-12. D1 section 9 gives reported rounding for bootstrap CIs "
-    "(F3-bootstrap, F9-cluster-bootstrap); this report also applies it to F14-newcombe's "
-    "published table, for which D1 section 9 gives no tolerance",
+    "of each value, plus 1e-12. D1 section 9 gives reported rounding for bootstrap CIs; this "
+    "report applies it to the rows F3-bootstrap, F9-cluster-bootstrap and F14-newcombe (a "
+    "published table, for which D1 section 9 gives no tolerance)",
     "register": "absolute deviation at most 1e-4 on the printed value (D1 section 3.2: "
     "'tolerance 1e-4 on the shown rounding')",
 }
-#: Where each class's number is written: :data:`TOLERANCE_RULES` names the rows each class
-#: covers beyond what that section names.
+#: Where each class's number is written. :data:`TOLERANCE_RULES` lists the rows each class
+#: is applied to (``tests/test_ap3_repair2.py::test_each_tolerance_rule_lists_its_rows``).
 TOLERANCE_SOURCE = (
     "D1 section 9 (closed_form, iterative, reported_rounding); D1 section 3.2 (register)"
 )
@@ -106,6 +114,92 @@ F3_B = 2000
 F6_SITES = ((45, 5), (38, 12), (27, 3))
 F6_HOLM_INPUT = (0.012, 0.04, 0.30)
 F1_CASES = {"F1": (81, 263), "F1b": (490, 500), "F1c": (0, 20), "F1d": (20, 20)}
+#: F14's three worked examples (k1, n1, k2, n2), labelled "k1/n1 - k2/n2" in the file.
+F14_CASES = ((56, 70, 48, 80), (9, 10, 3, 10), (10, 10, 0, 20))
+
+#: The value names each compared row declares (``Row.compares``). Lens FA2-B1: the
+#: compared set was the oracle file's own keys, so a value deleted from the file was not
+#: compared and the row read matched.
+WILSON_NAMES = ("wilson_lo", "wilson_hi")
+CP_NAMES = ("cp_lo", "cp_hi")
+F2_NAMES = (
+    "sensitivity",
+    "specificity",
+    "ppv",
+    "npv",
+    "prevalence",
+    "lr_pos",
+    "lr_neg",
+    "dor",
+    "youden",
+    "f1",
+    "mcc",
+    "sensitivity_ci_lo",
+    "sensitivity_ci_hi",
+    "specificity_ci_lo",
+    "specificity_ci_hi",
+    "ppv_at_0.05",
+    "npv_at_0.05",
+)
+F3_AUROC_NAMES = ("auc_s1", "auc_s2")
+F3_DELONG_NAMES = (
+    "delong_se_s1",
+    "delong_se_s2",
+    "logit_ci_lo_s1",
+    "logit_ci_hi_s1",
+    "wald_ci_lo_s1",
+    "wald_ci_hi_s1",
+    "paired_var_diff",
+    "paired_z",
+    "paired_p",
+)
+F3_REGISTER_NAMES = F3_AUROC_NAMES + tuple(n for n in F3_DELONG_NAMES if n != "delong_se_s2")
+BOOTSTRAP_NAMES = ("ci_lo", "ci_hi")
+F4_CLOSED_NAMES = (
+    "oe",
+    "oe_ci_lo",
+    "oe_ci_hi",
+    "brier",
+    "brier_ref",
+    "ipa",
+    "ece_equal_width_10",
+    "ece_equal_mass_10",
+)
+F4_IRLS_NAMES = (
+    "intercept_large",
+    "intercept_large_se",
+    "slope",
+    "slope_se",
+    "intercept",
+    "intercept_se",
+)
+F4_REGISTER_NAMES = (
+    "brier",
+    "brier_ref",
+    "ipa",
+    "oe",
+    "intercept_large",
+    "slope",
+    "intercept",
+    "ece_10_equal_width",
+    "ece_10_equal_mass",
+)
+F6_CLOSED_NAMES = ("se_site1", "se_site2", "se_site3", "chi2", "holm_1", "holm_2", "holm_3")
+F6_REGISTER_NAMES = (*F6_CLOSED_NAMES, "chi2_p")
+F8_NAMES = ("half_width_n50", "half_width_n100", "half_width_n300")
+F10_NAMES = (
+    "as_positive_sensitivity",
+    "as_positive_specificity",
+    "as_negative_sensitivity",
+    "as_negative_specificity",
+)
+F11_NAMES = ("ppa", "ppa_ci_lo", "ppa_ci_hi", "npa", "npa_ci_lo", "npa_ci_hi")
+F14_NAMES = tuple(
+    f"{k1}/{n1} - {k2}/{n2} {method} {side}"
+    for k1, n1, k2, n2 in F14_CASES
+    for method in ("method10", "method11")
+    for side in ("lower", "upper")
+)
 
 
 def rounding_tolerance(decimals: int) -> float:
@@ -125,34 +219,70 @@ class OracleFileMissing(LookupError):
         super().__init__(name)
 
 
+class OracleFileUnreadable(ValueError):
+    """An oracle file is present and does not parse (lens RG2-N3: a truncated
+    ``oracles_v1.json``): every row that cites it is ``not_matched`` with reason
+    ``oracle_file_unreadable: <file> (<error type>)``."""
+
+    def __init__(self, name: str, error: str) -> None:
+        self.name = name
+        self.error = error
+        super().__init__(f"{name} ({error})")
+
+
 class Oracles(dict):
-    """The loaded oracle files; looking up a file that did not load raises
-    :class:`OracleFileMissing` (a ``KeyError`` would read as an engine error)."""
+    """The loaded oracle files. Looking up a file that did not load raises
+    :class:`OracleFileUnreadable` when it was present and did not parse, and
+    :class:`OracleFileMissing` otherwise (a ``KeyError`` would read as an engine error)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.unreadable: dict[str, str] = {}
 
     def __missing__(self, key: str) -> Any:
+        if key in self.unreadable:
+            raise OracleFileUnreadable(key, self.unreadable[key])
         raise OracleFileMissing(key)
+
+
+NEWCOMBE_FILE = "newcombe_table2.json"
 
 
 def load_oracles() -> dict[str, Any]:
     """The committed oracle files, keyed by the file name each row cites. A file that is
     absent is left out of the mapping (F14's Newcombe table: :data:`NEWCOMBE_ABSENT`; the
-    others: :class:`OracleFileMissing` when a row looks it up)."""
-    out: dict[str, Any] = Oracles()
-    for name in ("oracles_v1.json", "f4_expected.json", "newcombe_table2.json"):
+    others: :class:`OracleFileMissing` when a row looks it up); a file that raises
+    ``ValueError`` when parsed is named in ``unreadable``. The Newcombe table is read from
+    ``<root>/fixtures/newcombe_table2.json`` only when :func:`source_checkout_root` returns
+    ``<root>`` (lens FA2-R2: a wheel installed with ``pip --target X/src`` read
+    ``X/fixtures/newcombe_table2.json``)."""
+    out = Oracles()
+    paths: dict[str, Callable[[], Path]] = {
+        "oracles_v1.json": lambda: resource_path("oracles_v1.json"),
+        "f4_expected.json": lambda: resource_path("f4_expected.json"),
+    }
+    root = source_checkout_root()
+    if root is not None:
+        paths[NEWCOMBE_FILE] = lambda: root / "fixtures" / NEWCOMBE_FILE
+    for name, where in paths.items():
         try:
-            out[name] = json.loads(resource_path(name).read_text(encoding="utf-8"))
+            out[name] = json.loads(where().read_text(encoding="utf-8"))
         except FileNotFoundError:
             continue
+        except ValueError as exc:  # JSONDecodeError, UnicodeDecodeError
+            out.unreadable[name] = type(exc).__name__
     return out
 
 
-#: F14's reason when ``fixtures/newcombe_table2.json`` is absent (an installed wheel): the
-#: transcription is [unverified against the primary PDF], and an unverified fixture is not
-#: packaged (``tests/test_invariants.py::test_the_fixture_is_not_packaged_into_the_wheel``).
+#: F14's reason when the Newcombe table is not read: the package is not
+#: ``<root>/src/proofpack`` of a ``pyproject.toml`` naming ``proofpack`` (an installed
+#: wheel), or that checkout has no ``fixtures/newcombe_table2.json``. The transcription is
+#: [unverified against the primary PDF] and is not packaged
+#: (``tests/test_invariants.py::test_the_fixture_is_not_packaged_into_the_wheel``).
 NEWCOMBE_ABSENT = (
     "[unverified against the primary PDF] fixtures/newcombe_table2.json is not shipped in "
-    "the wheel (an unverified transcription stays out of the package); F14 is compared in "
-    "a source checkout only"
+    "the wheel (an unverified transcription stays out of the package); it is read only when "
+    "the package is <root>/src/proofpack and <root>/pyproject.toml names proofpack"
 )
 
 
@@ -450,16 +580,15 @@ def _f11() -> dict[str, float]:
     return out
 
 
-def _f14(oracles: dict[str, Any]) -> dict[str, float]:
+def _f14() -> dict[str, float]:
     from proofpack.stats.proportions import newcombe10_bounds, newcombe11_bounds
 
     out = {}
-    for ex in oracles["newcombe_table2.json"]["examples"]:
-        args = (ex["k1"], ex["n1"], ex["k2"], ex["n2"])
+    for k1, n1, k2, n2 in F14_CASES:
         for method, fn in (("method10", newcombe10_bounds), ("method11", newcombe11_bounds)):
-            lo, hi = fn(*args)
-            out[f"{ex['label']} {method} lower"] = lo
-            out[f"{ex['label']} {method} upper"] = hi
+            lo, hi = fn(k1, n1, k2, n2)
+            out[f"{k1}/{n1} - {k2}/{n2} {method} lower"] = lo
+            out[f"{k1}/{n1} - {k2}/{n2} {method} upper"] = hi
     return out
 
 
@@ -477,7 +606,9 @@ class OptionalDependencyMissing(RuntimeError):
 @dataclass(frozen=True)
 class Row:
     """One row of the report. ``engine`` returns the compared values; ``oracle`` returns
-    ``(values, per-value tolerance, source)``; a row without either carries ``status``."""
+    ``(values, per-value tolerance, source)``; ``compares`` names the values the row
+    compares (the oracle's own keys are compared as well); a row without ``engine`` or
+    ``oracle`` carries ``status``."""
 
     id: str
     fixture: str
@@ -490,7 +621,7 @@ class Row:
     status: str | None = None  # for rows that are not compared
     reason: str | None = None
     suite_tests: tuple[str, ...] = ()
-    engine_needs_oracles: bool = False
+    compares: tuple[str, ...] = ()
 
 
 def _captured(key: str, cls: str) -> Callable:
@@ -618,9 +749,9 @@ def _f4_register_oracle(o: dict[str, Any]):
 
 
 def _f14_oracle(o: dict[str, Any]):
-    if "newcombe_table2.json" not in o:
+    if NEWCOMBE_FILE not in o and NEWCOMBE_FILE not in getattr(o, "unreadable", {}):
         raise OracleAbsent(NEWCOMBE_ABSENT)
-    doc = o["newcombe_table2.json"]
+    doc = o[NEWCOMBE_FILE]
     values = {}
     for ex in doc["examples"]:
         for method in ("method10", "method11"):
@@ -654,6 +785,7 @@ def register() -> tuple[Row, ...]:
                 "closed_form",
                 lambda k=k, n=n: _f1_wilson(k, n),
                 _captured(f"{fid}-wilson", "closed_form"),
+                compares=WILSON_NAMES,
             ),
             Row(
                 f"{fid}-clopper-pearson",
@@ -662,6 +794,7 @@ def register() -> tuple[Row, ...]:
                 "iterative",
                 lambda k=k, n=n: _f1_cp(k, n),
                 _captured(f"{fid}-clopper-pearson", "iterative"),
+                compares=CP_NAMES,
             ),
             Row(
                 f"{fid}-register",
@@ -670,6 +803,7 @@ def register() -> tuple[Row, ...]:
                 "register",
                 lambda k=k, n=n: {**_f1_wilson(k, n), **_f1_cp(k, n)},
                 _register_oracle(fid),
+                compares=WILSON_NAMES + CP_NAMES,
             ),
         ]
     rows += [
@@ -681,6 +815,7 @@ def register() -> tuple[Row, ...]:
             "closed_form",
             _f2,
             _captured("F2-exact", "closed_form"),
+            compares=F2_NAMES,
         ),
         Row(
             "F2-register",
@@ -689,6 +824,7 @@ def register() -> tuple[Row, ...]:
             "register",
             _f2,
             _register_oracle("F2"),
+            compares=F2_NAMES,
         ),
         Row(
             "F3-auroc",
@@ -697,6 +833,7 @@ def register() -> tuple[Row, ...]:
             "closed_form",
             _f3_auroc,
             _captured("F3-auroc", "closed_form"),
+            compares=F3_AUROC_NAMES,
         ),
         Row(
             "F3-delong",
@@ -707,6 +844,7 @@ def register() -> tuple[Row, ...]:
             "iterative",
             _f3_delong,
             _captured("F3-delong", "iterative"),
+            compares=F3_DELONG_NAMES,
         ),
         Row(
             "F3-register",
@@ -716,6 +854,7 @@ def register() -> tuple[Row, ...]:
             "register",
             _f3_register_values,
             _register_oracle("F3"),
+            compares=F3_REGISTER_NAMES,
         ),
         Row(
             "F3-bootstrap",
@@ -725,6 +864,7 @@ def register() -> tuple[Row, ...]:
             "reported_rounding",
             lambda: _bootstrap_auroc(False),
             _register_oracle("F3_bootstrap"),
+            compares=BOOTSTRAP_NAMES,
         ),
         Row(
             "F3-auprc",
@@ -741,6 +881,7 @@ def register() -> tuple[Row, ...]:
             "closed_form",
             _f4_closed,
             _f4_oracle("closed", "closed_form"),
+            compares=F4_CLOSED_NAMES,
         ),
         Row(
             "F4-irls",
@@ -750,6 +891,7 @@ def register() -> tuple[Row, ...]:
             "iterative",
             _f4_irls,
             _f4_oracle("irls", "iterative"),
+            compares=F4_IRLS_NAMES,
         ),
         Row(
             "F4-register",
@@ -759,6 +901,7 @@ def register() -> tuple[Row, ...]:
             "register",
             _f4_register_values,
             _f4_register_oracle,
+            compares=F4_REGISTER_NAMES,
         ),
         Row(
             "F5",
@@ -775,6 +918,7 @@ def register() -> tuple[Row, ...]:
             "closed_form",
             lambda: {k: v for k, v in _f6_closed().items() if not k.startswith("_")},
             _f6_closed_oracle(),
+            compares=F6_CLOSED_NAMES,
         ),
         Row(
             "F6-p",
@@ -785,6 +929,7 @@ def register() -> tuple[Row, ...]:
             "iterative",
             _f6_p,
             _f6_p_oracle(),
+            compares=("chi2_p",),
         ),
         Row(
             "F6-register",
@@ -793,6 +938,7 @@ def register() -> tuple[Row, ...]:
             "register",
             _f6_register_values,
             _register_oracle("F6"),
+            compares=F6_REGISTER_NAMES,
         ),
         Row(
             "F7",
@@ -808,6 +954,7 @@ def register() -> tuple[Row, ...]:
             "closed_form",
             _f8,
             _captured("F8-half-width", "closed_form"),
+            compares=F8_NAMES,
         ),
         Row(
             "F8-register",
@@ -816,6 +963,7 @@ def register() -> tuple[Row, ...]:
             "register",
             _f8,
             _register_oracle("F8"),
+            compares=F8_NAMES,
         ),
         Row(
             "F9-cluster-bootstrap",
@@ -825,6 +973,7 @@ def register() -> tuple[Row, ...]:
             "reported_rounding",
             lambda: _bootstrap_auroc(True),
             _register_oracle("F3_bootstrap"),
+            compares=BOOTSTRAP_NAMES,
         ),
         Row(
             "F10-exact",
@@ -834,6 +983,7 @@ def register() -> tuple[Row, ...]:
             "closed_form",
             _f10,
             _captured("F10-exact", "closed_form"),
+            compares=F10_NAMES,
         ),
         Row(
             "F11-ppa-npa",
@@ -843,6 +993,7 @@ def register() -> tuple[Row, ...]:
             "closed_form",
             _f11,
             _captured("F11-ppa-npa", "closed_form"),
+            compares=F11_NAMES,
         ),
         Row(
             "F12",
@@ -876,7 +1027,7 @@ def register() -> tuple[Row, ...]:
             "reported_rounding",
             _f14,
             _f14_oracle,
-            engine_needs_oracles=True,
+            compares=F14_NAMES,
         ),
         Row(
             "F15",
@@ -976,6 +1127,8 @@ def _number(value: Any) -> float | None:
 def _why_not_compared(value: Any) -> str:
     if value is None:
         return "missing"
+    if isinstance(value, bool):  # lens FA2-R8: True read as "not finite (1.0)"
+        return "not a number (bool)"
     try:
         return f"not finite ({float(value)!r})"
     except (TypeError, ValueError):
@@ -990,7 +1143,9 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
     raising ``ZeroDivisionError`` gives ``engine_error: ZeroDivisionError``
     (``tests/test_fixtures_cmd.py``); F8's ``half_width_n50`` left out, or NaN, is written
     as ``engine: null``, ``within: false``, and the row's ``max_abs_deviation`` is
-    ``null``."""
+    ``null``. In ``tests/test_ap3_repair2.py``: ``captured.F1-wilson.values.wilson_lo``
+    deleted gives ``oracle value missing: wilson_lo``; ``oracles_v1.json`` truncated to
+    ``{"captured": `` gives ``oracle_file_unreadable: oracles_v1.json (JSONDecodeError)``."""
     out: dict[str, Any] = {
         "id": row.id,
         "fixture": row.fixture,
@@ -1015,6 +1170,9 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
     except OracleFileMissing as exc:
         out.update(status="not_matched", reason=f"oracle_file_missing: {exc.name}")
         return out
+    except OracleFileUnreadable as exc:
+        out.update(status="not_matched", reason=f"oracle_file_unreadable: {exc}")
+        return out
     except Exception as exc:  # noqa: BLE001 - reported as the row's reason
         out.update(status="not_matched", reason=f"oracle_error: {type(exc).__name__}")
         return out
@@ -1025,7 +1183,7 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
         "rule": TOLERANCE_RULES[row.tolerance_class or "closed_form"],
     }
     try:
-        got = row.engine(oracles) if row.engine_needs_oracles else row.engine()
+        got = row.engine()
     except OptionalDependencyMissing as exc:
         out.update(status="not_matched", reason=f"optional_dependency_missing: {exc.package}")
         return out
@@ -1039,8 +1197,8 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
     all_in = True
     values = []
     not_compared: list[str] = []
-    for name in sorted(expected):
-        oracle_value = _number(expected[name])
+    for name in sorted(set(row.compares) | set(expected)):
+        oracle_value = _number(expected.get(name))
         engine_value = _number(got.get(name))
         if oracle_value is None or engine_value is None:
             dev = None
@@ -1049,7 +1207,7 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
             if engine_value is None:
                 not_compared.append(f"engine value {_why_not_compared(got.get(name))}: {name}")
             if oracle_value is None:
-                not_compared.append(f"oracle value {_why_not_compared(expected[name])}: {name}")
+                not_compared.append(f"oracle value {_why_not_compared(expected.get(name))}: {name}")
         else:
             dev = abs(engine_value - oracle_value)
             within = dev <= tol[name]
@@ -1062,7 +1220,7 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
                 "engine": engine_value,
                 "oracle": oracle_value,
                 "abs_deviation": dev,
-                "tolerance": tol[name],
+                "tolerance": tol.get(name),
                 "within": within,
             }
         )
@@ -1104,6 +1262,14 @@ def _is_proofpack_checkout(root: Path, package_dir: Path) -> bool:
     except (OSError, ValueError):
         return False
     return (project.get("project") or {}).get("name") == "proofpack"
+
+
+def source_checkout_root() -> Path | None:
+    """``<root>`` when this package is ``<root>/src/proofpack`` and ``<root>/pyproject.toml``
+    names the project ``proofpack``; ``None`` otherwise."""
+    package_dir = Path(__file__).resolve().parent
+    root = package_dir.parent.parent
+    return root if _is_proofpack_checkout(root, package_dir) else None
 
 
 def git_sha() -> tuple[str | None, str]:
@@ -1156,9 +1322,8 @@ def exit_code_for(rows: list[dict[str, Any]]) -> int:
 
 
 def r_captures_status() -> dict[str, Any]:
-    from proofpack.resources import _REPO_ROOT  # noqa: PLC0415 - dev checkout only
-
-    present = [f for f in R_CAPTURE_FILES if (_REPO_ROOT / f).exists()]
+    root = source_checkout_root()
+    present = [f for f in R_CAPTURE_FILES if root is not None and (root / f).exists()]
     return {
         "files": list(R_CAPTURE_FILES),
         "present": present,

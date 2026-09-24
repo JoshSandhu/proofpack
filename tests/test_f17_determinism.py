@@ -2,19 +2,20 @@
 
 The script writes the 5,000-row synthetic cohort (seed 20240101) and runs ``python -m
 proofpack.cli run ... --offline --format json`` twice in two subprocesses, each with its
-own empty ``PROOFPACK_HOME``, then compares four SHA-256 values per run: ``run.json`` with
+own empty ``PROOFPACK_HOME``, then compares five SHA-256 values per run: ``run.json`` with
 the values of ``run_id``, ``started`` and ``duration_s`` masked; the manifest block with the
 same three masked; ``pseudonyms.json`` with its ``run_id`` masked (A-P2 note item 3: it is
 in the hashed set, because it is written beside ``run.json`` on every run and its body -
 the level-to-pseudonym map - must come out the same; its ``run_id`` is the run's own id);
-``ingest_report.json`` as written.
+``ingest_report.json`` as written; and ``file_names``, the sorted file paths under the run
+directory (A-P3 repair 2, lens FA2-R9).
 
 Measured on win-amd64-cp314 (Windows 11, Python 3.14.6, numpy 2.5.1), 24 September 2026:
-the four pairs equal, both runs exit 4 (no licence), ``run.json`` 593,303 bytes each, the
-unmasked egress ``manifest_sha256`` different (it hashes ``run_id``). That is a
-same-platform repeat on a machine that is not the reference platform; D1 section 9 and T12
-claim hash identity on ``python:3.12-slim`` linux/amd64 only, where the CI Docker job is
-written to run the same script (it has not run there).
+the four pairs compared at the time equal, both runs exit 4 (no licence), ``run.json``
+593,303 bytes each, the unmasked egress ``manifest_sha256`` different (it hashes
+``run_id``). That is a same-platform repeat on a machine that is not the reference
+platform; D1 section 9 and T12 claim hash identity on ``python:3.12-slim`` linux/amd64
+only, where the CI Docker job is written to run the same script (it has not run there).
 """
 
 from __future__ import annotations
@@ -64,6 +65,7 @@ def test_f17_two_runs_are_identical_under_the_three_key_mask(result):
         "manifest_masked",
         "pseudonyms_json_masked",
         "ingest_report_json",
+        "file_names",
     }
     assert all(c["equal"] for c in result["checks"].values())
     assert result["rows"] == 5000 and result["exit_codes"] == [4, 4]

@@ -18,9 +18,9 @@ literal input the lens fed and the figure it measured.
   begins "not raised in this version" (H10 at ``1a967d8`` did neither).
 * FA-R3: T12's doctor table has no "Condition held" column; a doctor row with ``ok`` false
   prints "yes" under "Flagged by doctor" and the caption counts 1.
-* FA-R7: no tolerance rule cites D1 section 9 for published tables; the Clopper-Pearson
-  and F14 rules say D1 section 9 does not name them; the policy source names D1 section
-  3.2 for the register class.
+* FA-R7: no tolerance rule cites D1 section 9 for published tables; the F14 rule says D1
+  section 9 gives no tolerance for its table; the policy source names D1 section 3.2 for
+  the register class.
 * The sentences the lenses found false (FA-R2, FA-R5 / RG-B2, FA-R11, FA-R13 / RG-N4,
   RG-N3, RG-N5) are absent from the files that carried them.
 """
@@ -267,18 +267,16 @@ def test_t12_doctor_table_prints_doctors_mark_not_a_held_condition():
 # --------------------------------------------------------------- FA-R7: citations
 
 
-def test_the_tolerance_rules_cite_d1_section_9_only_for_what_it_names():
+def test_the_tolerance_rules_drop_the_three_citations_lens_1_found_false():
+    # repair 2 (lens FA2-R4) rewrote the rules to list their rows:
+    # tests/test_ap3_repair2.py::test_each_tolerance_rule_lists_its_rows
     rules = fx.TOLERANCE_RULES
     assert "bootstrap intervals and published tables" not in rules["reported_rounding"]
     assert (
-        "F14-newcombe's published table, for which D1 section 9 gives no tolerance"
+        "F14-newcombe (a published table, for which D1 section 9 gives no tolerance)"
         in (rules["reported_rounding"])
     )
-    assert "names IRLS slope/intercept and DeLong via placements" in rules["iterative"]
-    assert (
-        "Clopper-Pearson rows (a beta quantile) and F6-p, which D1 section 9 does not name"
-        in (rules["iterative"])
-    )
+    assert "lists IRLS slope/intercept and DeLong via placements" in rules["iterative"]
     assert "(D1 section 9, iterative)" not in rules["iterative"]
     report = fx.run_fixtures(doctor=False)
     assert report["tolerance_policy"]["source"] == (

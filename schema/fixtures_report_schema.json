@@ -144,7 +144,11 @@
               "engine": {"type": ["number", "null"]},
               "oracle": {"type": ["number", "null"]},
               "abs_deviation": {"type": ["number", "null"], "minimum": 0},
-              "tolerance": {"type": "number", "exclusiveMinimum": 0},
+              "tolerance": {
+                "type": ["number", "null"],
+                "exclusiveMinimum": 0,
+                "description": "null when the oracle carries no entry for this declared value name (the row is then not_matched)"
+              },
               "within": {"type": "boolean"}
             }
           }

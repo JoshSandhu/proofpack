@@ -8,10 +8,15 @@ on the file's text after joining continuation lines and dropping comments:
   ``Base image digest: [unverified]`` comment present;
 * no ``ADD`` instruction whose source is a URL (``http://``, ``https://``, ``git@``), and no
   ``curl`` or ``wget`` in a ``RUN``;
+* the ``COPY`` instructions are exactly ``requirements.lock /tmp/proofpack/requirements.lock``
+  and ``dist/ /tmp/proofpack/dist/``, and the one ``RUN`` is :data:`THE_RUN` word for word
+  (lens FA2-R7 planted ``COPY --from=ghcr.io/x/y:latest /k /k``; lens FA-R6 an unhashed
+  ``pip install`` and ``COPY signing.txt``);
 * the last ``USER`` is ``proofpack`` (not ``root`` or ``0``), created by ``useradd --uid
   10001``;
 * ``ENTRYPOINT ["proofpack"]``;
-* no ``ENV`` or ``ARG`` name containing KEY, SECRET, TOKEN, PASSWORD, PRIVATE or CREDENTIAL,
+* no ``ENV`` or ``ARG`` name containing KEY, SECRET, TOKEN, PASSWORD, PRIVATE, CREDENTIAL or
+  SEED,
   no ``BEGIN`` of a PEM block, no ``COPY`` of a ``.lic``, ``.pem`` or ``.key`` file;
 * the dependency install is ``pip install --require-hashes --no-deps -r requirements.lock``
   and the wheel install ``--no-deps --no-index``;
@@ -30,7 +35,17 @@ import pytest
 pytestmark = [pytest.mark.day9, pytest.mark.ap3]
 REPO = Path(__file__).resolve().parent.parent
 DOCKERFILE = REPO / "Dockerfile"
-SECRETISH = re.compile(r"KEY|SECRET|TOKEN|PASSWORD|PRIVATE|CREDENTIAL", re.I)
+SECRETISH = re.compile(r"KEY|SECRET|TOKEN|PASSWORD|PRIVATE|CREDENTIAL|SEED", re.I)
+THE_COPIES = [
+    "requirements.lock /tmp/proofpack/requirements.lock",
+    "dist/ /tmp/proofpack/dist/",
+]
+THE_RUN = (
+    "python -m pip install --require-hashes --no-deps -r /tmp/proofpack/requirements.lock"
+    " && python -m pip install --no-deps --no-index /tmp/proofpack/dist/proofpack-*.whl"
+    " && rm -rf /tmp/proofpack"
+    " && useradd --create-home --uid 10001 --shell /usr/sbin/nologin proofpack"
+)
 
 
 def instructions(text: str) -> list[tuple[str, str]]:
@@ -63,12 +78,19 @@ def test_the_base_image_is_python_3_12_slim_amd64_by_digest_or_marked_unverified
         assert "Base image digest: [unverified]" in text
 
 
-def test_no_add_from_a_url_and_no_download_in_run(text):
+def test_no_add_of_an_http_or_git_url_and_no_curl_or_wget_in_run(text):
     for word, rest in instructions(text):
         if word == "ADD":
             assert not re.search(r"(^|\s)(https?://|git@)", rest), rest
         if word == "RUN":
             assert not re.search(r"\b(curl|wget)\b", rest), rest
+
+
+def test_the_copies_and_the_run_are_the_ones_written(text):
+    ins = instructions(text)
+    assert [rest for word, rest in ins if word == "COPY"] == THE_COPIES
+    runs = [" ".join(rest.split()) for word, rest in ins if word == "RUN"]
+    assert runs == [THE_RUN]
 
 
 def test_the_image_runs_as_a_non_root_user(text):
@@ -127,6 +149,10 @@ def test_dockerignore_admits_the_lock_and_the_wheel_only():
         ("ADD https://example.org/x.tar.gz /tmp/", "add"),
         ("USER root", "user"),
         ("ENV PROOFPACK_SIGNING_KEY=x", "env"),
+        ("ENV PROOFPACK_SIGNING_SEED=x", "env"),
+        ("COPY --from=ghcr.io/x/y:latest /k /k", "copy"),
+        ("COPY signing.txt /tmp/", "copy"),
+        ("RUN python -m pip install cryptography", "copy"),
     ],
 )
 def test_each_assertion_fails_on_a_planted_line(text, planted, failing):
@@ -140,7 +166,8 @@ def test_each_assertion_fails_on_a_planted_line(text, planted, failing):
         mutated = text.replace("USER proofpack", planted + "\nUSER proofpack")
     checks = {
         "base": test_the_base_image_is_python_3_12_slim_amd64_by_digest_or_marked_unverified,
-        "add": test_no_add_from_a_url_and_no_download_in_run,
+        "add": test_no_add_of_an_http_or_git_url_and_no_curl_or_wget_in_run,
+        "copy": test_the_copies_and_the_run_are_the_ones_written,
         "user": test_the_image_runs_as_a_non_root_user,
         "env": test_no_secret_looking_env_or_arg_and_no_key_material,
     }

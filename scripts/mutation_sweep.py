@@ -2697,6 +2697,102 @@ AP3_MUTANTS: tuple[Mutant, ...] = (
         day=9,
         marker="ap3",
     ),
+    # A-P3 repair 2 (lens-2 findings at a09a0ef)
+    Mutant(
+        "ap3_compared_set_is_the_oracle_keys",
+        FIXTURES,
+        r"    for name in sorted\(set\(row\.compares\) \| set\(expected\)\):\n",
+        "    for name in sorted(expected):\n",
+        what="a value deleted from an oracle entry is not compared and the row reads matched "
+        "(lens FA2-B1)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_checkout_project_name_not_read",
+        FIXTURES,
+        r'    return \(project\.get\("project"\) or \{\}\)\.get\("name"\) == "proofpack"\n',
+        "    return True\n",
+        what="src/proofpack under a pyproject naming another project counts as the proofpack "
+        "checkout (lens FA2-R1 / RG2-N1 M5)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_non_dict_engine_result_not_caught",
+        FIXTURES,
+        r"    if not isinstance\(got, dict\):\n",
+        "    if False:\n",
+        what="an engine returning a list raises instead of a not_matched row (RG2-N1 M12)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_oracle_value_reason_dropped",
+        FIXTURES,
+        r"            if oracle_value is None:\n                not_compared",
+        "            if False:\n                not_compared",
+        what="a null or NaN oracle value is not named in the reason (RG2-N1 M14)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_empty_row_deviation_zero",
+        FIXTURES,
+        r'    out\["max_abs_deviation"\] = worst if values else None\n',
+        '    out["max_abs_deviation"] = worst\n',
+        what="a row with no value prints a largest deviation of 0 (lens FA2-R1)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_bool_engine_value_read_as_not_finite",
+        FIXTURES,
+        r"    if isinstance\(value, bool\):[^\n]*\n        return \"not a number \(bool\)\"\n",
+        "",
+        what="an engine value True is reported as 'not finite (1.0)' (lens FA2-R8)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_newcombe_read_beside_any_install",
+        FIXTURES,
+        r"    root = source_checkout_root\(\)\n    if root is not None:\n",
+        "    root = Path(__file__).resolve().parent.parent.parent\n    if root is not None:\n",
+        what="the Newcombe file is read from <package>/../../fixtures whatever the tree "
+        "(lens FA2-R2)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_unparsable_oracle_file_raises",
+        FIXTURES,
+        r"        except ValueError as exc:[^\n]*\n            out\.unreadable\[name\] = "
+        r"type\(exc\)\.__name__\n",
+        "",
+        what="a truncated oracles_v1.json exits 5 with no report (lens RG2-N3)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_f17_file_names_not_compared",
+        F17_SCRIPT,
+        r'        "file_names": \[\n            hashlib[^\n]*\n            for names[^\n]*\n'
+        r"        \],\n",
+        "",
+        what="F17 leaves the run directories' file lists out of 'identical' (lens FA2-R9)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_dockerfile_copy_from_a_remote_image",
+        "Dockerfile",
+        r'^ENTRYPOINT \["proofpack"\]$',
+        'COPY --from=ghcr.io/x/y:latest /k /k\nENTRYPOINT ["proofpack"]',
+        what="the Dockerfile copies a file from an unpinned remote image (lens FA2-R7)",
+        day=9,
+        marker="ap3",
+    ),
 )
 MUTANTS = MUTANTS + AP3_MUTANTS
 

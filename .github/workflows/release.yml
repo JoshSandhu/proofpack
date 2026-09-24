@@ -2,7 +2,7 @@ name: release
 
 # A-P3 (build day 9, lane A). Written, never run: it runs when a tag v* is pushed, and no
 # tag exists (24 September 2026). tests/test_workflows.py::
-# test_every_engine_run_in_a_workflow_carries_offline asserts --offline on each command
+# test_each_command_the_three_patterns_match_carries_offline asserts --offline on each command
 # its ENGINE_CALL, IMAGE_CALL and MAIN_CALL patterns match: six here. It does not read
 # inside scripts/build_sample_pack.py or scripts/f17_determinism.py, which run the engine
 # from Python. The only secret named is GITHUB_TOKEN (test_no_secret_other_than_github_token).
@@ -177,13 +177,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: passive baseline scan; the report is an artefact, the job does not fail on findings
+      - name: passive baseline scan (zap-baseline.py -I)
         # [unverified] the image tag "stable" is not pinned by digest in this build
         run: |
           mkdir -p zap && chmod 777 zap
           docker run --rm -v "$PWD/zap:/zap/wrk" ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py -t https://proofpack.globalphoenix.co.uk -r zap-baseline.html -I
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: zap-baseline
           path: zap/zap-baseline.html

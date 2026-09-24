@@ -192,10 +192,8 @@ def test_fixtures_offline_opens_no_socket(tmp_path: Path, capsys, no_sockets):
 def test_the_ci_namespace_job_and_its_script_exist_and_assert_both_invocations():
     repo = Path(__file__).resolve().parent.parent
     workflow = repo / ".github" / "workflows" / "ci.yml"
-    if not workflow.exists():
-        # the mutation sweep's copy holds src/tests/schema/scripts only (its COPIED tuple);
-        # the job's presence is asserted in the real tree, not in the copy
-        pytest.skip("no .github/workflows/ci.yml here (the mutation sweep's copy)")
+    # no skip (lens FA2-R5): scripts/mutation_sweep.py's COPIED tuple includes .github
+    assert workflow.exists(), f"{workflow} is missing"
     ci = workflow.read_text(encoding="utf-8")
     assert "offline-namespace:" in ci and "unshare -rn" in ci
     assert "ci_namespace_run.py --offline" in ci and "ci_namespace_run.py --online" in ci

@@ -22,6 +22,8 @@ What it does:
    * the manifest block's SHA-256 over canonical JSON with the same three keys masked;
    * ``pseudonyms.json`` bytes with its ``run_id`` masked (it carries the run's id,
      A-P2 note item 3), and ``ingest_report.json`` bytes as written;
+   * the sorted list of file paths under each run directory (``file_names``; lens FA2-R9:
+     a ``T8.html`` added to one run left ``identical`` true);
    * the egress ``manifest_sha256`` of each run (unmasked, recorded, not compared: it
      hashes ``run_id``, so two runs differ there by construction).
 
@@ -144,6 +146,11 @@ def masked_manifest_sha256(run_json: bytes) -> str:
     return hashlib.sha256(canonical_json(manifest)).hexdigest()
 
 
+def file_names(run_dir: Path) -> list[str]:
+    """The paths of the files under ``run_dir``, relative, with ``/``, sorted."""
+    return sorted(p.relative_to(run_dir).as_posix() for p in run_dir.rglob("*") if p.is_file())
+
+
 def compare(run1: Path, run2: Path) -> dict[str, Any]:
     from proofpack.egress.build import manifest_sha256
     from proofpack.manifest import platform_tag
@@ -161,6 +168,10 @@ def compare(run1: Path, run2: Path) -> dict[str, Any]:
             hashlib.sha256((p / "ingest_report.json").read_bytes()).hexdigest()
             for p in (run1, run2)
         ],
+        "file_names": [
+            hashlib.sha256("\n".join(names).encode("utf-8")).hexdigest()
+            for names in (file_names(run1), file_names(run2))
+        ],
     }
     manifests = [json.loads(x.decode("utf-8"))["manifest"] for x in (ra, rb)]
     return {
@@ -175,6 +186,7 @@ def compare(run1: Path, run2: Path) -> dict[str, Any]:
         "egress_manifest_sha256_unmasked": [manifest_sha256(m) for m in manifests],
         "ledger_count": [m["ledger_count"] for m in manifests],
         "run_json_bytes": [len(ra), len(rb)],
+        "file_names": [file_names(run1), file_names(run2)],
     }
 
 
