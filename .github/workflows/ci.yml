@@ -16,7 +16,7 @@ jobs:
     name: pytest + ruff
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
@@ -75,7 +75,7 @@ jobs:
     name: proofpack run inside unshare -rn (no network)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
@@ -115,7 +115,7 @@ jobs:
     name: Docker image smoke (linux/amd64, no push)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
@@ -145,7 +145,7 @@ jobs:
     name: pip-audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
@@ -164,7 +164,7 @@ jobs:
     name: wheel artefact
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
@@ -191,7 +191,7 @@ jobs:
     name: import proofpack (scipy uninstalled)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
