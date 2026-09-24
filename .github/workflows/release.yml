@@ -86,7 +86,7 @@ jobs:
       - name: Trivy scan of the image
         # [unverified] the tag below was not read from a source in this build; pin by
         # commit sha at the first run
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: proofpack:ci
           format: table
