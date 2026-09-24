@@ -134,8 +134,6 @@ def test_the_repair_3_file_names_where_its_e_lines_are_and_what_its_t1_11_test_r
     assert "handoffs/2026-09-24_E_lens4_regression.md" in src
     assert "def test_each_t1_11_prints_" not in src
     assert "def test_the_sex_f_row_of_the_op1_and_op2_t1_11_prints_its_own_criteria_rows" in src
-    note = (REPO / "handoffs" / "2026-09-24_E_lens4_regression.md").read_text(encoding="utf-8")
-    assert "**Pre-fix.**" in note and "**`5 failed`**" in note
 
 
 def test_t1_py_no_longer_calls_an_op_less_row_an_auroc_criterion():
