@@ -1,0 +1,123 @@
+{# T12 - Software assurance record, CSA-structured (D1 section 1's T12 row; A-P3). Every
+   value comes from fixtures_report.json through proofpack.render.t12's context; no
+   arithmetic here. The intended-use slot is the manufacturer's (placeholder until they
+   write it); the sign-off cells are blank: ProofPack signs nothing. #}
+{% extends "base.html" %}
+{% block pages %}
+<section class="page" id="page-1">
+<header class="page-header">{{ header_engine }}</header>
+<h1>{{ template_name }}</h1>
+<p class="cover-note disclaimer">Attachment set prepared for the manufacturer's own submission or record. Not a submission. No regulator has endorsed this tool.</p>
+{{ cover_stamps() }}
+<p>{{ csa_sentence }} <span class="unverified">{{ csa_unverified }}</span></p>
+<p class="supports">{{ supports_sentence }}</p>
+<p class="print-note">{{ print_sentence }}</p>
+<h2 id="t12-s1">1. Intended use</h2>
+{{ margin_note(anchor.scope) }}
+<p>The manufacturer states here what ProofPack is used for in their process and which of their records its output enters. ProofPack does not draft this text.</p>
+{{ placeholder(slot) }}
+<h2 id="t12-s2">2. Failure modes the engine inspects</h2>
+<p>Each code below is raised by the engine itself (<code>proofpack/errors.py</code>). The second column is the condition the code inspects; the third is what the engine does when it fires. The last column is for the manufacturer's own risk rating.</p>
+<div class="table-wrap">
+<table class="failure-modes">
+<caption>Engine codes, from the engine's own code table</caption>
+<thead><tr><th scope="col">Code</th><th scope="col">Condition inspected</th><th scope="col">Engine action</th><th scope="col">Manufacturer's risk rating</th></tr></thead>
+<tbody>
+{% for f in failure_modes %}
+<tr data-code="{{ f.code }}"><td class="mono">{{ f.code }}</td><td>{{ f.inspects }}</td><td>{{ f.does }}</td><td class="signoff"></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{{ page_footer() }}
+</section>
+<section class="page" id="page-2">
+<header class="page-header">{{ header_engine }}</header>
+<h2 id="t12-s3">3. Assurance evidence: the fixture register (fixtures_report.json)</h2>
+{{ margin_note(anchor.evidence) }}
+<p>Every row of the report is printed, whatever its status. A row reads "matched" only when every compared value lies within the row's tolerance; "not matched", "no oracle recorded", "not built in this version" and "compared by the test suite only" are printed as they stand.</p>
+<table class="environment">
+<caption>Where the report was generated</caption>
+<tbody>
+{% for label, value in environment %}
+<tr><th scope="row">{{ label }}</th><td class="mono">{{ value }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<table class="tolerances">
+<caption>Tolerance classes (D1 sections 3.2 and 9)</caption>
+<tbody>
+{% for label, rule in tolerance_rules %}
+<tr><th scope="row">{{ label }}</th><td>{{ rule }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<table class="counts">
+<caption>Report rows by status</caption>
+<tbody>
+<tr><th scope="row">Rows</th><td class="num" data-count="rows">{{ summary.rows }}</td></tr>
+<tr><th scope="row">matched</th><td class="num" data-count="matched">{{ summary.matched }}</td></tr>
+<tr><th scope="row">not matched</th><td class="num" data-count="not_matched">{{ summary.not_matched }}</td></tr>
+<tr><th scope="row">no oracle recorded</th><td class="num" data-count="no_oracle_recorded">{{ summary.no_oracle_recorded }}</td></tr>
+<tr><th scope="row">not built in this version</th><td class="num" data-count="not_built">{{ summary.not_built }}</td></tr>
+<tr><th scope="row">compared by the test suite only</th><td class="num" data-count="suite_only">{{ summary.suite_only }}</td></tr>
+<tr><th scope="row">Exit code of proofpack fixtures</th><td class="num" data-count="exit_code">{{ report.exit_code }}</td></tr>
+</tbody>
+</table>
+<div class="table-wrap">
+<table class="evidence">
+<caption>One row per comparison or register entry; deviations are the largest absolute difference between engine and oracle values in the row</caption>
+<thead><tr><th scope="col">Row</th><th scope="col">What is compared</th><th scope="col">Oracle</th><th scope="col">Tolerance</th><th scope="col" class="num">Values</th><th scope="col" class="num">Largest deviation</th><th scope="col">Status</th><th scope="col">Note</th></tr></thead>
+<tbody>
+{% for r in evidence %}
+<tr data-row="{{ r.id }}"><td class="mono">{{ r.id }}</td><td>{{ r.what }}</td><td class="mono">{{ r.oracle.file }}{% if r.oracle.entry %} ({{ r.oracle.entry }}){% endif %}{% if r.oracle.marking %} <span class="unverified">{{ r.oracle.marking }}</span>{% endif %}</td><td>{{ r.tolerance }}</td><td class="num">{{ r.n }}</td><td class="num mono">{{ r.deviation }}</td><td class="fixture-status" data-status="{{ r.status }}">{{ r.status_text }}</td><td>{% if r.reason_unverified %}<span class="unverified">{{ r.reason }}</span>{% else %}{{ r.reason }}{% endif %}{% if r.suite_tests %} ({{ r.suite_tests }}){% endif %}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{{ page_footer() }}
+</section>
+<section class="page" id="page-3">
+<header class="page-header">{{ header_engine }}</header>
+<h2 id="t12-s4">4. Installation and operational checks (performed and signed by the manufacturer)</h2>
+<p>ProofPack prints the results below; the person, the date and the signature are the manufacturer's. ProofPack signs nothing.</p>
+<h3 id="t12-s4-1">4.1 proofpack doctor --offline, as run by proofpack fixtures</h3>
+<table class="doctor">
+<caption>Environment checks recorded in the report ({{ doctor_not_held }} with the condition not held)</caption>
+<thead><tr><th scope="col">Check</th><th scope="col">Condition held</th><th scope="col">Essential</th><th scope="col">Recorded</th></tr></thead>
+<tbody>
+{% for d in doctor %}
+<tr><td>{{ d.name }}</td><td>{{ d.held }}</td><td>{{ d.essential }}</td><td class="mono">{{ d.info }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<p>The licence check is not printed in this table: T12 is written only under a licence that is usable (not refused, not expired past grace); its mark, if any, is on the cover.</p>
+<table class="checklist">
+<caption>Checklist: each step, what it inspects, and blank fields for the manufacturer's record</caption>
+<thead><tr><th scope="col">Step</th><th scope="col">Action</th><th scope="col">What the step inspects</th><th scope="col">Record reference</th><th scope="col">Performed by</th><th scope="col">Date</th><th scope="col">Signature</th></tr></thead>
+<tbody>
+<tr data-step="doctor"><td>1</td><td><code>proofpack doctor --offline</code></td><td>Python, numpy, pyyaml and jsonschema present; the packaged schemas and guidance map load; write access; the licence file; the platform against the reference platform</td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td></tr>
+<tr data-step="fixtures"><td>2</td><td><code>proofpack fixtures --offline</code></td><td>The fixture register rows above: {{ summary.matched }} matched and {{ summary.not_matched }} not matched of {{ summary.rows }} rows; exit code {{ report.exit_code }}</td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td></tr>
+<tr data-step="mapping"><td>3</td><td><code>proofpack map --input &lt;your table&gt;</code>, then a person compares the mapping table with the manufacturer's data dictionary</td><td>That each column's role (label, score, prediction, case, site, attributes) is the one the data dictionary gives; the mapping.json SHA-256 printed in T8 is the file that person confirmed</td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td></tr>
+<tr data-step="declarations"><td>4</td><td>The RA lead reads T8 section 3 (declarations echo) beside the criteria.yaml the manufacturer's team authored</td><td>Positive class, score orientation, thresholds, intended-use prevalence, subgroups, and each criterion's author, date and justification, as echoed</td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td></tr>
+</tbody>
+</table>
+<h2 id="t12-s5">5. Determinism and tolerances</h2>
+{{ margin_note(anchor.determinism) }}
+<p class="tolerance">{{ tolerance_policy }}</p>
+<p class="f17">{{ f17_sentence }}</p>
+<p class="platform">{{ platform_sentence }}</p>
+<p class="supports">{{ supports_sentence }}</p>
+<h2 id="t12-s6">6. Guidance references</h2>
+<table class="guidance">
+<caption>Every anchor used on this page, labelled from the guidance map; a draft is a draft in the label and in the structured data</caption>
+<thead><tr><th scope="col">Internal id</th><th scope="col">Document, version or date, status</th><th scope="col">Draft</th></tr></thead>
+<tbody>
+{% for ref in guidance_refs %}
+<tr id="{{ ref.id }}"{% if ref.draft %} class="draft"{% endif %}><td class="mono">{{ ref.id }}</td><td>{{ ref.label }}</td><td>{% if ref.draft %}yes{% else %}no{% endif %}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{{ page_footer() }}
+</section>
+{% endblock %}

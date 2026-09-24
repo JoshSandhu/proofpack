@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>T12 · ProofPack v0.1.0.dev1 · fixtures report 2026-09-24T00:00:00Z</title>
+<style>
+:root {
+  --pp-color-bg: #ffffff;
+  --pp-color-bg-inset: #eef1f4;
+  --pp-color-bg-soft: #f5f7f9;
+  --pp-color-brand: #123a5f;
+  --pp-color-brand-soft: #e6eef5;
+  --pp-color-brand-strong: #0c2740;
+  --pp-color-honesty: #8a4b00;
+  --pp-color-honesty-bg: #fdf3e3;
+  --pp-color-ink: #16202b;
+  --pp-color-ink-faint: #6b7784;
+  --pp-color-ink-soft: #4a5a6a;
+  --pp-color-line: #d8dfe6;
+  --pp-color-ok: #14532d;
+  --pp-color-ok-bg: #e4f2e8;
+  --pp-color-ok-line: #86b39a;
+  --pp-color-on-brand: #ffffff;
+  --pp-color-stop: #7f1d1d;
+  --pp-color-stop-bg: #fdeaea;
+  --pp-color-stop-line: #c98b8b;
+  --pp-layout-focus: 3px solid;
+  --pp-layout-focus-offset: 2px;
+  --pp-layout-function-page: 44rem;
+  --pp-layout-measure: 68ch;
+  --pp-layout-motion: none;
+  --pp-layout-rule: 1px;
+  --pp-layout-wrap: 74rem;
+  --pp-print-footer-size: 0.72rem;
+  --pp-print-page-margin: 20mm 18mm 26mm;
+  --pp-print-page-size: A4;
+  --pp-radius-button: 6px;
+  --pp-radius-callout: 8px;
+  --pp-radius-card: 8px;
+  --pp-radius-code: 6px;
+  --pp-radius-input: 4px;
+  --pp-radius-tag: 4px;
+  --pp-space-1: 0.25rem;
+  --pp-space-2: 0.5rem;
+  --pp-space-3: 0.75rem;
+  --pp-space-4: 1rem;
+  --pp-space-5: 1.5rem;
+  --pp-space-6: 2rem;
+  --pp-space-7: 2.75rem;
+  --pp-space-8: 3rem;
+  --pp-type-body-px: 17px;
+  --pp-type-line-height-body: 1.6;
+  --pp-type-line-height-headings: 1.25;
+  --pp-type-line-height-tables: 1.45;
+  --pp-type-mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --pp-type-numeric: tabular-nums;
+  --pp-type-scale-body: 1rem;
+  --pp-type-scale-footnote: 0.85rem;
+  --pp-type-scale-h1: clamp(1.8rem, 4.2vw, 2.7rem);
+  --pp-type-scale-h2: 1.4rem;
+  --pp-type-scale-h3: 1.15rem;
+  --pp-type-scale-strip: 0.78rem;
+  --pp-type-scale-table: 0.92rem;
+  --pp-type-scale-tag: 0.72rem;
+  --pp-type-text: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --pp-type-tracking-uppercase: 0.06em;
+}
+html { font-size: var(--pp-type-body-px); }
+body { margin: 0; background: var(--pp-color-bg); color: var(--pp-color-ink); font-family: var(--pp-type-text); line-height: var(--pp-type-line-height-body); font-size: var(--pp-type-scale-body); }
+.page { max-width: var(--pp-layout-wrap); margin: 0 auto; padding: var(--pp-space-6) var(--pp-space-5); border-bottom: var(--pp-layout-rule) solid var(--pp-color-line); page-break-after: always; break-after: page; }
+.page-header { font-size: var(--pp-type-scale-strip); color: var(--pp-color-ink-soft); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); border-bottom: var(--pp-layout-rule) solid var(--pp-color-line); padding-bottom: var(--pp-space-2); margin-bottom: var(--pp-space-5); }
+.page-footer { margin-top: var(--pp-space-6); padding-top: var(--pp-space-3); border-top: var(--pp-layout-rule) solid var(--pp-color-line); font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); }
+.print-footer { display: none; }
+h1 { font-size: var(--pp-type-scale-h1); line-height: var(--pp-type-line-height-headings); margin: 0 0 var(--pp-space-4); }
+h2 { font-size: var(--pp-type-scale-h2); line-height: var(--pp-type-line-height-headings); margin: var(--pp-space-6) 0 var(--pp-space-3); }
+h3 { font-size: var(--pp-type-scale-h3); line-height: var(--pp-type-line-height-headings); margin: var(--pp-space-5) 0 var(--pp-space-2); }
+p, li { max-width: var(--pp-layout-measure); }
+table { border-collapse: collapse; width: 100%; font-size: var(--pp-type-scale-table); line-height: var(--pp-type-line-height-tables); font-variant-numeric: var(--pp-type-numeric); margin: var(--pp-space-3) 0; }
+th, td { text-align: left; vertical-align: top; padding: var(--pp-space-1) var(--pp-space-2); border-bottom: var(--pp-layout-rule) solid var(--pp-color-line); }
+thead { display: table-header-group; }
+th { background: var(--pp-color-bg-soft); font-weight: 600; }
+td.num, th.num { text-align: right; }
+caption { text-align: left; font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); padding: var(--pp-space-1) 0; caption-side: top; }
+.table-wrap { overflow-x: auto; }
+code, pre, .mono { font-family: var(--pp-type-mono); }
+pre { background: var(--pp-color-bg-inset); padding: var(--pp-space-3); border-radius: var(--pp-radius-code); overflow-x: auto; font-size: var(--pp-type-scale-table); }
+.customer-text { border-left: var(--pp-layout-rule) solid var(--pp-color-ink-faint); padding-left: var(--pp-space-3); margin: var(--pp-space-2) 0; color: var(--pp-color-ink-soft); unicode-bidi: isolate; }
+.customer-text .label { display: block; font-size: var(--pp-type-scale-tag); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); color: var(--pp-color-ink-faint); }
+.margin-note { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); border-left: var(--pp-layout-rule) solid var(--pp-color-line); padding-left: var(--pp-space-2); margin: var(--pp-space-1) 0 var(--pp-space-3); }
+.margin-note.draft { color: var(--pp-color-honesty); border-left-color: var(--pp-color-honesty); }
+.margin-note a { color: inherit; }
+.disclaimer { color: var(--pp-color-ink-soft); }
+.disclaimer-long { max-width: var(--pp-layout-measure); }
+.watermark { font-weight: 700; color: var(--pp-color-honesty); background: var(--pp-color-honesty-bg); display: inline-block; padding: var(--pp-space-1) var(--pp-space-2); border-radius: var(--pp-radius-tag); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); }
+.stamp { border: var(--pp-layout-rule) solid var(--pp-color-honesty); color: var(--pp-color-honesty); display: inline-block; padding: var(--pp-space-2) var(--pp-space-3); border-radius: var(--pp-radius-card); margin: var(--pp-space-3) 0; }
+.cover-note { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); }
+.tag { font-size: var(--pp-type-scale-tag); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); background: var(--pp-color-bg-inset); border-radius: var(--pp-radius-tag); padding: 0 var(--pp-space-1); }
+.highlight { background: var(--pp-color-brand-soft); }
+td.status { font-weight: 600; }
+.narrative-footer { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); font-style: italic; }
+.placeholder { border: var(--pp-layout-rule) dashed var(--pp-color-honesty); background: var(--pp-color-honesty-bg); color: var(--pp-color-honesty); padding: var(--pp-space-2) var(--pp-space-3); border-radius: var(--pp-radius-card); margin: var(--pp-space-2) 0; max-width: var(--pp-layout-measure); }
+.customer-text.inline { display: inline; border-left: 0; padding-left: 0; margin: 0; }
+.unverified { font-family: var(--pp-type-mono); color: var(--pp-color-honesty); }
+.narrative p { max-width: var(--pp-layout-measure); }
+figure.figure { margin: var(--pp-space-4) 0; }
+figure.figure svg { max-width: 100%; height: auto; color: var(--pp-color-ink); }
+svg .fig-axis { stroke: var(--pp-color-ink-soft); stroke-width: 1; }
+svg .fig-series { stroke: var(--pp-color-ink); stroke-width: 2; }
+svg .fig-ref { stroke: var(--pp-color-ink-faint); stroke-width: 1; stroke-dasharray: 6 4; }
+svg .fig-criterion { stroke: var(--pp-color-ink-faint); stroke-width: 2.5; stroke-dasharray: 10 4; }
+svg .fig-ci { stroke: var(--pp-color-ink); stroke-width: 1.5; }
+svg .fig-point { stroke: var(--pp-color-ink); stroke-width: 1.5; }
+svg .fig-hist { fill: var(--pp-color-line); stroke: none; }
+svg .fig-text { fill: var(--pp-color-ink); font-family: var(--pp-type-text); font-size: 12px; }
+figure.figure figcaption { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); max-width: var(--pp-layout-measure); }
+a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); outline-offset: var(--pp-layout-focus-offset); }
+@media print {
+  @page { size: var(--pp-print-page-size); margin: var(--pp-print-page-margin); }
+  body { font-size: var(--pp-type-scale-table); }
+  .page { max-width: none; padding: 0; border-bottom: 0; }
+  .page-footer { display: none; }
+  .print-footer { display: block; position: fixed; bottom: 0; left: 0; right: 0; font-size: var(--pp-print-footer-size); color: var(--pp-color-ink-soft); border-top: var(--pp-layout-rule) solid var(--pp-color-line); padding-top: var(--pp-space-1); background: var(--pp-color-bg); }
+  thead { display: table-header-group; }
+  .table-wrap { overflow-x: visible; }
+  @page landscape { size: A4 landscape; }
+  .landscape { page: landscape; }
+  .placeholder, .stamp { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<section class="page" id="page-1">
+<header class="page-header">T12 · ProofPack v0.1.0.dev1 · fixtures report 2026-09-24T00:00:00Z</header>
+<h1>T12 · Software assurance record (CSA-structured)</h1>
+<p class="cover-note disclaimer">Attachment set prepared for the manufacturer's own submission or record. Not a submission. No regulator has endorsed this tool.</p>
+<p class="stamp" data-mark="incomplete">INCOMPLETE - customer sections outstanding: 1</p>
+<p>Structured after FDA&#39;s Computer Software Assurance approach: intended use, failure modes, assurance evidence and the records the manufacturer keeps. <span class="unverified">[unverified: the current version and status of FDA&#39;s Computer Software Assurance guidance were not fetched for this build]</span></p>
+<p class="supports">This record supports, does not replace, the manufacturer&#39;s own validation.</p>
+<p class="print-note">ProofPack writes no PDF in this version (D4 section 9): to keep this record as a PDF, print this HTML page to PDF from a browser.</p>
+<h2 id="t12-s1">1. Intended use</h2>
+<aside class="margin-note">maps to <a href="#PP_SCOPE">ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</a> · section n/a · eSTAR: n/a</aside>
+<p>The manufacturer states here what ProofPack is used for in their process and which of their records its output enters. ProofPack does not draft this text.</p>
+<div class="placeholder" data-slot="CT-T12">[CUSTOMER TEXT REQUIRED - intended use of ProofPack in the manufacturer&#39;s process, and the records its output enters; ProofPack does not draft this]</div>
+<h2 id="t12-s2">2. Failure modes the engine inspects</h2>
+<p>Each code below is raised by the engine itself (<code>proofpack/errors.py</code>). The second column is the condition the code inspects; the third is what the engine does when it fires. The last column is for the manufacturer's own risk rating.</p>
+<div class="table-wrap">
+<table class="failure-modes">
+<caption>Engine codes, from the engine's own code table</caption>
+<thead><tr><th scope="col">Code</th><th scope="col">Condition inspected</th><th scope="col">Engine action</th><th scope="col">Manufacturer's risk rating</th></tr></thead>
+<tbody>
+<tr data-code="H01"><td class="mono">H01</td><td>AUROC &lt; 0.5 on declared orientation</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="H02"><td class="mono">H02</td><td>y_true or y_pred non-blank values not a subset of declared classes and indeterminate values</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="H03"><td class="mono">H03</td><td>score.type is probability and a value lies outside [0, 1]</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="H04"><td class="mono">H04</td><td>y_pred not reproducible from score at a declared operating point</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="H05"><td class="mono">H05</td><td>duplicate row_id, or duplicate case_id rows with conflicting y_true</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="H06"><td class="mono">H06</td><td>single-class dataset</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="H07"><td class="mono">H07</td><td>header-set hash differs from mapping.json in non-interactive mode</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="H08"><td class="mono">H08</td><td>mandatory declaration missing or criterion lacking author/date/justification</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="H09"><td class="mono">H09</td><td>criterion references unknown metric/operating point/attribute/level</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="H10"><td class="mono">H10</td><td>observed vs declared intended-use prevalence differ by &gt; 0.10 absolute (flag only)</td><td>flag only: the run completes and the code is recorded</td><td class="signoff"></td></tr>
+<tr data-code="H11"><td class="mono">H11</td><td>date-like column present with no period declaration</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="H12"><td class="mono">H12</td><td>compare paired mode with unmatched row_ids</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="S01"><td class="mono">S01</td><td>required column missing</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="S02"><td class="mono">S02</td><td>column value cannot be coerced to its declared type</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="S03"><td class="mono">S03</td><td>declared period column not present in the table</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="S04"><td class="mono">S04</td><td>table could not be read</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="S05"><td class="mono">S05</td><td>case_id is blank in one or more rows</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="E01"><td class="mono">E01</td><td>composite case key: two or more columns identify a case (DEC-11)</td><td>HALT: exit 3, no document written</td><td class="signoff"></td></tr>
+<tr data-code="W06"><td class="mono">W06</td><td>single-class site(s) present; site-level metrics limited (D1 section 5)</td><td>warning: the run completes; exit 2 unless another code sets it</td><td class="signoff"></td></tr>
+<tr data-code="W10"><td class="mono">W10</td><td>observed prevalence differs from declared intended-use prevalence by &gt; 0.10</td><td>warning: the run completes; exit 2 unless another code sets it</td><td class="signoff"></td></tr>
+<tr data-code="W12"><td class="mono">W12</td><td>unmatched row_ids in a paired compare; unpaired methods used</td><td>warning: the run completes; exit 2 unless another code sets it</td><td class="signoff"></td></tr>
+<tr data-code="W13"><td class="mono">W13</td><td>clustering detected from repeated case_id although clustering.unit is &#39;none&#39;</td><td>warning: the run completes; exit 2 unless another code sets it</td><td class="signoff"></td></tr>
+<tr data-code="W14"><td class="mono">W14</td><td>acceptance runs on this test set exceed the declared ledger limit</td><td>warning: the run completes; exit 2 unless another code sets it</td><td class="signoff"></td></tr>
+<tr data-code="W15"><td class="mono">W15</td><td>the local ledger could not be read or written; acceptance runs not counted</td><td>warning: the run completes; exit 2 unless another code sets it</td><td class="signoff"></td></tr>
+<tr data-code="W16"><td class="mono">W16</td><td>telemetry not sent; run.json and the exit code are unchanged</td><td>warning: the run completes; exit 2 unless another code sets it</td><td class="signoff"></td></tr>
+<tr data-code="exit 0"><td class="mono">exit 0</td><td>no HALT, no warning, a usable licence</td><td></td><td class="signoff"></td></tr>
+<tr data-code="exit 2"><td class="mono">exit 2</td><td>one or more warnings</td><td></td><td class="signoff"></td></tr>
+<tr data-code="exit 3"><td class="mono">exit 3</td><td>a HALT code fired; nothing written</td><td></td><td class="signoff"></td></tr>
+<tr data-code="exit 4"><td class="mono">exit 4</td><td>no usable licence; run.json written with the watermark</td><td></td><td class="signoff"></td></tr>
+<tr data-code="exit 5"><td class="mono">exit 5</td><td>an internal error</td><td></td><td class="signoff"></td></tr>
+<tr data-code="exit 6"><td class="mono">exit 6</td><td>proofpack fixtures: one or more rows with an oracle not matched</td><td></td><td class="signoff"></td></tr>
+</tbody>
+</table>
+</div>
+<footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-24T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal); ProofPack internal: methods appendix conventions (T7) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>
+</section>
+<section class="page" id="page-2">
+<header class="page-header">T12 · ProofPack v0.1.0.dev1 · fixtures report 2026-09-24T00:00:00Z</header>
+<h2 id="t12-s3">3. Assurance evidence: the fixture register (fixtures_report.json)</h2>
+<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_PERF_VALIDATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a> · section to confirm · eSTAR: to confirm</aside>
+<p>Every row of the report is printed, whatever its status. A row reads "matched" only when every compared value lies within the row's tolerance; "not matched", "no oracle recorded", "not built in this version" and "compared by the test suite only" are printed as they stand.</p>
+<table class="environment">
+<caption>Where the report was generated</caption>
+<tbody>
+<tr><th scope="row">Engine version</th><td class="mono">0.1.0.dev1</td></tr>
+<tr><th scope="row">Git commit</th><td class="mono">not recorded</td></tr>
+<tr><th scope="row">Git commit source</th><td class="mono">masked</td></tr>
+<tr><th scope="row">Platform</th><td class="mono">masked-platform</td></tr>
+<tr><th scope="row">Reference platform</th><td class="mono">linux-x86_64-cp312</td></tr>
+<tr><th scope="row">On the reference platform</th><td class="mono">no</td></tr>
+<tr><th scope="row">Python</th><td class="mono">3.12.0</td></tr>
+<tr><th scope="row">numpy</th><td class="mono">x.y.z</td></tr>
+<tr><th scope="row">scipy</th><td class="mono">x.y.z</td></tr>
+<tr><th scope="row">Report generated (UTC)</th><td class="mono">2026-09-24T00:00:00Z</td></tr>
+</tbody>
+</table>
+<table class="tolerances">
+<caption>Tolerance classes (D1 sections 3.2 and 9)</caption>
+<tbody>
+<tr><th scope="row">closed form</th><td>1e-09</td></tr>
+<tr><th scope="row">iterative</th><td>1e-06</td></tr>
+<tr><th scope="row">reported rounding</th><td>absolute deviation at most half a unit in the last printed decimal of each value, plus 1e-12 (D1 section 9, bootstrap intervals and published tables)</td></tr>
+<tr><th scope="row">register</th><td>absolute deviation at most 1e-4 on the printed value (D1 section 3.2: &#39;tolerance 1e-4 on the shown rounding&#39;)</td></tr>
+</tbody>
+</table>
+<table class="counts">
+<caption>Report rows by status</caption>
+<tbody>
+<tr><th scope="row">Rows</th><td class="num" data-count="rows">43</td></tr>
+<tr><th scope="row">matched</th><td class="num" data-count="matched">30</td></tr>
+<tr><th scope="row">not matched</th><td class="num" data-count="not_matched">0</td></tr>
+<tr><th scope="row">no oracle recorded</th><td class="num" data-count="no_oracle_recorded">2</td></tr>
+<tr><th scope="row">not built in this version</th><td class="num" data-count="not_built">6</td></tr>
+<tr><th scope="row">compared by the test suite only</th><td class="num" data-count="suite_only">5</td></tr>
+<tr><th scope="row">Exit code of proofpack fixtures</th><td class="num" data-count="exit_code">0</td></tr>
+</tbody>
+</table>
+<div class="table-wrap">
+<table class="evidence">
+<caption>One row per comparison or register entry; deviations are the largest absolute difference between engine and oracle values in the row</caption>
+<thead><tr><th scope="col">Row</th><th scope="col">What is compared</th><th scope="col">Oracle</th><th scope="col">Tolerance</th><th scope="col" class="num">Values</th><th scope="col" class="num">Largest deviation</th><th scope="col">Status</th><th scope="col">Note</th></tr></thead>
+<tbody>
+<tr data-row="F1-wilson"><td class="mono">F1-wilson</td><td>Wilson 95% interval of 81/263 (proportion(), the rendered Number)</td><td class="mono">fixtures/oracles_v1.json (captured.F1-wilson)</td><td>closed form: 1e-09</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F1-clopper-pearson"><td class="mono">F1-clopper-pearson</td><td>Clopper-Pearson 95% interval of 81/263 (clopper_pearson_bounds)</td><td class="mono">fixtures/oracles_v1.json (captured.F1-clopper-pearson)</td><td>iterative: 1e-06</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F1-register"><td class="mono">F1-register</td><td>Wilson and Clopper-Pearson bounds of 81/263 against the printed register</td><td class="mono">fixtures/oracles_v1.json (register.F1)</td><td>register: 1e-04</td><td class="num">4</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F1b-wilson"><td class="mono">F1b-wilson</td><td>Wilson 95% interval of 490/500 (proportion(), the rendered Number)</td><td class="mono">fixtures/oracles_v1.json (captured.F1b-wilson)</td><td>closed form: 1e-09</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F1b-clopper-pearson"><td class="mono">F1b-clopper-pearson</td><td>Clopper-Pearson 95% interval of 490/500 (clopper_pearson_bounds)</td><td class="mono">fixtures/oracles_v1.json (captured.F1b-clopper-pearson)</td><td>iterative: 1e-06</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F1b-register"><td class="mono">F1b-register</td><td>Wilson and Clopper-Pearson bounds of 490/500 against the printed register</td><td class="mono">fixtures/oracles_v1.json (register.F1b)</td><td>register: 1e-04</td><td class="num">4</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F1c-wilson"><td class="mono">F1c-wilson</td><td>Wilson 95% interval of 0/20 (proportion(), the rendered Number)</td><td class="mono">fixtures/oracles_v1.json (captured.F1c-wilson)</td><td>closed form: 1e-09</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F1c-clopper-pearson"><td class="mono">F1c-clopper-pearson</td><td>Clopper-Pearson 95% interval of 0/20 (clopper_pearson_bounds)</td><td class="mono">fixtures/oracles_v1.json (captured.F1c-clopper-pearson)</td><td>iterative: 1e-06</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F1c-register"><td class="mono">F1c-register</td><td>Wilson and Clopper-Pearson bounds of 0/20 against the printed register</td><td class="mono">fixtures/oracles_v1.json (register.F1c)</td><td>register: 1e-04</td><td class="num">4</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F1d-wilson"><td class="mono">F1d-wilson</td><td>Wilson 95% interval of 20/20 (proportion(), the rendered Number)</td><td class="mono">fixtures/oracles_v1.json (captured.F1d-wilson)</td><td>closed form: 1e-09</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F1d-clopper-pearson"><td class="mono">F1d-clopper-pearson</td><td>Clopper-Pearson 95% interval of 20/20 (clopper_pearson_bounds)</td><td class="mono">fixtures/oracles_v1.json (captured.F1d-clopper-pearson)</td><td>iterative: 1e-06</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F1d-register"><td class="mono">F1d-register</td><td>Wilson and Clopper-Pearson bounds of 20/20 against the printed register</td><td class="mono">fixtures/oracles_v1.json (register.F1d)</td><td>register: 1e-04</td><td class="num">4</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F2-exact"><td class="mono">F2-exact</td><td>two_by_two_metrics on TP 90, FN 10, FP 20, TN 180: eleven point estimates, the two Wilson intervals, PPV and NPV at prevalence 0.05</td><td class="mono">fixtures/oracles_v1.json (captured.F2-exact)</td><td>closed form: 1e-09</td><td class="num">17</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F2-register"><td class="mono">F2-register</td><td>the same seventeen values against the printed register</td><td class="mono">fixtures/oracles_v1.json (register.F2)</td><td>register: 1e-04</td><td class="num">17</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F3-auroc"><td class="mono">F3-auroc</td><td>AUROC of s1 and s2 on the ten F3 rows (auroc_mann_whitney)</td><td class="mono">fixtures/oracles_v1.json (captured.F3-auroc)</td><td>closed form: 1e-09</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F3-delong"><td class="mono">F3-delong</td><td>DeLong standard errors, the logit and Wald intervals of s1, and the paired variance, z and p of s1 - s2 (auroc_number, paired_delong; the Wald bounds from wald_ci before the unit-range clip of the rendered Number)</td><td class="mono">fixtures/oracles_v1.json (captured.F3-delong)</td><td>iterative: 1e-06</td><td class="num">9</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F3-register"><td class="mono">F3-register</td><td>the F3 AUROCs, s1&#39;s DeLong standard error and intervals and the paired test against the printed register</td><td class="mono">fixtures/oracles_v1.json (register.F3)</td><td>register: 1e-04</td><td class="num">10</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F3-bootstrap"><td class="mono">F3-bootstrap</td><td>stratified bootstrap percentile interval of AUROC(s1), B = 2000, default_rng(20240101)</td><td class="mono">fixtures/oracles_v1.json (register.F3_bootstrap)</td><td>reported rounding: half a unit in the last printed decimal</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F3-auprc"><td class="mono">F3-auprc</td><td>AUPRC(s1) (register 0.835)</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="not_built">not built in this version</td><td>the engine emits no AUPRC in this version (output schema types it null)</td></tr>
+<tr data-row="F4-closed-form"><td class="mono">F4-closed-form</td><td>calibration_block on the twenty F4 rows: O:E and its interval, Brier, reference Brier, IPA, ECE over ten equal-width and ten equal-mass bins</td><td class="mono">fixtures/f4_expected.json (closed)</td><td>closed form: 1e-09</td><td class="num">8</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F4-irls"><td class="mono">F4-irls</td><td>calibration_block&#39;s IRLS intercept-in-the-large, slope and intercept, each with its Wald standard error</td><td class="mono">fixtures/f4_expected.json (irls)</td><td>iterative: 1e-06</td><td class="num">6</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F4-register"><td class="mono">F4-register</td><td>the F4 calibration values against R2 section 9 as quoted in f4_expected.json (the five-bin ECE is not emitted by the block and is not compared)</td><td class="mono">fixtures/f4_expected.json (r2_quoted)</td><td>register: 1e-04</td><td class="num">9</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F5"><td class="mono">F5</td><td>paired McNemar and the accuracy difference on [[80, 10], [2, 8]]</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="not_built">not built in this version</td><td>stats.comparison (McNemar, paired differences) is not in this version</td></tr>
+<tr data-row="F6-closed-form"><td class="mono">F6-closed-form</td><td>sensitivity by site on [45, 5], [38, 12], [27, 3], the chi-square statistic (heterogeneity_footnote) and Holm on [0.012, 0.04, 0.30] (holm)</td><td class="mono">fixtures/oracles_v1.json (captured.F6-homogeneity)</td><td>closed form: 1e-09</td><td class="num">7</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F6-p"><td class="mono">F6-p</td><td>the chi-square p-value of the same table (heterogeneity_footnote); Fisher&#39;s p for site 1 against site 2 is not compared (the public route runs Fisher only when an expected cell is below 5)</td><td class="mono">fixtures/oracles_v1.json (captured.F6-homogeneity)</td><td>iterative: 1e-06</td><td class="num">1</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F6-register"><td class="mono">F6-register</td><td>the F6 values against the printed register</td><td class="mono">fixtures/oracles_v1.json (register.F6)</td><td>register: 1e-04</td><td class="num">8</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F7"><td class="mono">F7</td><td>PSI and KS drift statistics</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="not_built">not built in this version</td><td>stats.drift is not in this version</td></tr>
+<tr data-row="F8-half-width"><td class="mono">F8-half-width</td><td>Wilson half-widths at p = 0.9 for n = 50, 100, 300 (proportion())</td><td class="mono">fixtures/oracles_v1.json (captured.F8-half-width)</td><td>closed form: 1e-09</td><td class="num">3</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F8-register"><td class="mono">F8-register</td><td>the three half-widths against the printed register</td><td class="mono">fixtures/oracles_v1.json (register.F8)</td><td>register: 1e-04</td><td class="num">3</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F9-cluster-bootstrap"><td class="mono">F9-cluster-bootstrap</td><td>cluster-bootstrap percentile interval of AUROC(s1) on the F3 rows each copied three times under one case id, against F3&#39;s printed bootstrap interval</td><td class="mono">fixtures/oracles_v1.json (register.F3_bootstrap)</td><td>reported rounding: half a unit in the last printed decimal</td><td class="num">2</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F10-exact"><td class="mono">F10-exact</td><td>sensitivity and specificity of the F2 table with 6 reference-positive and 4 reference-negative indeterminates counted each way (indeterminate_both_ways)</td><td class="mono">fixtures/oracles_v1.json (captured.F10-exact)</td><td>closed form: 1e-09</td><td class="num">4</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F11-ppa-npa"><td class="mono">F11-ppa-npa</td><td>PPA and NPA with their Wilson intervals of the F2 table under reference_standard type comparator</td><td class="mono">fixtures/oracles_v1.json (captured.F11-ppa-npa)</td><td>closed form: 1e-09</td><td class="num">6</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F12"><td class="mono">F12</td><td>HALT codes H01-H11 and exit 3 on the malformed inputs</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="suite_only">compared by the test suite only</td><td>a behaviour, not a value: the test suite inspects each HALT code (tests/test_halt_gates.py)</td></tr>
+<tr data-row="F13"><td class="mono">F13</td><td>pROC AUROC and DeLong interval on the aSAH data</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="no_oracle_recorded">no oracle recorded</td><td><span class="unverified">[unverified until captured] the pROC capture (fixtures/r/proc_asah.json) is carried to build days 11-14</span></td></tr>
+<tr data-row="F13b"><td class="mono">F13b</td><td>rms::val.prob slope and intercept on the F4 rows</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="no_oracle_recorded">no oracle recorded</td><td><span class="unverified">[unverified until captured] the rms::val.prob capture is carried to build days 11-14 (f4_expected.json r_rms_val_prob: [pending])</span></td></tr>
+<tr data-row="F14-newcombe"><td class="mono">F14-newcombe</td><td>Newcombe method 10 and method 11 intervals for 56/70 - 48/80, 9/10 - 3/10 and 10/10 - 0/20 (newcombe10_bounds, newcombe11_bounds)</td><td class="mono">fixtures/newcombe_table2.json (examples) <span class="unverified">[unverified against the primary PDF]</span></td><td>reported rounding: half a unit in the last printed decimal</td><td class="num">12</td><td class="num mono">0</td><td class="fixture-status" data-status="matched">matched</td><td></td></tr>
+<tr data-row="F15"><td class="mono">F15</td><td>PSI critical value at B = 10, alpha 0.05</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="not_built">not built in this version</td><td>stats.drift is not in this version</td></tr>
+<tr data-row="F16"><td class="mono">F16</td><td>F1-F8 under Pyodide against native</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="not_built">not built in this version</td><td>the Pyodide build is build day 10&#39;s</td></tr>
+<tr data-row="F17"><td class="mono">F17</td><td>two runs of the synthetic cohort: manifest and run.json bytes with run_id, started and duration_s masked</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="suite_only">compared by the test suite only</td><td>a same-platform repeat run by the suite and by scripts/f17_determinism.py; hash identity is claimed on the reference platform only (D1 section 9) (tests/test_f17_determinism.py, tests/test_manifest.py)</td></tr>
+<tr data-row="F18"><td class="mono">F18</td><td>recovery of an injected -0.06 AUROC gap over seeded cohorts</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="suite_only">compared by the test suite only</td><td>a coverage property over seeds, not a value (tests/test_subgroups.py)</td></tr>
+<tr data-row="F19"><td class="mono">F19</td><td>egress payload: schema, whitelist, suppression, no site name</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="suite_only">compared by the test suite only</td><td>a property of the egress bytes, not a value (tests/test_egress.py, tests/test_offline.py)</td></tr>
+<tr data-row="F20"><td class="mono">F20</td><td>licence verify: valid, expired, tampered, wrong key, trial</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="suite_only">compared by the test suite only</td><td>a behaviour of the licence check, not a value (tests/test_licence.py)</td></tr>
+<tr data-row="F21"><td class="mono">F21</td><td>Sepsis-2019 regression snapshot</td><td class="mono">—</td><td>—</td><td class="num">0</td><td class="num mono">—</td><td class="fixture-status" data-status="not_built">not built in this version</td><td>no Sepsis-2019 prediction file or snapshot is committed in this repository</td></tr>
+</tbody>
+</table>
+</div>
+<footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-24T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal); ProofPack internal: methods appendix conventions (T7) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>
+</section>
+<section class="page" id="page-3">
+<header class="page-header">T12 · ProofPack v0.1.0.dev1 · fixtures report 2026-09-24T00:00:00Z</header>
+<h2 id="t12-s4">4. Installation and operational checks (performed and signed by the manufacturer)</h2>
+<p>ProofPack prints the results below; the person, the date and the signature are the manufacturer's. ProofPack signs nothing.</p>
+<h3 id="t12-s4-1">4.1 proofpack doctor --offline, as run by proofpack fixtures</h3>
+<table class="doctor">
+<caption>Environment checks recorded in the report (0 with the condition not held)</caption>
+<thead><tr><th scope="col">Check</th><th scope="col">Condition held</th><th scope="col">Essential</th><th scope="col">Recorded</th></tr></thead>
+<tbody>
+<tr><td>python</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
+<tr><td>numpy</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
+<tr><td>yaml</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
+<tr><td>jsonschema</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
+<tr><td>scipy (optional extra)</td><td>yes</td><td>no</td><td class="mono">masked</td></tr>
+<tr><td>docx extra</td><td>yes</td><td>no</td><td class="mono">masked</td></tr>
+<tr><td>schema schema_v1.json</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
+<tr><td>schema criteria_schema.json</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
+<tr><td>schema claims_schema.json</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
+<tr><td>schema egress_schema.json</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
+<tr><td>schema output_schema_v1.json</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
+<tr><td>guidance_map_v1.csv</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
+<tr><td>write access</td><td>yes</td><td>yes</td><td class="mono">masked</td></tr>
+<tr><td>network</td><td>yes</td><td>no</td><td class="mono">masked</td></tr>
+<tr><td>reference platform</td><td>yes</td><td>no</td><td class="mono">masked</td></tr>
+<tr><td>engine version</td><td>yes</td><td>no</td><td class="mono">masked</td></tr>
+</tbody>
+</table>
+<p>The licence check is not printed in this table: T12 is written only under a licence that is usable (not refused, not expired past grace); its mark, if any, is on the cover.</p>
+<table class="checklist">
+<caption>Checklist: each step, what it inspects, and blank fields for the manufacturer's record</caption>
+<thead><tr><th scope="col">Step</th><th scope="col">Action</th><th scope="col">What the step inspects</th><th scope="col">Record reference</th><th scope="col">Performed by</th><th scope="col">Date</th><th scope="col">Signature</th></tr></thead>
+<tbody>
+<tr data-step="doctor"><td>1</td><td><code>proofpack doctor --offline</code></td><td>Python, numpy, pyyaml and jsonschema present; the packaged schemas and guidance map load; write access; the licence file; the platform against the reference platform</td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td></tr>
+<tr data-step="fixtures"><td>2</td><td><code>proofpack fixtures --offline</code></td><td>The fixture register rows above: 30 matched and 0 not matched of 43 rows; exit code 0</td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td></tr>
+<tr data-step="mapping"><td>3</td><td><code>proofpack map --input &lt;your table&gt;</code>, then a person compares the mapping table with the manufacturer's data dictionary</td><td>That each column's role (label, score, prediction, case, site, attributes) is the one the data dictionary gives; the mapping.json SHA-256 printed in T8 is the file that person confirmed</td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td></tr>
+<tr data-step="declarations"><td>4</td><td>The RA lead reads T8 section 3 (declarations echo) beside the criteria.yaml the manufacturer's team authored</td><td>Positive class, score orientation, thresholds, intended-use prevalence, subgroups, and each criterion's author, date and justification, as echoed</td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td><td class="signoff"></td></tr>
+</tbody>
+</table>
+<h2 id="t12-s5">5. Determinism and tolerances</h2>
+<aside class="margin-note">maps to <a href="#PP_METHODS">ProofPack internal: methods appendix conventions (T7) (engine version, internal)</a> · section n/a · eSTAR: n/a</aside>
+<p class="tolerance">Reference platform: python:3.12-slim linux/amd64 with the pinned lockfile. Other platforms (arm64 laptop, Windows pip, Pyodide) → agreement to tolerance: 1e-9 closed-form (Wilson, 2×2, Brier, O/E, PSI), 1e-6 iterative (IRLS slope/intercept, DeLong via placements), bootstrap CIs to reported rounding with identical seed and numpy.random.default_rng(seed).</p>
+<p class="f17">Two runs of the same inputs on the same platform are compared as the manifest and the bytes of run.json with run_id, started and duration_s masked (F17; scripts/f17_determinism.py). Hash identity is claimed on the reference platform only, python:3.12-slim linux/amd64 with the pinned lockfile.</p>
+<p class="platform">This report was generated on masked-platform, which is not the reference platform.</p>
+<p class="supports">This record supports, does not replace, the manufacturer&#39;s own validation.</p>
+<h2 id="t12-s6">6. Guidance references</h2>
+<table class="guidance">
+<caption>Every anchor used on this page, labelled from the guidance map; a draft is a draft in the label and in the structured data</caption>
+<thead><tr><th scope="col">Internal id</th><th scope="col">Document, version or date, status</th><th scope="col">Draft</th></tr></thead>
+<tbody>
+<tr id="FDA_AIDSF_PERF_VALIDATION" class="draft"><td class="mono">FDA_AIDSF_PERF_VALIDATION</td><td>FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</td><td>yes</td></tr>
+<tr id="PP_SCOPE"><td class="mono">PP_SCOPE</td><td>ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</td><td>no</td></tr>
+<tr id="PP_METHODS"><td class="mono">PP_METHODS</td><td>ProofPack internal: methods appendix conventions (T7) (engine version, internal)</td><td>no</td></tr>
+</tbody>
+</table>
+<footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-24T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal); ProofPack internal: methods appendix conventions (T7) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>
+</section>
+<div class="print-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-24T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal); ProofPack internal: methods appendix conventions (T7) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></div>
+</body>
+</html>
