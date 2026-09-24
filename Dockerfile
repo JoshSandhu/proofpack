@@ -17,7 +17,7 @@
 # signing key is not among the inputs: it is an environment variable of the issuer only.
 # The wheel carries the Ed25519 public verify key (licence/keys.py SHIPPED_PUBLIC_KEY). A
 # customer's licence file is supplied at run time (PROOFPACK_LICENCE or a mounted home).
-FROM --platform=linux/amd64 python:3.12-slim
+FROM --platform=linux/amd64 python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
