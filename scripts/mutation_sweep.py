@@ -2317,6 +2317,14 @@ MUTANTS_DAY9: tuple[Mutant, ...] = (
         what="F5's op1 plot draws a criterion declared on op2 (repair 3, lens-3 FA-B1)",
     ),
     Mutant(
+        "f5_criterion_line_for_paired_difference",
+        FIGURES,
+        r'and entry\.get\("type"\) != "paired_difference_vs_prior"',
+        "and True",
+        day=9,
+        what="F5 draws a paired_difference_vs_prior margin (repair 4, lens-4 FA-B1)",
+    ),
+    Mutant(
         "t1_11_criteria_for_any_operating_point",
         T1_RENDER,
         r"and \(row_op is None or str\(row_op\) == op\)",

@@ -388,7 +388,14 @@ def _criterion_lines(
     metric's criterion without one is H09 (``test_a_threshold_metric_without_an_
     operating_point_is_h09``). E9 repair 3, lens-3 FA-B1: before this, a criterion
     declared on op2 was drawn on the plot captioned op1
-    (``test_e9_repair3.py::test_an_op2_criterion_draws_no_line_on_the_op1_f5_plot``)."""
+    (``test_e9_repair3.py::test_an_op2_criterion_draws_no_line_on_the_op1_f5_plot``).
+
+    The criteria row carries no ``type``; it is read from the declaration entry the row's
+    ``declaration_index`` names, and a row whose entry declares ``type:
+    paired_difference_vs_prior`` is not drawn. E9 repair 4, lens-4 FA-B1: before this,
+    ``Cpd`` (sensitivity, op1, sex = F, value -0.05) was drawn at x = 178.5 on the op1
+    sensitivity plot and ``Cauc_pd`` (auroc, 0.55) on the AUROC plot
+    (``test_e9_repair4.py::test_a_paired_difference_criterion_draws_no_f5_line``)."""
     decl = document.get("declarations") or {}
     entries = decl.get("criteria") or []
     seen: set[tuple[str, float]] = set()
@@ -396,6 +403,8 @@ def _criterion_lines(
     for row in document.get("criteria_results") or []:
         scope = row.get("scope")
         row_op = row.get("operating_point")
+        i = row.get("declaration_index")
+        entry = entries[i] if isinstance(i, int) and 0 <= i < len(entries) else {}
         if not (
             isinstance(scope, dict)
             and str(scope.get("attribute")) == attribute
@@ -403,14 +412,13 @@ def _criterion_lines(
             and (None if row_op is None else str(row_op)) == op
             and row.get("statistic") == "ci_lower_bound"
             and _is_num(row.get("value"))
+            and entry.get("type") != "paired_difference_vs_prior"
         ):
             continue
         key = (str(row.get("criterion_id")), float(row["value"]))
         if key in seen:
             continue
         seen.add(key)
-        i = row.get("declaration_index")
-        entry = entries[i] if isinstance(i, int) and 0 <= i < len(entries) else {}
         x = m.x(row["value"])
         out.append(
             {

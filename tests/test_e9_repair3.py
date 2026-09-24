@@ -1,14 +1,15 @@
 """Build day 9, repair round 3 (lens 3 fresh attack and regression, 24 September 2026).
 
 Each test feeds the input a lens fed, or the input named in its docstring, and asserts the
-literal text it measured. Every test below was run in a ``952bddc`` worktree with
-``PYTHONPATH`` forced and failed there; the first ``E`` line of each is in the repair note.
+literal text it measured. Run alone in a ``952bddc`` worktree with ``PYTHONPATH`` forced,
+this file gives ``5 failed``; the first ``E`` line of each is quoted under "Pre-fix" in
+``handoffs/2026-09-24_E_lens4_regression.md`` and in the repair-4 note.
 
 * **FA-B1** - ``criteria_results`` rows C3 (op2), C4 (op1) and C5 (``auroc``, no operating
   point), all scoped on sex = F, plus ``FAIRNESS``'s ``fairness:tpr_gap`` rows (one per
   operating point), on ``cohort_with_a_thirty_row_site()`` with ``op2`` (threshold 0.3,
-  rule ``>=``): the lines F5 draws and the criteria column of each operating point's
-  T1-11;
+  rule ``>=``): the lines the three sex F5 plots draw and the criteria cell of the F row
+  of the op1 and op2 sex T1-11 tables;
 * **FA-N1** - the two ``FAIRNESS_GAP`` sentences of that document;
 * **FA-N3** - T7 of the i.i.d. document above and of the clustered document
   (400 rows, ``case_id = c{i//2}``);
@@ -86,7 +87,9 @@ def test_an_op2_criterion_draws_no_line_on_the_op1_f5_plot(two_op_criteria):
     }
 
 
-def test_each_t1_11_prints_the_criteria_rows_of_its_own_operating_point_and_c5(two_op_criteria):
+def test_the_sex_f_row_of_the_op1_and_op2_t1_11_prints_its_own_criteria_rows_and_c5(
+    two_op_criteria,
+):
     page = render_t1.render_t1(two_op_criteria)
     cells = {}
     # each T1-11 is the table after its operating point's T1-10 (data-op on T1-10)
