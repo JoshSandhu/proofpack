@@ -59,6 +59,12 @@ packages = ["src/proofpack"]
 # build day 9 (E9): T7 prints the conventions file and the citation register
 "design/conventions_T7.md" = "proofpack/_schema/conventions_T7.md"
 "design/citations.yaml" = "proofpack/_schema/citations.yaml"
+# A-P3 (build day 9): proofpack fixtures reads its report schema and the oracle files
+"schema/fixtures_report_schema.json" = "proofpack/_schema/fixtures_report_schema.json"
+"fixtures/oracles_v1.json" = "proofpack/_fixtures/oracles_v1.json"
+"fixtures/f4_expected.json" = "proofpack/_fixtures/f4_expected.json"
+"fixtures/f4_calibration.csv" = "proofpack/_fixtures/f4_calibration.csv"
+"fixtures/newcombe_table2.json" = "proofpack/_fixtures/newcombe_table2.json"
 
 [tool.hatch.build.targets.sdist]
 include = ["src/proofpack", "schema", "fixtures", "README.md", "pyproject.toml"]
@@ -87,6 +93,7 @@ markers = [
     "day10: Day 10",
     "fixture: named fixture register entries (F1-F21)",
     "ap2: A-P2 egress, telemetry and --offline (build day 8, lane A); every ap2 test also carries day8",
+    "ap3: A-P3 release pipeline, proofpack fixtures, F17, T12 (build day 9, lane A); every ap3 test also carries day9",
     "slow: slow tests",
 ]
 addopts = "-ra"

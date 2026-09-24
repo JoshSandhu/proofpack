@@ -4,11 +4,13 @@ E7's test made ``socket.socket`` and ``socket.create_connection`` raise around `
 This extends it: ``socket.socket``, ``socket.getaddrinfo`` and ``socket.create_connection``
 all raise, the telemetry transport raises too, and ``run``, ``compare``, ``map``,
 ``doctor`` and ``licence verify`` each complete under ``--offline``. ``proofpack
-fixtures`` is not a subcommand at 7b2ca2a (D1 section 7 lists it; it is not built), so
-it is not here. The CI job ``offline-namespace`` (.github/workflows/ci.yml) is written
-to run one whole ``proofpack run`` inside ``unshare -rn`` with and without ``--offline``;
-it had not run anywhere when this was written (23 September 2026; the branch has not
-reached the public repository's CI), so nothing here relies on it.
+fixtures`` (A-P3, build day 9) joined the list: ``test_fixtures_offline_opens_no_socket``
+runs it with ``--html`` under a licence and with ``--r-captures`` (it carries ``day9`` and
+``ap3`` beside this module's markers). The CI job ``offline-namespace``
+(.github/workflows/ci.yml) is written to run one whole ``proofpack run`` inside
+``unshare -rn`` with and without ``--offline``; it had not run anywhere when this was
+written (23 September 2026; the branch has not reached the public repository's CI), so
+nothing here relies on it.
 """
 
 from __future__ import annotations
@@ -167,6 +169,22 @@ def test_licence_verify_offline_opens_no_socket(tmp_path: Path, capsys, no_socke
     # ``verify``; SystemExit 2, measured 22 September) - carried as a CLI nit
     rc = main(["--offline", "licence", "verify", str(lic)], registry=ephemeral_registry())
     assert rc == EXIT_OK, capsys.readouterr().out
+    assert no_sockets.calls == []
+
+
+@pytest.mark.day9
+@pytest.mark.ap3
+def test_fixtures_offline_opens_no_socket(tmp_path: Path, capsys, no_sockets):
+    rc = main(
+        ["fixtures", "--offline", "--out", str(tmp_path), "--html", "--r-captures"],
+        registry=ephemeral_registry(),
+    )
+    printed = capsys.readouterr().out
+    assert rc == EXIT_OK, printed
+    assert (tmp_path / "fixtures_report.json").exists() and (tmp_path / "T12.html").exists()
+    assert no_sockets.calls == [] and NETWORK_ATTEMPTS == []
+    # without --offline the command is the same: it has no network step to skip
+    assert main(["fixtures", "--out", str(tmp_path)], registry=ephemeral_registry()) == EXIT_OK
     assert no_sockets.calls == []
 
 

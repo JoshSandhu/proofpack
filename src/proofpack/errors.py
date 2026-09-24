@@ -1,6 +1,7 @@
 """Exit codes, HALT codes and the exception hierarchy (D1 section 5).
 
-Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal.
+Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal, 6 ``proofpack fixtures``
+with one or more rows not matched (A-P3).
 No document is written on HALT ("never a silent number").
 """
 
@@ -13,6 +14,10 @@ EXIT_WARNINGS = 2
 EXIT_HALT = 3
 EXIT_LICENCE = 4
 EXIT_INTERNAL = 5
+#: ``proofpack fixtures`` (A-P3, build day 9): one or more report rows with an oracle is
+#: ``not_matched`` (``proofpack.fixtures.exit_code_for``). Rows without an oracle, not built
+#: or compared by the test suite only never set it.
+EXIT_FIXTURES_NOT_MATCHED = 6
 
 #: HALT gate codes and their one-line meaning (D1 section 5 table).
 HALT_CODES: dict[str, str] = {

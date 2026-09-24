@@ -1,6 +1,7 @@
-"""``proofpack`` command line (D1 section 7): doctor, map, run, compare, licence.
+"""``proofpack`` command line (D1 section 7): doctor, map, run, compare, fixtures, licence.
 
-Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal.
+Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal, 6 ``fixtures`` with a
+row not matched (A-P3).
 On HALT nothing is written to ``--out``. ``run`` (build day 7, E7: :mod:`proofpack.run`)
 needs a confirmed mapping (DEC-26) and writes ``run.json`` - the assembled document -
 under ``--out``; on a licence that is expired past grace, refused or absent it still
@@ -101,6 +102,21 @@ def _build_parser() -> argparse.ArgumentParser:
     c.add_argument("--out", default="./pack")
     c.add_argument("--yes", action="store_true")
     c.add_argument("--allow-unpaired", action="store_true")
+
+    fx = sub.add_parser(
+        "fixtures",
+        help="the fixture register against its recorded oracles -> <out>/fixtures_report.json",
+        parents=[common],
+    )
+    fx.add_argument("--out", default=".", help="directory for fixtures_report.json (and T12.html)")
+    fx.add_argument(
+        "--html",
+        action="store_true",
+        help="also write T12.html beside the report (licence ok or in grace, as T8)",
+    )
+    fx.add_argument(
+        "--r-captures", action="store_true", help="report the state of the R captures (F13, F13b)"
+    )
 
     lic = sub.add_parser("licence", help="show | verify FILE | install FILE", parents=[common])
     lic_sub = lic.add_subparsers(dest="licence_command", required=True)
@@ -604,6 +620,53 @@ def cmd_licence(args: argparse.Namespace) -> int:
     return EXIT_OK if result.usable else EXIT_LICENCE
 
 
+def cmd_fixtures(args: argparse.Namespace) -> int:
+    """``proofpack fixtures`` (A-P3): exit 0 when no row is not matched, 6 otherwise
+    (``errors.EXIT_FIXTURES_NOT_MATCHED``). Opens no socket, with or without --offline."""
+    from proofpack import fixtures as fx  # noqa: PLC0415
+
+    _tolerant_console()
+    report = fx.run_fixtures()
+    fx.validate_report(report)
+    path = fx.write_report(report, args.out)
+    lines = fx.summary_lines(report, path)
+    if args.r_captures:
+        lines.append("  " + fx.r_captures_status()["line"])
+    written = None
+    if args.html:
+        from proofpack import licence as licence_mod  # noqa: PLC0415
+        from proofpack.render.t12 import write_t12  # noqa: PLC0415
+        from proofpack.run import watermark_for  # noqa: PLC0415
+
+        lic = licence_mod.resolve(registry=args.registry)
+        if lic.usable:
+            written = write_t12(report, args.out, watermark=watermark_for(lic))
+            lines.append(f"  document written: {written}")
+        else:
+            lines.append(
+                f"  T12.html not written: licence {lic.status} ({lic.reason_code}); "
+                "fixtures_report.json only"
+            )
+    lines.append(
+        "Next step: attach fixtures_report.json to your installation record; "
+        + ("open T12.html" if written else "--html writes T12.html under a usable licence")
+        + " (docs: /docs/fixtures)"
+    )
+    _emit(
+        args,
+        {
+            "fixtures": {
+                "written": str(path),
+                "summary": report["summary"],
+                "exit_code": report["exit_code"],
+                "t12": None if written is None else str(written),
+            }
+        },
+        "\n".join(lines),
+    )
+    return report["exit_code"]
+
+
 def cmd_compare(args: argparse.Namespace) -> int:
     from proofpack.gates import check_paired, ingest
     from proofpack.io import declare
@@ -654,6 +717,7 @@ def main(argv: list[str] | None = None, *, registry=None, transport=None) -> int
         "map": cmd_map,
         "run": cmd_run,
         "compare": cmd_compare,
+        "fixtures": cmd_fixtures,
         "licence": cmd_licence,
     }[args.command]
     try:

@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proofpack.globalphoenix.co.uk/schema/fixtures_report_schema.json",
+  "title": "proofpack fixtures report (fixtures_report.json)",
+  "description": "Written by `proofpack fixtures` (D1 section 7; A-P3, build day 9). One row per comparison of engine values with a recorded oracle, or per register entry that is not compared. A row is `matched` only when every compared value lies within its tolerance; rows with status no_oracle_recorded, not_built or suite_only carry matched false.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "engine_version",
+    "git_sha",
+    "git_sha_source",
+    "platform",
+    "reference_platform",
+    "on_reference_platform",
+    "python",
+    "numpy",
+    "scipy",
+    "generated",
+    "offline",
+    "tolerance_policy",
+    "rows",
+    "summary",
+    "exit_code",
+    "doctor",
+    "duration_s"
+  ],
+  "properties": {
+    "schema": {"const": "proofpack-fixtures-report/1"},
+    "engine_version": {"type": "string", "minLength": 1},
+    "git_sha": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+    "git_sha_source": {"type": "string", "minLength": 1},
+    "platform": {"type": "string", "minLength": 1},
+    "reference_platform": {"type": "string", "minLength": 1},
+    "on_reference_platform": {"type": "boolean"},
+    "python": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "numpy": {"type": "string", "minLength": 1},
+    "scipy": {"type": ["string", "null"]},
+    "generated": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "offline": {"const": true},
+    "tolerance_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "closed_form", "iterative", "reported_rounding", "register"],
+      "properties": {
+        "source": {"const": "D1 section 9"},
+        "closed_form": {"const": 1e-9},
+        "iterative": {"const": 1e-6},
+        "reported_rounding": {"type": "string", "minLength": 1},
+        "register": {"type": "string", "minLength": 1}
+      }
+    },
+    "rows": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/row"}},
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "matched", "not_matched", "no_oracle_recorded", "not_built", "suite_only"],
+      "properties": {
+        "rows": {"type": "integer", "minimum": 1},
+        "matched": {"type": "integer", "minimum": 0},
+        "not_matched": {"type": "integer", "minimum": 0},
+        "no_oracle_recorded": {"type": "integer", "minimum": 0},
+        "not_built": {"type": "integer", "minimum": 0},
+        "suite_only": {"type": "integer", "minimum": 0}
+      }
+    },
+    "exit_code": {"enum": [0, 6]},
+    "doctor": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "ok", "essential", "info"],
+        "properties": {
+          "name": {"type": "string"},
+          "ok": {"type": "boolean"},
+          "essential": {"type": "boolean"},
+          "info": {"type": "string"}
+        }
+      }
+    },
+    "duration_s": {"type": ["number", "null"], "minimum": 0}
+  },
+  "$defs": {
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "fixture",
+        "what_is_compared",
+        "status",
+        "matched",
+        "oracle_source",
+        "tolerance",
+        "max_abs_deviation",
+        "n_values_compared",
+        "values",
+        "reason",
+        "suite_tests"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^F[0-9]{1,2}[a-d]?(-[a-z0-9-]+)?$"},
+        "fixture": {"type": "string", "pattern": "^F[0-9]{1,2}[a-d]?$"},
+        "what_is_compared": {"type": "string", "minLength": 1},
+        "status": {"enum": ["matched", "not_matched", "no_oracle_recorded", "not_built", "suite_only"]},
+        "matched": {"type": "boolean"},
+        "oracle_source": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["kind", "file", "entry", "detail", "library_versions", "unverified", "marking"],
+          "properties": {
+            "kind": {"enum": ["captured_library", "captured_formula", "published_table", "register_fraction"]},
+            "file": {"type": "string", "minLength": 1},
+            "entry": {"type": "string", "minLength": 1},
+            "detail": {"type": "string", "minLength": 1},
+            "library_versions": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+            "unverified": {"type": "boolean"},
+            "marking": {"type": ["string", "null"]}
+          }
+        },
+        "tolerance": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["class", "value", "rule"],
+          "properties": {
+            "class": {"enum": ["closed_form", "iterative", "reported_rounding", "register"]},
+            "value": {"type": ["number", "null"]},
+            "rule": {"type": "string", "minLength": 1}
+          }
+        },
+        "max_abs_deviation": {"type": ["number", "null"], "minimum": 0},
+        "n_values_compared": {"type": "integer", "minimum": 0},
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "engine", "oracle", "abs_deviation", "tolerance", "within"],
+            "properties": {
+              "name": {"type": "string"},
+              "engine": {"type": ["number", "null"]},
+              "oracle": {"type": "number"},
+              "abs_deviation": {"type": ["number", "null"], "minimum": 0},
+              "tolerance": {"type": "number", "exclusiveMinimum": 0},
+              "within": {"type": "boolean"}
+            }
+          }
+        },
+        "reason": {"type": ["string", "null"]},
+        "suite_tests": {"type": "array", "items": {"type": "string"}}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "matched"}}},
+          "then": {"properties": {"matched": {"const": true}, "n_values_compared": {"minimum": 1}}},
+          "else": {"properties": {"matched": {"const": false}}}
+        },
+        {
+          "if": {"properties": {"status": {"enum": ["no_oracle_recorded", "not_built", "suite_only"]}}},
+          "then": {"properties": {"oracle_source": {"const": null}, "n_values_compared": {"const": 0}}}
+        }
+      ]
+    }
+  }
+}
