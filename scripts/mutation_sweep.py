@@ -2668,6 +2668,35 @@ AP3_MUTANTS: tuple[Mutant, ...] = (
         day=9,
         marker="ap3",
     ),
+    # A-P3 repair 1 (lens-1 findings at 1a967d8)
+    Mutant(
+        "ap3_missing_engine_value_counted_within",
+        FIXTURES,
+        r"            dev = None\n            within = False\n",
+        "            dev = None\n            within = True\n",
+        what="an engine value left out or NaN counts as within tolerance (lens FA-B1)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_t12_w16_given_the_exit_2_action",
+        T12,
+        r"WARNING_ACTIONS\.get\(code, WARNING_ACTION\)",
+        "WARNING_ACTION",
+        what="T12 prints W16 with the exit-2 action of the other W-codes (lens RG-B1)",
+        day=9,
+        marker="ap3",
+    ),
+    Mutant(
+        "ap3_git_sha_reads_the_enclosing_repository",
+        FIXTURES,
+        r"    if not _is_proofpack_checkout\(root, package_dir\):\n"
+        r"        return None, NOT_THE_PROOFPACK_CHECKOUT\n",
+        "",
+        what="git_sha records the HEAD of any git repository around the package (lens FA-R1)",
+        day=9,
+        marker="ap3",
+    ),
 )
 MUTANTS = MUTANTS + AP3_MUTANTS
 
