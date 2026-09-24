@@ -1,0 +1,19 @@
+# A-P3 (build day 9, lane A): weekly update pull requests for the Python lock, the
+# workflow actions and the Dockerfile's base image. Written; Dependabot reads it once the
+# file is on the default branch.
+# [unverified] the "uv" ecosystem (it reads and rewrites uv.lock) was not read from
+# GitHub's documentation in this build; the "pip" ecosystem reads pyproject.toml only.
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"

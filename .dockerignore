@@ -1,0 +1,7 @@
+# A-P3: the build context holds the two inputs the Dockerfile copies and nothing else
+# (no source tree, no .git, no licence file, no key).
+*
+!requirements.lock
+!dist
+dist/*
+!dist/*.whl

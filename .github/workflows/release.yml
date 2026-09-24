@@ -1,0 +1,187 @@
+name: release
+
+# A-P3 (build day 9, lane A). Written, never run: it runs when a tag v* is pushed, and no
+# tag exists (24 September 2026). Every engine command below carries --offline
+# (tests/test_workflows.py asserts it on every line that runs the engine). The only secret
+# named is GITHUB_TOKEN; TestPyPI is reached by trusted publishing (the id-token
+# permission of the testpypi job), which Josh configures on TestPyPI before the first tag.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions: {}
+
+env:
+  UV_VERSION: "0.8.17"
+  PYTHON_VERSION: "3.12"
+  IMAGE: ghcr.io/${{ github.repository_owner }}/proofpack
+
+jobs:
+  build:
+    name: wheel, fixtures report, SBOM, sample run, T12
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --all-groups --locked
+      - name: the tag names the package version
+        run: |
+          version=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "v${version}" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} is not v${version}"; exit 1; }
+      - run: uv build --wheel --out-dir dist
+      - name: proofpack fixtures (exit 0 only when no row with an oracle is not matched)
+        run: uv run proofpack fixtures --offline --out release
+      - name: SBOM (CycloneDX 1.5 from uv.lock)
+        run: uv run python scripts/sbom.py --out release/sbom.cdx.json
+      - name: sample run.json of the synthetic cohort (assemble_run; no socket, no telemetry)
+        run: uv run python scripts/build_sample_pack.py --out release/sample
+      - name: T12.html from the fixtures report
+        run: uv run python scripts/build_t12.py --report release/fixtures_report.json --out release
+      - name: requirements.lock for the image (hash-pinned, runtime and the stats extra)
+        run: uv export --locked --no-dev --extra stats --no-emit-project --format requirements-txt --output-file requirements.lock
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: |
+            dist/*.whl
+            requirements.lock
+            release/fixtures_report.json
+            release/sbom.cdx.json
+            release/sample/run.json
+            release/T12.html
+          if-no-files-found: error
+
+  image:
+    name: GHCR image (linux/amd64), smoke, Trivy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+      - name: build the image
+        run: docker build --platform linux/amd64 -t proofpack:ci .
+      - name: record the base image digest (the Dockerfile pin is [unverified] until this is read)
+        run: docker image inspect python:3.12-slim --format '{{index .RepoDigests 0}}'
+      - name: smoke (no network in the container)
+        run: |
+          set -euo pipefail
+          docker run --rm --network none proofpack:ci doctor --offline
+          mkdir -p smoke && chmod 777 smoke
+          docker run --rm --network none -v "$PWD/smoke:/work" -w /work proofpack:ci fixtures --offline --out /work/fixtures
+      - name: Trivy scan of the image
+        # [unverified] the tag below was not read from a source in this build; pin by
+        # commit sha at the first run
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: proofpack:ci
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+      - name: log in to GHCR with the workflow token
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: push
+        run: |
+          docker tag proofpack:ci "${IMAGE}:${GITHUB_REF_NAME}"
+          docker push "${IMAGE}:${GITHUB_REF_NAME}"
+
+  testpypi:
+    name: publish to TestPyPI (trusted publishing)
+    needs: build
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist/
+
+  install-from-testpypi:
+    name: clean venv, pip install from TestPyPI, proofpack run --offline
+    needs: testpypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install the tagged version into a fresh venv
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          python -m venv /tmp/clean
+          for attempt in 1 2 3 4 5; do
+            /tmp/clean/bin/pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "proofpack[stats]==${version}" && break
+            sleep 30
+          done
+          /tmp/clean/bin/python -c "import proofpack, sys; print(proofpack.__file__); assert proofpack.__file__.startswith('/tmp/clean/')"
+      - name: doctor, fixtures and one run on the synthetic sample, all offline
+        run: |
+          set -euo pipefail
+          /tmp/clean/bin/proofpack doctor --offline
+          /tmp/clean/bin/proofpack fixtures --offline --out /tmp/fx
+          PYTHONPATH= /tmp/clean/bin/python scripts/f17_determinism.py --out /tmp/in --n 400 --inputs-only
+          set +e
+          /tmp/clean/bin/proofpack run --input /tmp/in/synthetic.csv --criteria /tmp/in/criteria.yaml --mapping /tmp/in/synthetic.csv.mapping.json --out /tmp/pack --format json --offline
+          rc=$?
+          set -e
+          echo "proofpack run exit code: ${rc} (4 = no licence installed; run.json is still written)"
+          test "${rc}" = "4"
+          test -s /tmp/pack/run.json
+
+  github-release:
+    name: GitHub release with the assets
+    needs: [build, image, install-from-testpypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+      - name: create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" \
+            --title "proofpack ${GITHUB_REF_NAME}" \
+            --notes "Wheel, fixtures_report.json, sample run.json (synthetic cohort), T12.html, CycloneDX SBOM. Built by .github/workflows/release.yml." \
+            dist/*.whl release/fixtures_report.json release/sbom.cdx.json \
+            "release/sample/run.json#sample-run.json" release/T12.html
+
+  zap-baseline:
+    name: ZAP baseline (passive) against the live site
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: passive baseline scan; the report is an artefact, the job does not fail on findings
+        # [unverified] the image tag "stable" is not pinned by digest in this build
+        run: |
+          mkdir -p zap && chmod 777 zap
+          docker run --rm -v "$PWD/zap:/zap/wrk" ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t https://proofpack.globalphoenix.co.uk -r zap-baseline.html -I
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zap-baseline
+          path: zap/zap-baseline.html
+          if-no-files-found: warn
