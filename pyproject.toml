@@ -89,7 +89,7 @@ markers = [
     "day7: Day 7",
     "day8: Day 8 (E8) claims, checker, HTML renderer, T8, tokens.json",
     "day9: Day 9 (E9) template library, T1, T7, D5 furniture, figures F2-F5, /sample-pack",
-    "day10: Day 10",
+    "day10: Day 10 (E10) stats.comparison, the paired_difference_vs_prior criterion, proofpack compare, T2, F5 in the fixtures report",
     "fixture: named fixture register entries (F1-F21)",
     "ap2: A-P2 egress, telemetry and --offline (build day 8, lane A); every ap2 test also carries day8",
     "ap3: A-P3 release pipeline, proofpack fixtures, F17, T12 (build day 9, lane A); every ap3 test also carries day9",

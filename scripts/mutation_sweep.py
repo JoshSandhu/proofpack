@@ -29,6 +29,7 @@ Usage::
     python scripts/mutation_sweep.py --marker day7            # the day-7 list (E7)
     python scripts/mutation_sweep.py --marker day8            # the day-8 list (E8)
     python scripts/mutation_sweep.py --marker day9            # the day-9 list (E9)
+    python scripts/mutation_sweep.py --marker day10           # the day-10 list (E10)
     python scripts/mutation_sweep.py --marker day5 --only ref_largest_to_smallest
     python scripts/mutation_sweep.py --list
     python scripts/mutation_sweep.py --marker day5 --fail-on-survivor   # exit 1 if any survive
@@ -2368,8 +2369,9 @@ MUTANTS_DAY9: tuple[Mutant, ...] = (
     Mutant(
         "templates_dispatch_drops_t1",
         RUN,
-        r'return \{"T1": write_t1, "T7": write_t7, "T8": write_t8\}',
-        'return {"T7": write_t7, "T8": write_t8}',
+        # E10 added T2 to the writers dict; the day-9 mutant still drops T1
+        r'return \{"T1": write_t1, "T2": write_t2, "T7": write_t7, "T8": write_t8\}',
+        'return {"T2": write_t2, "T7": write_t7, "T8": write_t8}',
         day=9,
         what="--templates T1 writes nothing",
     ),
@@ -2394,12 +2396,134 @@ MUTANTS_DAY9: tuple[Mutant, ...] = (
         SAMPLE_PACK,
         r"data_marking=SYNTHETIC_MARK",
         "data_marking=None",
+        count=2,  # E10: the run and the --compare assembly both carry the mark
         day=9,
         what="the sample pack's pages carry no SYNTHETIC mark",
     ),
 )
 
-MUTANTS = MUTANTS + MUTANTS_DAY6_A + MUTANTS_DAY7 + MUTANTS_DAY8 + MUTANTS_DAY9
+#: Build day 10 (E10 item 8): the version comparison, the paired criterion and T2, run
+#: with ``--marker day10``. Each changes behaviour; the E10 note records the result.
+COMPARISON = "src/proofpack/stats/comparison.py"
+PROPORTIONS = "src/proofpack/stats/proportions.py"
+T2_RENDER = "src/proofpack/render/t2.py"
+MUTANTS_DAY10: tuple[Mutant, ...] = (
+    Mutant(
+        "mcnemar_b_c_swapped",
+        COMPARISON,
+        r"b = int\(\(correct_prior & ~correct_new\)\.sum\(\)\)",
+        "b = int((correct_new & ~correct_prior).sum())",
+        day=10,
+        what="b and c swapped: b counts new-correct-only pairs (F5 reads b 2, c 10)",
+    ),
+    Mutant(
+        "exact_threshold_moved_to_24",
+        COMPARISON,
+        r"^EXACT_BELOW = 25$",
+        "EXACT_BELOW = 24",
+        day=10,
+        what="the exact / corrected McNemar switch moves from b + c < 25 to < 24",
+    ),
+    Mutant(
+        "continuity_correction_dropped",
+        COMPARISON,
+        r"statistic = \(abs\(b - c\) - 1\.0\) \*\* 2 / n",
+        "statistic = (abs(b - c)) ** 2 / n",
+        day=10,
+        what="the corrected chi-square loses its continuity correction (F5: 4.0833 -> 5.3333)",
+    ),
+    Mutant(
+        "newcombe_paired_phi_term_sign",
+        PROPORTIONS,
+        r"max\(\(p1 - l1\) \*\* 2 - 2\.0 \* phi \* \(p1 - l1\) \* \(u2 - p2\)",
+        "max((p1 - l1) ** 2 + 2.0 * phi * (p1 - l1) * (u2 - p2)",
+        day=10,
+        what="the Newcombe paired lower bound adds the correlation term instead of subtracting",
+    ),
+    Mutant(
+        "delong_covariance_term_dropped",
+        DISCRIMINATION,
+        r"var_diff = float\(s\[0, 0\] \+ s\[1, 1\] - 2\.0 \* s\[0, 1\]\)",
+        "var_diff = float(s[0, 0] + s[1, 1])",
+        day=10,
+        what="the paired DeLong variance drops the covariance term (the unpaired sum)",
+    ),
+    Mutant(
+        "paired_difference_sign_flipped",
+        COMPARISON,
+        r"return difference_paired\(e, f, g, h, level\)",
+        "return difference_paired(e, g, f, h, level)",
+        day=10,
+        what="the paired difference is prior minus new (F5: +0.08)",
+    ),
+    Mutant(
+        "criterion_comparator_ge_flipped",
+        CRITERIA,
+        r"^        return statistic_value >= value$",
+        "        return statistic_value <= value",
+        day=10,
+        what="the >= comparator reads as <= (F5's C2 becomes met)",
+    ),
+    Mutant(
+        "not_like_for_like_label_dropped",
+        COMPARISON,
+        r'd\["method"\] = f"\{number\.method\}_not_like_for_like"',
+        'd["method"] = number.method',
+        day=10,
+        what="an unpaired Number's method field loses the not-like-for-like label",
+    ),
+    Mutant(
+        "h12_allow_unpaired_flag_inverted",
+        RUN,
+        r"if not paired and not allow_unpaired:",
+        "if not paired and allow_unpaired:",
+        day=10,
+        what="--allow-unpaired halts and its absence takes the unpaired path",
+    ),
+    Mutant(
+        "t2_record_string_on_met_row",
+        T2_RENDER,
+        r'"record": (row|r)\.get\("status"\) == "not_met",',
+        r'"record": \1.get("status") != "not_met",',
+        count=2,
+        day=10,
+        what="T2-3 / T2-4 print the PCCP record string on met rows and not on not_met rows",
+    ),
+    Mutant(
+        "t2_margin_column_always_present",
+        T2_RENDER,
+        r"^    has_margin = bool\(paired_rows\)$",
+        "    has_margin = True",
+        day=10,
+        what="T2-3 prints Margin and Status columns with no paired criterion declared",
+    ),
+    Mutant(
+        "unpaired_criterion_assessed",
+        CRITERIA,
+        r'^    if not comparison\.get\("paired"\):$',
+        "    if False:",
+        day=10,
+        what="a paired criterion is compared on an unpaired (not like-for-like) difference",
+    ),
+    Mutant(
+        "checker_refuses_the_paired_criterion_pointer",
+        CHECKER,
+        r"f\.block and not \(f\.block == PRIOR_BLOCK and template_id in CRITERION_TEMPLATES\)",
+        "f.block and True",
+        day=10,
+        what="the checker rejects every CRITERION_STATUS claim on a paired criterion",
+    ),
+    Mutant(
+        "record_sentence_on_every_criteria_row",
+        CLAIMS,
+        r'if record and row\.get\("status"\) == "not_met":',
+        "if record:",
+        day=10,
+        what="CRITERION_NOT_MET_RECORD is claimed for met and not-assessable rows too",
+    ),
+)
+
+MUTANTS = MUTANTS + MUTANTS_DAY6_A + MUTANTS_DAY7 + MUTANTS_DAY8 + MUTANTS_DAY9 + MUTANTS_DAY10
 
 
 def make_copy() -> Path:
