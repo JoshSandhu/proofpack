@@ -63,7 +63,7 @@ import numpy as np
 from proofpack import criteria as criteria_mod
 from proofpack import manifest as manifest_mod
 from proofpack.errors import EXIT_LICENCE, EXIT_OK, EXIT_WARNINGS, Finding, HaltError
-from proofpack.gates import IngestResult, gate_h08_y_pred_operating_points, ingest
+from proofpack.gates import IngestResult, check_paired, gate_h08_y_pred_operating_points, ingest
 from proofpack.io import declare, ledger
 from proofpack.io import mapping as mapping_mod
 from proofpack.io.declare import Declarations
@@ -83,7 +83,8 @@ from proofpack.stats.bootstrap import (
     policy_from_declarations,
     proportion_ci,
 )
-from proofpack.stats.calibration import calibration_from_table
+from proofpack.stats.calibration import calibration_from_table, suppression_reason
+from proofpack.stats.comparison import Join, VersionArrays, compare_versions, paired_join
 from proofpack.stats.descriptive import flow_block, missingness_block, table1_block
 from proofpack.stats.discrimination import auroc_number, roc_curve
 from proofpack.stats.number import not_estimable
@@ -94,11 +95,19 @@ from proofpack.stats.proportions import (
     specificity_id,
     two_by_two_metrics,
 )
-from proofpack.stats.subgroups import _conditioned, subgroup_analysis
+from proofpack.stats.subgroups import _attributes, _conditioned, subgroup_analysis
 
 RUN_JSON = "run.json"
 INGEST_REPORT = "ingest_report.json"
+#: ``proofpack compare`` (E10) keeps writing the day-1 ingest report of both tables.
+COMPARE_INGEST_REPORT = "compare_ingest_report.json"
 MAPPING_SUFFIX = ".mapping.json"
+#: The ledger key namespace of a version comparison (E10): the count of prior
+#: comparisons of one test set is kept apart from the count of acceptance runs on it
+#: (DEC-47's per-user ledger, one file), under ``compare:<sha256>``.
+COMPARE_LEDGER_PREFIX = "compare:"
+#: The licence payload feature a T2 needs (D1 section 7's ``features`` list).
+COMPARE_FEATURE = "compare"
 
 
 def licence_fix(watermark: str | None) -> str:
@@ -343,8 +352,12 @@ def overall_block(
 #: through ``design/guidance_map_v1.csv`` into ``{id, label, draft, url}`` items (the
 #: draft status as structured data, D1 section 4.2 / CLAUDE.md).
 NARRATIVE_KEYS: tuple[str, ...] = ("claims", "claim_rejections", "guidance_refs")
-#: ``--templates`` ids the CLI accepts (E8 rendered T8; E9 adds T1 and T7).
-TEMPLATE_IDS: tuple[str, ...] = ("T1", "T7", "T8")
+#: ``--templates`` ids the CLI accepts (E8 rendered T8; E9 adds T1 and T7; E10 adds T2,
+#: written by ``compare`` only: ``run --templates T2`` prints the typed line).
+TEMPLATE_IDS: tuple[str, ...] = ("T1", "T2", "T7", "T8")
+#: ``proofpack compare --templates``: T2 (the default), T7 and T8 (D1 section 7).
+COMPARE_TEMPLATE_IDS: tuple[str, ...] = ("T2", "T7", "T8")
+DEFAULT_COMPARE_TEMPLATES = "T2"
 FORMATS: tuple[str, ...] = ("json", "html")
 #: ``--format`` default: the JSON is always written; the HTML documents are written
 #: beside it when the licence is ``ok`` or ``grace`` (D1 section 7: after grace, JSON
@@ -383,19 +396,23 @@ def parse_formats(text: str) -> list[str]:
     return out or ["json"]
 
 
-def parse_templates(text: str) -> list[str]:
+def parse_templates(
+    text: str,
+    allowed: tuple[str, ...] = TEMPLATE_IDS,
+    default: str = DEFAULT_TEMPLATES,
+) -> list[str]:
     out: list[str] = []
     for token in text.split(","):
         t = token.strip().upper()
         if not t:
             continue
-        if t not in TEMPLATE_IDS:
+        if t not in allowed:
             raise ValueError(
-                f"unknown --templates id {token.strip()!r}; choose from {', '.join(TEMPLATE_IDS)}"
+                f"unknown --templates id {token.strip()!r}; choose from {', '.join(allowed)}"
             )
         if t not in out:
             out.append(t)
-    return out or [DEFAULT_TEMPLATES]
+    return out or [default]
 
 
 def write_documents(
@@ -415,7 +432,19 @@ def write_documents(
             "run.json only (D1 section 7: after grace, JSON only)"
         )
         return written, notes
+    if not outcome.compare_licensed:
+        notes.append(
+            f"HTML not written: the licence ({outcome.licence.licence_id}) does not carry the "
+            f"{COMPARE_FEATURE!r} feature; run.json only"
+        )
+        return written, notes
     for template in templates:
+        if template == "T2" and not isinstance(outcome.document.get("comparison"), dict):
+            notes.append(
+                "T2 not written: T2 is the version comparison report, written by "
+                "proofpack compare (docs: /docs/compare)"
+            )
+            continue
         writer = document_writers().get(template)
         if writer is not None:
             written.append(writer(outcome.document, out))
@@ -426,11 +455,13 @@ def write_documents(
 
 
 def document_writers() -> dict[str, Any]:
-    """``--templates`` id -> the function writing ``<out>/<id>.html`` (E8: T8; E9: T1, T7)."""
+    """``--templates`` id -> the function writing ``<out>/<id>.html`` (E8: T8; E9: T1, T7;
+    E10: T2)."""
     from proofpack.render.t1 import write_t1  # noqa: PLC0415 - imports jinja2 lazily
+    from proofpack.render.t2 import write_t2  # noqa: PLC0415
     from proofpack.render.t7 import write_t7  # noqa: PLC0415
 
-    return {"T1": write_t1, "T7": write_t7, "T8": write_t8}
+    return {"T1": write_t1, "T2": write_t2, "T7": write_t7, "T8": write_t8}
 
 
 def _warning_entry(f: Finding) -> dict[str, Any]:
@@ -445,10 +476,14 @@ class RunOutcome:
     warnings: list[Finding]
     ledger: ledger.LedgerResult | None
     mapping_path: Path
+    #: ``compare`` (E10): the prior table's ingest, and whether the licence carries the
+    #: ``compare`` feature (a ``run`` outcome is always licensed for its own documents)
+    prior_ingest: IngestResult | None = None
+    compare_licensed: bool = True
 
     @property
     def exit_code(self) -> int:
-        if not self.licence.usable:
+        if not self.licence.usable or not self.compare_licensed:
             return EXIT_LICENCE
         return EXIT_WARNINGS if self.warnings else EXIT_OK
 
@@ -535,6 +570,239 @@ def assemble_run(
     return RunOutcome(doc, result, licence, warnings, led, mapping_path)
 
 
+# ------------------------------------------------------------------- compare (E10)
+
+
+def _version_arrays(table: Table, decl: Declarations, mask: np.ndarray) -> VersionArrays:
+    """One version's analysed rows as :class:`~proofpack.stats.comparison.VersionArrays`:
+    the positive mask, the declared-orientation score, the probability (when the score
+    is a declared probability of the positive class, the calibration module's rule) and
+    the predicted-positive mask per operating point (from the score, or from ``y_pred``
+    on a table without one - the same rule :func:`overall_block` applies)."""
+    yt = table.y_true[mask]
+    pos = np.array([v == decl.positive for v in yt.tolist()], dtype=bool)
+    raw = None if table.score is None else np.asarray(table.score[mask], dtype=np.float64)
+    oriented = None
+    probability = None
+    if raw is not None:
+        oriented = raw if decl.orientation == "higher_is_positive" else -raw
+        if suppression_reason(decl) is None:
+            probability = raw
+    pred: dict[str, np.ndarray] = {}
+    for op in decl.operating_points:
+        if raw is not None:
+            pred[op.id] = np.array([op.is_positive(float(v)) for v in raw], dtype=bool)
+        else:
+            pred[op.id] = np.array(
+                [v == decl.positive for v in table.y_pred[mask].tolist()], dtype=bool
+            )
+    ids = None if table.case_id is None else np.asarray(table.case_id[mask], dtype=object)
+    return VersionArrays(pos=pos, score=oriented, probability=probability, pred=pred, case_ids=ids)
+
+
+def _subgroup_pairs(
+    table: Table, decl: Declarations, mask: np.ndarray, rows: list[dict[str, Any]], join: Join
+) -> list[dict[str, Any]]:
+    """For each ``subgroups`` row of the new document, in order, the positions among the
+    pairs of the new version's rows in that level (``stats.subgroups._attributes`` gives
+    the level membership the subgroup tables used, bands included)."""
+    membership: dict[tuple[str, str], np.ndarray] = {}
+    for attr in _attributes(table, decl, mask):
+        for lv in attr.levels:
+            membership[(attr.name, lv.label)] = lv.rows
+    position = {int(r): k for k, r in enumerate(join.new_index.tolist())}
+    out = []
+    for row in rows:
+        key = (str(row.get("attribute")), str(row.get("level")))
+        member = membership.get(key)
+        pairs = (
+            [position[int(r)] for r in member.tolist() if int(r) in position]
+            if member is not None
+            else []
+        )
+        out.append({"attribute": key[0], "level": key[1], "rows": np.asarray(pairs, dtype=np.intp)})
+    return out
+
+
+def compare_licensed(licence: LicenceResult) -> bool:
+    """A usable licence whose payload lists the ``compare`` feature (D1 section 7); an
+    unusable licence is refused by the same rule as ``run``, before this is read."""
+    if not licence.usable:
+        return True
+    features = (licence.payload or {}).get("features")
+    return not isinstance(features, list) or COMPARE_FEATURE in features
+
+
+def assemble_compare(
+    input_path: str | Path,
+    prior_path: str | Path,
+    criteria_path: str | Path,
+    *,
+    mapping: str | Path | None = None,
+    allow_unpaired: bool = False,
+    registry: KeyRegistry | None = None,
+    ledger_home: Path | None = None,
+    data_marking: str | None = None,
+) -> RunOutcome:
+    """Everything ``proofpack compare`` computes (build day 10, E10; D1 section 7): the
+    new version's document exactly as :func:`assemble_run` builds it, plus the
+    ``comparison`` block of D1 section 4.2 (``stats.comparison``), the prior version's own
+    overall and calibration blocks under ``comparison.prior``, and the criteria rows
+    evaluated with the paired differences in view.
+
+    The order: licence; declarations; both tables through the same confirmed mapping
+    (``--mapping FILE`` or ``<input>.mapping.json``: one header set, DEC-26) and the HALT
+    gates; H12 on the ``row_id`` sets (:func:`proofpack.gates.check_paired`) and on the
+    analysed rows' join (a pair whose ``y_true`` differs, or a row analysed in one version
+    only, is not a pair: without ``--allow-unpaired`` that is H12 too); the new document's
+    statistics; the comparison; criteria; narrative; the compare ledger (the count of
+    prior comparisons of this test set under ``compare:<sha256>``); the manifest, which
+    also carries ``prior_input_sha256``. Writes nothing under ``--out``."""
+    started = manifest_mod.utc_now_iso()
+    t0 = time.perf_counter()
+    licence = resolve(registry=registry)
+    decl = declare.load(criteria_path)
+    raw_new = load_table(input_path)
+    raw_prior = load_table(prior_path)
+    mapping_path = resolve_mapping_path(input_path, mapping)
+    new = ingest(raw_new, decl, mapping_path=mapping_path, non_interactive=True)
+    prior = ingest(raw_prior, decl, mapping_path=mapping_path, non_interactive=True)
+    for result in (new, prior):
+        if result.mapping.decided_by not in mapping_mod.CONFIRMED_DECIDED_BY:
+            raise HaltError(
+                "H07", "run proofpack map first: the mapping.json beside the input is not confirmed"
+            )
+    warnings: list[Finding] = list(new.warnings)
+    w12 = check_paired(new.table, prior.table, allow_unpaired=allow_unpaired)
+    table, ptable = new.table, prior.table
+    mask, flow = analysis_mask(table, decl.indeterminate_values)
+    pmask, _ = analysis_mask(ptable, decl.indeterminate_values)
+    join = paired_join(
+        table.row_id[mask], ptable.row_id[pmask], table.y_true[mask], ptable.y_true[pmask]
+    )
+    paired = w12 is None and join.paired
+    if not paired and not allow_unpaired:
+        raise HaltError(
+            "H12",
+            "paired compare: the analysed rows of the two versions do not pair one to one "
+            "on row_id with the same y_true",
+            join.as_dict(),
+        )
+    if not paired and w12 is None:
+        warnings.append(
+            Finding(
+                "W12",
+                "unmatched row_ids; unpaired methods used, labelled not like-for-like",
+                join.as_dict(),
+            )
+        )
+    elif w12 is not None:
+        warnings.append(w12)
+    policy = policy_from_declarations(decl)
+    ids = None if table.case_id is None else table.case_id[mask]
+    plan = plan_clustering(decl.clustering_unit, ids, int(mask.sum()))
+    finding = plan.finding()
+    if finding is not None:
+        warnings.append(finding)
+    sub = subgroup_analysis(table, decl, mask, plan=plan, policy=policy)
+    cal = calibration_from_table(table, decl, mask, plan=plan, policy=policy)
+    pids = None if ptable.case_id is None else ptable.case_id[pmask]
+    pplan = plan_clustering(decl.clustering_unit, pids, int(pmask.sum()))
+    pcal = calibration_from_table(ptable, decl, pmask, plan=pplan, policy=policy)
+
+    doc: dict[str, Any] = {
+        "schema_version": 1,
+        "declarations": decl.raw,
+        "halts": [],
+        "flow": flow_block(table, mask, flow, decl, plan),
+        "table1": table1_block(table, decl, mask),
+        "missingness": missingness_block(table),
+        "overall": overall_block(table, decl, mask, plan=plan, policy=policy),
+        **cal.as_document(),
+        **sub.as_dict(),
+        "suppression_log": [],
+    }
+    arrays_new = _version_arrays(table, decl, mask)
+    arrays_prior = _version_arrays(ptable, decl, pmask)
+    if paired:
+        arrays_new = arrays_new.take(join.new_index)
+        arrays_prior = arrays_prior.take(join.prior_index)
+    comparison = compare_versions(
+        arrays_new,
+        arrays_prior,
+        paired=paired,
+        join=join,
+        ops=[op.id for op in decl.operating_points],
+        se_key=sensitivity_id(decl.reference_standard_type),
+        sp_key=specificity_id(decl.reference_standard_type),
+        plan=plan,
+        policy=policy,
+        probability=suppression_reason(decl) is None and table.score is not None,
+        subgroups=_subgroup_pairs(table, decl, mask, doc.get("subgroups") or [], join)
+        if paired
+        else (),
+    )
+    comparison["prior_version"] = (decl.raw.get("model") or {}).get("prior_version")
+    comparison["prior"] = {
+        "overall": overall_block(ptable, decl, pmask, plan=pplan, policy=policy),
+        **pcal.as_document(),
+        "flow": flow_block(
+            ptable, pmask, analysis_mask(ptable, decl.indeterminate_values)[1], decl, pplan
+        ),
+    }
+    key = ledger.test_set_key(
+        table.y_true[mask],
+        None if table.score is None else table.score[mask],
+        None if table.y_pred is None else table.y_pred[mask],
+    )
+    limit = (decl.raw.get("ledger") or {}).get("warn_after_acceptance_runs")
+    led = ledger.record_run(
+        COMPARE_LEDGER_PREFIX + key, has_criteria=bool(decl.criteria), limit=limit, home=ledger_home
+    )
+    prior_runs = None
+    if led.count is not None:
+        prior_runs = led.count - 1 if decl.criteria else led.count
+    comparison["ledger"] = {
+        "test_set_sha256": key,
+        "prior_acceptance_runs": prior_runs,
+        "warn_limit": None if limit is None else int(limit),
+        "limit_reached": bool(limit is not None and prior_runs is not None and prior_runs >= limit),
+    }
+    doc["comparison"] = comparison
+    doc["criteria_results"] = criteria_mod.evaluate(decl, doc)
+    doc.update(narrative_block(doc))
+    if led.warning is not None:
+        warnings.append(led.warning)
+    doc["warnings"] = [_warning_entry(w) for w in warnings]
+    watermark = watermark_for(licence)
+    doc["manifest"] = manifest_mod.build_manifest(
+        input_path=input_path,
+        criteria_path=criteria_path,
+        mapping_path=mapping_path,
+        seed=policy.seed,
+        n_resamples=policy.n_resamples,
+        started=started,
+        duration_s=round(time.perf_counter() - t0, 3),
+        licence_id=licence.licence_id,
+        tier=licence.tier,
+        ledger_count=led.count,
+        watermark=watermark,
+        data_marking=data_marking,
+        prior_input_sha256=manifest_mod.sha256_file(prior_path),
+    )
+    doc["ledger"] = {**led.as_dict(), "test_set_sha256": key}
+    return RunOutcome(
+        doc,
+        new,
+        licence,
+        warnings,
+        led,
+        mapping_path,
+        prior_ingest=prior,
+        compare_licensed=compare_licensed(licence),
+    )
+
+
 def write_run(outcome: RunOutcome, out: str | Path) -> Path:
     """Serialise (canonical JSON; raises on a non-finite float before anything is
     written) and write ``run.json``, ``ingest_report.json`` and ``pseudonyms.json`` into
@@ -551,6 +819,18 @@ def write_run(outcome: RunOutcome, out: str | Path) -> Path:
     target.write_bytes(data)
     report = outcome.ingest.report()
     (out_dir / INGEST_REPORT).write_bytes(manifest_mod.canonical_json(report))
+    if outcome.prior_ingest is not None:
+        comparison = outcome.document.get("comparison") or {}
+        (out_dir / COMPARE_INGEST_REPORT).write_bytes(
+            manifest_mod.canonical_json(
+                {
+                    "new": report,
+                    "prior": outcome.prior_ingest.report(),
+                    "paired": bool(comparison.get("paired")),
+                    "warnings": [{"code": w.code, "message": w.message} for w in outcome.warnings],
+                }
+            )
+        )
     pmap = pseudonymise.build_map(outcome.document)
     run_id = outcome.document.get("manifest", {}).get("run_id")
     (out_dir / pseudonymise.PSEUDONYMS_JSON).write_bytes(

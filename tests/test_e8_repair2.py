@@ -293,13 +293,13 @@ def test_the_lens_b2_literal_claims_are_rejected_with_the_named_code(document):
         assert _code(claim, document) == expected, (claim, expected)
     # every library template outside the bound set that accepts one pointer, given the
     # overall sensitivity Number: 19 templates, each value_ref_unbound (the lens counted
-    # 20 with its enumeration)
+    # 20 with its enumeration); 18 since E10 bound PAIRED_DIFF to the comparison cells
     outside = [
         t
         for t in LIBRARY
         if t not in checker.BOUND_TEMPLATES and LIBRARY[t].refs[0] <= 1 <= LIBRARY[t].refs[1]
     ]
-    assert len(outside) == 19
+    assert len(outside) == 18 and "PAIRED_DIFF" not in outside
     for t in outside:
         swapped = {**copy.deepcopy(overall_sens), "template_id": t, "guidance_ref": None}
         assert _code(swapped, document) == "value_ref_unbound", t

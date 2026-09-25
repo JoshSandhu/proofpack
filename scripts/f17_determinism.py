@@ -2,6 +2,7 @@
 
     python scripts/f17_determinism.py --out DIR [--n 5000]
     python scripts/f17_determinism.py --out DIR --n 400 --inputs-only   # the inputs alone
+    python scripts/f17_determinism.py --out DIR --compare               # E10: compare twice
 
 What it does:
 
@@ -98,16 +99,46 @@ def write_inputs(work: Path, n: int) -> tuple[Path, Path, Path]:
     return table, criteria, mapping_path
 
 
-def run_once(table: Path, criteria: Path, mapping: Path, out: Path, home: Path) -> int:
+def write_prior(table: Path) -> Path:
+    """E10: the synthetic prior version's table beside ``table`` (the sample-pack recipe,
+    ``proofpack.synthetic.perturb_scores`` at the same seed)."""
+    from proofpack.synthetic import perturb_scores
+
+    with table.open(encoding="utf-8", newline="") as fh:
+        rows = list(csv.reader(fh))
+    header, body = rows[0], rows[1:]
+    i = header.index("score")
+    prior_scores = perturb_scores([float(r[i]) for r in body], SEED)
+    prior = table.with_name("synthetic_prior.csv")
+    with prior.open("w", encoding="utf-8", newline="") as fh:
+        w = csv.writer(fh, lineterminator="\n")
+        w.writerow(header)
+        for r, p in zip(body, prior_scores, strict=True):
+            r = list(r)
+            r[i] = f"{p:.6f}"
+            w.writerow(r)
+    return prior
+
+
+def run_once(
+    table: Path,
+    criteria: Path,
+    mapping: Path,
+    out: Path,
+    home: Path,
+    prior: Path | None = None,
+) -> int:
+    """``proofpack run`` (or, with ``prior``, ``proofpack compare``: E10) in a subprocess."""
     home.mkdir(parents=True, exist_ok=True)
     env = {k: v for k, v in os.environ.items() if k != "PROOFPACK_LICENCE"}
     env["PROOFPACK_HOME"] = str(home)
+    command = ["run"] if prior is None else ["compare", "--prior", str(prior)]
     proc = subprocess.run(
         [
             sys.executable,
             "-m",
             "proofpack.cli",
-            "run",
+            *command,
             "--input",
             str(table),
             "--criteria",
@@ -190,11 +221,14 @@ def compare(run1: Path, run2: Path) -> dict[str, Any]:
     }
 
 
-def run_f17(out: Path, n: int = 5000) -> dict[str, Any]:
+def run_f17(out: Path, n: int = 5000, *, compare_mode: bool = False) -> dict[str, Any]:
     table, criteria, mapping = write_inputs(out / "inputs", n)
-    codes = [run_once(table, criteria, mapping, out / f"run{i}", out / f"home{i}") for i in (1, 2)]
+    prior = write_prior(table) if compare_mode else None
+    codes = [
+        run_once(table, criteria, mapping, out / f"run{i}", out / f"home{i}", prior) for i in (1, 2)
+    ]
     result = compare(out / "run1", out / "run2")
-    result.update(rows=n, exit_codes=codes)
+    result.update(rows=n, exit_codes=codes, command="compare" if compare_mode else "run")
     (out / "f17_result.json").write_text(json.dumps(result, indent=1) + "\n", encoding="utf-8")
     return result
 
@@ -204,17 +238,23 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", default=None, help="working directory (default: a temporary one)")
     ap.add_argument("--n", type=int, default=5000)
     ap.add_argument("--inputs-only", action="store_true", help="write the inputs and stop")
+    ap.add_argument(
+        "--compare",
+        action="store_true",
+        help="E10: run proofpack compare (against the synthetic prior) twice instead of run",
+    )
     args = ap.parse_args(argv)
     out = Path(args.out) if args.out else Path(tempfile.mkdtemp(prefix="proofpack-f17-"))
     if args.inputs_only:
         for p in write_inputs(out, args.n):
             print(f"written: {p}")
         return 0
-    result = run_f17(out, args.n)
+    result = run_f17(out, args.n, compare_mode=args.compare)
     for name, check in result["checks"].items():
         print(f"{name}: {'equal' if check['equal'] else 'DIFFERENT'} {check['sha256'][0][:16]}")
     print(
-        f"F17 {result['rows']} rows on {result['platform']} (reference platform: "
+        f"F17 ({result['command']}) {result['rows']} rows on {result['platform']} "
+        "(reference platform: "
         f"{'yes' if result['reference_platform'] else 'no'}); run exit codes "
         f"{result['exit_codes']}; identical under the mask {list(MASKED_KEYS)}: "
         f"{'yes' if result['identical'] else 'no'}; written: {out / 'f17_result.json'}"

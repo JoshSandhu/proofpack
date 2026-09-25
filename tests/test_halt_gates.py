@@ -177,9 +177,10 @@ def test_h12_unmatched_row_ids(tmp_path: Path):
     assert ei.value.exit_code == EXIT_HALT
     w = check_paired(tn, tp, allow_unpaired=True)
     assert w is not None and w.code == "W12"
-    # CLI: exit 3, nothing written
+    # CLI: exit 3, nothing written (E10: compare needs a confirmed mapping, as run does)
     a = write_csv(tmp_path / "new.csv", new)
     b = write_csv(tmp_path / "prior.csv", prior)
+    confirmed_mapping(a)
     yml = write_yaml(tmp_path / "criteria.yaml", make_criteria())
     out = tmp_path / "pack"
     rc = main(
@@ -211,10 +212,12 @@ def test_h12_unmatched_row_ids(tmp_path: Path):
             "--out",
             str(out),
             "--allow-unpaired",
-        ]
+        ],
+        registry=ephemeral_registry(),  # E10: compare reads the licence as run does
     )
     assert rc == EXIT_WARNINGS
     assert (out / "compare_ingest_report.json").exists()
+    assert (out / "run.json").exists()
 
 
 def test_every_halt_code_has_a_scenario():

@@ -105,7 +105,7 @@
       },
       "comparator_id": {
         "description": "On a difference claim, the difference block the second pointer reads; on a criterion claim, the row's comparator.",
-        "enum": ["diff_vs_reference", "diff_vs_complement", ">=", ">", "<=", "<", null]
+        "enum": ["diff_vs_reference", "diff_vs_complement", "diff_vs_prior", ">=", ">", "<=", "<", null]
       },
       "criterion_index": {
         "description": "The position in criteria_results a criterion claim addresses (by position, never by id: two rows may share an id).",

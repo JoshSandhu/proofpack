@@ -200,3 +200,45 @@ def test_the_ci_namespace_job_and_its_script_exist_and_assert_both_invocations()
     assert "[W16]" in ci and "telemetry skipped (--offline)" in ci
     script = (repo / "scripts" / "ci_namespace_run.py").read_text(encoding="utf-8")
     assert "run.json" in script and "ephemeral_registry" in script
+
+
+@pytest.mark.day10
+def test_compare_with_t2_offline_opens_no_socket(tmp_path: Path, monkeypatch, capsys, no_sockets):
+    """E10: the full ``compare`` - statistics, T2.html under a licence - with the three
+    socket entry points refused; then without ``--offline`` and with the refusing
+    transport in place, so the only socket the command could open is the transport's."""
+    import shutil
+
+    from conftest import write_licence
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("PROOFPACK_HOME", str(home))
+    write_licence(home / "proofpack.lic")
+    fx = Path(__file__).resolve().parent / "fixtures" / "f5"
+    for name in ("f5_new.csv", "f5_prior.csv", "criteria.yaml"):
+        shutil.copy(fx / name, tmp_path / name)
+    confirmed_mapping(tmp_path / "f5_new.csv")
+    argv = [
+        "compare",
+        "--input",
+        str(tmp_path / "f5_new.csv"),
+        "--prior",
+        str(tmp_path / "f5_prior.csv"),
+        "--criteria",
+        str(tmp_path / "criteria.yaml"),
+        "--out",
+        str(tmp_path / "pack"),
+    ]
+    rc = main([*argv, "--offline"], registry=ephemeral_registry())
+    printed = capsys.readouterr().out
+    assert rc == EXIT_OK, printed
+    assert (tmp_path / "pack" / "T2.html").exists() and (tmp_path / "pack" / "run.json").exists()
+    assert no_sockets.calls == [] and NETWORK_ATTEMPTS == []
+    assert "telemetry skipped (--offline); nothing was sent" in printed
+    # the fixture declares egress.telemetry: false, so without --offline nothing is sent
+    rc = main([*argv, "--out", str(tmp_path / "pack2")], registry=ephemeral_registry())
+    printed = capsys.readouterr().out
+    assert rc == EXIT_OK, printed
+    assert no_sockets.calls == [] and NETWORK_ATTEMPTS == []
+    assert "telemetry skipped (egress.telemetry: false)" in printed

@@ -82,10 +82,12 @@ def build_manifest(
     ledger_count: int | None,
     watermark: str | None,
     data_marking: str | None = None,
+    prior_input_sha256: str | None = None,
 ) -> dict[str, Any]:
     """The manifest (D1 section 4.2). ``data_marking`` (E9) is written only when set, so
     a customer's run.json keeps E7's key set; ``scripts/build_sample_pack.py`` sets it to
-    ``proofpack.scope.SYNTHETIC_MARK``."""
+    ``proofpack.scope.SYNTHETIC_MARK``. ``prior_input_sha256`` (E10) is written by
+    ``proofpack compare`` only: the SHA-256 of the prior version's table."""
     plat = platform_tag()
     out = {
         "run_id": str(uuid.uuid4()),
@@ -109,6 +111,8 @@ def build_manifest(
     }
     if data_marking is not None:
         out["data_marking"] = data_marking
+    if prior_input_sha256 is not None:
+        out["prior_input_sha256"] = prior_input_sha256
     return out
 
 

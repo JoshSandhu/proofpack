@@ -185,8 +185,15 @@ NUMBER_KEYS: frozenset[str] = frozenset(
 CRITERION_TEMPLATES: frozenset[str] = frozenset(
     {"CRITERION_STATUS", "CRITERION_NOT_MET_RECORD", "ATTAINABILITY_NOTE"}
 )
-DIFFERENCE_TEMPLATES: frozenset[str] = frozenset({"SUBGROUP_ESTIMATE_WITH_DIFF", "FAIRNESS_GAP"})
+#: ``PAIRED_DIFF`` (build day 10, E10) reads the version comparison's difference cells
+#: (``diff_vs_prior``, the ninth to twelfth pointer shapes).
+DIFFERENCE_TEMPLATES: frozenset[str] = frozenset(
+    {"SUBGROUP_ESTIMATE_WITH_DIFF", "FAIRNESS_GAP", "PAIRED_DIFF"}
+)
 DIFFERENCE_BLOCKS: tuple[str, ...] = ("diff_vs_reference", "diff_vs_complement")
+#: The block name the comparison shapes carry; a criterion template may read it too (a
+#: ``paired_difference_vs_prior`` criterion's Number is a difference against the prior).
+PRIOR_BLOCK = "diff_vs_prior"
 
 #: Pointers that resolve to a bare number the renderer may print (counts and declared
 #: values; D4 section 1.2: counts are the only bare integers). Anything else numeric that
@@ -202,6 +209,11 @@ DOCUMENTED_SCALARS: tuple[str, ...] = (
     r"^/overall/[^/]+/two_by_two/(tp|fn|fp|tn)$",
     r"^/fairness/gaps/\d+/n$",
     r"^/fairness/bound$",
+    # build day 10 (E10): the version comparison's counts and p-values
+    r"^/comparison/(n_pairs|n_new|n_prior)$",
+    r"^/comparison/mcnemar/[^/]+/(b|c|n_discordant|p|statistic)$",
+    r"^/comparison/ledger/(prior_acceptance_runs|warn_limit)$",
+    r"^/comparison/subgroups/\d+/n_pairs$",
 )
 _SCALAR_RES = tuple(re.compile(p) for p in DOCUMENTED_SCALARS)
 
@@ -391,6 +403,30 @@ POINTER_SHAPES: tuple[tuple[str, Any], ...] = (
         r"^/fairness/gaps/(\d+)/auroc_gap/number$",
         lambda m: Facets(metric="auroc_gap", scope="gap", index=int(m[1])),
     ),
+    # build day 10 (E10): the version comparison's difference cells (shapes 8-11). The
+    # subgroup entries are parallel to document.subgroups, so their index is a row index.
+    (
+        r"^/comparison/differences/(auroc|brier|slope)/number$",
+        lambda m: Facets(metric=m[1], block="diff_vs_prior"),
+    ),
+    (
+        r"^/comparison/differences/([^/]+)/([^/]+)/number$",
+        lambda m: Facets(metric=m[2], operating_point=m[1], block="diff_vs_prior"),
+    ),
+    (
+        r"^/comparison/subgroups/(\d+)/differences/auroc/number$",
+        lambda m: Facets(metric="auroc", scope="subgroup", index=int(m[1]), block="diff_vs_prior"),
+    ),
+    (
+        r"^/comparison/subgroups/(\d+)/differences/([^/]+)/([^/]+)/number$",
+        lambda m: Facets(
+            metric=m[3],
+            operating_point=m[2],
+            scope="subgroup",
+            index=int(m[1]),
+            block="diff_vs_prior",
+        ),
+    ),
 )
 _SHAPE_RES = tuple((re.compile(p), f) for p, f in POINTER_SHAPES)
 #: Templates whose sentence reports a family of cells beside the claim's ``metric_id``.
@@ -415,7 +451,9 @@ SUBGROUP_TEMPLATES: frozenset[str] = frozenset(
 #: ``PERIOD_METRIC_ROW``, ``LEDGER_STATEMENT``, ...) binds no Number until the document
 #: block it reads exists and its pointer shape joins :data:`POINTER_SHAPES` (repair 2,
 #: lens FA-B2: ``OVERALL_ESTIMATE`` renamed to any of 20 such templates was accepted).
-BOUND_TEMPLATES: frozenset[str] = OVERALL_TEMPLATES | SUBGROUP_TEMPLATES | CRITERION_TEMPLATES
+BOUND_TEMPLATES: frozenset[str] = (
+    OVERALL_TEMPLATES | SUBGROUP_TEMPLATES | CRITERION_TEMPLATES | {"PAIRED_DIFF"}
+)
 #: The templates whose every ``value_ref`` is a Number (a count is not an estimate;
 #: ``CALIB_NA`` binds nothing).
 ESTIMATE_TEMPLATES: frozenset[str] = (OVERALL_TEMPLATES | SUBGROUP_TEMPLATES) - {"CALIB_NA"}
@@ -429,6 +467,7 @@ TEMPLATE_SHAPES: dict[str, frozenset[int]] = {
     "SUBGROUP_ESTIMATE_WITH_DIFF": frozenset({3, 4}),
     "CALIB_HIERARCHY": frozenset({5}),
     "FAIRNESS_GAP": frozenset({6, 7}),
+    "PAIRED_DIFF": frozenset({8, 9, 10, 11}),
 }
 #: Rule 8b: the ``metric_id`` a template whose skeleton names its metric may carry.
 TEMPLATE_METRICS: dict[str, frozenset[str]] = {"AUROC_ESTIMATE": frozenset({"auroc"})}
@@ -452,7 +491,34 @@ SCALAR_SLOTS: dict[str, tuple[str, ...]] = {
         "/flow/n_sites",
     ),
     "SITE_COUNT": ("/flow/n_sites",),
+    # build day 10 (E10): a slot beginning ``^`` is a pattern (the operating point is in
+    # the McNemar path); the rest are exact pointers
+    "PAIRED_DIFF": (r"^/comparison/(subgroups/\d+/)?n_pairs$",),
+    "MCNEMAR_RESULT": (
+        r"^/comparison/mcnemar/[^/]+/b$",
+        r"^/comparison/mcnemar/[^/]+/c$",
+        r"^/comparison/mcnemar/[^/]+/p$",
+    ),
+    "LEDGER_STATEMENT": ("/comparison/ledger/prior_acceptance_runs",),
 }
+#: The count templates that describe the run, not a metric, an operating point or a row
+#: (rule 8b's scope check); ``PAIRED_DIFF`` and ``MCNEMAR_RESULT`` bind counts beside a
+#: metric and an operating point.
+RUN_LEVEL_COUNT_TEMPLATES: frozenset[str] = frozenset(
+    {"FLOW_COUNTS", "SITE_COUNT", "LEDGER_STATEMENT"}
+)
+
+
+def _scalar_slot_position(slots: tuple[str, ...], ref: str) -> int:
+    for i, slot in enumerate(slots):
+        if slot.startswith("^"):
+            if re.fullmatch(slot, ref):
+                return i
+        elif slot == ref:
+            return i
+    return -1
+
+
 #: Reason codes, closed. ``check`` never emits a code outside this dictionary.
 REASON_CODES: dict[str, str] = {
     "not_an_object": "the claim is not a JSON object",
@@ -868,11 +934,20 @@ def _check_one(
             value_refs=[r for r in refs if r not in bound],
             reason="a documented scalar under an estimate template",
         )
-    if template_id not in DIFFERENCE_TEMPLATES and any(f.block for _, f in facets):
+    if template_id not in DIFFERENCE_TEMPLATES and any(
+        f.block and not (f.block == PRIOR_BLOCK and template_id in CRITERION_TEMPLATES)
+        for _, f in facets
+    ):
         return reject(
             "value_ref_unbound",
             value_refs=[r for r, f in facets if f.block],
             reason="a difference block under a template without a difference clause",
+        )
+    if template_id == "PAIRED_DIFF" and any(f.block != PRIOR_BLOCK for _, f in facets):
+        return reject(
+            "value_ref_unbound",
+            value_refs=[r for r, f in facets if f.block != PRIOR_BLOCK],
+            reason="PAIRED_DIFF reads the version comparison's difference cells only",
         )
     if template_id == "SUBGROUP_ESTIMATE_WITH_DIFF":
         blocks = [f.block for _, f in facets]
@@ -913,6 +988,8 @@ def _check_one(
     # 5. relation
     if template_id in DIFFERENCE_TEMPLATES:
         diff_numbers = [n for r, n in numbers if any(f"/{b}/" in r for b in DIFFERENCE_BLOCKS)]
+        if template_id == "PAIRED_DIFF":
+            diff_numbers = [n for _, n in numbers]
         if template_id == "FAIRNESS_GAP":
             diff_numbers = [n for r, n in numbers if "/tpr_gap/" in r] or [
                 n for _, n in numbers[:1]
@@ -997,6 +1074,8 @@ def _check_one(
         blocks = {b for r, _ in numbers for b in DIFFERENCE_BLOCKS if f"/{b}/" in r}
         if template_id == "FAIRNESS_GAP":
             blocks = {"diff_vs_reference"}
+        if template_id == "PAIRED_DIFF":
+            blocks = {f.block for _, f in facets if f.block is not None}
         if comparator_id not in blocks or len(blocks) != 1:
             return reject("comparator_mismatch", comparator_id=comparator_id, blocks=sorted(blocks))
     elif template_id not in CRITERION_TEMPLATES and comparator_id is not None:
@@ -1100,14 +1179,14 @@ def _check_one(
     scalars = [r for r in refs if r not in bound]
     if scalars and template_id not in CRITERION_TEMPLATES:
         scalar_slots = SCALAR_SLOTS.get(template_id, ())
-        scalar_positions = [scalar_slots.index(r) if r in scalar_slots else -1 for r in scalars]
+        scalar_positions = [_scalar_slot_position(scalar_slots, r) for r in scalars]
         if -1 in scalar_positions or scalar_positions != sorted(set(scalar_positions)):
             return reject(
                 "value_ref_unbound",
                 value_refs=scalars,
                 reason="a count the template's skeleton does not name, or out of its order",
             )
-    if template_id in SCALAR_SLOTS and any(
+    if template_id in RUN_LEVEL_COUNT_TEMPLATES and any(
         claim[k] is not None for k in ("metric_id", "operating_point", "subgroup", "reference")
     ):
         return reject(

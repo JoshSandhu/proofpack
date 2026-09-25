@@ -9,7 +9,11 @@ writes the JSON with the expired watermark and exits 4 (D1 section 7: "after gra
 run/compare emit JSON only; doctor, map, fixtures always work"). Build day 8 (E8):
 ``--format json,html`` (the default) also writes ``T8.html`` beside ``run.json`` when
 the licence is ``ok`` or ``grace``; ``--templates`` names the documents (default T8;
-``T1,T7,T8`` writes all three, E9).
+``T1,T7,T8`` writes all three, E9). Build day 10 (E10): ``compare`` runs both versions
+through :func:`proofpack.run.assemble_compare` and writes ``run.json`` with D1 section
+4.2's ``comparison`` block, ``compare_ingest_report.json`` beside it, and ``T2.html`` (the
+default; ``T7`` and ``T8`` also accepted) under the same licence rule as ``run`` plus the
+``compare`` feature of the licence payload.
 """
 
 from __future__ import annotations
@@ -26,7 +30,6 @@ from proofpack.errors import (
     EXIT_INTERNAL,
     EXIT_LICENCE,
     EXIT_OK,
-    EXIT_WARNINGS,
     HaltError,
     ProofPackError,
 )
@@ -93,15 +96,42 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     c = sub.add_parser(
-        "compare", help="paired ingest of new vs prior (gate H12 only on day 1)", parents=[common]
+        "compare",
+        help="new version against prior on the same test set (row_id join, H12) -> "
+        "<out>/run.json with the comparison block and T2.html",
+        parents=[common],
     )
-    c.add_argument("--input", required=True)
-    c.add_argument("--prior", required=True)
+    c.add_argument("--input", required=True, help="the new version's table")
+    c.add_argument("--prior", required=True, help="the prior version's table (same header set)")
     c.add_argument("--criteria", required=True)
-    c.add_argument("--mapping")
+    c.add_argument(
+        "--mapping",
+        help="a confirmed mapping.json for both tables (proofpack map); default "
+        "<input>.mapping.json beside the new table (DEC-26)",
+    )
     c.add_argument("--out", default="./pack")
-    c.add_argument("--yes", action="store_true")
-    c.add_argument("--allow-unpaired", action="store_true")
+    c.add_argument(
+        "--yes",
+        action="store_true",
+        help="accepted for compatibility; compare is always non-interactive",
+    )
+    c.add_argument(
+        "--allow-unpaired",
+        action="store_true",
+        help="on unmatched row_ids use unpaired methods, every Number labelled not "
+        "like-for-like (H12 otherwise)",
+    )
+    c.add_argument(
+        "--format",
+        default=None,
+        help="comma list of json, html (default json,html; HTML is written only when the "
+        "licence is ok or in grace and carries the compare feature)",
+    )
+    c.add_argument(
+        "--templates",
+        default=None,
+        help="comma list of T2, T7, T8 (default T2)",
+    )
 
     fx = sub.add_parser(
         "fixtures",
@@ -670,36 +700,126 @@ def cmd_fixtures(args: argparse.Namespace) -> int:
 
 
 def cmd_compare(args: argparse.Namespace) -> int:
-    from proofpack.gates import check_paired, ingest
-    from proofpack.io import declare
-    from proofpack.io.schema import load_table
+    """``proofpack compare`` (build day 10, E10): the same shape as ``cmd_run`` over
+    :func:`proofpack.run.assemble_compare`. Exit 3 on H12 (nothing written), 4 when the
+    licence is unusable or lacks the ``compare`` feature (``run.json`` written, no
+    document), else 0 / 2 as ``run``."""
+    from proofpack.run import (
+        COMPARE_TEMPLATE_IDS,
+        DEFAULT_COMPARE_TEMPLATES,
+        DEFAULT_FORMAT,
+        assemble_compare,
+        licence_fix,
+        parse_formats,
+        parse_templates,
+        write_documents,
+        write_run,
+    )
 
-    decl = declare.load(args.criteria)
-    new = ingest(load_table(args.input), decl, mapping_path=args.mapping, non_interactive=args.yes)
-    prior = ingest(
-        load_table(args.prior), decl, mapping_path=args.mapping, non_interactive=args.yes
+    _tolerant_console()
+    try:
+        formats = parse_formats(args.format if args.format is not None else DEFAULT_FORMAT)
+        templates = parse_templates(
+            args.templates if args.templates is not None else DEFAULT_COMPARE_TEMPLATES,
+            allowed=COMPARE_TEMPLATE_IDS,
+            default=DEFAULT_COMPARE_TEMPLATES,
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_INTERNAL
+    outcome = assemble_compare(
+        args.input,
+        args.prior,
+        args.criteria,
+        mapping=args.mapping,
+        allow_unpaired=args.allow_unpaired,
+        registry=args.registry,
     )
-    w12 = check_paired(new.table, prior.table, allow_unpaired=args.allow_unpaired)
-    warnings = new.warnings + prior.warnings + ([w12] if w12 else [])
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    report = {
-        "new": new.report(),
-        "prior": prior.report(),
-        "paired": w12 is None,
-        "warnings": [{"code": w.code, "message": w.message} for w in warnings],
-    }
-    (out / "compare_ingest_report.json").write_text(
-        json.dumps(report, indent=2) + "\n", encoding="utf-8"
+    target = write_run(outcome, args.out)
+    documents, notes = write_documents(outcome, args.out, formats, templates)
+    doc = outcome.document
+    manifest = doc["manifest"]
+    from proofpack.egress import telemetry as telemetry_mod  # noqa: PLC0415 - one call site
+
+    sent = telemetry_mod.run_telemetry(
+        doc,
+        offline=args.offline,
+        licence_status=outcome.licence.status,
+        transport=getattr(args, "transport", None),
     )
+    comparison = doc["comparison"]
+    statuses = [r["status"] for r in doc["criteria_results"]]
+    counts = {s: statuses.count(s) for s in ("met", "not_met", "not_assessable")}
+    warn_lines = "".join(f"\n  [{w.code}] {w.message}" for w in outcome.warnings)
+    lic = outcome.licence
+    lic_line = f"licence {lic.status} ({lic.reason_code})" + (
+        f"; watermark: {manifest['watermark']}" if manifest["watermark"] else ""
+    )
+    pairing = (
+        f"paired on row_id: {comparison['n_pairs']} pairs"
+        if comparison["paired"]
+        else f"UNPAIRED - {comparison['label']}: {comparison['n_new']} new rows against "
+        f"{comparison['n_prior']} prior rows"
+    )
+    summary = (
+        f"compare written: {target} (run_id {manifest['run_id']})\n"
+        f"  {pairing}; analysed {doc['flow']['analysed']} of {doc['flow']['rows_read']} new rows; "
+        f"criteria rows: {counts['met']} met, {counts['not_met']} not met, "
+        f"{counts['not_assessable']} not assessable\n"
+        f"  {lic_line}{warn_lines}\n"
+        f"{telemetry_mod.summary_lines(sent, offline=args.offline)}"
+    )
+    if not lic.usable:
+        summary += f"  {licence_fix(manifest['watermark'])}\n"
+    for path in documents:
+        summary += f"  document written: {path}\n"
+    for note in notes:
+        summary += f"  {note}\n"
+    if documents:
+        summary += (
+            "Next step: open the documents beside run.json; --templates T2,T7,T8 writes all "
+            "three (docs: /docs/compare)"
+        )
+    elif not lic.usable or not outcome.compare_licensed:
+        summary += (
+            "Next step: proofpack licence install FILE, then compare again "
+            + ("" if "html" in formats else "with --format json,html ")
+            + "for "
+            + ", ".join(f"{t}.html" for t in templates)
+            + " (docs: /docs/compare)"
+        )
+    else:
+        summary += (
+            "Next step: compare again with --format json,html for "
+            + ", ".join(f"{t}.html" for t in templates)
+            + " (docs: /docs/compare)"
+        )
     _emit(
         args,
-        {"compare": report},
-        f"compare ingest ok (paired={w12 is None}); written: "
-        f"{out / 'compare_ingest_report.json'}\n"
-        "Next step: paired statistics land on the comparison build day.",
+        {
+            "compare": {
+                "written": str(target),
+                "run_id": manifest["run_id"],
+                "exit_code": outcome.exit_code,
+                "licence_status": lic.status,
+                "compare_licensed": outcome.compare_licensed,
+                "telemetry": telemetry_mod.log_entry(sent, offline=args.offline),
+                "watermark": manifest["watermark"],
+                "paired": comparison["paired"],
+                "n_pairs": comparison["n_pairs"],
+                "criteria_status_counts": counts,
+                "warnings": [w.code for w in outcome.warnings],
+                "formats": formats,
+                "templates": templates,
+                "documents": [str(p) for p in documents],
+                "document_notes": notes,
+                "claims": len(doc["claims"]),
+                "claim_rejections": len(doc["claim_rejections"]),
+            }
+        },
+        summary,
     )
-    return EXIT_WARNINGS if warnings else EXIT_OK
+    return outcome.exit_code
 
 
 def main(argv: list[str] | None = None, *, registry=None, transport=None) -> int:

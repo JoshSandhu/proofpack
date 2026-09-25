@@ -691,6 +691,7 @@ def compare_versions(
     new: VersionArrays,
     prior: VersionArrays,
     *,
+    paired: bool,
     join: Join | None,
     ops: Sequence[str],
     se_key: str = "sensitivity",
@@ -704,8 +705,9 @@ def compare_versions(
     """The ``comparison`` block's statistics (D1 section 4.2), without ``prior_version``
     and ``ledger``, which the assembly adds.
 
-    ``join`` is the paired join (``None`` on the unpaired path); on the paired path
-    ``new`` and ``prior`` are already aligned to the pairs (``VersionArrays.take``).
+    ``paired`` says which path; ``join`` is the ``row_id`` join (recorded for its counts
+    on either path; ``None`` when no join was attempted); on the paired path ``new`` and
+    ``prior`` are already aligned to the pairs (``VersionArrays.take``).
     ``subgroups`` lists ``{"attribute", "level", "rows"}`` with ``rows`` the positions,
     among the pairs, of the new version's rows in that level; each yields per-operating-
     point paired proportion differences and the paired AUROC difference on those pairs
@@ -713,7 +715,8 @@ def compare_versions(
     list is empty and ``subgroups_not_computed`` says why.
     """
     pol = policy if policy is not None else BootstrapPolicy()
-    paired = join is not None
+    if paired and (join is None or not join.paired):
+        raise ValueError("a paired comparison needs a one-to-one join")
     clustered = plan is not None and plan.clustered
     block: dict[str, Any] = {
         "paired": paired,

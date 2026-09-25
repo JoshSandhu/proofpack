@@ -47,7 +47,8 @@
             "NO LICENCE - not for submission"
           ]
         },
-        "data_marking": { "enum": [null, "SYNTHETIC - illustrative", "DEMO"] }
+        "data_marking": { "enum": [null, "SYNTHETIC - illustrative", "DEMO"] },
+        "prior_input_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Build day 10 (E10, proofpack compare): the SHA-256 of the prior version's table; present on a compare document only." }
       }
     },
     "declarations": { "type": "object" },
@@ -107,7 +108,10 @@
     "intersectional": { "type": ["array", "null"], "items": { "type": "object" } },
     "fairness": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/fairnessBlock" }] },
     "robustness": { "type": ["object", "null"] },
-    "comparison": { "type": ["object", "null"] },
+    "comparison": {
+      "description": "Build day 10 (E10, proofpack compare; stats.comparison): the version comparison of D1 section 4.2, present on a compare document and absent on run. Null when compare wrote no block.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/comparisonBlock" }]
+    },
     "drift": { "type": ["object", "null"] },
     "ledger": {
       "type": "object",
@@ -270,6 +274,7 @@
             "enum": [
               "diff_vs_reference",
               "diff_vs_complement",
+              "diff_vs_prior",
               ">=",
               ">",
               "<=",
@@ -488,7 +493,7 @@
             "metric_not_computed_for_scope", "calibration_suppressed", "no_calibration_block",
             "level_absent", "level_is_reference", "gap_requires_fairness_attribute",
             "no_fairness_block", "requires_compare", "overall_not_computed",
-            "not_estimable_this_run"
+            "not_estimable_this_run", "not_like_for_like", "comparison_not_computed_for_scope"
           ]
         },
         "detail": { "type": "object" }
@@ -518,7 +523,7 @@
         "newcombe_paired", "delong_logit", "delong_wald",
         "cluster_bootstrap_percentile", "bootstrap_percentile", "bootstrap_bca",
         "irls_wald", "log_delta", "logit_delta", "chi2_psi", "exact_mcnemar",
-        "cc_mcnemar", "none"
+        "cc_mcnemar", "newcombe10_not_like_for_like", "delong_wald_not_like_for_like", "none"
       ]
     },
     "notEstimableReason": {
@@ -533,7 +538,8 @@
         "cases_span_both_groups", "insufficient_levels",
         "score_not_probability", "score_not_positive_class_probability",
         "irls_not_converged", "complete_separation", "constant_score",
-        "fixed_by_outcome_stratification"
+        "fixed_by_outcome_stratification",
+        "unpaired_not_like_for_like"
       ]
     },
     "flag": {
@@ -545,10 +551,139 @@
         "delong_refused_clustered", "wilson_refused_clustered", "newcombe_refused_clustered",
         "analytic_ci_replaced_small_class",
         "below_200_events_or_nonevents", "scores_clipped_for_logit",
-        "log_delta_refused_clustered", "irls_wald_refused_clustered"
+        "log_delta_refused_clustered", "irls_wald_refused_clustered",
+        "not_like_for_like"
       ]
     },
 
+    "comparisonCell": {
+      "type": "object",
+      "description": "One version-comparison difference (new minus prior): the Number the page prints, the analytic method's companion (a typed refusal under clustering; the same Number when used; null when nothing analytic exists) and what became of the analytic method.",
+      "required": ["number", "analytic", "analytic_status"],
+      "additionalProperties": false,
+      "properties": {
+        "number": { "$ref": "#/$defs/Number" },
+        "analytic": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/Number" }] },
+        "analytic_status": { "enum": ["used", "refused_clustered", "not_computed"] }
+      }
+    },
+    "comparisonDifferences": {
+      "type": "object",
+      "description": "Per operating point id, the paired (or labelled unpaired) differences of the conditioned proportions (sensitivity or ppa, specificity or npa, accuracy); plus auroc, and brier and slope on the overall block only.",
+      "properties": {
+        "auroc": { "$ref": "#/$defs/comparisonCell" },
+        "brier": { "$ref": "#/$defs/comparisonCell" },
+        "slope": { "$ref": "#/$defs/comparisonCell" }
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "$ref": "#/$defs/comparisonCell" }
+      }
+    },
+    "comparisonBlock": {
+      "type": "object",
+      "required": [
+        "paired", "label", "n_pairs", "unpaired_rows", "n_new", "n_prior", "clustering_route",
+        "bootstrap", "score_is_probability", "mcnemar", "differences", "subgroups",
+        "subgroups_not_computed", "prior_version", "prior", "ledger"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "paired": { "type": "boolean" },
+        "label": { "enum": [null, "not like-for-like"] },
+        "n_pairs": { "type": ["integer", "null"], "minimum": 0 },
+        "unpaired_rows": {
+          "type": "object",
+          "required": ["n_pairs", "new_only", "prior_only", "label_mismatch"],
+          "additionalProperties": false,
+          "properties": {
+            "n_pairs": { "type": "integer", "minimum": 0 },
+            "new_only": { "type": "integer", "minimum": 0 },
+            "prior_only": { "type": "integer", "minimum": 0 },
+            "label_mismatch": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "n_new": { "type": "integer", "minimum": 0 },
+        "n_prior": { "type": "integer", "minimum": 0 },
+        "clustering_route": { "enum": ["none", "declared", "detected"] },
+        "bootstrap": {
+          "type": "object",
+          "required": ["B", "seed", "interval"],
+          "additionalProperties": false,
+          "properties": {
+            "B": { "type": "integer", "minimum": 1 },
+            "seed": { "type": "integer", "minimum": 0 },
+            "interval": { "const": "percentile" }
+          }
+        },
+        "score_is_probability": { "type": "boolean" },
+        "mcnemar": {
+          "description": "Per operating point id, on the accuracy discordants: b prior correct and new wrong, c new correct and prior wrong; exact (statistic null) below 25 discordant pairs, continuity-corrected chi-square otherwise. Null on an unpaired comparison.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": ["b", "c", "n_discordant", "statistic", "p", "method"],
+                "additionalProperties": false,
+                "properties": {
+                  "b": { "type": "integer", "minimum": 0 },
+                  "c": { "type": "integer", "minimum": 0 },
+                  "n_discordant": { "type": "integer", "minimum": 0 },
+                  "statistic": { "type": ["number", "null"], "minimum": 0 },
+                  "p": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "method": { "enum": ["exact_mcnemar", "cc_mcnemar"] }
+                }
+              }
+            }
+          ]
+        },
+        "differences": { "$ref": "#/$defs/comparisonDifferences" },
+        "subgroups": {
+          "type": "array",
+          "description": "Parallel to the document's subgroups list (one entry per row, same index): the paired differences on the pairs in that level of the new version's table. Empty on an unpaired comparison.",
+          "items": {
+            "type": "object",
+            "required": ["attribute", "level", "n_pairs", "differences", "not_computed_reason"],
+            "additionalProperties": false,
+            "properties": {
+              "attribute": { "type": "string" },
+              "level": { "type": "string" },
+              "n_pairs": { "type": "integer", "minimum": 0 },
+              "differences": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/comparisonDifferences" }] },
+              "not_computed_reason": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "subgroups_not_computed": { "enum": [null, "unpaired_not_like_for_like"] },
+        "prior_version": { "type": ["string", "number", "null"] },
+        "prior": {
+          "type": "object",
+          "description": "The prior version's own blocks, computed by the same functions as the new version's (overall_block, calibration_from_table, flow_block).",
+          "required": ["overall", "calibration", "calibration_suppressed_reason", "flow"],
+          "additionalProperties": false,
+          "properties": {
+            "overall": { "$ref": "#/properties/overall" },
+            "calibration": { "$ref": "#/properties/calibration" },
+            "calibration_suppressed_reason": { "$ref": "#/properties/calibration_suppressed_reason" },
+            "flow": { "$ref": "#/properties/flow" }
+          }
+        },
+        "ledger": {
+          "type": "object",
+          "description": "The test-set ledger sentence's inputs (D4 section 3 row 7): the analysed new table's SHA-256, the count of prior comparisons recorded under it in the per-user ledger (DEC-47; null when the ledger could not be read), the declared limit (criteria.yaml ledger.warn_after_acceptance_runs; null when none) and whether the count has reached it.",
+          "required": ["test_set_sha256", "prior_acceptance_runs", "warn_limit", "limit_reached"],
+          "additionalProperties": false,
+          "properties": {
+            "test_set_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+            "prior_acceptance_runs": { "type": ["integer", "null"], "minimum": 0 },
+            "warn_limit": { "type": ["integer", "null"], "minimum": 1 },
+            "limit_reached": { "type": "boolean" }
+          }
+        }
+      }
+    },
     "Number": {
       "type": "object",
       "description": "Every rendered quantity (D1 section 4.1). Invariant: a Number either carries both interval bounds, or is suppressed, or names a typed not_estimable_reason. It is never possible to render an estimate whose uncertainty is unstated.",

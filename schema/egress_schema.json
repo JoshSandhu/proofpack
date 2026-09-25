@@ -48,7 +48,7 @@
     "method": {
       "type": ["string", "null"],
       "description": "Equals output_schema_v1.json $defs/method plus null (a suppressed cell); the same test holds them equal.",
-      "enum": ["wilson", "wilson_cc", "clopper_pearson", "newcombe10", "newcombe11", "newcombe_paired", "delong_logit", "delong_wald", "cluster_bootstrap_percentile", "bootstrap_percentile", "bootstrap_bca", "irls_wald", "log_delta", "logit_delta", "chi2_psi", "exact_mcnemar", "cc_mcnemar", "none", null]
+      "enum": ["wilson", "wilson_cc", "clopper_pearson", "newcombe10", "newcombe11", "newcombe_paired", "delong_logit", "delong_wald", "cluster_bootstrap_percentile", "bootstrap_percentile", "bootstrap_bca", "irls_wald", "log_delta", "logit_delta", "chi2_psi", "exact_mcnemar", "cc_mcnemar", "newcombe10_not_like_for_like", "delong_wald_not_like_for_like", "none", null]
     },
     "identifier": {
       "type": ["string", "null"],

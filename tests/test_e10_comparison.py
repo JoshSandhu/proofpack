@@ -227,6 +227,7 @@ def test_the_f5_fixture_pair_reproduces_b_10_c_2_through_compare_versions():
     block = cmp.compare_versions(
         new,
         prior,
+        paired=True,
         join=join,
         ops=["op1"],
         policy=BootstrapPolicy(n_resamples=200, seed=20240101),
@@ -251,12 +252,17 @@ def test_the_f5_fixture_pair_reproduces_b_10_c_2_through_compare_versions():
 def test_the_bootstrap_differences_reproduce_under_the_same_seed():
     new, prior, join = _f5_arrays()
     policy = BootstrapPolicy(n_resamples=100, seed=7)
-    a = cmp.compare_versions(new, prior, join=join, ops=["op1"], policy=policy)
-    b = cmp.compare_versions(new, prior, join=join, ops=["op1"], policy=policy)
+    a = cmp.compare_versions(new, prior, paired=True, join=join, ops=["op1"], policy=policy)
+    b = cmp.compare_versions(new, prior, paired=True, join=join, ops=["op1"], policy=policy)
     assert a == b
     assert a["bootstrap"] == {"B": 100, "seed": 7, "interval": "percentile"}
     other = cmp.compare_versions(
-        new, prior, join=join, ops=["op1"], policy=BootstrapPolicy(n_resamples=100, seed=8)
+        new,
+        prior,
+        paired=True,
+        join=join,
+        ops=["op1"],
+        policy=BootstrapPolicy(n_resamples=100, seed=8),
     )
     assert other["differences"]["brier"] != a["differences"]["brier"]
 
@@ -271,6 +277,7 @@ def test_a_clustered_plan_bootstraps_every_difference_and_carries_dec_09s_refusa
     block = cmp.compare_versions(
         new,
         prior,
+        paired=True,
         join=join,
         ops=["op1"],
         plan=plan,
@@ -297,8 +304,16 @@ def test_a_clustered_plan_bootstraps_every_difference_and_carries_dec_09s_refusa
 def test_the_unpaired_path_labels_every_number_not_like_for_like():
     new, prior, _ = _f5_arrays()
     prior = prior.take(np.arange(5, 100))  # different rows: no join (both arms mixed)
-    block = cmp.compare_versions(new, prior, join=None, ops=["op1"])
+    block = cmp.compare_versions(new, prior, paired=False, join=None, ops=["op1"])
     assert block["paired"] is False and block["label"] == "not like-for-like"
+    assert block["unpaired_rows"] == {
+        "n_pairs": 0,
+        "new_only": 100,
+        "prior_only": 95,
+        "label_mismatch": 0,
+    }
+    with pytest.raises(ValueError):
+        cmp.compare_versions(new, prior, paired=True, join=None, ops=["op1"])
     assert block["mcnemar"] is None and block["n_pairs"] is None
     assert block["subgroups"] == []
     assert block["subgroups_not_computed"] == "unpaired_not_like_for_like"

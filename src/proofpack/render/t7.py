@@ -139,12 +139,24 @@ METHOD_DESCRIPTIONS: dict[str, str] = {
     "chi2_psi": "Population stability index against its chi-square critical value.",
     "exact_mcnemar": "Exact McNemar test on the discordant pairs.",
     "cc_mcnemar": "Continuity-corrected McNemar test on the discordant pairs.",
+    # build day 10 (E10): the unpaired version comparison labels its methods
+    "newcombe10_not_like_for_like": (
+        "Newcombe 1998 method 10 for the difference of two independent proportions, on an "
+        "unpaired version comparison: not like-for-like (the versions were evaluated on "
+        "different rows)."
+    ),
+    "delong_wald_not_like_for_like": (
+        "DeLong Wald interval for the difference of two AUROCs on disjoint samples, on an "
+        "unpaired version comparison: not like-for-like."
+    ),
     "none": (
         "No interval: the Number carries a typed reason, printed as n.e. with the reason "
         "code, and no other method is substituted."
     ),
 }
 #: Blocks of run.json whose presence names an analysis the run performed.
+#: A block the run did not compute is named in one line (T7 section 8); ``comparison``
+#: (E10) is present on a ``proofpack compare`` document and absent on ``run``.
 NOT_RUN_BLOCKS: tuple[tuple[str, str], ...] = (
     ("robustness", "robustness analyses (leave-one-site-out, threshold and missingness)"),
     ("comparison", "version comparison (T2)"),

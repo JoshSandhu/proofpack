@@ -48,3 +48,30 @@ def make_cohort(
     cols["age"] = rng.integers(18, 95, size=n).tolist()
     cols["site"] = rng.choice([f"S{k}" for k in range(1, sites + 1)], size=n).tolist()
     return cols
+
+
+#: The synthetic prior version's recipe (build day 10, E10): the new version's score on
+#: the logit scale, shrunk towards zero and given seeded noise, so the prior is a weaker
+#: version of the same classifier on the same rows and every paired difference has a
+#: sign the reader can predict. Recorded in the E10 build note.
+PRIOR_SHRINK = 0.85
+PRIOR_NOISE_SD = 0.5
+
+
+def perturb_scores(
+    scores: list[float],
+    seed: int,
+    *,
+    shrink: float = PRIOR_SHRINK,
+    noise_sd: float = PRIOR_NOISE_SD,
+) -> list[float]:
+    """The prior version's probability scores from the new version's: ``expit(shrink *
+    logit(s) + N(0, noise_sd))`` with ``default_rng(seed + 1)``, rounded to six decimals
+    and clipped inside (0, 1) (the row order, labels and attributes are unchanged, so the
+    pair joins one to one on ``row_id``)."""
+    rng = np.random.default_rng(seed + 1)
+    s = np.clip(np.asarray(scores, dtype=np.float64), 1e-6, 1.0 - 1e-6)
+    logit = np.log(s / (1.0 - s))
+    z = shrink * logit + rng.normal(0.0, noise_sd, s.shape[0])
+    prior = 1.0 / (1.0 + np.exp(-z))
+    return [round(float(min(max(p, 1e-6), 1.0 - 1e-6)), 6) for p in prior.tolist()]

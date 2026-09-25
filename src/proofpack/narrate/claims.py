@@ -90,7 +90,31 @@ CALIBRATION_REFS: tuple[str, ...] = ("oe", "slope", "intercept", "brier", "brier
 #: The one ``calibration_suppressed_reason.reason`` the ``CALIB_NA`` sentence states.
 CALIB_NA_REASON = "score_not_probability"
 RELATIONS: tuple[str, ...] = ("estimate", "above", "below", "within", "not_assessable")
-COMPARATOR_IDS: tuple[str, ...] = ("diff_vs_reference", "diff_vs_complement", ">=", ">", "<=", "<")
+#: ``diff_vs_prior`` (build day 10, E10): the block a ``PAIRED_DIFF`` claim reads, the
+#: version comparison's difference cells under ``comparison.differences``.
+COMPARATOR_IDS: tuple[str, ...] = (
+    "diff_vs_reference",
+    "diff_vs_complement",
+    "diff_vs_prior",
+    ">=",
+    ">",
+    "<=",
+    "<",
+)
+#: The order the version-comparison claims report the paired differences in (E10): the
+#: three conditioned proportions per operating point, then the threshold-free keys.
+COMPARISON_OP_METRIC_ORDER: tuple[str, ...] = (
+    "sensitivity",
+    "ppa",
+    "specificity",
+    "npa",
+    "accuracy",
+)
+COMPARISON_FREE_KEYS: tuple[tuple[str, str], ...] = (
+    ("auroc", "auroc"),
+    ("brier", "brier"),
+    ("slope", "calibration_slope"),
+)
 
 
 def pointer(*parts: Any) -> str:
@@ -402,7 +426,37 @@ def metric_ref_pointers(doc: dict[str, Any]) -> dict[str, str]:
                         f"fairness.gaps[{j}].operating_points.{op}.{metric}.number",
                         *("fairness", "gaps", j, "operating_points", op, metric, "number"),
                     )
+    # build day 10 (E10): the version comparison's difference cells, the Numbers a
+    # paired_difference_vs_prior criterion reads (proofpack.criteria._resolve_comparison)
+    comparison = doc.get("comparison")
+    if isinstance(comparison, dict):
+        _add_difference_paths(
+            add,
+            "comparison.differences",
+            ("comparison", "differences"),
+            comparison.get("differences"),
+        )
+        entries = comparison.get("subgroups")
+        for i, entry in enumerate(entries if isinstance(entries, list) else []):
+            if isinstance(entry, dict):
+                _add_difference_paths(
+                    add,
+                    f"comparison.subgroups[{i}].differences",
+                    ("comparison", "subgroups", i, "differences"),
+                    entry.get("differences"),
+                )
     return {k: v for k, v in table.items() if v is not _AMBIGUOUS}
+
+
+def _add_difference_paths(add: Any, dotted: str, parts: tuple[Any, ...], block: Any) -> None:
+    if not isinstance(block, dict):
+        return
+    for key, value in block.items():
+        if key in ("auroc", "brier", "slope"):
+            add(f"{dotted}.{key}.number", *parts, key, "number")
+        elif isinstance(value, dict):
+            for metric in value:
+                add(f"{dotted}.{key}.{metric}.number", *parts, key, metric, "number")
 
 
 def criteria_row_pointers(doc: dict[str, Any]) -> list[str | None]:
@@ -420,6 +474,9 @@ def criteria_row_pointers(doc: dict[str, Any]) -> list[str | None]:
 def _criteria_claims(doc: dict[str, Any], seq: int) -> tuple[list[dict[str, Any]], int]:
     out: list[dict[str, Any]] = []
     row_refs = criteria_row_pointers(doc)
+    # build day 10 (E10): on a compare document (T2) every not_met row also gets the
+    # PCCP record sentence, CRITERION_NOT_MET_RECORD ("T2 only", D4 section 8)
+    record = isinstance(doc.get("comparison"), dict)
     for i, row in enumerate(doc.get("criteria_results") or []):
         ref = row_refs[i]
         scope = row.get("scope")
@@ -428,24 +485,136 @@ def _criteria_claims(doc: dict[str, Any], seq: int) -> tuple[list[dict[str, Any]
             if isinstance(scope, dict)
             else None
         )
-        seq += 1
-        out.append(
-            _claim(
-                seq,
-                "CRITERION_STATUS",
-                metric_id=row.get("metric"),
-                operating_point=row.get("operating_point"),
-                subgroup=subgroup,
-                comparator_id=row.get("comparator"),
-                criterion_index=i,
-                criterion_id=row.get("criterion_id"),
-                status=row.get("status"),
-                relation="estimate"
-                if row.get("status") in ("met", "not_met")
-                else "not_assessable",
-                value_refs=[] if ref is None else [ref],
+        templates = ["CRITERION_STATUS"]
+        if record and row.get("status") == "not_met":
+            templates.append("CRITERION_NOT_MET_RECORD")
+        for template_id in templates:
+            seq += 1
+            out.append(
+                _claim(
+                    seq,
+                    template_id,
+                    metric_id=row.get("metric"),
+                    operating_point=row.get("operating_point"),
+                    subgroup=subgroup,
+                    comparator_id=row.get("comparator"),
+                    criterion_index=i,
+                    criterion_id=row.get("criterion_id"),
+                    status=row.get("status"),
+                    relation="estimate"
+                    if row.get("status") in ("met", "not_met")
+                    else "not_assessable",
+                    value_refs=[] if ref is None else [ref],
+                )
             )
+    return out, seq
+
+
+def _difference_claim(
+    seq: int,
+    *,
+    metric_id: str,
+    operating_point: str | None,
+    subgroup: dict[str, str] | None,
+    cell: Any,
+    ref: str,
+) -> dict[str, Any]:
+    number = cell.get("number") if isinstance(cell, dict) else None
+    return _claim(
+        seq,
+        "PAIRED_DIFF",
+        metric_id=metric_id,
+        operating_point=operating_point,
+        subgroup=subgroup,
+        comparator_id="diff_vs_prior",
+        relation=relation_of(number, difference=True),
+        value_refs=[ref, pointer("comparison", "n_pairs")],
+    )
+
+
+def _comparison_claims(doc: dict[str, Any], seq: int) -> tuple[list[dict[str, Any]], int]:
+    """The version-comparison claims (build day 10, E10; D4 section 3's list): on an
+    unpaired comparison the ``UNPAIRED_LABEL`` sentence alone stands for the differences
+    (they are not like-for-like and the table carries them); on a paired one a
+    ``PAIRED_DIFF`` per conditioned proportion per operating point, then AUROC, Brier and
+    slope, a ``MCNEMAR_RESULT`` per operating point (the per-subgroup differences are Table
+    T2-4's and carry no sentence); then the ledger statement (and the warning when the
+    declared limit is reached), the impact-assessment note and the monitoring pointer."""
+    out: list[dict[str, Any]] = []
+    comparison = doc.get("comparison")
+    if not isinstance(comparison, dict):
+        return out, seq
+    if not comparison.get("paired"):
+        seq += 1
+        out.append(_claim(seq, "UNPAIRED_LABEL", relation="not_assessable", value_refs=[]))
+    else:
+        differences = comparison.get("differences") or {}
+        ops = [k for k in differences if k not in ("auroc", "brier", "slope")]
+        for op in ops:
+            block = differences.get(op) or {}
+            for metric in COMPARISON_OP_METRIC_ORDER:
+                if metric not in block:
+                    continue
+                seq += 1
+                out.append(
+                    _difference_claim(
+                        seq,
+                        metric_id=metric,
+                        operating_point=op,
+                        subgroup=None,
+                        cell=block[metric],
+                        ref=pointer("comparison", "differences", op, metric, "number"),
+                    )
+                )
+        for key, metric in COMPARISON_FREE_KEYS:
+            if key not in differences:
+                continue
+            seq += 1
+            out.append(
+                _difference_claim(
+                    seq,
+                    metric_id=metric,
+                    operating_point=None,
+                    subgroup=None,
+                    cell=differences[key],
+                    ref=pointer("comparison", "differences", key, "number"),
+                )
+            )
+        for op in ops:
+            if op not in (comparison.get("mcnemar") or {}):
+                continue
+            seq += 1
+            out.append(
+                _claim(
+                    seq,
+                    "MCNEMAR_RESULT",
+                    metric_id="accuracy",
+                    operating_point=op,
+                    relation="not_assessable",
+                    value_refs=[
+                        pointer("comparison", "mcnemar", op, key) for key in ("b", "c", "p")
+                    ],
+                )
+            )
+        # the per-subgroup paired differences are Table T2-4's; no sentence is generated
+        # for them in E10 (the PAIRED_DIFF skeleton names no subgroup; recorded in the note)
+    ledger = comparison.get("ledger") or {}
+    seq += 1
+    out.append(
+        _claim(
+            seq,
+            "LEDGER_STATEMENT",
+            relation="not_assessable",
+            value_refs=[pointer("comparison", "ledger", "prior_acceptance_runs")],
         )
+    )
+    if ledger.get("limit_reached"):
+        seq += 1
+        out.append(_claim(seq, "LEDGER_WARNING", relation="not_assessable", value_refs=[]))
+    seq += 1
+    out.append(_claim(seq, "IMPACT_INPUTS_NOTE", relation="not_assessable", value_refs=[]))
+    seq += 1
+    out.append(_claim(seq, "MONITORING_POINTER", relation="not_assessable", value_refs=[]))
     return out, seq
 
 
@@ -458,6 +627,7 @@ def build_claims(doc: dict[str, Any]) -> list[dict[str, Any]]:
         _subgroup_claims,
         _calibration_claims,
         _fairness_claims,
+        _comparison_claims,
         _criteria_claims,
     ):
         got, seq = builder(doc, seq)
