@@ -1,0 +1,238 @@
+{# T2 - PCCP performance-evaluation report (D4 section 3): the cover and nine sections
+   through base.html's furniture (build day 10, E10). Every value comes from
+   proofpack.render.t2's context (Number cells carry data-ref / data-kind / data-facet);
+   every sentence is a claim of run.json rendered by proofpack.render.sentences; customer
+   text is escaped inside .customer-text; status words only inside .status, and T2's
+   record string only on a not_met row. No arithmetic here. #}
+{% extends "base.html" %}
+{% from "_criteria.html" import criteria_table %}
+{% macro ncell(c, extra="") -%}
+<td class="num{% if extra %} {{ extra }}{% endif %}" data-ref="{{ c.ref }}" data-kind="{{ c.kind }}" data-facet="{{ c.facet }}">{{ c.text }}</td>
+{%- endmacro %}
+{% macro notes(key) -%}
+{% for ref in anchors[key] %}{{ margin_note(ref) }}
+{% endfor %}
+{%- endmacro %}
+{% macro narrative(items) -%}
+{% if items %}
+<div class="narrative">
+{% for s in items %}
+<p class="claim" data-claim="{{ s.id }}">{{ s.html }}</p>
+{% endfor %}
+<p class="narrative-footer">{{ narrative_footer }}</p>
+</div>
+{% endif %}
+{%- endmacro %}
+{% macro margin_status(m) -%}
+{% if m %}<td class="num"><span class="customer-text inline">{{ m.id }}</span> (row {{ m.position }}): {{ m.statistic }} {{ m.comparator }} <span class="customer-text inline">{{ m.value }}</span></td><td class="status">{{ m.status_word }}{% if m.status == "not_assessable" %} ({{ m.reason_code }}){% endif %}{% if m.record %} - <span class="status record">{{ not_met_record }}</span>{% endif %}</td>{% else %}<td class="num">—</td><td class="status-absent">—</td>{% endif %}
+{%- endmacro %}
+{% macro comparison_row(r) -%}
+<tr data-metric="{{ r.metric }}"{% if r.op %} data-op="{{ r.op }}"{% endif %}><th scope="row">{{ r.label }}{% if r.op %} (<span class="customer-text inline">{{ r.op }}</span>){% endif %}</th>{{ ncell(r.prior) }}{{ ncell(r.new) }}{{ ncell(r.delta) }}<td class="mono" data-ref="{{ r.method.ref }}" data-facet="method">{{ r.method.text }}</td><td class="num">{{ r.b }} / {{ r.c }}</td><td class="num">{{ r.p }} ({{ r.mcnemar_method }})</td>{% if tables.has_margin %}{{ margin_status(r.margin) }}{% endif %}</tr>
+{%- endmacro %}
+{% block pages %}
+<section class="page" id="page-1">
+{{ page_header() }}
+<h1>{{ template_name }}</h1>
+<p class="cover-note">{{ cover_note }}</p>
+{{ cover_stamps() }}
+{{ notes("s0") }}
+<table class="cover-block">
+<caption>Cover block - PCCP identity (section 0)</caption>
+<tbody>
+{% for label, value in version_rows %}
+<tr><th scope="row">{{ label }}</th><td class="customer-text">{{ value }}</td></tr>
+{% endfor %}
+{% for label, value, mono in cover_rows %}
+<tr><th scope="row">{{ label }}</th><td{% if mono %} class="mono"{% endif %}>{{ value }}</td></tr>
+{% endfor %}
+<tr><th scope="row">Guidance versions referenced</th><td>{% for ref in guidance_refs %}<a href="#{{ ref.id }}">{{ ref.label }}</a>{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+<tr><th scope="row">Customer sections outstanding</th><td class="num" data-count="outstanding">{{ outstanding }}</td></tr>
+</tbody>
+</table>
+<h2 id="t2-s0">0. PCCP identity</h2>
+{{ placeholder(slots["CT-20"]) }}
+{{ page_footer() }}
+</section>
+<section class="page" id="page-2">
+{{ page_header() }}
+<h2 id="t2-scope-limits">{{ long_form_title }}</h2>
+{{ notes("scope") }}
+<ol class="disclaimer disclaimer-long">
+{% for title, body in long_form_items %}
+<li><strong>{{ title }}</strong> {{ body }}</li>
+{% endfor %}
+</ol>
+<table class="guidance">
+<caption>Guidance versions referenced in this render, labelled from the guidance map; a draft is a draft in the label and in the structured data</caption>
+<thead><tr><th scope="col">Internal id</th><th scope="col">Document, version or date, status</th><th scope="col">Draft</th></tr></thead>
+<tbody>
+{% for ref in guidance_refs %}
+<tr id="{{ ref.id }}"{% if ref.draft %} class="draft"{% endif %}><td class="mono">{{ ref.id }}</td><td>{{ ref.label }}</td><td>{% if ref.draft %}yes{% else %}no{% endif %}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{{ page_footer() }}
+</section>
+<section class="page" id="page-3">
+{{ page_header() }}
+<h2 id="t2-s1">1. Description of modifications</h2>
+{{ notes("s1") }}
+{{ placeholder(slots["CT-21"]) }}
+{{ no_data("Table T2-1 - " ~ t2_1_note) }}
+<h2 id="t2-s2">2. Modification protocol (1) - data management</h2>
+{{ notes("s2") }}
+{{ placeholder(slots["CT-22"]) }}
+{{ placeholder(slots["CT-23"]) }}
+<div class="table-wrap">
+<table class="flow">
+<caption>Table T2-flow - flow of rows of each version's table (D4 section 5.10); the comparison pairs the analysed rows on row_id</caption>
+<thead><tr><th scope="col">Count</th><th scope="col" class="num">New version</th><th scope="col" class="num">Prior version</th></tr></thead>
+<tbody>
+{% for label, value in flow_rows %}
+<tr><th scope="row">{{ label }}</th><td class="num">{{ value }}</td><td class="num">{% if prior_flow_rows %}{{ prior_flow_rows[loop.index0][1] }}{% else %}—{% endif %}</td></tr>
+{% endfor %}
+<tr><th scope="row">Pairs (row_id join)</th><td class="num" data-count="n_pairs" colspan="2">{{ tables.n_pairs }}</td></tr>
+<tr><th scope="row">Rows in one version only, or with differing labels</th><td class="num" data-count="excluded" colspan="2">{{ tables.excluded }}</td></tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrap">
+<table class="table1">
+<caption>Table T2-1b - Table 1 of the evaluation set (the new version's table; D4 section 5.4)</caption>
+<thead><tr><th scope="col">Attribute</th><th scope="col">Level</th><th scope="col" class="num">Test n (%)</th></tr></thead>
+<tbody>
+{% for r in table1_rows %}
+<tr><td class="customer-text">{{ r.attribute }}</td><td class="customer-text">{{ r.level }}</td><td class="num">{{ r.n }} ({{ r.pct }})</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<h2 id="t2-s3">3. Modification protocol (2) - re-training practices</h2>
+{{ notes("s3") }}
+{{ placeholder(slots["CT-24"]) }}
+<table class="versions">
+<caption>Version fields, echoed from criteria.yaml (the engine describes no training)</caption>
+<tbody>
+{% for label, value in version_rows %}
+<tr><th scope="row">{{ label }}</th><td class="customer-text">{{ value }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{{ page_footer() }}
+</section>
+<section class="page" id="page-4">
+{{ page_header() }}
+<h2 id="t2-s4">4. Modification protocol (3) - performance evaluation</h2>
+{{ notes("s4") }}
+{{ placeholder(slots["CT-25"]) }}
+{{ placeholder(slots["CT-26"]) }}
+<h3 id="t2-s4-1">4.1 Acceptance criteria as declared (Table T2-2)</h3>
+{% if has_criteria %}
+{{ criteria_table(criteria_rows) }}
+{% else %}
+<p>No acceptance criteria were declared; estimates and intervals only.</p>
+{% endif %}
+<h3 id="t2-s4-2">4.2 Paired comparison, new version against prior (Table T2-3)</h3>
+<div class="table-wrap">
+<table class="comparison">
+<caption>Table T2-3 - {{ tables.caption }}. Δ is new − prior; proportions in percentage points, AUROC, Brier and slope on their own scale; the interval method of each Δ is in its Method column{% if not tables.has_margin %}; no paired_difference_vs_prior criterion is declared, so no margin and no status column is printed{% endif %}</caption>
+<thead><tr><th scope="col">Metric (operating point)</th><th scope="col" class="num">Prior version k/n (%) [95% CI]</th><th scope="col" class="num">New version k/n (%) [95% CI]</th><th scope="col" class="num">Δ new − prior [95% CI]</th><th scope="col">Method</th><th scope="col" class="num">Discordant b / c</th><th scope="col" class="num">McNemar p (method)</th>{% if tables.has_margin %}<th scope="col" class="num">Margin (criterion id)</th><th scope="col">Status</th>{% endif %}</tr></thead>
+<tbody>
+{% for block in tables.per_op %}
+{% for r in block.rows %}
+{{ comparison_row(r) }}
+{% endfor %}
+{% endfor %}
+{% for r in tables.free_rows %}
+{{ comparison_row(r) }}
+{% endfor %}
+{% for r in tables.calibration_rows %}
+{{ comparison_row(r) }}
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p class="comparison-facts">Clustering route: <span class="mono">{{ tables.clustering_route }}</span>; bootstrap B {{ tables.bootstrap.B }}, seed {{ tables.bootstrap.seed }}, {{ tables.bootstrap.interval }} interval (the paired bootstrap differences and any cluster-bootstrap difference).</p>
+{{ narrative(comparison_sentences) }}
+<h3 id="t2-s4-3">4.3 Per-subgroup paired comparison (Table T2-4)</h3>
+{% if tables.subgroup_rows %}
+<div class="table-wrap">
+<table class="subgroup-comparison">
+<caption>Table T2-4 - paired differences (new − prior, percentage points; AUROC on its own scale) per subgroup level, on the pairs in that level of the new version's table; the criterion column prints each paired_difference_vs_prior criterion scoped on the level with its status. Attainability of a paired margin at n is not computed in this build (dash)</caption>
+<thead><tr><th scope="col">Attribute</th><th scope="col">Level</th><th scope="col" class="num">n pairs</th>{% for block in tables.per_op %}<th scope="col" class="num">Δ {{ tables.se_label }} (<span class="customer-text inline">{{ block.op }}</span>)</th><th scope="col" class="num">Δ {{ tables.sp_label }} (<span class="customer-text inline">{{ block.op }}</span>)</th>{% endfor %}<th scope="col" class="num">Δ AUROC</th><th scope="col">Criterion (id) and status; attainable at n</th></tr></thead>
+<tbody>
+{% for s in tables.subgroup_rows %}
+<tr{% if s.is_unknown %} class="unknown-row"{% endif %}><td class="customer-text">{{ s.attribute }}</td><td class="customer-text">{{ s.level }}</td><td class="num" data-count="n_pairs">{{ s.n_pairs }}</td>{% if s.computed %}{% for o in s.ops %}{{ ncell(o.se) }}{{ ncell(o.sp) }}{% endfor %}{{ ncell(s.auroc) }}{% else %}<td colspan="{{ 2 * (tables.per_op | length) + 1 }}">not computed ({{ s.reason }})</td>{% endif %}<td>{% for c in s.criteria %}<span class="customer-text inline">{{ c.id }}</span> (row {{ c.position }}, <span class="customer-text inline">{{ c.op }}</span>) → <span class="status">{{ c.status_word }}{% if c.record %} - <span class="status record">{{ not_met_record }}</span>{% endif %}</span>; attainable: {{ c.attainable }}{% if not loop.last %}<br>{% endif %}{% else %}—{% endfor %}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}
+{{ no_data("Table T2-4 is not printed: per-subgroup paired differences were not computed (" ~ (tables.subgroups_not_computed or "no subgroup rows") ~ ").") }}
+{% endif %}
+<h3 id="t2-s4-4">4.4 Calibration comparison</h3>
+<p>The Brier-score and calibration-slope rows of Table T2-3 are the paired bootstrap differences (new − prior) on the same pairs; a score that is not a declared probability carries the typed reason instead of an interval.</p>
+<h3 id="t2-s4-5">4.5 Threshold-free comparison</h3>
+<p>The AUROC row of Table T2-3 is the paired DeLong difference on independent rows, or the cluster-bootstrap difference with the DeLong refusal recorded beside it on a clustered plan.</p>
+<h3 id="t2-s4-6">4.6 Pairing</h3>
+{% if tables.paired %}
+<p>The two versions were evaluated on the same rows: {{ tables.n_pairs }} pairs joined on row_id.</p>
+{% else %}
+<p class="unpaired-label">UNPAIRED - {{ tables.label }}: every difference in this report is between different rows and carries the label in its method.</p>
+{{ narrative(unpaired_sentences) }}
+{% endif %}
+<h3 id="t2-s4-7">4.7 Statement per criterion</h3>
+{{ narrative(criterion_sentences) }}
+{% if not criterion_sentences %}
+<p>No acceptance criterion was declared, so no criterion statement is made.</p>
+{% endif %}
+{{ page_footer() }}
+</section>
+<section class="page" id="page-5">
+{{ page_header() }}
+<h2 id="t2-s5">5. Modification protocol (4) - update procedures</h2>
+{{ notes("s5") }}
+{{ placeholder(slots["CT-27"]) }}
+<p>Version stamp: this report evaluates version <span class="customer-text inline">{{ version_rows[1][1] }}</span> against prior version <span class="customer-text inline">{{ version_rows[2][1] }}</span>.</p>
+{{ narrative(monitoring_sentences) }}
+<h2 id="t2-s6">6. Impact assessment inputs</h2>
+{{ notes("s6") }}
+{{ placeholder(slots["CT-28"]) }}
+{{ placeholder(slots["CT-29"]) }}
+<div class="table-wrap">
+<table class="impact">
+<caption>Table T2-5 - quantitative deltas: {{ impact_caption }}</caption>
+<thead><tr><th scope="col">Metric</th><th scope="col">Scope</th><th scope="col" class="num">Prior [95% CI]</th><th scope="col" class="num">New [95% CI]</th><th scope="col" class="num">Δ [95% CI]</th></tr></thead>
+<tbody>
+{% for r in impact_rows %}
+<tr><th scope="row">{{ r.metric }}</th><td class="customer-text">{{ r.scope }}</td>{{ ncell(r.prior) }}{{ ncell(r.new) }}{{ ncell(r.delta) }}</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{{ narrative(impact_sentences) }}
+<h2 id="t2-s7">7. Test-set ledger</h2>
+{{ notes("s7") }}
+<p>This test set (SHA-256 <span class="mono">{{ ledger.short }}</span>) has been used in <span data-count="prior_acceptance_runs">{{ ledger.prior_runs }}</span> prior version comparisons recorded in the local ledger; the manufacturer's declared limit is <span class="customer-text inline">{{ ledger.warn_limit }}</span>.</p>
+{% if ledger.limit_reached %}
+<div class="placeholder" data-slot="ledger-warning">The declared limit on comparisons against this test set has been reached or exceeded.</div>
+{% endif %}
+{{ narrative(ledger_sentences) }}
+<h2 id="t2-s8">8. Traceability skeleton</h2>
+{{ notes("s8") }}
+<div class="table-wrap">
+<table class="traceability">
+<caption>Table T2-6 - one row per evaluated criterion, by position; the modification id and the monitoring metric ids are the manufacturer's (CT-21, T3) and are not read in this build</caption>
+<thead><tr><th scope="col">#</th><th scope="col">Modification id</th><th scope="col">MP section(s)</th><th scope="col">Criterion id</th><th scope="col">Status</th><th scope="col">Impact-assessment slot</th><th scope="col">T3 monitoring metric ids</th></tr></thead>
+<tbody>
+{% for r in traceability_rows %}
+<tr><td class="num">{{ r.position }}</td><td>{{ r.modification }}</td><td>{{ r.mp_section }}</td><td class="customer-text mono">{{ r.criterion_id }}</td><td class="status">{{ r.status_word }}</td><td>{{ r.impact_slot }}</td><td>{{ r.monitoring }}</td></tr>
+{% else %}
+<tr><td colspan="7">No criterion was declared; no traceability row exists.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{{ page_footer() }}
+</section>
+{% endblock %}

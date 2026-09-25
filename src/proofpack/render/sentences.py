@@ -59,6 +59,8 @@ MCNEMAR_PHRASES: dict[str, str] = {
 }
 #: ``LEDGER_STATEMENT``'s ``{limit}`` when ``criteria.yaml`` declares no ledger limit.
 NO_LIMIT_DECLARED = "no limit declared"
+#: The status phrase ``CRITERION_NOT_MET_RECORD`` opens with (printed inside ``.status``).
+RECORD_PREFIX = "Record of criterion not met"
 #: ``AUROC_ESTIMATE``'s ``method_phrase`` key, from the Number's own method.
 AUROC_METHOD_PHRASE_KEYS: dict[str, str] = {
     "delong_logit": "iid",
@@ -219,6 +221,12 @@ def render_parts(
     )
     if skeleton.startswith("{metric_name}") and parts and parts[0].text[:1].islower():
         parts[0] = Part(parts[0].text[:1].upper() + parts[0].text[1:], parts[0].kind)
+    if template_id == "CRITERION_NOT_MET_RECORD" and parts and parts[0].kind == "fixed":
+        # E10: the sentence's opening words are a status phrase (D4 section 1.2's fourth
+        # permitted string is T2's record); they print inside .status like a status word
+        head = parts[0].text
+        if head.startswith(RECORD_PREFIX):
+            parts[0:1] = [Part(RECORD_PREFIX, "status"), Part(head[len(RECORD_PREFIX) :], "fixed")]
     return parts
 
 

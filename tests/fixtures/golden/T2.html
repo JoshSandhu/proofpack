@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>T2 · ProofPack v0.1.0.dev1 · run test-onl</title>
+<style>
+:root {
+  --pp-color-bg: #ffffff;
+  --pp-color-bg-inset: #eef1f4;
+  --pp-color-bg-soft: #f5f7f9;
+  --pp-color-brand: #123a5f;
+  --pp-color-brand-soft: #e6eef5;
+  --pp-color-brand-strong: #0c2740;
+  --pp-color-honesty: #8a4b00;
+  --pp-color-honesty-bg: #fdf3e3;
+  --pp-color-ink: #16202b;
+  --pp-color-ink-faint: #6b7784;
+  --pp-color-ink-soft: #4a5a6a;
+  --pp-color-line: #d8dfe6;
+  --pp-color-ok: #14532d;
+  --pp-color-ok-bg: #e4f2e8;
+  --pp-color-ok-line: #86b39a;
+  --pp-color-on-brand: #ffffff;
+  --pp-color-stop: #7f1d1d;
+  --pp-color-stop-bg: #fdeaea;
+  --pp-color-stop-line: #c98b8b;
+  --pp-layout-focus: 3px solid;
+  --pp-layout-focus-offset: 2px;
+  --pp-layout-function-page: 44rem;
+  --pp-layout-measure: 68ch;
+  --pp-layout-motion: none;
+  --pp-layout-rule: 1px;
+  --pp-layout-wrap: 74rem;
+  --pp-print-footer-size: 0.72rem;
+  --pp-print-page-margin: 20mm 18mm 26mm;
+  --pp-print-page-size: A4;
+  --pp-radius-button: 6px;
+  --pp-radius-callout: 8px;
+  --pp-radius-card: 8px;
+  --pp-radius-code: 6px;
+  --pp-radius-input: 4px;
+  --pp-radius-tag: 4px;
+  --pp-space-1: 0.25rem;
+  --pp-space-2: 0.5rem;
+  --pp-space-3: 0.75rem;
+  --pp-space-4: 1rem;
+  --pp-space-5: 1.5rem;
+  --pp-space-6: 2rem;
+  --pp-space-7: 2.75rem;
+  --pp-space-8: 3rem;
+  --pp-type-body-px: 17px;
+  --pp-type-line-height-body: 1.6;
+  --pp-type-line-height-headings: 1.25;
+  --pp-type-line-height-tables: 1.45;
+  --pp-type-mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --pp-type-numeric: tabular-nums;
+  --pp-type-scale-body: 1rem;
+  --pp-type-scale-footnote: 0.85rem;
+  --pp-type-scale-h1: clamp(1.8rem, 4.2vw, 2.7rem);
+  --pp-type-scale-h2: 1.4rem;
+  --pp-type-scale-h3: 1.15rem;
+  --pp-type-scale-strip: 0.78rem;
+  --pp-type-scale-table: 0.92rem;
+  --pp-type-scale-tag: 0.72rem;
+  --pp-type-text: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --pp-type-tracking-uppercase: 0.06em;
+}
+html { font-size: var(--pp-type-body-px); }
+body { margin: 0; background: var(--pp-color-bg); color: var(--pp-color-ink); font-family: var(--pp-type-text); line-height: var(--pp-type-line-height-body); font-size: var(--pp-type-scale-body); }
+.page { max-width: var(--pp-layout-wrap); margin: 0 auto; padding: var(--pp-space-6) var(--pp-space-5); border-bottom: var(--pp-layout-rule) solid var(--pp-color-line); page-break-after: always; break-after: page; }
+.page-header { font-size: var(--pp-type-scale-strip); color: var(--pp-color-ink-soft); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); border-bottom: var(--pp-layout-rule) solid var(--pp-color-line); padding-bottom: var(--pp-space-2); margin-bottom: var(--pp-space-5); }
+.page-footer { margin-top: var(--pp-space-6); padding-top: var(--pp-space-3); border-top: var(--pp-layout-rule) solid var(--pp-color-line); font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); }
+.print-footer { display: none; }
+h1 { font-size: var(--pp-type-scale-h1); line-height: var(--pp-type-line-height-headings); margin: 0 0 var(--pp-space-4); }
+h2 { font-size: var(--pp-type-scale-h2); line-height: var(--pp-type-line-height-headings); margin: var(--pp-space-6) 0 var(--pp-space-3); }
+h3 { font-size: var(--pp-type-scale-h3); line-height: var(--pp-type-line-height-headings); margin: var(--pp-space-5) 0 var(--pp-space-2); }
+p, li { max-width: var(--pp-layout-measure); }
+table { border-collapse: collapse; width: 100%; font-size: var(--pp-type-scale-table); line-height: var(--pp-type-line-height-tables); font-variant-numeric: var(--pp-type-numeric); margin: var(--pp-space-3) 0; }
+th, td { text-align: left; vertical-align: top; padding: var(--pp-space-1) var(--pp-space-2); border-bottom: var(--pp-layout-rule) solid var(--pp-color-line); }
+thead { display: table-header-group; }
+th { background: var(--pp-color-bg-soft); font-weight: 600; }
+td.num, th.num { text-align: right; }
+caption { text-align: left; font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); padding: var(--pp-space-1) 0; caption-side: top; }
+.table-wrap { overflow-x: auto; }
+code, pre, .mono { font-family: var(--pp-type-mono); }
+pre { background: var(--pp-color-bg-inset); padding: var(--pp-space-3); border-radius: var(--pp-radius-code); overflow-x: auto; font-size: var(--pp-type-scale-table); }
+.customer-text { border-left: var(--pp-layout-rule) solid var(--pp-color-ink-faint); padding-left: var(--pp-space-3); margin: var(--pp-space-2) 0; color: var(--pp-color-ink-soft); unicode-bidi: isolate; }
+.customer-text .label { display: block; font-size: var(--pp-type-scale-tag); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); color: var(--pp-color-ink-faint); }
+.margin-note { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); border-left: var(--pp-layout-rule) solid var(--pp-color-line); padding-left: var(--pp-space-2); margin: var(--pp-space-1) 0 var(--pp-space-3); }
+.margin-note.draft { color: var(--pp-color-honesty); border-left-color: var(--pp-color-honesty); }
+.margin-note a { color: inherit; }
+.disclaimer { color: var(--pp-color-ink-soft); }
+.disclaimer-long { max-width: var(--pp-layout-measure); }
+.watermark { font-weight: 700; color: var(--pp-color-honesty); background: var(--pp-color-honesty-bg); display: inline-block; padding: var(--pp-space-1) var(--pp-space-2); border-radius: var(--pp-radius-tag); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); }
+.stamp { border: var(--pp-layout-rule) solid var(--pp-color-honesty); color: var(--pp-color-honesty); display: inline-block; padding: var(--pp-space-2) var(--pp-space-3); border-radius: var(--pp-radius-card); margin: var(--pp-space-3) 0; }
+.cover-note { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); }
+.tag { font-size: var(--pp-type-scale-tag); text-transform: uppercase; letter-spacing: var(--pp-type-tracking-uppercase); background: var(--pp-color-bg-inset); border-radius: var(--pp-radius-tag); padding: 0 var(--pp-space-1); }
+.highlight { background: var(--pp-color-brand-soft); }
+td.status { font-weight: 600; }
+.narrative-footer { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); font-style: italic; }
+.placeholder { border: var(--pp-layout-rule) dashed var(--pp-color-honesty); background: var(--pp-color-honesty-bg); color: var(--pp-color-honesty); padding: var(--pp-space-2) var(--pp-space-3); border-radius: var(--pp-radius-card); margin: var(--pp-space-2) 0; max-width: var(--pp-layout-measure); }
+.customer-text.inline { display: inline; border-left: 0; padding-left: 0; margin: 0; }
+.unverified { font-family: var(--pp-type-mono); color: var(--pp-color-honesty); }
+.narrative p { max-width: var(--pp-layout-measure); }
+figure.figure { margin: var(--pp-space-4) 0; }
+figure.figure svg { max-width: 100%; height: auto; color: var(--pp-color-ink); }
+svg .fig-axis { stroke: var(--pp-color-ink-soft); stroke-width: 1; }
+svg .fig-series { stroke: var(--pp-color-ink); stroke-width: 2; }
+svg .fig-ref { stroke: var(--pp-color-ink-faint); stroke-width: 1; stroke-dasharray: 6 4; }
+svg .fig-criterion { stroke: var(--pp-color-ink-faint); stroke-width: 2.5; stroke-dasharray: 10 4; }
+svg .fig-ci { stroke: var(--pp-color-ink); stroke-width: 1.5; }
+svg .fig-point { stroke: var(--pp-color-ink); stroke-width: 1.5; }
+svg .fig-hist { fill: var(--pp-color-line); stroke: none; }
+svg .fig-text { fill: var(--pp-color-ink); font-family: var(--pp-type-text); font-size: 12px; }
+figure.figure figcaption { font-size: var(--pp-type-scale-footnote); color: var(--pp-color-ink-soft); max-width: var(--pp-layout-measure); }
+a:focus, button:focus { outline: var(--pp-layout-focus) var(--pp-color-brand); outline-offset: var(--pp-layout-focus-offset); }
+@media print {
+  @page { size: var(--pp-print-page-size); margin: var(--pp-print-page-margin); }
+  body { font-size: var(--pp-type-scale-table); }
+  .page { max-width: none; padding: 0; border-bottom: 0; }
+  .page-footer { display: none; }
+  .print-footer { display: block; position: fixed; bottom: 0; left: 0; right: 0; font-size: var(--pp-print-footer-size); color: var(--pp-color-ink-soft); border-top: var(--pp-layout-rule) solid var(--pp-color-line); padding-top: var(--pp-space-1); background: var(--pp-color-bg); }
+  thead { display: table-header-group; }
+  .table-wrap { overflow-x: visible; }
+  @page landscape { size: A4 landscape; }
+  .landscape { page: landscape; }
+  .placeholder, .stamp { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<section class="page" id="page-1">
+<header class="page-header"><span class="customer-text">f5-fixture-classifier v1.3</span> · T2 · ProofPack v0.1.0.dev1 · run test-onl</header>
+<h1>T2 · PCCP performance-evaluation report</h1>
+<p class="cover-note">Performance-evaluation record prepared for the manufacturer&#39;s own PCCP submission or record. Not a submission. No regulator has accepted, authorised or endorsed this report or the plan it evaluates.</p>
+<p class="stamp" data-mark="incomplete">INCOMPLETE - customer sections outstanding: 10</p>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_LABELING">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a> · section to confirm · eSTAR: to confirm</aside>
+
+<table class="cover-block">
+<caption>Cover block - PCCP identity (section 0)</caption>
+<tbody>
+<tr><th scope="row">Model</th><td class="customer-text">f5-fixture-classifier</td></tr>
+<tr><th scope="row">Version evaluated (new)</th><td class="customer-text">1.3</td></tr>
+<tr><th scope="row">Prior version</th><td class="customer-text">1.2</td></tr>
+<tr><th scope="row">UDI-DI</th><td class="customer-text">not declared</td></tr>
+<tr><th scope="row">Run id</th><td class="mono">test-only-compare</td></tr>
+<tr><th scope="row">Engine version</th><td>0.1.0.dev1</td></tr>
+<tr><th scope="row">Reference platform</th><td>no</td></tr>
+<tr><th scope="row">Dataset SHA-256 (new version)</th><td class="mono">b5a7a9666e0afd3704bff2d4592fa4c82da9b8a22bfd24c47ff770bd0958e993</td></tr>
+<tr><th scope="row">Dataset SHA-256 (prior version)</th><td class="mono">08709dca067e4ea11f0fb13ab98eab53dfb4078b2124695f8a3c295c551705f4</td></tr>
+<tr><th scope="row">Guidance versions referenced</th><td><a href="#FDA_AIDSF_PERF_VALIDATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_AIDSF_SUBGROUP_PERF">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_AIDSF_CALIBRATION">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_AIDSF_MONITORING">FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</a>; <a href="#FDA_PCCP_DESC_MODS">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a>; <a href="#FDA_PCCP_MP1_DATA">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a>; <a href="#FDA_PCCP_MP2_RETRAIN">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a>; <a href="#FDA_PCCP_MP3_PERF_EVAL">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a>; <a href="#FDA_PCCP_MP4_UPDATE">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a>; <a href="#FDA_PCCP_IMPACT">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a>; <a href="#FDA_PCCP_TRACEABILITY">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a>; <a href="#FDA_PCCP_LABELING">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a>; <a href="#FDA_PCCP_PMS_PLANS">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a>; <a href="#PP_SCOPE">ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</a></td></tr>
+<tr><th scope="row">Customer sections outstanding</th><td class="num" data-count="outstanding">10</td></tr>
+</tbody>
+</table>
+<h2 id="t2-s0">0. PCCP identity</h2>
+<div class="placeholder" data-slot="CT-20">[CUSTOMER TEXT REQUIRED - PCCP title and version as authorised or proposed; authorisation number if any; ProofPack does not draft this]</div>
+<footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-25T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final); ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>
+</section>
+<section class="page" id="page-2">
+<header class="page-header"><span class="customer-text">f5-fixture-classifier v1.3</span> · T2 · ProofPack v0.1.0.dev1 · run test-onl</header>
+<h2 id="t2-scope-limits">Scope and limits of this document</h2>
+<aside class="margin-note">maps to <a href="#PP_SCOPE">ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</a> · section n/a · eSTAR: n/a</aside>
+
+<ol class="disclaimer disclaimer-long">
+<li><strong>What ProofPack is.</strong> ProofPack is statistical software that computes performance estimates, confidence intervals, differences and distribution comparisons from a customer-supplied test table and renders them into document templates. It is not a certification, an audit, a regulatory opinion, a clinical evaluation or a submission. No regulator has reviewed, accepted, approved or endorsed this tool or its outputs.</li>
+<li><strong>What is warranted.</strong> Global Phoenix Solutions Ltd warrants the computational correctness of the numbers in this document to the tolerances stated in the Methods Appendix (T7), on the reference platform stated in the Run Manifest (T8). Nothing else is warranted.</li>
+<li><strong>What is the manufacturer&#39;s responsibility.</strong> The manufacturer selected and is responsible for: the data and its provenance; the labels and the reference standard or comparator and their validity; the positive class, score orientation, thresholds and their provenance; the intended-use prevalence; the acceptance criteria, non-inferiority margins, subgroup bounds and fairness criterion of interest (each recorded with author, date and justification in T8); the pre-specification of subgroups; and all text in sections marked &#34;Manufacturer text&#34;.</li>
+<li><strong>Out of scope (never performed by ProofPack).</strong> Study design; sample-size calculation; selection of acceptance criteria, margins or thresholds; adjudication and reference-standard construction (rater columns are never used to construct labels); MRMC or reader studies; clinical-outcome or trial evidence; literature review; valid clinical association; benefit-risk conclusions; risk management; cybersecurity documentation; human factors; explainability; complaints, vigilance and incident trend reporting (MDR Art. 88; GB SI 2024/1368 reg. 44ZN); authorship of the 510(k) Summary (21 CFR 807.92).</li>
+<li><strong>Guidance status.</strong> Every guidance reference in this document names the document, its version or date and whether it is draft or final. Where the reference is to the FDA draft guidance &#34;Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations&#34; (January 2025), it is a draft, not for implementation, and section numbering may change on finalisation. References to the FDA PCCP guidance are to the version issued 4 December 2024 and updated 18 August 2025. References to the FDA &#34;Statistical Guidance on Reporting Results from Studies Evaluating Diagnostic Tests&#34; are to the final guidance of 13 March 2007.</li>
+<li><strong>Narrative.</strong> All prose is machine-drafted from a fixed sentence library bound to computed quantities. It must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Every number in the prose is traceable to a JSON path in the accompanying pack.json.</li>
+<li><strong>Conventions that are ProofPack&#39;s, not a regulator&#39;s.</strong> Low-n tier labels, the 200/200 calibration-curve convention, the choice of Wilson (no continuity correction), and bootstrap settings are ProofPack conventions, stated in T7 with citations. No regulator specifies per-stratum minimum sizes.</li>
+<li><strong>Synthetic or demonstration data.</strong> Where this document is marked &#34;SYNTHETIC - illustrative&#34;, &#34;DEMO&#34; or &#34;TRIAL&#34;, it contains no real evidence and must not be used in any regulatory record.</li>
+</ol>
+<table class="guidance">
+<caption>Guidance versions referenced in this render, labelled from the guidance map; a draft is a draft in the label and in the structured data</caption>
+<thead><tr><th scope="col">Internal id</th><th scope="col">Document, version or date, status</th><th scope="col">Draft</th></tr></thead>
+<tbody>
+<tr id="FDA_AIDSF_PERF_VALIDATION" class="draft"><td class="mono">FDA_AIDSF_PERF_VALIDATION</td><td>FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</td><td>yes</td></tr>
+<tr id="FDA_AIDSF_SUBGROUP_PERF" class="draft"><td class="mono">FDA_AIDSF_SUBGROUP_PERF</td><td>FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</td><td>yes</td></tr>
+<tr id="FDA_AIDSF_CALIBRATION" class="draft"><td class="mono">FDA_AIDSF_CALIBRATION</td><td>FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</td><td>yes</td></tr>
+<tr id="FDA_AIDSF_MONITORING" class="draft"><td class="mono">FDA_AIDSF_MONITORING</td><td>FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation</td><td>yes</td></tr>
+<tr id="FDA_PCCP_DESC_MODS"><td class="mono">FDA_PCCP_DESC_MODS</td><td>FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</td><td>no</td></tr>
+<tr id="FDA_PCCP_MP1_DATA"><td class="mono">FDA_PCCP_MP1_DATA</td><td>FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</td><td>no</td></tr>
+<tr id="FDA_PCCP_MP2_RETRAIN"><td class="mono">FDA_PCCP_MP2_RETRAIN</td><td>FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</td><td>no</td></tr>
+<tr id="FDA_PCCP_MP3_PERF_EVAL"><td class="mono">FDA_PCCP_MP3_PERF_EVAL</td><td>FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</td><td>no</td></tr>
+<tr id="FDA_PCCP_MP4_UPDATE"><td class="mono">FDA_PCCP_MP4_UPDATE</td><td>FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</td><td>no</td></tr>
+<tr id="FDA_PCCP_IMPACT"><td class="mono">FDA_PCCP_IMPACT</td><td>FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</td><td>no</td></tr>
+<tr id="FDA_PCCP_TRACEABILITY"><td class="mono">FDA_PCCP_TRACEABILITY</td><td>FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</td><td>no</td></tr>
+<tr id="FDA_PCCP_LABELING"><td class="mono">FDA_PCCP_LABELING</td><td>FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</td><td>no</td></tr>
+<tr id="FDA_PCCP_PMS_PLANS"><td class="mono">FDA_PCCP_PMS_PLANS</td><td>FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</td><td>no</td></tr>
+<tr id="PP_SCOPE"><td class="mono">PP_SCOPE</td><td>ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal)</td><td>no</td></tr>
+</tbody>
+</table>
+<footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-25T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final); ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>
+</section>
+<section class="page" id="page-3">
+<header class="page-header"><span class="customer-text">f5-fixture-classifier v1.3</span> · T2 · ProofPack v0.1.0.dev1 · run test-onl</header>
+<h2 id="t2-s1">1. Description of modifications</h2>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_DESC_MODS">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a> · section to confirm · eSTAR: to confirm</aside>
+
+<div class="placeholder" data-slot="CT-21">[CUSTOMER TEXT REQUIRED - list of modifications: id, description, rationale, automatic or manual, and the criteria each is verified by; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="none">Table T2-1 - No modification list (CT-21) is read in this build, so Table T2-1 lists no modification; the criteria evaluated for this comparison are Table T2-2, and Table T2-6 carries their traceability rows.</div>
+<h2 id="t2-s2">2. Modification protocol (1) - data management</h2>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_MP1_DATA">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a> · section to confirm · eSTAR: to confirm</aside>
+
+<div class="placeholder" data-slot="CT-22">[CUSTOMER TEXT REQUIRED - reference-standard process for the evaluation set; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-23">[CUSTOMER TEXT REQUIRED - sequestration statement for the evaluation set; ProofPack does not draft this]</div>
+<div class="table-wrap">
+<table class="flow">
+<caption>Table T2-flow - flow of rows of each version's table (D4 section 5.10); the comparison pairs the analysed rows on row_id</caption>
+<thead><tr><th scope="col">Count</th><th scope="col" class="num">New version</th><th scope="col" class="num">Prior version</th></tr></thead>
+<tbody>
+<tr><th scope="row">Rows read</th><td class="num">100</td><td class="num">100</td></tr>
+<tr><th scope="row">Excluded: missing label</th><td class="num">0</td><td class="num">0</td></tr>
+<tr><th scope="row">Excluded: missing score</th><td class="num">0</td><td class="num">0</td></tr>
+<tr><th scope="row">Indeterminate</th><td class="num">0</td><td class="num">0</td></tr>
+<tr><th scope="row">Analysed</th><td class="num">100</td><td class="num">100</td></tr>
+<tr><th scope="row">Cases (clusters)</th><td class="num">100</td><td class="num">100</td></tr>
+<tr><th scope="row">Sites</th><td class="num">—</td><td class="num">—</td></tr>
+<tr><th scope="row">Clustered path used</th><td class="num">no</td><td class="num">no</td></tr>
+<tr><th scope="row">Pairs (row_id join)</th><td class="num" data-count="n_pairs" colspan="2">100</td></tr>
+<tr><th scope="row">Rows in one version only, or with differing labels</th><td class="num" data-count="excluded" colspan="2">0</td></tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrap">
+<table class="table1">
+<caption>Table T2-1b - Table 1 of the evaluation set (the new version's table; D4 section 5.4)</caption>
+<thead><tr><th scope="col">Attribute</th><th scope="col">Level</th><th scope="col" class="num">Test n (%)</th></tr></thead>
+<tbody>
+<tr><td class="customer-text">sex</td><td class="customer-text">F</td><td class="num">50 (50.0)</td></tr>
+<tr><td class="customer-text"></td><td class="customer-text">M</td><td class="num">50 (50.0)</td></tr>
+<tr><td class="customer-text"></td><td class="customer-text">Unknown/missing</td><td class="num">0 (—)</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="t2-s3">3. Modification protocol (2) - re-training practices</h2>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_MP2_RETRAIN">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a> · section to confirm · eSTAR: to confirm</aside>
+
+<div class="placeholder" data-slot="CT-24">[CUSTOMER TEXT REQUIRED - re-training method; ProofPack does not draft this]</div>
+<table class="versions">
+<caption>Version fields, echoed from criteria.yaml (the engine describes no training)</caption>
+<tbody>
+<tr><th scope="row">Model</th><td class="customer-text">f5-fixture-classifier</td></tr>
+<tr><th scope="row">Version evaluated (new)</th><td class="customer-text">1.3</td></tr>
+<tr><th scope="row">Prior version</th><td class="customer-text">1.2</td></tr>
+<tr><th scope="row">UDI-DI</th><td class="customer-text">not declared</td></tr>
+</tbody>
+</table>
+<footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-25T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final); ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>
+</section>
+<section class="page" id="page-4">
+<header class="page-header"><span class="customer-text">f5-fixture-classifier v1.3</span> · T2 · ProofPack v0.1.0.dev1 · run test-onl</header>
+<h2 id="t2-s4">4. Modification protocol (3) - performance evaluation</h2>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_MP3_PERF_EVAL">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a> · section to confirm · eSTAR: to confirm</aside>
+
+<div class="placeholder" data-slot="CT-25">[CUSTOMER TEXT REQUIRED - study design summary; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-26">[CUSTOMER TEXT REQUIRED - the manufacturer&#39;s own definition of performance that would halt the update; ProofPack does not draft this]</div>
+<h3 id="t2-s4-1">4.1 Acceptance criteria as declared (Table T2-2)</h3>
+<div class="table-wrap">
+<table class="criteria">
+<caption>One row per evaluated criterion, in the order the engine evaluated them (a criterion with <code>level: *</code> yields one row per level; rows are addressed by position, never by id, and each row's author, date and justification are those of the <code>criteria.yaml</code> entry it was evaluated from). Observed values print by the metric's rule of D4 section 1.2; the declared value prints with every digit run.json carries, unrounded; the compared statistic and the largest attainable lower bound, which the engine computed, print on the unit scale to three decimals. Status words are the engine's three and nothing else. The Type column is the declaration entry's <code>type</code>: a paired difference vs prior version is a margin on the new-minus-prior difference, evaluated by <code>proofpack compare</code>, never a bound on the scope's own statistic.</caption>
+<thead><tr><th scope="col">#</th><th scope="col">Id</th><th scope="col">Metric</th><th scope="col">Type</th><th scope="col">Scope</th><th scope="col">Op.</th><th scope="col">Statistic</th><th scope="col">Comp.</th><th scope="col" class="num">Value</th><th scope="col">Author · date</th><th scope="col">Observed (95% CI)</th><th scope="col" class="num">n</th><th scope="col">Method</th><th scope="col" class="num">Compared</th><th scope="col">Status</th><th scope="col">Reason code</th><th scope="col">Attainable at n</th><th scope="col" class="num">Max LB at n</th><th scope="col">Detail</th></tr></thead>
+<tbody>
+<tr class="criterion-row" data-position="1">
+<td class="num">1</td>
+<td class="customer-text mono">C1</td>
+<td>sensitivity</td>
+<td class="criterion-type">point</td>
+<td class="customer-text">overall</td>
+<td class="customer-text">op1</td>
+<td>ci lower bound</td>
+<td>&gt;=</td>
+<td class="num">0.7</td>
+<td class="customer-text">F5 fixture author · 2026-09-25</td>
+<td class="num observed">41/50 (82.0%) [69.2, 90.2]ᶜ</td>
+<td class="num">50</td>
+<td class="mono">wilson</td>
+<td class="num">0.692</td>
+<td class="status">criterion not met</td>
+<td class="mono">statistic_compared</td>
+<td>yes</td>
+<td class="num">0.929</td>
+<td class="mono"></td>
+</tr>
+<tr class="justification-row"><td colspan="19"><div class="customer-text"><span class="label">Manufacturer text - justification</span>a point criterion beside the paired one, so T2-2 prints both types</div></td></tr>
+<tr class="criterion-row" data-position="2">
+<td class="num">2</td>
+<td class="customer-text mono">C2</td>
+<td>accuracy</td>
+<td class="criterion-type">paired difference vs prior version</td>
+<td class="customer-text">overall</td>
+<td class="customer-text">op1</td>
+<td>ci lower bound</td>
+<td>&gt;=</td>
+<td class="num">−0.05</td>
+<td class="customer-text">F5 fixture author · 2026-09-25</td>
+<td class="num observed">−8.0 [−15.5, −1.0]</td>
+<td class="num">100</td>
+<td class="mono">newcombe_paired</td>
+<td class="num">−0.155</td>
+<td class="status">criterion not met</td>
+<td class="mono">statistic_compared</td>
+<td>—</td>
+<td class="num">—</td>
+<td class="mono">attainability_not_computed: method_not_wilson</td>
+</tr>
+<tr class="justification-row"><td colspan="19"><div class="customer-text"><span class="label">Manufacturer text - justification</span>the brief&#39;s acceptance test: the F5 accuracy difference of -0.08 against a margin of -0.05 is not met</div></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="t2-s4-2">4.2 Paired comparison, new version against prior (Table T2-3)</h3>
+<div class="table-wrap">
+<table class="comparison">
+<caption>Table T2-3 - n pairs = 100 (row_id join); unpaired rows excluded: 0. Δ is new − prior; proportions in percentage points, AUROC, Brier and slope on their own scale; the interval method of each Δ is in its Method column</caption>
+<thead><tr><th scope="col">Metric (operating point)</th><th scope="col" class="num">Prior version k/n (%) [95% CI]</th><th scope="col" class="num">New version k/n (%) [95% CI]</th><th scope="col" class="num">Δ new − prior [95% CI]</th><th scope="col">Method</th><th scope="col" class="num">Discordant b / c</th><th scope="col" class="num">McNemar p (method)</th><th scope="col" class="num">Margin (criterion id)</th><th scope="col">Status</th></tr></thead>
+<tbody>
+<tr data-metric="sensitivity" data-op="op1"><th scope="row">Sensitivity (<span class="customer-text inline">op1</span>)</th><td class="num" data-ref="/comparison/prior/overall/op1/sensitivity" data-kind="proportion" data-facet="cell">45/50 (90.0%) [78.6, 95.7]</td><td class="num" data-ref="/overall/op1/sensitivity" data-kind="proportion" data-facet="cell">41/50 (82.0%) [69.2, 90.2]ᶜ</td><td class="num" data-ref="/comparison/differences/op1/sensitivity/number" data-kind="difference_pp" data-facet="cell">−8.0 [−19.4, +2.6]</td><td class="mono" data-ref="/comparison/differences/op1/sensitivity/number" data-facet="method">newcombe_paired</td><td class="num">— / —</td><td class="num">— (—)</td><td class="num">—</td><td class="status-absent">—</td></tr>
+<tr data-metric="specificity" data-op="op1"><th scope="row">Specificity (<span class="customer-text inline">op1</span>)</th><td class="num" data-ref="/comparison/prior/overall/op1/specificity" data-kind="proportion" data-facet="cell">45/50 (90.0%) [78.6, 95.7]</td><td class="num" data-ref="/overall/op1/specificity" data-kind="proportion" data-facet="cell">41/50 (82.0%) [69.2, 90.2]ᶜ</td><td class="num" data-ref="/comparison/differences/op1/specificity/number" data-kind="difference_pp" data-facet="cell">−8.0 [−19.4, +2.6]</td><td class="mono" data-ref="/comparison/differences/op1/specificity/number" data-facet="method">newcombe_paired</td><td class="num">— / —</td><td class="num">— (—)</td><td class="num">—</td><td class="status-absent">—</td></tr>
+<tr data-metric="accuracy" data-op="op1"><th scope="row">Accuracy (<span class="customer-text inline">op1</span>)</th><td class="num" data-ref="/comparison/prior/overall/op1/accuracy" data-kind="proportion" data-facet="cell">90/100 (90.0%) [82.6, 94.5]</td><td class="num" data-ref="/overall/op1/accuracy" data-kind="proportion" data-facet="cell">82/100 (82.0%) [73.3, 88.3]</td><td class="num" data-ref="/comparison/differences/op1/accuracy/number" data-kind="difference_pp" data-facet="cell">−8.0 [−15.5, −1.0]</td><td class="mono" data-ref="/comparison/differences/op1/accuracy/number" data-facet="method">newcombe_paired</td><td class="num">10 / 2</td><td class="num">0.039 (exact)</td><td class="num"><span class="customer-text inline">C2</span> (row 2): ci lower bound &gt;= <span class="customer-text inline">−0.05</span></td><td class="status">criterion not met - <span class="status record">record of criterion not met (PCCP §VII.B(3) requires recording)</span></td></tr>
+<tr data-metric="auroc"><th scope="row">AUROC</th><td class="num" data-ref="/comparison/prior/overall/threshold_free/auroc" data-kind="three_dp" data-facet="cell">0.907 [0.821, 0.954]</td><td class="num" data-ref="/overall/threshold_free/auroc" data-kind="three_dp" data-facet="cell">0.830 [0.745, 0.914]</td><td class="num" data-ref="/comparison/differences/auroc/number" data-kind="difference_3dp" data-facet="cell">−0.078 [−0.158, +0.003]</td><td class="mono" data-ref="/comparison/differences/auroc/number" data-facet="method">delong_wald</td><td class="num">— / —</td><td class="num">— (—)</td><td class="num">—</td><td class="status-absent">—</td></tr>
+<tr data-metric="brier"><th scope="row">Brier score</th><td class="num" data-ref="/comparison/prior/calibration/brier/number" data-kind="three_dp" data-facet="cell">0.124 [0.096, 0.151]</td><td class="num" data-ref="/calibration/brier/number" data-kind="three_dp" data-facet="cell">0.163 [0.126, 0.202]</td><td class="num" data-ref="/comparison/differences/brier/number" data-kind="difference_3dp" data-facet="cell">+0.039 [+0.005, +0.084]</td><td class="mono" data-ref="/comparison/differences/brier/number" data-facet="method">bootstrap_percentile</td><td class="num">— / —</td><td class="num">— (—)</td><td class="num">—</td><td class="status-absent">—</td></tr>
+<tr data-metric="calibration_slope"><th scope="row">Calibration slope</th><td class="num" data-ref="/comparison/prior/calibration/slope/number" data-kind="three_dp" data-facet="cell">1.716 [1.087, 2.345]</td><td class="num" data-ref="/calibration/slope/number" data-kind="three_dp" data-facet="cell">1.070 [0.643, 1.497]</td><td class="num" data-ref="/comparison/differences/slope/number" data-kind="difference_3dp" data-facet="cell">−0.646 [−1.595, +0.084]</td><td class="mono" data-ref="/comparison/differences/slope/number" data-facet="method">bootstrap_percentile</td><td class="num">— / —</td><td class="num">— (—)</td><td class="num">—</td><td class="status-absent">—</td></tr>
+</tbody>
+</table>
+</div>
+<p class="comparison-facts">Clustering route: <span class="mono">none</span>; bootstrap B 200, seed 20240101, percentile interval (the paired bootstrap differences and any cluster-bootstrap difference).</p>
+<div class="narrative">
+<p class="claim" data-claim="CL-0026">Sensitivity changed by −8.0 percentage points [−19.4, +2.6] from version <span class="customer-text inline">1.2</span> to <span class="customer-text inline">1.3</span> on 100 paired cases (Newcombe paired).</p>
+<p class="claim" data-claim="CL-0027">Specificity changed by −8.0 percentage points [−19.4, +2.6] from version <span class="customer-text inline">1.2</span> to <span class="customer-text inline">1.3</span> on 100 paired cases (Newcombe paired).</p>
+<p class="claim" data-claim="CL-0028">Accuracy changed by −8.0 percentage points [−15.5, −1.0] from version <span class="customer-text inline">1.2</span> to <span class="customer-text inline">1.3</span> on 100 paired cases (Newcombe paired).</p>
+<p class="claim" data-claim="CL-0029">AUROC changed by −0.078 [−0.158, +0.003] from version <span class="customer-text inline">1.2</span> to <span class="customer-text inline">1.3</span> on 100 paired cases (DeLong, Wald interval).</p>
+<p class="claim" data-claim="CL-0030">Brier score changed by +0.039 [+0.005, +0.084] from version <span class="customer-text inline">1.2</span> to <span class="customer-text inline">1.3</span> on 100 paired cases (bootstrap, percentile interval).</p>
+<p class="claim" data-claim="CL-0031">Calibration slope changed by −0.646 [−1.595, +0.084] from version <span class="customer-text inline">1.2</span> to <span class="customer-text inline">1.3</span> on 100 paired cases (bootstrap, percentile interval).</p>
+<p class="claim" data-claim="CL-0032">10 cases were correct under the prior version only and 2 under the new version only (McNemar exact, p = 0.039).</p>
+<p class="narrative-footer">Machine-drafted; requires review by the manufacturer&#39;s statistician and regulatory lead.</p>
+</div>
+
+<h3 id="t2-s4-3">4.3 Per-subgroup paired comparison (Table T2-4)</h3>
+<div class="table-wrap">
+<table class="subgroup-comparison">
+<caption>Table T2-4 - paired differences (new − prior, percentage points; AUROC on its own scale) per subgroup level, on the pairs in that level of the new version's table; the criterion column prints each paired_difference_vs_prior criterion scoped on the level with its status. Attainability of a paired margin at n is not computed in this build (dash)</caption>
+<thead><tr><th scope="col">Attribute</th><th scope="col">Level</th><th scope="col" class="num">n pairs</th><th scope="col" class="num">Δ Sensitivity (<span class="customer-text inline">op1</span>)</th><th scope="col" class="num">Δ Specificity (<span class="customer-text inline">op1</span>)</th><th scope="col" class="num">Δ AUROC</th><th scope="col">Criterion (id) and status; attainable at n</th></tr></thead>
+<tbody>
+<tr><td class="customer-text">sex</td><td class="customer-text">F</td><td class="num" data-count="n_pairs">50</td><td class="num" data-ref="/comparison/subgroups/0/differences/op1/sensitivity/number" data-kind="difference_pp" data-facet="cell">−8.3 [−25.5, +7.2]</td><td class="num" data-ref="/comparison/subgroups/0/differences/op1/specificity/number" data-kind="difference_pp" data-facet="cell">−7.7 [−25.7, +10.0]</td><td class="num" data-ref="/comparison/subgroups/0/differences/auroc/number" data-kind="difference_3dp" data-facet="cell">−0.099 [−0.210, +0.011]</td><td>—</td></tr>
+<tr><td class="customer-text">sex</td><td class="customer-text">M</td><td class="num" data-count="n_pairs">50</td><td class="num" data-ref="/comparison/subgroups/1/differences/op1/sensitivity/number" data-kind="difference_pp" data-facet="cell">−7.7 [−25.7, +10.0]</td><td class="num" data-ref="/comparison/subgroups/1/differences/op1/specificity/number" data-kind="difference_pp" data-facet="cell">−8.3 [−25.5, +7.2]</td><td class="num" data-ref="/comparison/subgroups/1/differences/auroc/number" data-kind="difference_3dp" data-facet="cell">−0.053 [−0.172, +0.067]</td><td>—</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="t2-s4-4">4.4 Calibration comparison</h3>
+<p>The Brier-score and calibration-slope rows of Table T2-3 are the paired bootstrap differences (new − prior) on the same pairs; a score that is not a declared probability carries the typed reason instead of an interval.</p>
+<h3 id="t2-s4-5">4.5 Threshold-free comparison</h3>
+<p>The AUROC row of Table T2-3 is the paired DeLong difference on independent rows, or the cluster-bootstrap difference with the DeLong refusal recorded beside it on a clustered plan.</p>
+<h3 id="t2-s4-6">4.6 Pairing</h3>
+<p>The two versions were evaluated on the same rows: 100 pairs joined on row_id.</p>
+<h3 id="t2-s4-7">4.7 Statement per criterion</h3>
+<div class="narrative">
+<p class="claim" data-claim="CL-0036">Criterion <span class="customer-text inline">C1</span> (sensitivity, <span class="customer-text inline">overall, op1</span>, CI lower bound &gt;= <span class="customer-text inline">0.7</span>; <span class="customer-text inline">F5 fixture author</span>, <span class="customer-text inline">2026-09-25</span>): observed 82.0%ᶜ [69.2, 90.2] - <span class="status">criterion not met</span>.</p>
+<p class="claim" data-claim="CL-0037"><span class="status">Record of criterion not met</span>: <span class="customer-text inline">C1</span>, <span class="customer-text inline">overall, op1</span>, observed 82.0%ᶜ [69.2, 90.2] against &gt;= <span class="customer-text inline">0.7</span>.</p>
+<p class="claim" data-claim="CL-0038">Criterion <span class="customer-text inline">C2</span> (accuracy difference against the prior version, <span class="customer-text inline">overall, op1</span>, CI lower bound &gt;= <span class="customer-text inline">−0.05</span>; <span class="customer-text inline">F5 fixture author</span>, <span class="customer-text inline">2026-09-25</span>): observed −8.0 [−15.5, −1.0] - <span class="status">criterion not met</span>.</p>
+<p class="claim" data-claim="CL-0039"><span class="status">Record of criterion not met</span>: <span class="customer-text inline">C2</span>, <span class="customer-text inline">overall, op1</span>, observed −8.0 [−15.5, −1.0] against &gt;= <span class="customer-text inline">−0.05</span>.</p>
+<p class="narrative-footer">Machine-drafted; requires review by the manufacturer&#39;s statistician and regulatory lead.</p>
+</div>
+
+<footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-25T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final); ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>
+</section>
+<section class="page" id="page-5">
+<header class="page-header"><span class="customer-text">f5-fixture-classifier v1.3</span> · T2 · ProofPack v0.1.0.dev1 · run test-onl</header>
+<h2 id="t2-s5">5. Modification protocol (4) - update procedures</h2>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_MP4_UPDATE">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a> · section to confirm · eSTAR: to confirm</aside>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_PMS_PLANS">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a> · section to confirm · eSTAR: to confirm</aside>
+
+<div class="placeholder" data-slot="CT-27">[CUSTOMER TEXT REQUIRED - update frequency, versioning, user communication and roll-back; ProofPack does not draft this]</div>
+<p>Version stamp: this report evaluates version <span class="customer-text inline">1.3</span> against prior version <span class="customer-text inline">1.2</span>.</p>
+<div class="narrative">
+<p class="claim" data-claim="CL-0035">Post-market performance monitoring analyses are produced separately (T3) and are not part of this attachment set.</p>
+<p class="narrative-footer">Machine-drafted; requires review by the manufacturer&#39;s statistician and regulatory lead.</p>
+</div>
+
+<h2 id="t2-s6">6. Impact assessment inputs</h2>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_IMPACT">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a> · section to confirm · eSTAR: to confirm</aside>
+
+<div class="placeholder" data-slot="CT-28">[CUSTOMER TEXT REQUIRED - benefit-risk discussion; ProofPack does not draft this]</div>
+<div class="placeholder" data-slot="CT-29">[CUSTOMER TEXT REQUIRED - interaction between modifications; ProofPack does not draft this]</div>
+<div class="table-wrap">
+<table class="impact">
+<caption>Table T2-5 - quantitative deltas: inputs to the manufacturer&#39;s impact assessment; no benefit-risk conclusion is drawn</caption>
+<thead><tr><th scope="col">Metric</th><th scope="col">Scope</th><th scope="col" class="num">Prior [95% CI]</th><th scope="col" class="num">New [95% CI]</th><th scope="col" class="num">Δ [95% CI]</th></tr></thead>
+<tbody>
+<tr><th scope="row">Sensitivity</th><td class="customer-text">overall, op1</td><td class="num" data-ref="/comparison/prior/overall/op1/sensitivity" data-kind="proportion" data-facet="cell">45/50 (90.0%) [78.6, 95.7]</td><td class="num" data-ref="/overall/op1/sensitivity" data-kind="proportion" data-facet="cell">41/50 (82.0%) [69.2, 90.2]ᶜ</td><td class="num" data-ref="/comparison/differences/op1/sensitivity/number" data-kind="difference_pp" data-facet="cell">−8.0 [−19.4, +2.6]</td></tr>
+<tr><th scope="row">Specificity</th><td class="customer-text">overall, op1</td><td class="num" data-ref="/comparison/prior/overall/op1/specificity" data-kind="proportion" data-facet="cell">45/50 (90.0%) [78.6, 95.7]</td><td class="num" data-ref="/overall/op1/specificity" data-kind="proportion" data-facet="cell">41/50 (82.0%) [69.2, 90.2]ᶜ</td><td class="num" data-ref="/comparison/differences/op1/specificity/number" data-kind="difference_pp" data-facet="cell">−8.0 [−19.4, +2.6]</td></tr>
+<tr><th scope="row">Accuracy</th><td class="customer-text">overall, op1</td><td class="num" data-ref="/comparison/prior/overall/op1/accuracy" data-kind="proportion" data-facet="cell">90/100 (90.0%) [82.6, 94.5]</td><td class="num" data-ref="/overall/op1/accuracy" data-kind="proportion" data-facet="cell">82/100 (82.0%) [73.3, 88.3]</td><td class="num" data-ref="/comparison/differences/op1/accuracy/number" data-kind="difference_pp" data-facet="cell">−8.0 [−15.5, −1.0]</td></tr>
+<tr><th scope="row">AUROC</th><td class="customer-text">overall</td><td class="num" data-ref="/comparison/prior/overall/threshold_free/auroc" data-kind="three_dp" data-facet="cell">0.907 [0.821, 0.954]</td><td class="num" data-ref="/overall/threshold_free/auroc" data-kind="three_dp" data-facet="cell">0.830 [0.745, 0.914]</td><td class="num" data-ref="/comparison/differences/auroc/number" data-kind="difference_3dp" data-facet="cell">−0.078 [−0.158, +0.003]</td></tr>
+<tr><th scope="row">Brier score</th><td class="customer-text">overall</td><td class="num" data-ref="/comparison/prior/calibration/brier/number" data-kind="three_dp" data-facet="cell">0.124 [0.096, 0.151]</td><td class="num" data-ref="/calibration/brier/number" data-kind="three_dp" data-facet="cell">0.163 [0.126, 0.202]</td><td class="num" data-ref="/comparison/differences/brier/number" data-kind="difference_3dp" data-facet="cell">+0.039 [+0.005, +0.084]</td></tr>
+<tr><th scope="row">Calibration slope</th><td class="customer-text">overall</td><td class="num" data-ref="/comparison/prior/calibration/slope/number" data-kind="three_dp" data-facet="cell">1.716 [1.087, 2.345]</td><td class="num" data-ref="/calibration/slope/number" data-kind="three_dp" data-facet="cell">1.070 [0.643, 1.497]</td><td class="num" data-ref="/comparison/differences/slope/number" data-kind="difference_3dp" data-facet="cell">−0.646 [−1.595, +0.084]</td></tr>
+<tr><th scope="row">Sensitivity</th><td class="customer-text">sex = F, op1</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="/comparison/subgroups/0/differences/op1/sensitivity/number" data-kind="difference_pp" data-facet="cell">−8.3 [−25.5, +7.2]</td></tr>
+<tr><th scope="row">Specificity</th><td class="customer-text">sex = F, op1</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="/comparison/subgroups/0/differences/op1/specificity/number" data-kind="difference_pp" data-facet="cell">−7.7 [−25.7, +10.0]</td></tr>
+<tr><th scope="row">AUROC</th><td class="customer-text">sex = F</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="/comparison/subgroups/0/differences/auroc/number" data-kind="difference_3dp" data-facet="cell">−0.099 [−0.210, +0.011]</td></tr>
+<tr><th scope="row">Sensitivity</th><td class="customer-text">sex = M, op1</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="/comparison/subgroups/1/differences/op1/sensitivity/number" data-kind="difference_pp" data-facet="cell">−7.7 [−25.7, +10.0]</td></tr>
+<tr><th scope="row">Specificity</th><td class="customer-text">sex = M, op1</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="/comparison/subgroups/1/differences/op1/specificity/number" data-kind="difference_pp" data-facet="cell">−8.3 [−25.5, +7.2]</td></tr>
+<tr><th scope="row">AUROC</th><td class="customer-text">sex = M</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="" data-kind="" data-facet="cell">—</td><td class="num" data-ref="/comparison/subgroups/1/differences/auroc/number" data-kind="difference_3dp" data-facet="cell">−0.053 [−0.172, +0.067]</td></tr>
+</tbody>
+</table>
+</div>
+<div class="narrative">
+<p class="claim" data-claim="CL-0034">The quantitative differences above are inputs to the manufacturer&#39;s impact assessment; no benefit-risk conclusion is drawn here.</p>
+<p class="narrative-footer">Machine-drafted; requires review by the manufacturer&#39;s statistician and regulatory lead.</p>
+</div>
+
+<h2 id="t2-s7">7. Test-set ledger</h2>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_MP1_DATA">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a> · section to confirm · eSTAR: to confirm</aside>
+
+<p>This test set (SHA-256 <span class="mono">6d4d3d3ca553</span>) has been used in <span data-count="prior_acceptance_runs">0</span> prior version comparisons recorded in the local ledger; the manufacturer's declared limit is <span class="customer-text inline">3</span>.</p>
+<div class="narrative">
+<p class="claim" data-claim="CL-0033">This test set has been used in 0 prior version comparisons recorded in the local ledger; the manufacturer&#39;s declared limit is 3.</p>
+<p class="narrative-footer">Machine-drafted; requires review by the manufacturer&#39;s statistician and regulatory lead.</p>
+</div>
+
+<h2 id="t2-s8">8. Traceability skeleton</h2>
+<aside class="margin-note">maps to <a href="#FDA_PCCP_TRACEABILITY">FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final)</a> · section to confirm · eSTAR: to confirm</aside>
+
+<div class="table-wrap">
+<table class="traceability">
+<caption>Table T2-6 - one row per evaluated criterion, by position; the modification id and the monitoring metric ids are the manufacturer's (CT-21, T3) and are not read in this build</caption>
+<thead><tr><th scope="col">#</th><th scope="col">Modification id</th><th scope="col">MP section(s)</th><th scope="col">Criterion id</th><th scope="col">Status</th><th scope="col">Impact-assessment slot</th><th scope="col">T3 monitoring metric ids</th></tr></thead>
+<tbody>
+<tr><td class="num">1</td><td>—</td><td>4.1 (criteria echo)</td><td class="customer-text mono">C1</td><td class="status">criterion not met</td><td>CT-28; Table T2-5</td><td>—</td></tr>
+<tr><td class="num">2</td><td>—</td><td>4.2 (paired comparison)</td><td class="customer-text mono">C2</td><td class="status">criterion not met</td><td>CT-28; Table T2-5</td><td>—</td></tr>
+</tbody>
+</table>
+</div>
+<footer class="page-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-25T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final); ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></footer>
+</section>
+<div class="print-footer"><p class="disclaimer disclaimer-short">Statistical output generated by ProofPack v0.1.0.dev1 on 2026-09-25T00:00:00Z from customer-supplied data and customer-declared criteria (author/date in Run Manifest). ProofPack does not verify data provenance, labelling accuracy, reference-standard validity, sampling or study design, and does not select acceptance criteria, thresholds or margins. Narrative sections are machine-drafted and must be reviewed by the manufacturer&#39;s qualified statistician and regulatory lead before use. Guidance references: FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488): draft guidance (January 2025), not for implementation; FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions (2024-12-04, updated 2025-08-18, final); ProofPack internal: scope and limits block (D4 section 7.2) (engine version, internal). This output is not a regulatory opinion; no regulator has endorsed this tool.</p></div>
+</body>
+</html>
