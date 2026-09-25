@@ -1429,14 +1429,17 @@ MUTANTS_DAY7: tuple[Mutant, ...] = (
         # manifest takes the licence's own (null) watermark on a refused licence
         r"watermark = watermark_for\(licence\)",
         "watermark = licence.watermark",
+        count=2,  # E10: assemble_run and assemble_compare each apply the rule
         day=7,
         what="a refused licence leaves the watermark null",
     ),
     Mutant(
         "licence_exit_code_ok",
         RUN,
-        r"if not self\.licence\.usable:\n            return EXIT_LICENCE",
-        "if not self.licence.usable:\n            return EXIT_OK",
+        # E10: the compare feature joined the condition
+        r"if not self\.licence\.usable or not self\.compare_licensed:\n"
+        r"            return EXIT_LICENCE",
+        "if not self.licence.usable or not self.compare_licensed:\n            return EXIT_OK",
         day=7,
         what="an unusable licence exits 0",
     ),
@@ -2021,7 +2024,8 @@ MUTANTS_DAY8: tuple[Mutant, ...] = (
     Mutant(
         "checker_count_template_scope_unchecked",
         CHECKER,
-        r"    if template_id in SCALAR_SLOTS and any\(",
+        # E10: the rule is scoped to the run-level count templates
+        r"    if template_id in RUN_LEVEL_COUNT_TEMPLATES and any\(",
         "    if False and any(",
         day=8,
         what="FLOW_COUNTS carrying sensitivity, op1 and sex = F is accepted (FA-B1)",
@@ -2689,6 +2693,7 @@ AP2_MUTANTS: tuple[Mutant, ...] = (
         CLI,
         r"    return outcome\.exit_code\n",
         "    return EXIT_WARNINGS if sent is not None and not sent.sent else outcome.exit_code\n",
+        count=2,  # E10: cmd_run and cmd_compare both end this way
         what="a failed send turns the run's exit code into 2",
         day=8,
         marker="ap2",
