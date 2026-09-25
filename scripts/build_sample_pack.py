@@ -25,6 +25,13 @@ What it does, and what it cannot be made to do:
   ``run_id``, ``started`` and ``duration_s`` (``tests/test_sample_pack.py``).
 
 Output: ``<out>/run.json``, ``<out>/T1.html``, ``<out>/T7.html``, ``<out>/T8.html``.
+
+``--compare`` (build day 10, E10) also writes ``<out>/compare.json`` and ``<out>/T2.html``:
+the same cohort compared against a synthetic prior version whose scores are
+:func:`proofpack.synthetic.perturb_scores` of the new version's (the recipe is recorded
+there and in the E10 note), through :func:`proofpack.run.assemble_compare` under the same
+empty home; T2 is a pure function of the ``compare.json`` beside it and carries the same
+two marks. The sample declares no criterion, so T2-3 prints no margin and no status.
 """
 
 from __future__ import annotations
@@ -43,6 +50,7 @@ SEED = 20240101
 N_ROWS = 400
 MAPPING_TIMESTAMP = "2026-09-24T00:00:00Z"
 FILES = ("run.json", "T1.html", "T7.html", "T8.html")
+COMPARE_FILES = ("compare.json", "T2.html")
 SAMPLE_CRITERIA: dict[str, Any] = {
     "schema_version": 1,
     "model": {
@@ -116,12 +124,36 @@ def _write_inputs(work: Path) -> tuple[Path, Path]:
     return table, criteria
 
 
-def build(out: str | Path) -> list[Path]:
-    """Write the four files into ``out`` and return their paths."""
+def _write_prior(work: Path, table: Path) -> Path:
+    """The synthetic prior version's table beside the new one: the same rows with the
+    score column replaced by :func:`proofpack.synthetic.perturb_scores`."""
+    import csv
+
+    from proofpack.synthetic import perturb_scores
+
+    with table.open(encoding="utf-8", newline="") as fh:
+        rows = list(csv.reader(fh))
+    header, body = rows[0], rows[1:]
+    i = header.index("score")
+    prior_scores = perturb_scores([float(r[i]) for r in body], SEED)
+    prior = work / "synthetic_prior.csv"
+    with prior.open("w", encoding="utf-8", newline="") as fh:
+        w = csv.writer(fh, lineterminator="\n")
+        w.writerow(header)
+        for r, p in zip(body, prior_scores, strict=True):
+            r = list(r)
+            r[i] = f"{p:.6f}"
+            w.writerow(r)
+    return prior
+
+
+def build(out: str | Path, *, compare: bool = False) -> list[Path]:
+    """Write the four files into ``out`` (six with ``compare``) and return their paths."""
     from proofpack.render.html import render_t8
     from proofpack.render.t1 import render_t1
+    from proofpack.render.t2 import render_t2
     from proofpack.render.t7 import render_t7
-    from proofpack.run import assemble_run, write_run
+    from proofpack.run import assemble_compare, assemble_run, write_run
     from proofpack.scope import SYNTHETIC_MARK
 
     out_dir = Path(out)
@@ -137,6 +169,14 @@ def build(out: str | Path) -> list[Path]:
             table, criteria = _write_inputs(work)
             outcome = assemble_run(table, criteria, ledger_home=home, data_marking=SYNTHETIC_MARK)
             write_run(outcome, work / "run")
+            compare_data = None
+            if compare:
+                prior = _write_prior(work, table)
+                cmp = assemble_compare(
+                    table, prior, criteria, ledger_home=home, data_marking=SYNTHETIC_MARK
+                )
+                write_run(cmp, work / "compare")
+                compare_data = (work / "compare" / "run.json").read_bytes()
         finally:
             for k, v in saved.items():
                 if v is None:
@@ -151,6 +191,12 @@ def build(out: str | Path) -> list[Path]:
         target = out_dir / name
         target.write_bytes(render(document).encode("utf-8"))
         written.append(target)
+    if compare_data is not None:
+        (out_dir / "compare.json").write_bytes(compare_data)
+        written.append(out_dir / "compare.json")
+        target = out_dir / "T2.html"
+        target.write_bytes(render_t2(json.loads(compare_data.decode("utf-8"))).encode("utf-8"))
+        written.append(target)
     return written
 
 
@@ -160,8 +206,13 @@ def main(argv: list[str] | None = None) -> int:
         description="Write T1, T7, T8 and run.json of the synthetic cohort (no input path).",
     )
     parser.add_argument("--out", required=True, help="directory to write the four files into")
+    parser.add_argument(
+        "--compare",
+        action="store_true",
+        help="also write compare.json and T2.html against a synthetic prior version (E10)",
+    )
     args = parser.parse_args(argv)
-    for path in build(args.out):
+    for path in build(args.out, compare=args.compare):
         print(f"written: {path} ({path.stat().st_size} bytes)")
     return 0
 
