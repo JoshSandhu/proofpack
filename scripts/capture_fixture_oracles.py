@@ -56,6 +56,7 @@ F2 = {"tp": 90, "fn": 10, "fp": 20, "tn": 180}
 F3_Y = [1, 1, 1, 1, 1, 0, 0, 0, 0, 0]
 F3_S1 = [0.9, 0.8, 0.7, 0.6, 0.35, 0.75, 0.5, 0.4, 0.3, 0.2]
 F3_S2 = [0.85, 0.6, 0.65, 0.4, 0.3, 0.7, 0.55, 0.45, 0.35, 0.25]
+F5_TABLE = [[80, 10], [2, 8]]  # R2 section 9 F5: b = 10 (prior correct only), c = 2
 F6_SITES = [(45, 5), (38, 12), (27, 3)]
 F6_HOLM_INPUT = [0.012, 0.04, 0.30]
 F8_N = (50, 100, 300)
@@ -73,6 +74,10 @@ CAPTURED_CLASS: dict[str, str | dict[str, str]] = {
     "F2-exact": "closed_form",
     "F3-auroc": "closed_form",
     "F3-delong": "iterative",
+    # build day 10 (E10): the paired DeLong difference on the F3 pair (hand O(m n)
+    # components) and R2 F5's McNemar figures (statsmodels)
+    "F5-delong-pair": "iterative",
+    "F5-mcnemar": "closed_form",
     "F6-homogeneity": {"chi2_p": "iterative", "_default": "closed_form"},
     "F8-half-width": "closed_form",
     "F10-exact": "closed_form",
@@ -119,6 +124,14 @@ REGISTER = {
         "paired_p": 0.0593,
     },
     "F3_bootstrap": {"ci_lo": 0.44, "ci_hi": 1.00},
+    # E10: R2 section 9 F5 as printed (the accuracy difference and its Wald bounds, which
+    # the engine does not print: the register row compares the difference alone)
+    "F5": {
+        "mcnemar_exact_p": 0.0386,
+        "cc_chi2": 4.0833,
+        "cc_chi2_p": 0.0433,
+        "accuracy_diff": -0.08,
+    },
     "F6": {
         "se_site1": 0.90,
         "se_site2": 0.76,
@@ -148,6 +161,7 @@ REGISTER_DECIMALS = {
     },
     "F3": {"auc_s1": 2, "auc_s2": 2, "_default": 4},
     "F3_bootstrap": 2,
+    "F5": {"accuracy_diff": 2, "_default": 4},
     "F6": {
         "se_site1": 2,
         "se_site2": 2,
@@ -265,6 +279,35 @@ def _f3() -> dict[str, float]:
     }
 
 
+def _f5_mcnemar() -> dict[str, float]:
+    """statsmodels' McNemar on R2's F5 table, exact and continuity-corrected."""
+    from statsmodels.stats.contingency_tables import mcnemar
+
+    exact = mcnemar(F5_TABLE, exact=True)
+    cc = mcnemar(F5_TABLE, exact=False, correction=True)
+    return {
+        "mcnemar_exact_p": float(exact.pvalue),
+        "cc_chi2": float(cc.statistic),
+        "cc_chi2_p": float(cc.pvalue),
+    }
+
+
+def _f5_delong_pair(f3: dict[str, float]) -> dict[str, float]:
+    """The paired DeLong difference AUC(s1) - AUC(s2) with its Wald interval, from the
+    hand-written components of :func:`_f3` (the same variance ``paired_var_diff``)."""
+    from scipy.stats import norm
+
+    z = float(norm.ppf(0.975))
+    est = f3["auc_s1_sklearn"] - f3["auc_s2_sklearn"]
+    se = math.sqrt(f3["paired_var_diff"])
+    return {
+        "est": est,
+        "var_diff": f3["paired_var_diff"],
+        "ci_lo": est - z * se,
+        "ci_hi": est + z * se,
+    }
+
+
 def _f6() -> dict[str, float]:
     import numpy as np
     from scipy.stats import chi2_contingency
@@ -319,6 +362,23 @@ def capture() -> dict:
         ),
         "kind": "captured_formula",
         "values": {k: v for k, v in f3.items() if not k.endswith("_sklearn")},
+    }
+    entries["F5-delong-pair"] = {
+        "source": (
+            "AUC(s1) - AUC(s2) from scikit-learn roc_auc_score, its Wald interval from the "
+            "hand-written O(m n) DeLong 1988 paired variance in "
+            f"scripts/capture_fixture_oracles.py and scipy {versions['scipy']} norm.ppf(0.975)"
+        ),
+        "kind": "captured_formula",
+        "values": _f5_delong_pair(f3),
+    }
+    entries["F5-mcnemar"] = {
+        "source": (
+            f"{sm} contingency_tables.mcnemar([[80, 10], [2, 8]], exact=True) and "
+            "(exact=False, correction=True)"
+        ),
+        "kind": "captured_library",
+        "values": _f5_mcnemar(),
     }
     entries["F6-homogeneity"] = {
         "source": (

@@ -56,12 +56,13 @@
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["rows", "matched", "not_matched", "no_oracle_recorded", "not_built", "suite_only"],
+      "required": ["rows", "matched", "not_matched", "no_oracle_recorded", "no_independent_oracle", "not_built", "suite_only"],
       "properties": {
         "rows": {"type": "integer", "minimum": 1},
         "matched": {"type": "integer", "minimum": 0},
         "not_matched": {"type": "integer", "minimum": 0},
         "no_oracle_recorded": {"type": "integer", "minimum": 0},
+        "no_independent_oracle": {"type": "integer", "minimum": 0, "description": "Build day 10 (E10): rows whose value is the engine's own, frozen and marked [unverified], with no oracle outside the engine; never matched against itself."},
         "not_built": {"type": "integer", "minimum": 0},
         "suite_only": {"type": "integer", "minimum": 0}
       }
@@ -105,7 +106,7 @@
         "id": {"type": "string", "pattern": "^F[0-9]{1,2}[a-d]?(-[a-z0-9-]+)?$"},
         "fixture": {"type": "string", "pattern": "^F[0-9]{1,2}[a-d]?$"},
         "what_is_compared": {"type": "string", "minLength": 1},
-        "status": {"enum": ["matched", "not_matched", "no_oracle_recorded", "not_built", "suite_only"]},
+        "status": {"enum": ["matched", "not_matched", "no_oracle_recorded", "no_independent_oracle", "not_built", "suite_only"]},
         "matched": {"type": "boolean"},
         "oracle_source": {
           "type": ["object", "null"],
@@ -163,7 +164,7 @@
           "else": {"properties": {"matched": {"const": false}}}
         },
         {
-          "if": {"properties": {"status": {"enum": ["no_oracle_recorded", "not_built", "suite_only"]}}},
+          "if": {"properties": {"status": {"enum": ["no_oracle_recorded", "no_independent_oracle", "not_built", "suite_only"]}}},
           "then": {"properties": {"oracle_source": {"const": null}, "n_values_compared": {"const": 0}}}
         }
       ]

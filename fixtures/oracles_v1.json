@@ -132,6 +132,25 @@
     "wald_ci_lo_s1": 0.4963636851484016
    }
   },
+  "F5-delong-pair": {
+   "kind": "captured_formula",
+   "source": "AUC(s1) - AUC(s2) from scikit-learn roc_auc_score, its Wald interval from the hand-written O(m n) DeLong 1988 paired variance in scripts/capture_fixture_oracles.py and scipy 1.18.1 norm.ppf(0.975)",
+   "values": {
+    "ci_hi": 0.3263084589219615,
+    "ci_lo": -0.006308458921961191,
+    "est": 0.16000000000000014,
+    "var_diff": 0.007199999999999998
+   }
+  },
+  "F5-mcnemar": {
+   "kind": "captured_library",
+   "source": "statsmodels 0.15.0 contingency_tables.mcnemar([[80, 10], [2, 8]], exact=True) and (exact=False, correction=True)",
+   "values": {
+    "cc_chi2": 4.083333333333333,
+    "cc_chi2_p": 0.04330814281079206,
+    "mcnemar_exact_p": 0.03857421875
+   }
+  },
   "F6-homogeneity": {
    "kind": "captured_library",
    "source": "scipy 1.18.1 chi2_contingency(correction=False); statsmodels 0.15.0 multipletests(method='holm'); the three proportions as exact fractions",
@@ -225,6 +244,12 @@
    "ci_hi": 1.0,
    "ci_lo": 0.44
   },
+  "F5": {
+   "accuracy_diff": -0.08,
+   "cc_chi2": 4.0833,
+   "cc_chi2_p": 0.0433,
+   "mcnemar_exact_p": 0.0386
+  },
   "F6": {
    "chi2": 4.6327,
    "chi2_p": 0.0986,
@@ -260,6 +285,10 @@
    "auc_s2": 2
   },
   "F3_bootstrap": 2,
+  "F5": {
+   "_default": 4,
+   "accuracy_diff": 2
+  },
   "F6": {
    "_default": 4,
    "holm_1": 3,

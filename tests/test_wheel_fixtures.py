@@ -146,7 +146,8 @@ def test_fixtures_runs_from_a_built_wheel_in_a_fresh_venv(tmp_path: Path):
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     report = json.loads((out / "fixtures_report.json").read_text(encoding="utf-8"))
-    assert report["summary"]["matched"] == 29 and report["summary"]["not_matched"] == 0
+    # 32 since E10: F5-mcnemar, F5-register and F5-delong-pair read the packaged oracles
+    assert report["summary"]["matched"] == 32 and report["summary"]["not_matched"] == 0
     # the Newcombe transcription is [unverified] and not packaged: F14 has no oracle here
     f14 = next(r for r in report["rows"] if r["id"] == "F14-newcombe")
     assert f14["status"] == "no_oracle_recorded" and f14["matched"] is False

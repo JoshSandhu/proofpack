@@ -7,7 +7,8 @@ on main ``78ae8dc``, each as the literal input fed and the figure asserted.
   ``planted-platform cp0``) with ``captured.F1-wilson.values.wilson_lo`` moved by +2e-9 and
   ``captured.F3-delong.values.paired_p`` by +1e-12 gives exit 1, one line per moved value
   with both figures (``OUTSIDE`` for the first, ``within`` for the second) and the count
-  line ``63 identical, 1 differ within their tolerance, 1 differ outside it``; the second
+  line ``70 identical, 1 differ within their tolerance, 1 differ outside it`` (63 at
+  5b1b1f4; E10 added seven captured F5 values); the second
   move alone gives exit 0. Through ``compare()``, the committed side labelled
   ``planted-platform cp0``: ``F6-homogeneity`` ``chi2_p`` moved by +5e-7 is within
   (iterative, 1e-6) and ``chi2`` moved by +5e-7 is not (closed form, 1e-9); a changed
@@ -120,7 +121,7 @@ def test_ci1_check_prints_each_moved_value_with_both_figures_and_exits_1(tmp_pat
         "iterative tolerance 1e-06 within"
     )
     assert (
-        "captured values: 63 identical, 1 differ within their tolerance, 1 differ outside it"
+        "captured values: 70 identical, 1 differ within their tolerance, 1 differ outside it"
         in lines
     )
 
@@ -130,7 +131,7 @@ def test_ci1_a_value_moved_within_its_class_is_printed_and_exits_0(tmp_path: Pat
     proc = _check(tmp_path, doc)
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert f"captured.F3-delong.values.paired_p: committed {p_f!r} fresh {p_c!r}" in proc.stdout
-    assert "64 identical, 1 differ within their tolerance, 0 differ outside it" in proc.stdout
+    assert "71 identical, 1 differ within their tolerance, 0 differ outside it" in proc.stdout
 
 
 def test_ci1_chi2_p_is_compared_as_iterative_and_chi2_as_closed_form():

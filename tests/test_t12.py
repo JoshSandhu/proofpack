@@ -150,9 +150,17 @@ def test_every_report_row_appears_in_t12(report, page):
         assert status is not None, row["id"]
         assert status.group(1) == row["status"]
         assert status.group(2) == t12.STATUS_TEXT[row["status"]]
-    assert page.count('<tr data-row="') == len(report["rows"]) == 43
+    assert page.count('<tr data-row="') == len(report["rows"]) == 46
     counts = dict(re.findall(r'data-count="([a-z_]+)">([^<]*)</td>', page))
-    for key in ("rows", "matched", "not_matched", "no_oracle_recorded", "not_built", "suite_only"):
+    for key in (
+        "rows",
+        "matched",
+        "not_matched",
+        "no_oracle_recorded",
+        "no_independent_oracle",
+        "not_built",
+        "suite_only",
+    ):
         assert counts[key] == str(report["summary"][key]), key
 
 

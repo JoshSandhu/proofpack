@@ -68,12 +68,14 @@ def test_the_report_validates_against_its_schema_and_carries_the_measured_counts
     printed = capsys.readouterr().out
     assert rc == EXIT_OK, printed
     jsonschema.validate(doc, load_json_schema("fixtures_report_schema.json"))
+    # E10: F5's one not_built row became four (two captured, one register, one frozen)
     assert doc["summary"] == {
-        "rows": 43,
-        "matched": 30,
+        "rows": 46,
+        "matched": 33,
         "not_matched": 0,
         "no_oracle_recorded": 2,
-        "not_built": 6,
+        "no_independent_oracle": 1,
+        "not_built": 5,
         "suite_only": 5,
     }
     assert doc["exit_code"] == 0 and doc["offline"] is True
@@ -85,7 +87,7 @@ def test_the_report_validates_against_its_schema_and_carries_the_measured_counts
     for n in range(1, 22):
         assert f"F{n}" in fixtures, n
     assert {"F1b", "F1c", "F1d", "F13b"} <= fixtures
-    assert "rows 43: matched 30, not matched 0" in printed
+    assert "rows 46: matched 33, not matched 0" in printed
     # every matched row compared at least one value, each within its own tolerance
     for r in doc["rows"]:
         if r["status"] == "matched":
@@ -136,7 +138,12 @@ def test_a_planted_oracle_off_by_5e_10_on_the_same_cell_stays_matched():
 
 def test_rows_without_an_oracle_are_never_counted_as_matched(report):
     for r in report["rows"]:
-        if r["status"] in ("no_oracle_recorded", "not_built", "suite_only"):
+        if r["status"] in (
+            "no_oracle_recorded",
+            "no_independent_oracle",
+            "not_built",
+            "suite_only",
+        ):
             assert r["matched"] is False and r["oracle_source"] is None
             assert r["n_values_compared"] == 0 and r["max_abs_deviation"] is None
     assert report["summary"]["matched"] == sum(1 for r in report["rows"] if r["matched"])
@@ -163,9 +170,9 @@ def test_the_statuses_of_the_register_rows_are_the_ones_named(report):
         "F16",
         "F21",
         "F3-auprc",
-        "F5",
         "F7",
     ]
+    assert [k for k, v in status.items() if v == "no_independent_oracle"] == ["F5-newcombe-paired"]
     assert sorted(k for k, v in status.items() if v == "suite_only") == [
         "F12",
         "F17",

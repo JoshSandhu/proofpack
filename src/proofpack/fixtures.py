@@ -82,11 +82,11 @@ TOLERANCE_RULES: dict[str, str] = {
     "closed_form": "absolute deviation at most 1e-9. D1 section 9 gives 1e-9 for closed "
     "forms and lists Wilson, 2x2, Brier, O/E and PSI; this report applies it to the rows "
     "F1-wilson, F1b-wilson, F1c-wilson, F1d-wilson, F2-exact, F3-auroc, F4-closed-form, "
-    "F6-closed-form, F8-half-width, F10-exact and F11-ppa-npa",
+    "F5-mcnemar, F6-closed-form, F8-half-width, F10-exact and F11-ppa-npa",
     "iterative": "absolute deviation at most 1e-6. D1 section 9 gives 1e-6 for iterative "
     "methods and lists IRLS slope/intercept and DeLong via placements; this report applies "
     "it to the rows F1-clopper-pearson, F1b-clopper-pearson, F1c-clopper-pearson, "
-    "F1d-clopper-pearson, F3-delong, F4-irls and F6-p",
+    "F1d-clopper-pearson, F3-delong, F4-irls, F5-delong-pair and F6-p",
     "reported_rounding": "absolute deviation at most half a unit in the last printed decimal "
     "of each value, plus 1e-12. D1 section 9 gives reported rounding for bootstrap CIs; this "
     "report applies it to the rows F3-bootstrap, F9-cluster-bootstrap and F14-newcombe (a "
@@ -100,7 +100,17 @@ TOLERANCE_SOURCE = (
     "D1 section 9 (closed_form, iterative, reported_rounding); D1 section 3.2 (register)"
 )
 ROUNDING_SLACK = 1e-12
-STATUSES = ("matched", "not_matched", "no_oracle_recorded", "not_built", "suite_only")
+#: ``no_independent_oracle`` (build day 10, E10): a frozen engine value with no oracle
+#: outside the engine (F5's Newcombe paired interval, [unverified] against the paper):
+#: never ``matched`` against itself, never ``not_matched``; it does not move the exit code.
+STATUSES = (
+    "matched",
+    "not_matched",
+    "no_oracle_recorded",
+    "no_independent_oracle",
+    "not_built",
+    "suite_only",
+)
 #: The R captures D1 section 3.2 names (F13, F13b); none is committed at A-P3.
 R_CAPTURE_FILES = ("fixtures/r/proc_asah.json", "fixtures/r/rms_val_prob_f4.json")
 R_CAPTURES_NOT_CAPTURED = "r_captures_not_captured"
@@ -155,6 +165,9 @@ F3_DELONG_NAMES = (
 )
 F3_REGISTER_NAMES = F3_AUROC_NAMES + tuple(n for n in F3_DELONG_NAMES if n != "delong_se_s2")
 BOOTSTRAP_NAMES = ("ci_lo", "ci_hi")
+F5_MCNEMAR_NAMES = ("mcnemar_exact_p", "cc_chi2", "cc_chi2_p")
+F5_REGISTER_NAMES = F5_MCNEMAR_NAMES + ("accuracy_diff",)
+F5_DELONG_PAIR_NAMES = ("est", "var_diff", "ci_lo", "ci_hi")
 F4_CLOSED_NAMES = (
     "oe",
     "oe_ci_lo",
@@ -460,6 +473,41 @@ F4_DECLARATIONS: dict[str, Any] = {
     "subgroups": [{"attribute": "site", "prespecified": False, "reference_level": "largest"}],
     "criteria": [],
 }
+
+
+def _f5_mcnemar() -> dict[str, float]:
+    """R2 section 9 F5 through ``stats.comparison.mcnemar``: the exact route (the one the
+    engine takes at b + c = 12) and the continuity-corrected route forced on the same
+    table, so both printed figures are compared."""
+    from proofpack.stats.comparison import mcnemar
+
+    exact = mcnemar(10, 2, exact=True)
+    cc = mcnemar(10, 2, exact=False)
+    return {
+        "mcnemar_exact_p": exact.p,
+        "cc_chi2": float(cc.statistic),
+        "cc_chi2_p": cc.p,
+    }
+
+
+def _f5_register_values() -> dict[str, float]:
+    from proofpack.stats.proportions import difference_paired
+
+    return {**_f5_mcnemar(), "accuracy_diff": difference_paired(80, 2, 10, 8).est}
+
+
+def _f5_delong_pair() -> dict[str, float]:
+    """The paired DeLong difference on the F3 pair (``paired_delong``, Sun and Xu)."""
+    from proofpack.stats.discrimination import paired_delong
+
+    s1, s2, y = _f3_arrays()
+    r = paired_delong(s1, s2, y)
+    return {
+        "est": float(r.difference.est),
+        "var_diff": r.variance_difference,
+        "ci_lo": float(r.difference.ci_lo),
+        "ci_hi": float(r.difference.ci_hi),
+    }
 
 
 def _f4_block() -> dict[str, Any]:
@@ -904,11 +952,46 @@ def register() -> tuple[Row, ...]:
             compares=F4_REGISTER_NAMES,
         ),
         Row(
+            "F5-mcnemar",
             "F5",
+            "McNemar on the F5 discordants b = 10, c = 2: the exact p (the engine's route "
+            "below 25 discordant pairs) and the continuity-corrected chi-square and p "
+            "(stats.comparison.mcnemar)",
+            "closed_form",
+            _f5_mcnemar,
+            _captured("F5-mcnemar", "closed_form"),
+            compares=F5_MCNEMAR_NAMES,
+        ),
+        Row(
+            "F5-register",
             "F5",
-            "paired McNemar and the accuracy difference on [[80, 10], [2, 8]]",
-            status="not_built",
-            reason="stats.comparison (McNemar, paired differences) is not in this version",
+            "the F5 McNemar figures and the paired accuracy difference (difference_paired on "
+            "e 80, f 2, g 10, h 8) against the printed register",
+            "register",
+            _f5_register_values,
+            _register_oracle("F5"),
+            compares=F5_REGISTER_NAMES,
+        ),
+        Row(
+            "F5-newcombe-paired",
+            "F5",
+            "the Newcombe paired method 10 interval of the F5 accuracy difference "
+            "(difference_paired): -0.08 [-0.1554, -0.0102], frozen on build day 10",
+            status="no_independent_oracle",
+            reason="[unverified] the value is the engine's own from the formula as recalled "
+            "from Newcombe 1998 (paired data), not fetched; tests/test_e10_comparison.py "
+            "re-derives it by hand from that formula, which is not an independent oracle",
+            suite_tests=("tests/test_e10_comparison.py",),
+        ),
+        Row(
+            "F5-delong-pair",
+            "F5",
+            "the paired DeLong difference AUC(s1) - AUC(s2) on the F3 pair with its Wald "
+            "interval and variance (paired_delong, Sun and Xu components with covariance)",
+            "iterative",
+            _f5_delong_pair,
+            _captured("F5-delong-pair", "iterative"),
+            compares=F5_DELONG_PAIR_NAMES,
         ),
         Row(
             "F6-closed-form",
@@ -1414,7 +1497,8 @@ def summary_lines(report: dict[str, Any], path: Path | None) -> list[str]:
     lines = [
         f"fixtures report written: {path}" if path is not None else "fixtures report built",
         f"  rows {s['rows']}: matched {s['matched']}, not matched {s['not_matched']}, "
-        f"no oracle recorded {s['no_oracle_recorded']}, not built {s['not_built']}, "
+        f"no oracle recorded {s['no_oracle_recorded']}, no independent oracle "
+        f"{s['no_independent_oracle']}, not built {s['not_built']}, "
         f"compared by the test suite only {s['suite_only']}",
         f"  platform {report['platform']} (reference platform {report['reference_platform']}: "
         f"{'yes' if report['on_reference_platform'] else 'no'}); python {report['python']}, "

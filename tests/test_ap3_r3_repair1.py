@@ -6,8 +6,9 @@ at ``5440295``, each as the literal input fed and the figure asserted.
   ``1.0000009`` (same platform and library versions as the script's own capture), exits 1
   and prints ``exact tolerance 0 OUTSIDE`` for that value. Through ``compare()`` on the
   committed file against itself: ``F1-clopper-pearson`` ``cp_hi`` moved by one ulp gives
-  False; the 18 iterative values each moved by +9.9e-7 give False and ``47 identical, 0
-  differ within their tolerance, 18 differ outside it``, and give True with ``18 differ
+  False; the 22 iterative values each moved by +9.9e-7 give False and ``50 identical, 0
+  differ within their tolerance, 22 differ outside it`` (E10 added F5-delong-pair's four
+  iterative values and F5-mcnemar's three closed-form ones), and give True with ``22 differ
   within`` when the committed side is labelled ``planted-platform cp0``. A committed side
   without ``captured_on_platform``, or without ``library_versions``, gives False.
 * FA-N6 / RG3-N3 (branches of ``compare()`` no test fed at ``5440295``): the entry
@@ -87,7 +88,7 @@ def test_fan1_same_platform_f1d_cp_hi_1_0000009_exits_1(tmp_path: Path):
         "captured.F1d-clopper-pearson.values.cp_hi: committed 1.0000009 fresh 1.0 abs "
         "difference 9.000e-07 exact tolerance 0 OUTSIDE"
     ) in lines
-    counts = "captured values: 64 identical, 0 differ within their tolerance, 1 differ outside it"
+    counts = "captured values: 71 identical, 0 differ within their tolerance, 1 differ outside it"
     assert counts in lines
 
 
@@ -121,15 +122,15 @@ def test_fan1_the_18_iterative_values_moved_are_outside_on_the_same_platform_onl
     mod = _capture_module()
     base = _committed()
     doc, moved = _iterative_moved(base, mod, 9.9e-7)
-    assert moved == 18
+    assert moved == 22  # 18 at 5b1b1f4; E10's F5-delong-pair adds four iterative values
     lines, ok = mod.compare(doc, base)
     assert ok is False
-    counts = "captured values: 47 identical, 0 differ within their tolerance, 18 differ outside it"
+    counts = "captured values: 50 identical, 0 differ within their tolerance, 22 differ outside it"
     assert counts in lines
     doc["captured_on_platform"] = OTHER_PLATFORM
     lines, ok = mod.compare(doc, base)
     assert ok is True
-    counts = "captured values: 47 identical, 18 differ within their tolerance, 0 differ outside it"
+    counts = "captured values: 50 identical, 22 differ within their tolerance, 0 differ outside it"
     assert counts in lines
     assert (
         "comparison: D1 section 9 tolerance classes (captured_on_platform or "

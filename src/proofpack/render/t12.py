@@ -49,6 +49,7 @@ STATUS_TEXT: dict[str, str] = {
     "matched": "matched",
     "not_matched": "not matched",
     "no_oracle_recorded": "no oracle recorded",
+    "no_independent_oracle": "no independent oracle (frozen engine value, [unverified])",
     "not_built": "not built in this version",
     "suite_only": "compared by the test suite only",
 }
