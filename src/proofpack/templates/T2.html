@@ -23,11 +23,11 @@
 </div>
 {% endif %}
 {%- endmacro %}
-{% macro margin_status(m) -%}
-{% if m %}<td class="num"><span class="customer-text inline">{{ m.id }}</span> (row {{ m.position }}): {{ m.statistic }} {{ m.comparator }} <span class="customer-text inline">{{ m.value }}</span></td><td class="status">{{ m.status_word }}{% if m.status == "not_assessable" %} ({{ m.reason_code }}){% endif %}{% if m.record %} - <span class="status record">{{ not_met_record }}</span>{% endif %}</td>{% else %}<td class="num">—</td><td class="status-absent">—</td>{% endif %}
+{% macro margin_status(ms) -%}
+{% if ms %}<td class="num">{% for m in ms %}<span class="customer-text inline">{{ m.id }}</span> (row {{ m.position }}): {{ m.statistic }} {{ m.comparator }} <span class="customer-text inline">{{ m.value }}</span>{% if not loop.last %}<br>{% endif %}{% endfor %}</td><td class="status">{% for m in ms %}{{ m.status_word }}{% if m.status == "not_assessable" %} ({{ m.reason_code }}){% endif %}{% if m.record %} - <span class="status record">{{ not_met_record }}</span>{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>{% else %}<td class="num">—</td><td class="status-absent">—</td>{% endif %}
 {%- endmacro %}
 {% macro comparison_row(r) -%}
-<tr data-metric="{{ r.metric }}"{% if r.op %} data-op="{{ r.op }}"{% endif %}><th scope="row">{{ r.label }}{% if r.op %} (<span class="customer-text inline">{{ r.op }}</span>){% endif %}</th>{{ ncell(r.prior) }}{{ ncell(r.new) }}{{ ncell(r.delta) }}<td class="mono" data-ref="{{ r.method.ref }}" data-facet="method">{{ r.method.text }}</td><td class="num">{{ r.b }} / {{ r.c }}</td><td class="num">{{ r.p }} ({{ r.mcnemar_method }})</td>{% if tables.has_margin %}{{ margin_status(r.margin) }}{% endif %}</tr>
+<tr data-metric="{{ r.metric }}"{% if r.op %} data-op="{{ r.op }}"{% endif %}><th scope="row">{{ r.label }}{% if r.op %} (<span class="customer-text inline">{{ r.op }}</span>){% endif %}</th>{{ ncell(r.prior) }}{{ ncell(r.new) }}{{ ncell(r.delta) }}<td class="mono" data-ref="{{ r.method.ref }}" data-facet="method">{{ r.method.text }}</td><td class="num">{{ r.b }} / {{ r.c }}</td><td class="num">{{ r.p }} ({{ r.mcnemar_method }})</td>{% if tables.has_margin %}{{ margin_status(r.margins) }}{% endif %}</tr>
 {%- endmacro %}
 {% block pages %}
 <section class="page" id="page-1">

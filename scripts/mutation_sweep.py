@@ -2411,6 +2411,7 @@ MUTANTS_DAY9: tuple[Mutant, ...] = (
 COMPARISON = "src/proofpack/stats/comparison.py"
 PROPORTIONS = "src/proofpack/stats/proportions.py"
 T2_RENDER = "src/proofpack/render/t2.py"
+T2_TEMPLATE = "src/proofpack/templates/T2.html"
 MUTANTS_DAY10: tuple[Mutant, ...] = (
     Mutant(
         "mcnemar_b_c_swapped",
@@ -2524,6 +2525,54 @@ MUTANTS_DAY10: tuple[Mutant, ...] = (
         "if record:",
         day=10,
         what="CRITERION_NOT_MET_RECORD is claimed for met and not-assessable rows too",
+    ),
+    # E10 repair 2 (lens 2 FA-F3 mutants M5, M10, M11 and FA-F5): the first three each
+    # survived the three E10 test files at 667a201 (lens 2 mutants.py, 44 passed each;
+    # re-measured in repair 2); the repair-2 note names the test that kills each now.
+    Mutant(
+        "clustered_refusal_n_is_all_pairs",
+        COMPARISON,
+        r'"clustered_data_analytic_ci_invalid", est=analytic\.est, n=n, ci_level=level',
+        '"clustered_data_analytic_ci_invalid", est=analytic.est, n=new.n, ci_level=level',
+        day=10,
+        what=(
+            "the DEC-09 refusal beside a clustered Se/Sp cell carries n = all pairs, not the "
+            "conditioned pairs"
+        ),
+    ),
+    Mutant(
+        "clustered_auroc_brier_slope_resampled_unstratified",
+        COMPARISON,
+        r"^        return clustered_by_case\(arrays\.pos, arrays\.case_ids\)$",
+        "        return clustered_flat(arrays.case_ids, n_rows=arrays.n)",
+        day=10,
+        what=(
+            "the clustered AUROC / Brier / slope differences resample cases in one stratum "
+            "instead of within outcome class"
+        ),
+    ),
+    Mutant(
+        "clustered_auroc_bootstrap_statistic_sign_flipped",
+        COMPARISON,
+        r"return float\(auroc_mann_whitney\(sn\[idx\], p\) - auroc_mann_whitney\(sp\[idx\], p\)\)",
+        "return float(auroc_mann_whitney(sp[idx], p) - auroc_mann_whitney(sn[idx], p))",
+        day=10,
+        what=(
+            "the clustered AUROC difference's resample distribution is mirrored about zero "
+            "while est keeps its sign"
+        ),
+    ),
+    Mutant(
+        "t2_first_paired_criterion_only",
+        T2_TEMPLATE,
+        r"\{% for m in ms %\}",
+        "{% for m in ms[:1] %}",
+        count=2,
+        day=10,
+        what=(
+            "T2-3 prints the first paired criterion on a row only; a second one's status and "
+            "record string reach no table"
+        ),
     ),
 )
 

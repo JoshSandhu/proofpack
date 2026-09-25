@@ -252,6 +252,50 @@ def test_f5_case_id_c_i_over_2_assesses_a_paired_se_criterion_and_t2_prints_the_
     assert "cluster_bootstrap_percentile" in se_row.group(1)
 
 
+def test_two_paired_criteria_on_the_accuracy_cell_both_print_on_the_t2_3_row(tmp_path, home):
+    """Lens 1 FA-N2 / lens 2 FA-F5 (E10 repair 2). Two ``paired_difference_vs_prior``
+    criteria on one cell (accuracy, op1, overall) of the F5 pair: ``Cfirst``
+    (``point_estimate >= -0.10``, met: the estimate is -0.08) declared before ``C2``
+    (``ci_lower_bound >= -0.05``, not_met: the lower bound is -0.1554). T2-3's accuracy
+    row prints both ids, both status words and the record string once (C2's); the
+    sentences and the traceability table carry both. At 667a201 the row printed
+    ``Cfirst`` only, ``C2`` nowhere, and the record string reached the page 0 times
+    (lens 2 block I: ``Cfirst 1 C2 0 record string on page 0``)."""
+    import yaml
+
+    from proofpack.render.t2 import NOT_MET_RECORD, render_t2
+
+    base = yaml.safe_load((F5 / "criteria.yaml").read_text(encoding="utf-8"))["criteria"][1]
+    crit = [
+        dict(base, id="Cfirst", statistic="point_estimate", value=-0.10),
+        dict(base, id="C2"),
+    ]
+    doc = f5_compare(tmp_path, home, criteria=crit).document
+    statuses = [(r["criterion_id"], r["status"]) for r in doc["criteria_results"]]
+    assert statuses == [("Cfirst", "met"), ("C2", "not_met")]
+    number = doc["comparison"]["differences"]["op1"]["accuracy"]["number"]
+    assert doc["criteria_results"][0]["compared_value"] == number["est"] == -0.08
+    assert doc["criteria_results"][1]["compared_value"] == number["ci_lo"] < -0.05
+    page = render_t2(doc)
+    row = re.search(r'<tr data-metric="accuracy" data-op="op1">(.*?)</tr>', page, re.S).group(1)
+    assert row.count("Cfirst</span> (row 1)") == 1 and row.count("C2</span> (row 2)") == 1
+    margin, status = re.findall(r"<td class=\"(?:num|status)\">(.*?)</td>", row, re.S)[-2:]
+    assert margin.split("<br>")[0].startswith('<span class="customer-text inline">Cfirst</span>')
+    assert margin.split("<br>")[1].startswith('<span class="customer-text inline">C2</span>')
+    assert "point estimate &gt;= " in margin and "ci lower bound &gt;= " in margin
+    lines = status.split("<br>")
+    assert lines[0] == "criterion met"
+    assert lines[1] == f'criterion not met - <span class="status record">{NOT_MET_RECORD}</span>'
+    assert page.count(NOT_MET_RECORD) == 1
+    for other in re.findall(r'<tr data-metric="(?!accuracy)[^"]*"[^>]*>(.*?)</tr>', page, re.S):
+        assert "Cfirst" not in other and "C2</span>" not in other
+    visible = html.unescape(re.sub(r"<[^>]+>", "", page))
+    for cid in ("Cfirst", "C2"):
+        assert visible.count(f"Criterion {cid} (accuracy difference against the prior version") == 1
+    trace = re.search(r'<table class="traceability">.*?</table>', page, re.S).group(0)
+    assert trace.count("Cfirst") == 1 and trace.count(">C2<") == 1
+
+
 def test_outside_compare_the_criterion_stays_requires_compare():
     crit = make_criteria(criteria=[_criterion(id="Cpd", type=PAIRED, value=-0.05)], fairness=None)
     doc = assemble(cohort_with_a_thirty_row_site(), crit)

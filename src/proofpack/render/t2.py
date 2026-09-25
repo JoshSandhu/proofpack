@@ -45,10 +45,13 @@ placeholder box for every absent customer-text slot). The section to table map:
 (D4 section 1.2's fourth permitted string, T2 only). Both live inside ``.status``
 elements and nowhere else on the page (``tests/test_e10_t2.py``).
 
-**Margins.** The Margin column prints the customer's declared value of the
+**Margins.** The Margin column prints the customer's declared value of every
 ``paired_difference_vs_prior`` criterion that names the row's metric, operating point
-and scope, with the criterion id; the Margin and Status columns are absent from T2-3 when
-no such criterion is declared (D4 section 5.7: no default margin exists).
+and scope, one line per criterion with its id, and the Status column that criterion's
+status on the same line (E10 repair 2, lens 1 FA-N2 / lens 2 FA-F5: at 667a201 the row
+printed the first such criterion only, so a second criterion's ``not_met`` status and
+its record string reached no table); the Margin and Status columns are absent from T2-3
+when no such criterion is declared (D4 section 5.7: no default margin exists).
 
 **Numbers.** Every Number cell carries ``data-ref``, ``data-kind`` and ``data-facet`` as
 T1's do, so the E9 parse test's shape traces each printed figure to ``run.json``.
@@ -153,10 +156,13 @@ def _paired_rows(document: dict[str, Any]) -> list[tuple[int, dict[str, Any]]]:
     return out
 
 
-def _margin_for(
+def _margins_for(
     paired: list[tuple[int, dict[str, Any]]], metric: str, op: str | None, scope: Any
-) -> dict[str, Any] | None:
-    """The first paired criterion row on this metric, operating point and scope."""
+) -> list[dict[str, Any]]:
+    """Every paired criterion row on this metric, operating point and scope, in
+    criteria-table order (``tests/test_e10_criterion.py::
+    test_two_paired_criteria_on_the_accuracy_cell_both_print_on_the_t2_3_row``)."""
+    out: list[dict[str, Any]] = []
     for i, row in paired:
         row_scope = row.get("scope")
         same_scope = (
@@ -167,18 +173,20 @@ def _margin_for(
             and str(row_scope.get("level")) == str(scope.get("level"))
         )
         if row.get("metric") == metric and row.get("operating_point") == op and same_scope:
-            return {
-                "position": i + 1,
-                "id": fmt.text(row.get("criterion_id")),
-                "statistic": fmt.text(row.get("statistic")).replace("_", " "),
-                "comparator": fmt.text(row.get("comparator")),
-                "value": fmt.declared(row.get("value")),
-                "status": row.get("status"),
-                "status_word": STATUS_WORDS[row["status"]],
-                "reason_code": fmt.text(row.get("reason_code")),
-                "record": row.get("status") == "not_met",
-            }
-    return None
+            out.append(
+                {
+                    "position": i + 1,
+                    "id": fmt.text(row.get("criterion_id")),
+                    "statistic": fmt.text(row.get("statistic")).replace("_", " "),
+                    "comparator": fmt.text(row.get("comparator")),
+                    "value": fmt.declared(row.get("value")),
+                    "status": row.get("status"),
+                    "status_word": STATUS_WORDS[row["status"]],
+                    "reason_code": fmt.text(row.get("reason_code")),
+                    "record": row.get("status") == "not_met",
+                }
+            )
+    return out
 
 
 def _difference_kind(metric: str) -> str:
@@ -218,7 +226,7 @@ def comparison_tables(document: dict[str, Any]) -> dict[str, Any]:
         # the McNemar test is on the accuracy discordants at the operating point: its
         # b / c and p print on the Accuracy row only (recorded in the E10 note)
         mc = mcnemar.get(op) if op is not None and paired and metric == "accuracy" else None
-        margin = _margin_for(paired_rows, metric, op, "overall")
+        margins = _margins_for(paired_rows, metric, op, "overall")
         return {
             "label": label,
             "metric": metric,
@@ -237,7 +245,7 @@ def comparison_tables(document: dict[str, Any]) -> dict[str, Any]:
                 if mc
                 else "—"
             ),
-            "margin": margin,
+            "margins": margins,
         }
 
     per_op = []

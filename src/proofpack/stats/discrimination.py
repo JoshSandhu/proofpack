@@ -33,13 +33,18 @@ version-comparison statistic the PCCP performance-evaluation report rests on, ha
 ``cluster_ids`` parameter for a caller to pass and no route decision anywhere: it will
 build a ``delong_wald`` interval for the difference and two logit intervals for the arms
 over clustered rows, with no flag and no companion refusal, exactly as ``auroc_number``
-would. Since build day 10 its one caller in ``src`` is
-``stats.comparison._paired_auroc_cell``, which calls it only when the plan is not
-clustered and on a clustered plan computes the cluster bootstrap of the difference
-instead, with the DeLong refusal as the ``analytic`` companion
-(``tests/test_e10_comparison.py::test_f5_case_id_c_i_over_2_carries_dec_09s_refusal_on_all_fourteen_cells``
-reads that cell's method and flag; the round-7 fresh attack of 2026-09-10 recorded the
-gap this closed).
+would. Its callers in ``src`` are three (``grep -rn "paired_delong(" src``; E10 lens 2
+FA-F1;
+``tests/test_e10_comparison.py::test_paired_delong_has_three_callers_in_src_as_its_docstring_names``):
+``stats.comparison._paired_auroc_cell`` (build day 10, commit ``cc3cf9f``), which calls
+it only when the plan is not clustered and on a clustered plan computes the cluster
+bootstrap of the difference instead, with the DeLong refusal as the ``analytic``
+companion
+(``tests/test_e10_comparison.py::``
+``test_f5_c_i_over_2_twelve_cells_refused_analytic_and_two_calibration_cells_no_companion``
+reads that cell's method and flag under clustering), and the two fixture-register rows
+``fixtures._f3_delong`` and ``fixtures._f5_delong_pair``, both on R2's F3 pair of ten
+independent rows.
 
 No scipy: the normal quantile comes from ``statistics.NormalDist`` and the normal
 tail from ``math.erfc``.
@@ -387,10 +392,12 @@ def paired_delong(
     **no clustering parameter**: no caller can tell it that its rows are lesions of two
     hundred patients, and it reaches none of the X2 routing in ``stats.bootstrap``. On
     clustered rows the paired variance is understated the same way the unpaired one is,
-    and the interval comes back with no flag and no companion refusal. The one caller in
-    ``src`` (``stats.comparison._paired_auroc_cell``, build day 10) calls it when the
-    plan is not clustered and routes a clustered plan to the cluster bootstrap of the
-    difference (round-7 fresh attack, 2026-09-10; the E10 lens 1 record FA-N8).
+    and the interval comes back with no flag and no companion refusal. Of its three
+    callers in ``src`` (the module docstring lists them; E10 lens 2 FA-F1),
+    ``stats.comparison._paired_auroc_cell`` (build day 10) calls it when the plan is
+    not clustered and routes a clustered plan to the cluster bootstrap of the
+    difference; ``fixtures._f3_delong`` and ``fixtures._f5_delong_pair`` call it on
+    R2's F3 pair (round-7 fresh attack, 2026-09-10; the E10 lens 1 record FA-N8).
     """
     a = np.asarray(scores_a, dtype=np.float64)
     b = np.asarray(scores_b, dtype=np.float64)

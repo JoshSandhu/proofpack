@@ -19,7 +19,14 @@
   sensitivity / specificity cells (overall and both ``sex`` entries) equal a seed-fixed
   re-run of ``clustered_flat`` + ``bootstrap_percentile`` on the same conditioned pairs
   (at 322c5a4 they were refused ``insufficient_clusters``), and the twelve proportion
-  and AUROC cells carry DEC-09's typed refusal beside a cluster-bootstrap Number.
+  and AUROC cells carry DEC-09's typed refusal beside a cluster-bootstrap Number while
+  the two calibration cells carry no companion;
+* **the five cluster-bootstrap cells that go through ``clustered_by_case``** (E10 repair
+  2, lens 2 FA-F3: the overall AUROC, Brier and slope cells and both ``sex`` AUROC cells)
+  equal a seed-fixed re-run of that resampler with the engine's cell key; the DEC-09
+  refusal beside a conditioned cell carries the conditioned pair count; every
+  cluster-bootstrap interval on the F5 pair brackets its estimate;
+* ``paired_delong`` has the three callers in ``src`` its docstring names (lens 2 FA-F1).
 """
 
 from __future__ import annotations
@@ -27,6 +34,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -39,6 +47,7 @@ from proofpack.stats import comparison as cmp
 from proofpack.stats.bootstrap import (
     BootstrapPolicy,
     bootstrap_percentile,
+    clustered_by_case,
     clustered_flat,
     plan_clustering,
 )
@@ -349,6 +358,9 @@ def test_f5_case_id_c_i_over_2_se_sp_cells_equal_a_clustered_flat_rerun():
             pred_new, pred_prior = ~pred_new, ~pred_prior
         a, b = pred_new.astype(np.float64), pred_prior.astype(np.float64)
         assert num["n"] == int(sel.sum()) and abs(num["est"] - (a.mean() - b.mean())) < 1e-12
+        # E10 repair 2 (lens 2 FA-F3, mutant M5): the DEC-09 refusal beside the cell
+        # carries the conditioned pair count too (50 / 26 / 24 here), not the 100 pairs
+        assert ana["n"] == int(sel.sum()) and ana["n"] < 100, (scope, metric, ana)
         resampler = clustered_flat(ids[rows][sel], n_rows=int(sel.sum()))
         assert resampler.n_units == n_cases
         key_parts = ("overall",) if scope == "overall" else ("subgroups", "sex", scope)
@@ -370,13 +382,19 @@ def test_f5_case_id_c_i_over_2_se_sp_cells_equal_a_clustered_flat_rerun():
     assert (round(sp["number"]["ci_lo"], 4), round(sp["number"]["ci_hi"], 4)) == (-0.2, 0.0204)
 
 
-def test_f5_case_id_c_i_over_2_carries_dec_09s_refusal_on_all_fourteen_cells():
+def test_f5_c_i_over_2_twelve_cells_refused_analytic_and_two_calibration_cells_no_companion():
     """The fourteen cells of the F5 pair under ``case_id = c{i // 2}``: overall
     sensitivity, specificity, accuracy, AUROC, Brier, slope and, for each ``sex`` entry,
-    sensitivity, specificity, accuracy, AUROC. Each proportion and AUROC cell carries
-    the DEC-09 refusal as ``analytic`` and a ``cluster_bootstrap_percentile`` Number
-    with its ``*_refused_clustered`` flag; the two calibration cells are cluster
-    bootstraps with no analytic companion."""
+    sensitivity, specificity, accuracy, AUROC. The twelve proportion and AUROC cells
+    carry the DEC-09 refusal as ``analytic`` and a ``cluster_bootstrap_percentile``
+    Number with its ``*_refused_clustered`` flag; the two calibration cells are cluster
+    bootstraps with no analytic companion (``analytic`` is None). Every one of the
+    fourteen intervals brackets its estimate (E10 repair 2, lens 2 FA-F3 mutant M11: with
+    the AUROC resample statistic's sign flipped, lens 2 measured the AUROC cell printing
+    ``[-0.0001, +0.1734]`` around ``-0.0776`` and the three E10 test files passing at
+    667a201, 44 passed; re-measured in repair 2, and this test fails on that mutant
+    now). Named for what it asserts (lens 2 FA-F2: the name at 667a201 said fourteen
+    cells carry the refusal)."""
     _, _, _, block = _f5_clustered(BootstrapPolicy(n_resamples=100, seed=1))
     cells = []
     for diffs in (block["differences"], *(e["differences"] for e in block["subgroups"])):
@@ -398,7 +416,113 @@ def test_f5_case_id_c_i_over_2_carries_dec_09s_refusal_on_all_fourteen_cells():
         cell = block["differences"][key]
         assert cell["number"]["method"] == "cluster_bootstrap_percentile"
         assert cell["analytic"] is None and cell["analytic_status"] == "used"
+        cells.append((cell, None))
+    assert len(cells) == 14
+    for cell, _ in cells:
+        num = cell["number"]
+        assert num["ci_lo"] < num["est"] < num["ci_hi"], num
     assert block["clustering_route"] == "declared"
+
+
+def test_f5_case_id_c_i_over_2_auroc_brier_slope_cells_equal_a_clustered_by_case_rerun():
+    """Lens 2 FA-F3 (E10 repair 2), mutants M10 and M11: the five cells the comparison
+    resamples through ``clustered_by_case`` (cases resampled within outcome class:
+    positive 24 / negative 24 / mixed 2 on the F5 pair under ``case_id = c{i // 2}``) -
+    the overall AUROC, Brier and slope differences and both ``sex`` AUROC differences -
+    equal a seed-fixed re-run of that resampler with the engine's cell key, B 200, seed
+    20240101. At 667a201 lens 2's mutants M10 (the three cells resampled in one stratum
+    through ``clustered_flat``) and M11 (the AUROC resample statistic's sign flipped)
+    each passed the three E10 test files (44 passed; re-measured in repair 2); with this
+    test in the file each is killed (M10 by this test alone, M11 by this test and the
+    fourteen-cells test above). The overall AUROC and Brier figures measured on 25
+    September 2026 are pinned to four decimals at the end."""
+    policy = BootstrapPolicy(n_resamples=200, seed=20240101)
+    new, prior, ids, block = _f5_clustered(policy)
+    with (F5 / "f5_new.csv").open(encoding="utf-8", newline="") as fh:
+        sex = np.array([r["sex"] for r in csv.DictReader(fh)])
+    scopes = {"overall": np.arange(100)}
+    for e in block["subgroups"]:
+        scopes[e["level"]] = np.flatnonzero(sex == e["level"])
+    y = new.pos.astype(np.float64)
+    sq_new, sq_prior = (new.probability - y) ** 2, (prior.probability - y) ** 2
+    ln, lp = cmp._logit(new.probability), cmp._logit(prior.probability)
+    checked = 0
+    for scope, rows in scopes.items():
+        diffs = block["differences"] if scope == "overall" else None
+        if diffs is None:
+            (diffs,) = [e["differences"] for e in block["subgroups"] if e["level"] == scope]
+        key_parts = ("overall",) if scope == "overall" else ("subgroups", "sex", scope)
+        pos, sn, sp = new.pos[rows], new.score[rows], prior.score[rows]
+        resampler = clustered_by_case(pos, ids[rows])
+        assert resampler.kind == "clustered"
+        if scope == "overall":
+            assert resampler.units_per_stratum == {"positive": 24, "negative": 24, "mixed": 2}
+
+        def auroc_stat(idx: np.ndarray, pos=pos, sn=sn, sp=sp) -> float:
+            p = pos[idx]
+            if not p.any() or p.all():
+                return float("nan")
+            return float(cmp.auroc_mann_whitney(sn[idx], p) - cmp.auroc_mann_whitney(sp[idx], p))
+
+        stats = {"auroc": auroc_stat}
+        if scope == "overall":
+
+            def brier_stat(idx: np.ndarray) -> float:
+                return float(sq_new[idx].mean() - sq_prior[idx].mean())
+
+            def slope_stat(idx: np.ndarray) -> float:
+                return cmp._slope(y[idx], ln[idx]) - cmp._slope(y[idx], lp[idx])
+
+            stats.update({"brier": brier_stat, "slope": slope_stat})
+        for key, stat in stats.items():
+            num = diffs[key]["number"]
+            assert num["method"] == "cluster_bootstrap_percentile", (scope, key, num)
+            assert num["n_cases"] == resampler.n_units
+            draw = bootstrap_percentile(
+                stat, resampler, policy.rng(json.dumps(["comparison", *key_parts, key])), 200, 0.95
+            )
+            assert draw.reason is None
+            assert (num["ci_lo"], num["ci_hi"]) == (draw.ci_lo, draw.ci_hi), (scope, key)
+            assert draw.ci_lo < num["est"] < draw.ci_hi
+            checked += 1
+    assert checked == 5
+    auroc = block["differences"]["auroc"]["number"]
+    own = cmp.auroc_mann_whitney(new.score, new.pos) - cmp.auroc_mann_whitney(
+        prior.score, prior.pos
+    )
+    assert abs(auroc["est"] - own) < 1e-12
+    assert (round(auroc["est"], 4), round(auroc["ci_lo"], 4), round(auroc["ci_hi"], 4)) == (
+        -0.0776,
+        -0.1734,
+        0.0001,
+    )
+    brier = block["differences"]["brier"]["number"]
+    assert (round(brier["est"], 4), round(brier["ci_lo"], 4), round(brier["ci_hi"], 4)) == (
+        0.0388,
+        -0.0068,
+        0.0906,
+    )
+
+
+def test_paired_delong_has_three_callers_in_src_as_its_docstring_names():
+    """Lens 2 FA-F1: at 667a201 ``stats/discrimination.py`` said ``paired_delong`` had one
+    caller in ``src`` while ``fixtures.py`` called it twice. The literal call sites,
+    counted by grep over ``src``, and the two docstrings naming all three."""
+    src = REPO / "src" / "proofpack"
+    calls: dict[str, int] = {}
+    for path in sorted(src.rglob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        # a call site: the name followed by an argument; not ``unpaired_delong(``, not
+        # ``def paired_delong(`` and not the grep line quoted in the module docstring
+        n = len(re.findall(r"(?<![a-z])paired_delong\([a-z]", text))
+        if n:
+            calls[path.relative_to(src).as_posix()] = n
+    assert calls == {"fixtures.py": 2, "stats/comparison.py": 1}
+    module_doc = (src / "stats" / "discrimination.py").read_text(encoding="utf-8")
+    assert "Its callers in ``src`` are three" in module_doc
+    assert "one caller in ``src``" not in module_doc
+    assert "fixtures._f3_delong" in paired_delong.__doc__
+    assert "fixtures._f5_delong_pair" in paired_delong.__doc__
 
 
 # ------------------------------------------------------------------ unpaired
