@@ -667,12 +667,14 @@ def test_templates_t1_prints_the_typed_line_and_format_json_writes_no_html(
             str(tmp_path / "p3"),
             "--offline",
             "--format",
-            "docx",
+            "pdf",
         ],
         registry=ephemeral_registry(),
     )
+    # A-P4 (build day 10) made docx a --format token (tests/test_ap4_cli.py); an unknown
+    # token is still refused before anything is written (this line asked for docx until then)
     assert rc == EXIT_INTERNAL and not (tmp_path / "p3").exists()
-    assert "unknown --format token 'docx'" in capsys.readouterr().err
+    assert "unknown --format token 'pdf'" in capsys.readouterr().err
 
 
 def test_json_log_reports_the_documents(tmp_path, monkeypatch, capsys):

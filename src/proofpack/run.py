@@ -43,7 +43,10 @@ The order, and what each step is allowed to do:
    when ``--format`` includes ``html`` (the default ``json,html``) and the licence is
    ``ok`` or ``grace``; on any other licence state the JSON alone is written and the
    summary says so; ``--templates`` names T1 / T7 / T8 (default T8), each written as
-   ``<out>/<id>.html`` (E9 builds T1 and T7).
+   ``<out>/<id>.html`` (E9 builds T1 and T7). A-P4 (build day 10): ``docx`` in
+   ``--format`` also writes ``<out>/<id>.docx`` for each of the same ids, under the same
+   licence rule, through :mod:`proofpack.render.docx` (the ``[docx]`` extra, checked by
+   the CLI before any statistics run).
 
 ``--offline`` opens no socket: nothing in this module or below it imports ``socket``,
 ``urllib`` or ``http``; ``tests/test_run_cli.py`` makes ``socket.socket`` raise and runs
@@ -97,6 +100,7 @@ from proofpack.stats.proportions import (
 from proofpack.stats.subgroups import _conditioned, subgroup_analysis
 
 RUN_JSON = "run.json"
+DOCX_FORMAT = "docx"
 INGEST_REPORT = "ingest_report.json"
 MAPPING_SUFFIX = ".mapping.json"
 
@@ -345,7 +349,7 @@ def overall_block(
 NARRATIVE_KEYS: tuple[str, ...] = ("claims", "claim_rejections", "guidance_refs")
 #: ``--templates`` ids the CLI accepts (E8 rendered T8; E9 adds T1 and T7).
 TEMPLATE_IDS: tuple[str, ...] = ("T1", "T7", "T8")
-FORMATS: tuple[str, ...] = ("json", "html")
+FORMATS: tuple[str, ...] = ("json", "html", DOCX_FORMAT)
 #: ``--format`` default: the JSON is always written; the HTML documents are written
 #: beside it when the licence is ``ok`` or ``grace`` (D1 section 7: after grace, JSON
 #: only). D1 section 7 lists ``--format json,html,docx`` without a default; ``json,html``
@@ -407,21 +411,26 @@ def write_documents(
     written (a template not built in E8, or the licence state)."""
     written: list[Path] = []
     notes: list[str] = []
-    if "html" not in formats:
+    wanted = [f for f in ("html", DOCX_FORMAT) if f in formats]
+    if not wanted:
         return written, notes
     if not outcome.licence.usable:
+        what = " and ".join(f.upper() for f in wanted)
         notes.append(
-            f"HTML not written: licence {outcome.licence.status} ({outcome.licence.reason_code}); "
-            "run.json only (D1 section 7: after grace, JSON only)"
+            f"{what} not written: licence {outcome.licence.status} "
+            f"({outcome.licence.reason_code}); run.json only (D1 section 7: after grace, "
+            "JSON only)"
         )
         return written, notes
-    for template in templates:
-        writer = document_writers().get(template)
-        if writer is not None:
-            written.append(writer(outcome.document, out))
-            continue
-        exc = TemplateNotBuilt(f"template {template} is not built in this engine version")
-        notes.append(f"{template} not written: {exc}")
+    for fmt_name in wanted:
+        writers = document_writers() if fmt_name == "html" else docx_writers()
+        for template in templates:
+            writer = writers.get(template)
+            if writer is not None:
+                written.append(writer(outcome.document, out))
+                continue
+            exc = TemplateNotBuilt(f"template {template} is not built in this engine version")
+            notes.append(f"{template} not written: {exc}")
     return written, notes
 
 
@@ -431,6 +440,21 @@ def document_writers() -> dict[str, Any]:
     from proofpack.render.t7 import write_t7  # noqa: PLC0415
 
     return {"T1": write_t1, "T7": write_t7, "T8": write_t8}
+
+
+def docx_writers() -> dict[str, Any]:
+    """``--templates`` id -> the function writing ``<out>/<id>.docx`` (A-P4; the module
+    imports docxtpl, python-docx and matplotlib inside the writer only)."""
+    from proofpack.render.docx import DOCX_FILES, write_docx  # noqa: PLC0415
+
+    return {tid: write_docx(tid) for tid in DOCX_FILES}
+
+
+def document_names(formats: list[str], templates: list[str]) -> list[str]:
+    """The file names ``formats`` and ``templates`` ask for, as the Next-step lines
+    print them (``T1.html, T1.docx, ...``)."""
+    exts = [f for f in ("html", DOCX_FORMAT) if f in formats] or ["html"]
+    return [f"{t}.{ext}" for t in templates for ext in exts]
 
 
 def _warning_entry(f: Finding) -> dict[str, Any]:

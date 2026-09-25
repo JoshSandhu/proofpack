@@ -22,6 +22,12 @@ dependencies = [
 [project.optional-dependencies]
 # scipy is an optional acceleration/oracle dependency; `import proofpack` must work without it.
 stats = ["scipy>=1.14"]
+# A-P4 (build day 10, lane A): the DOCX renderer (D1 section 0, D4 section 9). Imported
+# inside proofpack.render.docx and proofpack.render.figures_png only: `import proofpack`,
+# `import proofpack.render.html` and an HTML render leave none of docx, docxtpl and
+# matplotlib in sys.modules (tests/test_ap4_extra.py runs that in a subprocess), and
+# `run --format docx` without the extra exits EXIT_DOCX_EXTRA_MISSING with one typed line.
+docx = ["docxtpl>=0.19", "python-docx>=1.1", "matplotlib>=3.9"]
 
 [project.scripts]
 proofpack = "proofpack.cli:main"

@@ -48,6 +48,17 @@ What each figure reads:
 
 Every series has a dash pattern and a text label, so colour is never the only encoding;
 every caption repeats n, the CI method and the guidance anchor.
+
+**One source, two drawers** (D4 section 6; A-P4, build day 10). The selection of what is
+drawn - which ROC vertices, which operating point marks a vertex, which decile bins have
+an interval, which subgroup rows, the reference and criterion values - is made once, in
+the data-level functions :func:`f2_data`, :func:`f3_data`, :func:`f4_data` and
+:func:`f5_data`, on the arrays of ``run.json`` and nothing else. This module's SVG
+functions put those data coordinates through :class:`PlotMap`;
+:mod:`proofpack.render.figures_png` hands the same data coordinates to matplotlib.
+``tests/test_ap4_figures.py`` reads the coordinates back from the matplotlib artists and
+compares them with the SVG's parsed points through the inverse of the documented map,
+to 1e-9.
 """
 
 from __future__ import annotations
@@ -134,12 +145,15 @@ def _anchor_label(refs_by_id: dict[str, dict[str, Any]], internal_id: str) -> st
 # ------------------------------------------------------------------ F2
 
 
-def f2_roc(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> dict | None:
+def f2_data(document: dict[str, Any]) -> dict[str, Any] | None:
+    """F2's data coordinates: the ROC vertices ``[(fpr, tpr), ...]`` in array order, the
+    operating points drawn ``[(op, fpr, tpr)]`` (each at its matching vertex), and the
+    two lists the caption names (``missing``: no matching vertex; ``typed``: a Number
+    without an interval). ``None`` when the array is empty."""
     tf = (document.get("overall") or {}).get("threshold_free") or {}
     roc = [r for r in tf.get("roc") or [] if _is_num(r[0]) and _is_num(r[1])]
     if not roc:
         return None
-    m = PlotMap(X0, Y0, W, H)
     markers, missing, typed = [], [], []
     for op, block in (document.get("overall") or {}).items():
         if op == "threshold_free" or not isinstance(block, dict):
@@ -168,15 +182,32 @@ def f2_roc(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> d
         if vertex is None:
             missing.append(op)
             continue
-        markers.append(
-            {
-                "op": op,
-                "cx": _num(m.x(vertex[0])),
-                "cy": _num(m.y(vertex[1])),
-                "lx": _num(m.x(vertex[0]) + 8),
-                "ly": _num(m.y(vertex[1]) - 8),
-            }
-        )
+        markers.append((op, float(vertex[0]), float(vertex[1])))
+    return {
+        "roc": [(float(f), float(t)) for f, t, *_ in roc],
+        "markers": markers,
+        "missing": missing,
+        "typed": typed,
+    }
+
+
+def f2_roc(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> dict | None:
+    data = f2_data(document)
+    if data is None:
+        return None
+    tf = (document.get("overall") or {}).get("threshold_free") or {}
+    m = PlotMap(X0, Y0, W, H)
+    missing, typed = data["missing"], data["typed"]
+    markers = [
+        {
+            "op": op,
+            "cx": _num(m.x(fx)),
+            "cy": _num(m.y(ty)),
+            "lx": _num(m.x(fx) + 8),
+            "ly": _num(m.y(ty) - 8),
+        }
+        for op, fx, ty in data["markers"]
+    ]
     auroc = tf.get("auroc") or {}
     n_pos, n_neg = auroc.get("n_pos"), auroc.get("n_neg")
     method = METHOD_PHRASES.get(str(auroc.get("method")), fmt.text(auroc.get("method")))
@@ -190,7 +221,7 @@ def f2_roc(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> d
         "height": 380,
         "map": m.attr(),
         "ticks": _ticks(m),
-        "curve": _path([(m.x(f), m.y(t)) for f, t, *_ in roc]),
+        "curve": _path([(m.x(f), m.y(t)) for f, t in data["roc"]]),
         "reference": _path([(m.x(0), m.y(0)), (m.x(1), m.y(1))]),
         "markers": markers,
         "legend": f"ROC curve (solid); AUROC {fmt.number(auroc or None, 'three_dp')}",
@@ -231,12 +262,23 @@ F3_ABSENT = (
 )
 
 
-def f3_pr(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> dict | None:
+def f3_data(document: dict[str, Any]) -> dict[str, Any] | None:
+    """F3's data coordinates: the PR vertices ``[(recall, precision), ...]`` and the
+    prevalence baseline's value; ``None`` without a ``pr`` array or a prevalence."""
     tf = (document.get("overall") or {}).get("threshold_free") or {}
     pr = [r for r in tf.get("pr") or [] if _is_num(r[0]) and _is_num(r[1])]
     prev = (tf.get("prevalence") or {}).get("est")
     if not pr or not _is_num(prev):
         return None
+    return {"pr": [(float(r), float(p)) for r, p, *_ in pr], "prevalence": float(prev)}
+
+
+def f3_pr(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> dict | None:
+    data = f3_data(document)
+    if data is None:
+        return None
+    tf = (document.get("overall") or {}).get("threshold_free") or {}
+    pr, prev = data["pr"], data["prevalence"]
     m = PlotMap(X0, Y0, W, H)
     prevalence = tf.get("prevalence") or {}
     return {
@@ -247,7 +289,7 @@ def f3_pr(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> di
         "height": 380,
         "map": m.attr(),
         "ticks": _ticks(m),
-        "curve": _path([(m.x(r), m.y(p)) for r, p, *_ in pr]),
+        "curve": _path([(m.x(r), m.y(p)) for r, p in pr]),
         "reference": _path([(m.x(0), m.y(prev)), (m.x(1), m.y(prev))]),
         "markers": [],
         "legend": "PR curve (solid); prevalence baseline (dashed) "
@@ -267,26 +309,29 @@ def f3_pr(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> di
 # ------------------------------------------------------------------ F4
 
 
-def f4_calibration(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> dict | None:
+def f4_data(document: dict[str, Any]) -> dict[str, Any] | None:
+    """F4's data coordinates: each drawn bin as ``(bin, mean_pred, est, ci_lo, ci_hi)``,
+    each histogram bar as ``(bin, score_min, score_max, n)`` with ``n_max`` the strip's
+    ceiling, the Numbers drawn (for the caption's methods) and the bins not drawn (with
+    what their Number prints). ``None`` when ``calibration`` is null or has no bins."""
     cal = document.get("calibration")
     if not isinstance(cal, dict) or not cal.get("decile_curve"):
         return None
-    m = PlotMap(X0, Y0, W, H)
     bins = cal["decile_curve"]
-    points, bars, strip, not_drawn, drawn_nums = [], [], [], [], []
+    points, strip, not_drawn, drawn_nums = [], [], [], []
     n_max = max(int(b.get("n") or 0) for b in bins) or 1
-    s = PlotMap(X0, STRIP_Y0, W, STRIP_H, 0.0, 1.0, 0.0, float(n_max))
     for b in bins:
         obs = (b.get("observed") or {}).get("number") or {}
         if _is_num(b.get("mean_pred")) and fmt.has_interval(obs) and _is_num(obs.get("est")):
-            x = m.x(b["mean_pred"])
             drawn_nums.append(obs)
-            points.append({"cx": _num(x), "cy": _num(m.y(obs["est"])), "bin": b.get("bin")})
-            bars.append(
-                {
-                    "d": _path([(x, m.y(obs["ci_lo"])), (x, m.y(obs["ci_hi"]))]),
-                    "bin": b.get("bin"),
-                }
+            points.append(
+                (
+                    b.get("bin"),
+                    float(b["mean_pred"]),
+                    float(obs["est"]),
+                    float(obs["ci_lo"]),
+                    float(obs["ci_hi"]),
+                )
             )
         else:
             # a typed reason prints the reason, never a bare estimate (E9 repair 1, FA-B3)
@@ -294,17 +339,44 @@ def f4_calibration(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any
                 f"bin {fmt.count(b.get('bin'))} {fmt.number(obs or None, 'proportion')}"
             )
         if _is_num(b.get("score_min")) and _is_num(b.get("score_max")):
-            left, right = s.x(b["score_min"]), s.x(b["score_max"])
-            top = s.y(int(b.get("n") or 0))
             strip.append(
-                {
-                    "x": _num(left),
-                    "y": _num(top),
-                    "width": _num(right - left),
-                    "height": _num(s.y0 + s.h - top),
-                    "bin": b.get("bin"),
-                }
+                (b.get("bin"), float(b["score_min"]), float(b["score_max"]), int(b.get("n") or 0))
             )
+    return {
+        "points": points,
+        "strip": strip,
+        "n_max": n_max,
+        "drawn_nums": drawn_nums,
+        "not_drawn": not_drawn,
+    }
+
+
+def f4_calibration(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> dict | None:
+    data = f4_data(document)
+    if data is None:
+        return None
+    cal = document["calibration"]
+    bins = cal["decile_curve"]
+    m = PlotMap(X0, Y0, W, H)
+    s = PlotMap(X0, STRIP_Y0, W, STRIP_H, 0.0, 1.0, 0.0, float(data["n_max"]))
+    not_drawn, drawn_nums = data["not_drawn"], data["drawn_nums"]
+    points, bars, strip = [], [], []
+    for b, mean_pred, est, lo, hi in data["points"]:
+        x = m.x(mean_pred)
+        points.append({"cx": _num(x), "cy": _num(m.y(est)), "bin": b})
+        bars.append({"d": _path([(x, m.y(lo)), (x, m.y(hi))]), "bin": b})
+    for b, score_min, score_max, n in data["strip"]:
+        left, right = s.x(score_min), s.x(score_max)
+        top = s.y(n)
+        strip.append(
+            {
+                "x": _num(left),
+                "y": _num(top),
+                "width": _num(right - left),
+                "height": _num(s.y0 + s.h - top),
+                "bin": b,
+            }
+        )
     slope = (cal.get("slope") or {}).get("number")
     intercept = (cal.get("intercept") or {}).get("number")
     flag = cal.get("curve_flag")
@@ -376,10 +448,11 @@ F5_METRICS_COMPARATOR: tuple[tuple[str, str], ...] = (
 )
 
 
-def _criterion_lines(
-    document: dict[str, Any], attribute: str, metric: str, op: str | None, m: PlotMap
+def criterion_values(
+    document: dict[str, Any], attribute: str, metric: str, op: str | None
 ) -> list[dict[str, Any]]:
-    """The dashed criterion lines of one F5 plot. ``op`` is the operating point the plot
+    """The criterion lines of one F5 plot as data: ``[{value, label, value_text}]``. ``op``
+    is the operating point the plot
     draws, or ``None`` for the AUROC plot. This reads each criteria row's
     ``operating_point`` and draws the row only when it equals ``op``. The ``None`` case
     follows D1 section 2's H09 rules as io/declare.py applies them: an operating point on
@@ -399,7 +472,7 @@ def _criterion_lines(
     decl = document.get("declarations") or {}
     entries = decl.get("criteria") or []
     seen: set[tuple[str, float]] = set()
-    out = []
+    out: list[dict[str, Any]] = []
     for row in document.get("criteria_results") or []:
         scope = row.get("scope")
         row_op = row.get("operating_point")
@@ -419,27 +492,49 @@ def _criterion_lines(
         if key in seen:
             continue
         seen.add(key)
-        x = m.x(row["value"])
         out.append(
             {
-                "d": _path([(x, m.y0), (x, m.y0 + m.h)]),
-                "x": _num(x),
+                "value": float(row["value"]),
                 "label": (
                     f"customer criterion {fmt.text(row.get('criterion_id'))} "
                     f"({fmt.text(entry.get('author'))}, {fmt.text(entry.get('date'))})"
                 ),
-                "value": fmt.declared(row["value"]),
+                "value_text": fmt.declared(row["value"]),
             }
         )
     return out
 
 
-def f5_forest(
-    document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]
-) -> dict[str, list[dict[str, Any]]]:
-    """``{attribute: [figure per metric]}``."""
+def _criterion_lines(
+    document: dict[str, Any], attribute: str, metric: str, op: str | None, m: PlotMap
+) -> list[dict[str, Any]]:
+    """:func:`criterion_values` through the map: the dashed lines of one F5 plot."""
+    out = []
+    for c in criterion_values(document, attribute, metric, op):
+        x = m.x(c["value"])
+        out.append(
+            {
+                "d": _path([(x, m.y0), (x, m.y0 + m.h)]),
+                "x": _num(x),
+                "label": c["label"],
+                "value": c["value_text"],
+            }
+        )
+    return out
+
+
+def f5_data(document: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """F5's data, ``{attribute: [per metric]}``: each entry carries ``metric``, ``label``,
+    ``op`` (the operating point drawn; ``None`` for AUROC), ``rows`` - one per subgroup
+    row in plot order (the reference level first, Unknown/missing last) as ``{label,
+    drawn, est, ci_lo, ci_hi, value, method}`` (``est`` and the bounds ``None`` when not
+    drawn; ``value`` is what the row's Number prints), ``reference`` (the overall
+    estimate, or ``None`` when that Number has no interval), ``ref_num`` and the
+    criterion values of :func:`criterion_values`."""
     rows_all = document.get("subgroups") or []
     overall_op = next((k for k in (document.get("overall") or {}) if k != "threshold_free"), None)
+    ref_type = ((document.get("declarations") or {}).get("reference_standard") or {}).get("type")
+    metrics = F5_METRICS if ref_type != "comparator" else F5_METRICS_COMPARATOR
     out: dict[str, list[dict[str, Any]]] = {}
     for meta in sorted(
         (a for a in document.get("subgroup_attributes") or [] if isinstance(a, dict)),
@@ -460,56 +555,96 @@ def f5_forest(
 
         idx.sort(key=rank)
         figs = []
-        ref_type = ((document.get("declarations") or {}).get("reference_standard") or {}).get(
-            "type"
-        )
-        metrics = F5_METRICS if ref_type != "comparator" else F5_METRICS_COMPARATOR
         for metric, label in metrics:
-            height = Y0 + ROW_H * len(idx) + 60
-            m = PlotMap(FOREST_X0, Y0, FOREST_W, ROW_H * len(idx))
+            kind = "proportion" if metric != "auroc" else "three_dp"
             rows = []
-            methods = set()
-            for j, i in enumerate(idx):
+            for i in idx:
                 r = rows_all[i]
                 if metric == "auroc":
                     num = ((r.get("metrics") or {}).get("auroc") or {}).get("number") or {}
                 else:
                     cellv = ((r.get("metrics") or {}).get(overall_op) or {}).get(metric) or {}
                     num = cellv.get("number") or {}
-                cy = Y0 + ROW_H * (j + 0.5)
-                row = {
-                    "label": str(r.get("level"))
-                    + (" (ref)" if r.get("is_reference") else "")
-                    + fmt.tiers(num),
-                    "cy": _num(cy),
-                    "ty": _num(cy + 4),
-                    "drawn": fmt.has_interval(num) if num else False,
-                }
-                if row["drawn"]:
-                    methods.add(str(num.get("method")))
-                    row.update(
-                        {
-                            "cx": _num(m.x(num["est"])),
-                            "d": _path([(m.x(num["ci_lo"]), cy), (m.x(num["ci_hi"]), cy)]),
-                            "value": fmt.number(
-                                num, "proportion" if metric != "auroc" else "three_dp"
-                            ),
-                        }
-                    )
-                else:
-                    row["value"] = fmt.number(
-                        num or None, "proportion" if metric != "auroc" else "three_dp"
-                    )
-                rows.append(row)
+                drawn = fmt.has_interval(num) if num else False
+                rows.append(
+                    {
+                        "label": str(r.get("level"))
+                        + (" (ref)" if r.get("is_reference") else "")
+                        + fmt.tiers(num),
+                        "drawn": drawn,
+                        "est": float(num["est"]) if drawn else None,
+                        "ci_lo": float(num["ci_lo"]) if drawn else None,
+                        "ci_hi": float(num["ci_hi"]) if drawn else None,
+                        "value": fmt.number(num or None, kind),
+                        "method": str(num.get("method")) if drawn else None,
+                    }
+                )
             if metric == "auroc":
                 ref_num = ((document.get("overall") or {}).get("threshold_free") or {}).get(
                     "auroc"
                 ) or {}
             else:
                 ref_num = ((document.get("overall") or {}).get(overall_op) or {}).get(metric) or {}
+            reference = (
+                float(ref_num["est"])
+                if fmt.has_interval(ref_num) and _is_num(ref_num.get("est"))
+                else None
+            )
+            op = None if metric == "auroc" else overall_op
+            figs.append(
+                {
+                    "metric": metric,
+                    "label": label,
+                    "op": op,
+                    "rows": rows,
+                    "reference": reference,
+                    "ref_num": ref_num,
+                    "criteria": criterion_values(document, attribute, metric, op),
+                }
+            )
+        out[attribute] = figs
+    return out
+
+
+def f5_forest(
+    document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]
+) -> dict[str, list[dict[str, Any]]]:
+    """``{attribute: [figure per metric]}``: :func:`f5_data` through the map."""
+    overall_op = next((k for k in (document.get("overall") or {}) if k != "threshold_free"), None)
+    out: dict[str, list[dict[str, Any]]] = {}
+    for attribute, data_figs in f5_data(document).items():
+        figs = []
+        for d in data_figs:
+            metric, label = d["metric"], d["label"]
+            n_rows = len(d["rows"])
+            height = Y0 + ROW_H * n_rows + 60
+            m = PlotMap(FOREST_X0, Y0, FOREST_W, ROW_H * n_rows)
+            rows = []
+            methods = set()
+            for j, dr in enumerate(d["rows"]):
+                cy = Y0 + ROW_H * (j + 0.5)
+                row = {
+                    "label": dr["label"],
+                    "cy": _num(cy),
+                    "ty": _num(cy + 4),
+                    "drawn": dr["drawn"],
+                }
+                if row["drawn"]:
+                    methods.add(dr["method"])
+                    row.update(
+                        {
+                            "cx": _num(m.x(dr["est"])),
+                            "d": _path([(m.x(dr["ci_lo"]), cy), (m.x(dr["ci_hi"]), cy)]),
+                            "value": dr["value"],
+                        }
+                    )
+                else:
+                    row["value"] = dr["value"]
+                rows.append(row)
+            ref_num = d["ref_num"]
             reference = None
-            if fmt.has_interval(ref_num) and _is_num(ref_num.get("est")):
-                rx = m.x(ref_num["est"])
+            if d["reference"] is not None:
+                rx = m.x(d["reference"])
                 reference = {
                     "d": _path([(rx, m.y0), (rx, m.y0 + m.h)]),
                     "x": _num(rx),
@@ -527,9 +662,7 @@ def f5_forest(
                     "map": m.attr(),
                     "rows": rows,
                     "reference": reference,
-                    "criteria": _criterion_lines(
-                        document, attribute, metric, None if metric == "auroc" else overall_op, m
-                    ),
+                    "criteria": _criterion_lines(document, attribute, metric, d["op"], m),
                     "axis": {
                         "left": _num(m.x0),
                         "right": _num(m.x0 + m.w),
