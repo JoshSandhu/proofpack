@@ -52,6 +52,11 @@ METHODS: frozenset[str] = frozenset(
         "chi2_psi",
         "exact_mcnemar",
         "cc_mcnemar",
+        # build day 10 (E10, stats.comparison): the unpaired fallback of a version
+        # comparison labels every interval it makes "not like-for-like" in the method
+        # field itself (D1 section 3.1), beside the flag of the same name
+        "newcombe10_not_like_for_like",
+        "delong_wald_not_like_for_like",
         "none",
     }
 )
@@ -116,6 +121,10 @@ NOT_ESTIMABLE_REASONS: frozenset[str] = frozenset(
         # per-unit class counts): the draw has no width by construction, not because
         # of the data.
         "fixed_by_outcome_stratification",
+        # build day 10 (E10, stats.comparison): an unpaired version comparison (H12
+        # with --allow-unpaired) has no paired bootstrap for the Brier and slope
+        # differences; the quantity is refused, never computed on a false pairing
+        "unpaired_not_like_for_like",
     }
 )
 
@@ -158,6 +167,8 @@ FLAGS: frozenset[str] = frozenset(
         # companion Number, these ride on the rendered one
         "log_delta_refused_clustered",
         "irls_wald_refused_clustered",
+        # build day 10 (E10): every Number of an unpaired version comparison
+        "not_like_for_like",
     }
 )
 
