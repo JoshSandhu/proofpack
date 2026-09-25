@@ -14,13 +14,18 @@
 * **the bootstrap differences reproduce under the same seed** (two calls, one document);
 * **the unpaired path labels every Number** (method ``*_not_like_for_like`` and the flag);
 * the module imports no renderer or oracle library; the F5 fixture pair reproduces the
-  discordant counts through :func:`compare_versions`; a clustered plan carries DEC-09's
-  typed refusal beside every cluster-bootstrap difference.
+  discordant counts through :func:`compare_versions`;
+* **the F5 pair under ``case_id = c{i // 2}``** (E10 repair 1, lens 1 FA-B1): the six
+  sensitivity / specificity cells (overall and both ``sex`` entries) equal a seed-fixed
+  re-run of ``clustered_flat`` + ``bootstrap_percentile`` on the same conditioned pairs
+  (at 322c5a4 they were refused ``insufficient_clusters``), and the twelve proportion
+  and AUROC cells carry DEC-09's typed refusal beside a cluster-bootstrap Number.
 """
 
 from __future__ import annotations
 
 import csv
+import json
 import math
 import statistics
 import sys
@@ -31,7 +36,12 @@ import pytest
 import yaml
 
 from proofpack.stats import comparison as cmp
-from proofpack.stats.bootstrap import BootstrapPolicy, plan_clustering
+from proofpack.stats.bootstrap import (
+    BootstrapPolicy,
+    bootstrap_percentile,
+    clustered_flat,
+    plan_clustering,
+)
 from proofpack.stats.discrimination import paired_delong
 from proofpack.stats.number import METHODS, NOT_ESTIMABLE_REASONS
 from proofpack.stats.proportions import difference_paired, wilson_bounds
@@ -104,8 +114,9 @@ def newcombe_paired_by_hand(e: int, f: int, g: int, h: int) -> tuple[float, floa
     """Newcombe (1998, Stat Med 17:2635-2650, 'Improved confidence intervals for the
     difference between binomial proportions based on paired data') **method 10**, as
     this test states it - the paper was not fetched in this build environment, so the
-    formula is [unverified] against the primary source (the same status as
-    ``fixtures/newcombe_table2.json``'s three paired examples):
+    formula is [unverified] against the primary source (no worked example of the paired
+    paper is in the repository; ``fixtures/newcombe_table2.json`` holds three examples
+    of the *independent*-proportions paper, ``56/70 - 48/80`` and two more):
 
         n = e + f + g + h;  p1 = (e + f) / n;  p2 = (e + g) / n;  d = p1 - p2 = (f - g) / n
         (l1, u1), (l2, u2): the Wilson score intervals of p1 and p2 (no continuity correction)
@@ -267,13 +278,20 @@ def test_the_bootstrap_differences_reproduce_under_the_same_seed():
     assert other["differences"]["brier"] != a["differences"]["brier"]
 
 
-def test_a_clustered_plan_bootstraps_every_difference_and_carries_dec_09s_refusal():
+def _f5_clustered(policy: BootstrapPolicy):
+    """The F5 pair with ``case_id = c{i // 2}`` (two rows per case, 50 cases), the
+    ``sex`` levels as subgroup entries, through :func:`compare_versions`."""
     new, prior, join = _f5_arrays()
     ids = np.array([f"c{i // 2}" for i in range(100)], dtype=object)
     new = cmp.VersionArrays(new.pos, new.score, new.probability, new.pred, ids)
     prior = cmp.VersionArrays(prior.pos, prior.score, prior.probability, prior.pred, ids)
     plan = plan_clustering("case_id", ids, 100)
     assert plan.clustered
+    with (F5 / "f5_new.csv").open(encoding="utf-8", newline="") as fh:
+        sex = np.array([r["sex"] for r in csv.DictReader(fh)])
+    subgroups = [
+        {"attribute": "sex", "level": lv, "rows": np.flatnonzero(sex == lv)} for lv in ("M", "F")
+    ]
     block = cmp.compare_versions(
         new,
         prior,
@@ -281,20 +299,105 @@ def test_a_clustered_plan_bootstraps_every_difference_and_carries_dec_09s_refusa
         join=join,
         ops=["op1"],
         plan=plan,
-        policy=BootstrapPolicy(n_resamples=100, seed=1),
+        policy=policy,
+        subgroups=subgroups,
     )
-    for cell, flag in (
-        (block["differences"]["op1"]["accuracy"], "newcombe_refused_clustered"),
-        (block["differences"]["auroc"], "delong_refused_clustered"),
-    ):
+    return new, prior, ids, block
+
+
+def test_f5_case_id_c_i_over_2_se_sp_cells_equal_a_clustered_flat_rerun():
+    """Lens 1 FA-B1 (E10 repair 1). At 322c5a4 the six sensitivity / specificity cells
+    below (overall and both ``sex`` entries) came back with no interval and the reason
+    ``insufficient_clusters`` beside ``n_cases`` 26 / 24, because the conditioned cell was
+    resampled by ``clustered_by_case``, whose second outcome stratum is empty on a
+    conditioned cell. The cells now go through ``clustered_flat`` (the resampler
+    ``proportion_ci`` uses); this test re-runs that resampler with the same seed, key
+    and B on the same conditioned pairs and asserts the identical interval."""
+    policy = BootstrapPolicy(n_resamples=200, seed=20240101)
+    new, prior, ids, block = _f5_clustered(policy)
+    with (F5 / "f5_new.csv").open(encoding="utf-8", newline="") as fh:
+        sex = np.array([r["sex"] for r in csv.DictReader(fh)])
+    expected_cases = {
+        ("overall", "sensitivity"): 26,
+        ("overall", "specificity"): 26,
+        ("M", "sensitivity"): 26,
+        ("M", "specificity"): 24,
+        ("F", "sensitivity"): 24,
+        ("F", "specificity"): 26,
+    }
+    entries = {"overall": (np.arange(100), block["differences"])}
+    for e in block["subgroups"]:
+        entries[e["level"]] = (np.flatnonzero(sex == e["level"]), e["differences"])
+    checked = 0
+    for (scope, metric), n_cases in expected_cases.items():
+        rows, diffs = entries[scope]
+        cell = diffs["op1"][metric]
+        num, ana = cell["number"], cell["analytic"]
+        assert cell["analytic_status"] == "refused_clustered"
+        assert ana["not_estimable_reason"] == "clustered_data_analytic_ci_invalid"
+        assert num["method"] == "cluster_bootstrap_percentile", (scope, metric, num)
+        assert num["not_estimable_reason"] is None
+        assert num["ci_lo"] is not None and num["ci_hi"] is not None
+        assert num["ci_lo"] < num["est"] < num["ci_hi"]
+        assert num["flags"] == ["newcombe_refused_clustered"]
+        assert num["n_cases"] == n_cases and num["est"] == ana["est"]
+        # the oracle: the same resampler, seed, key and B on the same conditioned pairs
+        pos = new.pos[rows]
+        sel = pos if metric == "sensitivity" else ~pos
+        pred_new, pred_prior = new.pred["op1"][rows][sel], prior.pred["op1"][rows][sel]
+        if metric == "specificity":
+            pred_new, pred_prior = ~pred_new, ~pred_prior
+        a, b = pred_new.astype(np.float64), pred_prior.astype(np.float64)
+        assert num["n"] == int(sel.sum()) and abs(num["est"] - (a.mean() - b.mean())) < 1e-12
+        resampler = clustered_flat(ids[rows][sel], n_rows=int(sel.sum()))
+        assert resampler.n_units == n_cases
+        key_parts = ("overall",) if scope == "overall" else ("subgroups", "sex", scope)
+        short = "se" if metric == "sensitivity" else "sp"
+        key = json.dumps(["comparison", *key_parts, "op1", short])
+
+        def stat(idx: np.ndarray, a: np.ndarray = a, b: np.ndarray = b) -> float:
+            return float(a[idx].mean() - b[idx].mean())
+
+        draw = bootstrap_percentile(stat, resampler, policy.rng(key), 200, 0.95)
+        assert draw.reason is None
+        assert (num["ci_lo"], num["ci_hi"]) == (draw.ci_lo, draw.ci_hi), (scope, metric)
+        checked += 1
+    assert checked == 6
+    # the figures measured on 25 September 2026 (B 200, seed 20240101), overall
+    se, sp = block["differences"]["op1"]["sensitivity"], block["differences"]["op1"]["specificity"]
+    assert se["number"]["est"] == -0.08 and sp["number"]["est"] == -0.08
+    assert (round(se["number"]["ci_lo"], 4), round(se["number"]["ci_hi"], 4)) == (-0.2, 0.0196)
+    assert (round(sp["number"]["ci_lo"], 4), round(sp["number"]["ci_hi"], 4)) == (-0.2, 0.0204)
+
+
+def test_f5_case_id_c_i_over_2_carries_dec_09s_refusal_on_all_fourteen_cells():
+    """The fourteen cells of the F5 pair under ``case_id = c{i // 2}``: overall
+    sensitivity, specificity, accuracy, AUROC, Brier, slope and, for each ``sex`` entry,
+    sensitivity, specificity, accuracy, AUROC. Each proportion and AUROC cell carries
+    the DEC-09 refusal as ``analytic`` and a ``cluster_bootstrap_percentile`` Number
+    with its ``*_refused_clustered`` flag; the two calibration cells are cluster
+    bootstraps with no analytic companion."""
+    _, _, _, block = _f5_clustered(BootstrapPolicy(n_resamples=100, seed=1))
+    cells = []
+    for diffs in (block["differences"], *(e["differences"] for e in block["subgroups"])):
+        for metric in ("sensitivity", "specificity", "accuracy"):
+            cells.append((diffs["op1"][metric], "newcombe_refused_clustered"))
+        cells.append((diffs["auroc"], "delong_refused_clustered"))
+    for cell, flag in cells:
         assert cell["analytic_status"] == "refused_clustered"
         assert cell["analytic"]["not_estimable_reason"] == "clustered_data_analytic_ci_invalid"
         assert cell["analytic"]["method"] == "none"
         assert cell["number"]["method"] == "cluster_bootstrap_percentile"
+        assert cell["number"]["ci_lo"] is not None
         assert flag in cell["number"]["flags"]
-        assert cell["number"]["n_cases"] == 50
         assert cell["number"]["est"] == cell["analytic"]["est"]
-    assert block["differences"]["brier"]["number"]["method"] == "cluster_bootstrap_percentile"
+    assert len(cells) == 12
+    assert block["differences"]["op1"]["accuracy"]["number"]["n_cases"] == 50
+    assert block["differences"]["auroc"]["number"]["n_cases"] == 50
+    for key in ("brier", "slope"):
+        cell = block["differences"][key]
+        assert cell["number"]["method"] == "cluster_bootstrap_percentile"
+        assert cell["analytic"] is None and cell["analytic_status"] == "used"
     assert block["clustering_route"] == "declared"
 
 

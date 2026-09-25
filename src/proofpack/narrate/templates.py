@@ -391,13 +391,15 @@ _T: list[Template] = [
     Template(
         "LEDGER_STATEMENT",
         "This test set has been used in {n_prior} prior version comparisons recorded in the "
-        "local ledger; the manufacturer's declared limit is {limit}.",
+        "local ledger; the manufacturer's declared ledger limit "
+        "(ledger.warn_after_acceptance_runs) is {limit}.",
         refs=(0, 2),
         guidance_ref="FDA_PCCP_MP1_DATA",
     ),
     Template(
         "LEDGER_WARNING",
-        "The declared limit on comparisons against this test set has been reached or exceeded.",
+        "The count of version comparisons recorded against this test set has reached or "
+        "exceeded the manufacturer's declared ledger limit (ledger.warn_after_acceptance_runs).",
         guidance_ref="FDA_PCCP_MP1_DATA",
     ),
     Template(

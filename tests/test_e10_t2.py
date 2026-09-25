@@ -5,8 +5,12 @@
   home, the test licence), read back from its written ``run.json`` and masked at the
   manifest's machine- and run-dependent keys (``run_id``, ``started``, ``duration_s``,
   ``mapping_sha256`` - the confirmed mapping carries a timestamp - ``numpy``, ``scipy``,
-  ``python``, ``platform``, ``reference_platform``), compared LF-normalised. Regenerate
-  with ``PROOFPACK_REGEN_GOLDEN=1``;
+  ``python``, ``platform``, ``reference_platform``, and since E10 repair 1
+  ``input_sha256`` / ``prior_input_sha256``, which hash the F5 CSVs' checked-out bytes:
+  a ``core.autocrlf true`` checkout gives CRLF and different hashes, lens 1 FA-N1 /
+  RG-B1), the HTML compared LF-normalised. Regenerate with ``PROOFPACK_REGEN_GOLDEN=1``.
+  ``test_the_golden_is_the_same_page_from_crlf_copies_of_the_f5_files`` builds the same
+  document from CRLF copies of the three files and compares it with the golden;
 * **footer on every page** (``test_render_t8.footers_per_page``), once in print;
 * **the verdict grep**: the status words only inside ``.status``; the T2 record string
   only in ``not_met`` rows of T2-3 / T2-4 and nowhere on a ``met`` row; the forbidden
@@ -28,6 +32,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import os
 import re
@@ -75,6 +80,8 @@ MASKED_MANIFEST = {
     "python": "3",
     "platform": "test",
     "reference_platform": False,
+    "input_sha256": "f5-new-bytes-masked",
+    "prior_input_sha256": "f5-prior-bytes-masked",
 }
 PAIRED = "paired_difference_vs_prior"
 
@@ -123,6 +130,25 @@ def test_golden_t2_matches_the_committed_render(document):
     assert GOLDEN.exists(), "regenerate with PROOFPACK_REGEN_GOLDEN=1"
     assert out == GOLDEN.read_bytes().decode("utf-8").replace("\r\n", "\n")
     assert render_t2.render_t2(document) == render_t2.render_t2(document)
+
+
+def test_the_golden_is_the_same_page_from_crlf_copies_of_the_f5_files(tmp_path):
+    """Lens 1 FA-N1 / RG-B1: the three F5 files written with CRLF line endings (what a
+    ``core.autocrlf true`` checkout gives: SHA-256 of ``f5_new.csv`` c3a45a47... against
+    the LF bytes' b5a7a966...) build the same page once the two input hashes are masked.
+    At 322c5a4 the two cover cells differed and this assertion failed."""
+    base = tmp_path / "crlf"
+    base.mkdir()
+    for name in ("f5_new.csv", "f5_prior.csv", "criteria.yaml"):
+        raw = (F5 / name).read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+        (base / name).write_bytes(raw)
+        assert b"\r\n" in raw
+    doc = compare_document(base, base / "f5_new.csv", base / "f5_prior.csv", base / "criteria.yaml")
+    lf_hash = hashlib.sha256((F5 / "f5_new.csv").read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+    assert doc["manifest"]["input_sha256"] != lf_hash  # the CRLF bytes hash differently
+    doc["manifest"].update(MASKED_MANIFEST)
+    out = render_t2.render_t2(doc).replace("\r\n", "\n")
+    assert out == GOLDEN.read_bytes().decode("utf-8").replace("\r\n", "\n")
 
 
 def test_the_nine_sections_are_present_in_d4_order(page):

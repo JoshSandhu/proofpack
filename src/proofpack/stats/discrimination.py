@@ -33,10 +33,13 @@ version-comparison statistic the PCCP performance-evaluation report rests on, ha
 ``cluster_ids`` parameter for a caller to pass and no route decision anywhere: it will
 build a ``delong_wald`` interval for the difference and two logit intervals for the arms
 over clustered rows, with no flag and no companion refusal, exactly as ``auroc_number``
-would. Nothing in ``src`` calls it yet (the round-7 fresh attack, 2026-09-10). Making it
-clustering-aware needs a cluster bootstrap of the *difference*, which is a build-day
-feature and not a docstring; until then the caller that reads the customer's table has to
-carry clustering here itself.
+would. Since build day 10 its one caller in ``src`` is
+``stats.comparison._paired_auroc_cell``, which calls it only when the plan is not
+clustered and on a clustered plan computes the cluster bootstrap of the difference
+instead, with the DeLong refusal as the ``analytic`` companion
+(``tests/test_e10_comparison.py::test_f5_case_id_c_i_over_2_carries_dec_09s_refusal_on_all_fourteen_cells``
+reads that cell's method and flag; the round-7 fresh attack of 2026-09-10 recorded the
+gap this closed).
 
 No scipy: the normal quantile comes from ``statistics.NormalDist`` and the normal
 tail from ``math.erfc``.
@@ -384,9 +387,10 @@ def paired_delong(
     **no clustering parameter**: no caller can tell it that its rows are lesions of two
     hundred patients, and it reaches none of the X2 routing in ``stats.bootstrap``. On
     clustered rows the paired variance is understated the same way the unpaired one is,
-    and the interval comes back with no flag and no companion refusal. Nothing in ``src``
-    calls this yet; the day-5 caller must not call it on a clustered table until a
-    cluster bootstrap of the difference exists (round-7 fresh attack, 2026-09-10).
+    and the interval comes back with no flag and no companion refusal. The one caller in
+    ``src`` (``stats.comparison._paired_auroc_cell``, build day 10) calls it when the
+    plan is not clustered and routes a clustered plan to the cluster bootstrap of the
+    difference (round-7 fresh attack, 2026-09-10; the E10 lens 1 record FA-N8).
     """
     a = np.asarray(scores_a, dtype=np.float64)
     b = np.asarray(scores_b, dtype=np.float64)

@@ -213,9 +213,9 @@
 {{ narrative(impact_sentences) }}
 <h2 id="t2-s7">7. Test-set ledger</h2>
 {{ notes("s7") }}
-<p>This test set (SHA-256 <span class="mono">{{ ledger.short }}</span>) has been used in <span data-count="prior_acceptance_runs">{{ ledger.prior_runs }}</span> prior version comparisons recorded in the local ledger; the manufacturer's declared limit is <span class="customer-text inline">{{ ledger.warn_limit }}</span>.</p>
+<p>This test set (SHA-256 <span class="mono">{{ ledger.short }}</span>) has been used in <span data-count="prior_acceptance_runs">{{ ledger.prior_runs }}</span> prior version comparisons recorded in the local ledger; the manufacturer's declared ledger limit (<span class="mono">ledger.warn_after_acceptance_runs</span>) is <span class="customer-text inline">{{ ledger.warn_limit }}</span>.</p>
 {% if ledger.limit_reached %}
-<div class="placeholder" data-slot="ledger-warning">The declared limit on comparisons against this test set has been reached or exceeded.</div>
+<div class="placeholder" data-slot="ledger-warning">The count of version comparisons recorded against this test set has reached or exceeded the manufacturer's declared ledger limit (<span class="mono">ledger.warn_after_acceptance_runs</span>).</div>
 {% endif %}
 {{ narrative(ledger_sentences) }}
 <h2 id="t2-s8">8. Traceability skeleton</h2>

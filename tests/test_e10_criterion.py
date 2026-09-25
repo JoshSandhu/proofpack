@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import copy
+import html
 import re
 import shutil
 from pathlib import Path
@@ -175,6 +176,80 @@ def test_paired_criteria_on_auroc_brier_slope_and_a_subgroup_read_their_cells(tm
 
 
 # ------------------------------------------------------------------ outside compare
+
+
+def _f5_with_case_ids(work: Path) -> None:
+    """The three F5 files in ``work`` with a ``case_id`` column ``c{i // 2}`` on both
+    versions and ``clustering.unit: case_id`` (lens 1 FA-B1's input)."""
+    import yaml
+
+    work.mkdir(exist_ok=True)
+    for name in ("f5_new.csv", "f5_prior.csv"):
+        lines = (F5 / name).read_text(encoding="utf-8").splitlines()
+        out = [lines[0] + ",case_id"] + [f"{ln},c{i // 2}" for i, ln in enumerate(lines[1:])]
+        (work / name).write_text("\n".join(out) + "\n", encoding="utf-8")
+    crit = yaml.safe_load((F5 / "criteria.yaml").read_text(encoding="utf-8"))
+    crit["clustering"] = {"unit": "case_id", "declared_by": "test"}
+    crit["criteria"] = [
+        dict(
+            crit["criteria"][1],
+            id="Cse",
+            metric="sensitivity",
+            justification="lens 1 FA-B1: a paired margin on sensitivity under clustering",
+            value=-0.30,
+        )
+    ]
+    (work / "criteria.yaml").write_text(yaml.safe_dump(crit, sort_keys=False), "utf-8")
+    confirmed_mapping(work / "f5_new.csv")
+
+
+def test_f5_case_id_c_i_over_2_assesses_a_paired_se_criterion_and_t2_prints_the_ci(tmp_path, home):
+    """Lens 1 FA-B1 through ``assemble_compare`` and T2: ``Cse`` (sensitivity,
+    ``ci_lower_bound >= -0.30``, overall, op1) on the F5 pair with ``case_id = c{i // 2}``
+    is ``met`` with ``compared_value`` the cluster-bootstrap lower bound (-0.2 at B 200,
+    seed 20240101); T2-3's sensitivity cell prints the interval and the page carries no
+    ``insufficient_clusters``. At 322c5a4 the row was ``not_assessable`` /
+    ``no_interval`` with ``detail.not_estimable_reason`` ``insufficient_clusters`` and
+    T2-3 printed ``n.e. (insufficient_clusters)`` beside the run's own sensitivity
+    interval on the same 26 cases."""
+    from proofpack.render.t2 import render_t2
+
+    work = tmp_path / "f5c"
+    _f5_with_case_ids(work)
+    outcome = assemble_compare(
+        work / "f5_new.csv",
+        work / "f5_prior.csv",
+        work / "criteria.yaml",
+        registry=ephemeral_registry(),
+        ledger_home=home,
+    )
+    doc = outcome.document
+    assert doc["comparison"]["clustering_route"] == "declared"
+    se = doc["comparison"]["differences"]["op1"]["sensitivity"]["number"]
+    own = doc["overall"]["op1"]["sensitivity"]
+    assert own["method"] == "cluster_bootstrap_percentile" and own["n_cases"] == 26
+    assert se["method"] == "cluster_bootstrap_percentile" and se["n_cases"] == 26
+    assert se["not_estimable_reason"] is None and se["n"] == 50
+    assert round(se["ci_lo"], 4) == -0.2 and se["est"] == -0.08
+    (row,) = doc["criteria_results"]
+    assert row["criterion_id"] == "Cse"
+    assert row["status"] == "met" and row["reason_code"] == "statistic_compared"
+    assert row["compared_value"] == se["ci_lo"]
+    assert "not_estimable_reason" not in row["detail"]
+    for entry in doc["comparison"]["subgroups"]:
+        for metric in ("sensitivity", "specificity"):
+            num = entry["differences"]["op1"][metric]["number"]
+            assert num["method"] == "cluster_bootstrap_percentile", (entry["level"], metric)
+    page = render_t2(doc)
+    assert "insufficient_clusters" not in page
+    assert "n.e." not in page
+    visible = html.unescape(re.sub(r"<[^>]+>", "", page))
+    assert visible.count("Criterion Cse (sensitivity difference against the prior version") == 1
+    assert "criterion met" in page and "not assessable" not in page
+    se_row = re.search(r'<tr data-metric="sensitivity" data-op="op1">(.*?)</tr>', page, re.S)
+    assert se_row is not None
+    assert "−8.0 [−20.0, +2.0]" in html.unescape(se_row.group(1))
+    assert "cluster_bootstrap_percentile" in se_row.group(1)
 
 
 def test_outside_compare_the_criterion_stays_requires_compare():

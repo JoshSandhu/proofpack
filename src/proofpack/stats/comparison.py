@@ -39,9 +39,14 @@ Methods, each written here or reused from the day-2/3/4 modules
   resampler (cases resampled within outcome class, every row of a drawn case kept; B and
   the seed from the declarations, the cell key recorded), with the DeLong refusal carried
   beside it as the ``analytic`` companion (DEC-09: ``clustered_data_analytic_ci_invalid``).
-  The paired proportions take the same route under clustering (the Newcombe paired
-  interval assumes independent pairs), with ``newcombe_refused_clustered`` on the
-  rendered Number.
+  Under clustering a paired proportion difference is the cluster bootstrap of the
+  conditioned cell through :func:`proofpack.stats.bootstrap.clustered_flat` (cases
+  resampled in one stratum, the resampler ``proportion_ci`` uses for the run's own
+  proportions; the Newcombe paired interval assumes independent pairs and is carried as
+  the ``analytic`` refusal), with ``newcombe_refused_clustered`` on the rendered Number.
+  On the F5 pair with ``case_id = c{i // 2}`` this gives the twelve proportion and
+  AUROC difference cells (overall and both ``sex`` entries) an interval
+  (``tests/test_e10_comparison.py::test_f5_case_id_c_i_over_2_se_sp_cells_equal_a_clustered_flat_rerun``).
 * **Brier and calibration-slope differences**: the paired bootstrap of ``Brier_new -
   Brier_prior`` and of ``slope_new - slope_prior`` (each slope the joint IRLS fit of
   :mod:`proofpack.stats.calibration` on the resampled pairs), stratified by outcome on
@@ -78,6 +83,7 @@ from proofpack.stats.bootstrap import (
     Resampler,
     bootstrap_percentile,
     clustered_by_case,
+    clustered_flat,
     stratified_by_outcome,
 )
 from proofpack.stats.calibration import CLIP_EPS, _fit_joint
@@ -393,11 +399,18 @@ def _paired_proportion_cell(
     refusal = not_estimable(
         "clustered_data_analytic_ci_invalid", est=analytic.est, n=n, ci_level=level
     )
-    sub = new.take(np.flatnonzero(sel))
-    ids = sub.case_ids
-    resampler = (
-        clustered_by_case(sub.pos, ids) if ids is not None else stratified_by_outcome(sub.pos)
-    )
+    if new.case_ids is None:
+        raise ValueError("a clustered plan needs the case ids of the pairs")
+    # E10 repair 1 (lens 1 FA-B1): the cell is already conditioned on the outcome (the
+    # reference-positive pairs for sensitivity), so it is resampled in one stratum by
+    # ``clustered_flat`` - the resampler ``stats.bootstrap.proportion_ci`` uses for the
+    # run's own proportions. At 322c5a4 the cell went through ``clustered_by_case``, whose
+    # empty second stratum refused the F5 sensitivity and specificity cells under
+    # ``case_id = c{i // 2}`` as ``insufficient_clusters`` beside ``n_cases: 26``
+    # (``tests/test_e10_comparison.py::
+    # test_f5_case_id_c_i_over_2_se_sp_cells_equal_a_clustered_flat_rerun``).
+    ids = new.case_ids[sel]
+    resampler = clustered_flat(ids, n_rows=n)
     a = np.asarray(correct_new, dtype=np.float64)
     b = np.asarray(correct_prior, dtype=np.float64)
 

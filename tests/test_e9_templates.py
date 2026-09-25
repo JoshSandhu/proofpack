@@ -713,14 +713,16 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
         "base",
         {"numbers": {"prior_acceptance_runs": 3}, "text": {"limit": "5"}},
         "This test set has been used in 3 prior version comparisons recorded in the local "
-        "ledger; the manufacturer's declared limit is 5.",
+        "ledger; the manufacturer's declared ledger limit (ledger.warn_after_acceptance_runs) "
+        "is 5.",
     ),
     (
         "ledger_warning",
         "LEDGER_WARNING",
         "base",
         {},
-        "The declared limit on comparisons against this test set has been reached or exceeded.",
+        "The count of version comparisons recorded against this test set has reached or "
+        "exceeded the manufacturer's declared ledger limit (ledger.warn_after_acceptance_runs).",
     ),
     (
         "impact",
