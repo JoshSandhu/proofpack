@@ -243,7 +243,7 @@
 <thead><tr><th scope="col">Group</th><th scope="col" class="num">Δ {{ se_label }} (pp) [95% CI]</th><th scope="col" class="num">Δ {{ sp_label }} (pp) [95% CI]</th><th scope="col" class="num">Δ AUROC [95% CI]</th>{% if o.has_criteria %}<th scope="col">Criterion (id) and status; max lower bound at n</th>{% endif %}</tr></thead>
 <tbody>
 {% for d in o.diffs %}
-<tr><th scope="row" class="customer-text">{{ d.level }}</th>{{ ncell(d.se) }}{{ ncell(d.sp) }}{{ ncell(d.auroc) }}{% if o.has_criteria %}<td>{% for c in d.criteria %}<span class="customer-text inline">{{ c.id }}</span> (row {{ c.position }}) → <span class="status">{{ c.status_word }}</span>; max LB {{ c.max_lb }} at n = {{ c.n }}, attainable: {{ c.attainable }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>{% endif %}</tr>
+<tr><th scope="row" class="customer-text">{{ d.level }}</th>{{ ncell(d.se) }}{{ ncell(d.sp) }}{{ ncell(d.auroc) }}{% if o.has_criteria %}<td>{% for c in d.criteria %}<span class="customer-text inline">{{ c.id }}</span> (row {{ c.position }}) → <span class="status">{{ c.status_word }}</span>{{ c.type_note }}; max LB {{ c.max_lb }} at n = {{ c.n }}, attainable: {{ c.attainable }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>{% endif %}</tr>
 {% endfor %}
 </tbody>
 </table>

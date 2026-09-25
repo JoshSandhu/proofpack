@@ -574,6 +574,13 @@ def subgroup_blocks(document: dict[str, Any]) -> list[dict[str, Any]]:
                             {
                                 "position": k + 1,
                                 "id": fmt.text(row.get("criterion_id")),
+                                # E10 (E9 row 121): a paired margin is named as such
+                                "type_note": (
+                                    " (difference against the prior version)"
+                                    if render_html.criterion_type(document, row)
+                                    != render_html.CRITERION_TYPES["point"]
+                                    else ""
+                                ),
                                 "status_word": render_html.STATUS_WORDS[row["status"]],
                                 "max_lb": fmt.scalar(row.get("max_lower_bound_at_n")),
                                 "n": fmt.count(row.get("n")) if row.get("n") is not None else "—",

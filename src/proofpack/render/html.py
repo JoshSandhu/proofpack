@@ -261,6 +261,19 @@ def _justification(document: dict[str, Any], row: dict[str, Any]) -> str:
     return fmt.text(_declaration_for(document, row).get("justification"))
 
 
+#: The Type column of Table T1-17 / T2-2 (E10): what the declaration entry's ``type``
+#: reads as; a fairness-bound row (no entry) and an entry without ``type`` are ``point``.
+CRITERION_TYPES: dict[str, str] = {
+    "point": "point",
+    "paired_difference_vs_prior": "paired difference vs prior version",
+}
+
+
+def criterion_type(document: dict[str, Any], row: dict[str, Any]) -> str:
+    entry = _declaration_for(document, row)
+    return CRITERION_TYPES.get(str(entry.get("type") or "point"), fmt.text(entry.get("type")))
+
+
 def _scope_text(scope: Any) -> str:
     if isinstance(scope, dict):
         return f"{fmt.text(scope.get('attribute'))} = {fmt.text(scope.get('level'))}"
@@ -285,14 +298,21 @@ def criteria_rows(document: dict[str, Any]) -> list[dict[str, Any]]:
         if ref is not None:
             found, value = resolve_pointer(document, ref)
             number = value if found and isinstance(value, dict) else None
+        ctype = criterion_type(document, row)
         kind = fmt.kind_for(
-            row.get("metric"), difference=str(row.get("metric", "")).endswith("_gap")
+            row.get("metric"),
+            # a gap, or (E10) a paired difference against the prior, prints as a difference
+            difference=str(row.get("metric", "")).endswith("_gap")
+            or ctype != CRITERION_TYPES["point"],
         )
         out.append(
             {
                 "position": i + 1,
                 "criterion_id": fmt.text(row.get("criterion_id")),
                 "metric": fmt.text(row.get("metric")),
+                # E10 (E9 row 121): the declared type, so a margin on the new-minus-prior
+                # difference is never read as a bound on the subgroup's own statistic
+                "type": ctype,
                 "scope": _scope_text(row.get("scope")),
                 "operating_point": fmt.text(row.get("operating_point")) or "—",
                 # DEC-62: the id is the manufacturer's; the dash is the engine's

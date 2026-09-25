@@ -49,6 +49,16 @@ _SAME_SCALE_SELECTORS: frozenset[str] = frozenset({"value", "pos", "neg", "compl
 _PROPORTION_SELECTORS: frozenset[str] = frozenset(
     {"se_minus", "se_plus", "sp_minus", "sp_plus", "ref", "cur"}
 )
+#: The phrase ``CRITERION_STATUS`` prints after the metric name of a
+#: ``paired_difference_vs_prior`` criterion (build day 10; E9 row 121, need 32).
+PAIRED_TYPE_CLAUSE = " difference against the prior version"
+#: ``MCNEMAR_RESULT``'s ``{method}`` text, from ``comparison.mcnemar[op].method``.
+MCNEMAR_PHRASES: dict[str, str] = {
+    "exact_mcnemar": "exact",
+    "cc_mcnemar": "continuity-corrected chi-square",
+}
+#: ``LEDGER_STATEMENT``'s ``{limit}`` when ``criteria.yaml`` declares no ledger limit.
+NO_LIMIT_DECLARED = "no limit declared"
 #: ``AUROC_ESTIMATE``'s ``method_phrase`` key, from the Number's own method.
 AUROC_METHOD_PHRASE_KEYS: dict[str, str] = {
     "delong_logit": "iid",
@@ -71,8 +81,12 @@ class Part:
     kind: str
 
 
-def selector_kind(selector: str, metric_id: str | None) -> str:
-    """The printing rule (:data:`proofpack.render.format.KINDS`) for one selector."""
+def selector_kind(selector: str, metric_id: str | None, value_is_difference: bool = False) -> str:
+    """The printing rule (:data:`proofpack.render.format.KINDS`) for one selector.
+    ``value_is_difference`` (E10): the claim's one value is a difference cell (a
+    ``paired_difference_vs_prior`` criterion's), printed by the difference rule."""
+    if selector == "value" and value_is_difference:
+        return fmt.kind_for(metric_id, difference=True)
     if selector in _SAME_SCALE_SELECTORS:
         return fmt.kind_for(metric_id)
     if selector == "diff":
@@ -122,6 +136,7 @@ def _fill(
     text: dict[str, Any],
     metric_id: str | None,
     phrases: dict[str, dict[str, str]],
+    value_is_difference: bool = False,
 ) -> list[Part]:
     parts: list[Part] = []
     seen: dict[str, int] = {}
@@ -137,7 +152,11 @@ def _fill(
             selector, _, facet = binding.partition(".")
             parts.append(
                 Part(
-                    facet_text(numbers.get(selector), facet, selector_kind(selector, metric_id)),
+                    facet_text(
+                        numbers.get(selector),
+                        facet,
+                        selector_kind(selector, metric_id, value_is_difference),
+                    ),
                     "engine",
                 )
             )
@@ -153,7 +172,11 @@ def _fill(
             key = text.get(slot)
             if key not in phrases[slot]:
                 raise SentenceError(f"slot {slot!r}: no phrase for key {key!r}")
-            parts.extend(_fill(phrases[slot][key], {}, numbers, text, metric_id, phrases))
+            parts.extend(
+                _fill(
+                    phrases[slot][key], {}, numbers, text, metric_id, phrases, value_is_difference
+                )
+            )
             continue
         if slot not in text:
             raise SentenceError(f"slot {slot!r} has no value in the context")
@@ -176,6 +199,7 @@ def render_parts(
     subgroup_id: Any = None,
     comparator_id: str | None = None,
     status: str | None = None,
+    value_is_difference: bool = False,
 ) -> list[Part]:
     """One sentence as parts, from the library key and its inputs."""
     if template_id not in lib.LIBRARY:
@@ -191,6 +215,7 @@ def render_parts(
         ctx,
         metric_id,
         lib.LIBRARY[template_id].phrases or {},
+        value_is_difference,
     )
     if skeleton.startswith("{metric_name}") and parts and parts[0].text[:1].islower():
         parts[0] = Part(parts[0].text[:1].upper() + parts[0].text[1:], parts[0].kind)
@@ -212,6 +237,7 @@ def _unescape(segment: str) -> str:
 def claim_numbers(claim: dict[str, Any], document: dict[str, Any]) -> dict[str, Any]:
     """The claim's bound values by selector (see the module docstring, step 2)."""
     family = claim.get("template_id") in checker_mod.METRIC_FAMILIES
+    criterion = claim.get("template_id") in checker_mod.CRITERION_TEMPLATES
     out: dict[str, Any] = {}
     for ref in claim.get("value_refs") or []:
         found, value = checker_mod.resolve_pointer(document, ref)
@@ -220,6 +246,10 @@ def claim_numbers(claim: dict[str, Any], document: dict[str, Any]) -> dict[str, 
         facets = checker_mod.pointer_facets(ref)
         if facets is None:
             selector = _unescape(ref.rsplit("/", 1)[-1])
+        elif criterion:
+            # E10: a paired_difference_vs_prior criterion's Number is a difference cell
+            # (block diff_vs_prior) and is still the one value the sentence reports
+            selector = "value"
         elif facets.block is not None:
             selector = "diff"
         elif family:
@@ -290,6 +320,18 @@ def claim_text(claim: dict[str, Any], document: dict[str, Any]) -> dict[str, Any
         ctx["n_cases"] = fmt.count(n_cases)
     if tid == "CALIB_NA":
         ctx["score_type"] = (decl.get("score") or {}).get("type")
+    model = decl.get("model") or {}
+    comparison = document.get("comparison") if isinstance(document.get("comparison"), dict) else {}
+    if tid == "PAIRED_DIFF":
+        # E10: the two version labels are the manufacturer's (customer slots)
+        ctx["prior"] = comparison.get("prior_version", model.get("prior_version"))
+        ctx["new"] = model.get("version")
+    if tid == "MCNEMAR_RESULT":
+        entry = (comparison.get("mcnemar") or {}).get(claim.get("operating_point")) or {}
+        ctx["method"] = MCNEMAR_PHRASES.get(str(entry.get("method")), fmt.text(entry.get("method")))
+    if tid == "LEDGER_STATEMENT":
+        limit = (comparison.get("ledger") or {}).get("warn_limit")
+        ctx["limit"] = NO_LIMIT_DECLARED if limit is None else fmt.count(limit)
     if tid in checker_mod.CRITERION_TEMPLATES:
         rows = document.get("criteria_results") or []
         i = claim.get("criterion_index")
@@ -297,6 +339,10 @@ def claim_text(claim: dict[str, Any], document: dict[str, Any]) -> dict[str, Any
         entry = _declaration_entry(document, row)
         ctx.update(
             {
+                # E10 (E9 row 121): the declared type reaches the sentence
+                "type_clause": (
+                    PAIRED_TYPE_CLAUSE if entry.get("type") == "paired_difference_vs_prior" else ""
+                ),
                 "criterion_id": row.get("criterion_id"),
                 "scope": scope_text(row),
                 "statistic": lib.STATISTIC_NAMES.get(
@@ -326,10 +372,16 @@ def claim_parts(claim: dict[str, Any], document: dict[str, Any]) -> list[Part]:
     tid = str(claim.get("template_id"))
     key = claim_key(claim)
     text = claim_text(claim, document)
+    # E10: a criterion on a paired difference prints its Number by the difference rule
+    difference = tid in checker_mod.CRITERION_TEMPLATES and any(
+        (f := checker_mod.pointer_facets(ref)) is not None and f.block is not None
+        for ref in claim.get("value_refs") or []
+    )
     return render_parts(
         tid,
         numbers=claim_numbers(claim, document),
         text=text,
+        value_is_difference=difference,
         **key,
     )
 

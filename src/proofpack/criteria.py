@@ -124,6 +124,11 @@ REASON_CODES: dict[str, str] = {
     "requires_compare": "a paired_difference_vs_prior criterion is evaluated by compare",
     "overall_not_computed": "the overall block is null in this document",
     "not_estimable_this_run": "the quantity is reported without an interval in v1",
+    # build day 10 (E10, compare): a paired_difference_vs_prior criterion on an unpaired
+    # comparison (H12 with --allow-unpaired; D1 section 2: "comparator not like-for-like")
+    "not_like_for_like": "the comparison is unpaired, so no paired difference exists",
+    # a paired criterion whose scope the comparison block carries no difference for
+    "comparison_not_computed_for_scope": "the comparison carries no paired difference in scope",
 }
 
 STATISTICS: tuple[str, ...] = ("ci_lower_bound", "ci_upper_bound", "point_estimate")
@@ -383,13 +388,82 @@ def _row(
     return out
 
 
+#: The ``comparison.differences`` key each threshold-free metric id is read from (build
+#: day 10): the calibration slope's key is ``slope``, as in the calibration block.
+COMPARISON_KEYS: dict[str, str] = {"auroc": "auroc", "brier": "brier", "calibration_slope": "slope"}
+
+
+def _comparison_cell(block: Any, path: str, key: str) -> _Read:
+    if not isinstance(block, dict) or key not in block:
+        return _Read(None, None, "comparison_not_computed_for_scope")
+    return _cell_number(block[key], f"{path}.{key}")
+
+
+def _resolve_comparison(doc: dict[str, Any], metric: str, op: str | None, scope: Any) -> _Read:
+    """A ``paired_difference_vs_prior`` criterion reads the paired difference of its
+    metric from ``comparison.differences`` (overall scope) or from the matching
+    ``comparison.subgroups[i].differences`` entry (a subgroup scope; the list is parallel
+    to ``subgroups``), and compares the customer's statistic of that Number with the
+    customer's margin. On an unpaired comparison no paired difference exists and every
+    such criterion is ``not_assessable`` / ``not_like_for_like`` (D1 section 2)."""
+    comparison = doc.get("comparison")
+    if not isinstance(comparison, dict):
+        return _Read(None, None, "requires_compare")
+    if not comparison.get("paired"):
+        return _Read(None, None, "not_like_for_like")
+    if scope == "overall":
+        block = comparison.get("differences") or {}
+        path = "comparison.differences"
+    else:
+        rows = doc.get("subgroups") or []
+        entries = comparison.get("subgroups") or []
+        block, path = None, ""
+        for i, r in enumerate(rows):
+            if (
+                isinstance(r, dict)
+                and str(r.get("attribute")) == str(scope.get("attribute"))
+                and str(r.get("level")) == str(scope.get("level"))
+                and i < len(entries)
+                and isinstance(entries[i], dict)
+            ):
+                block = entries[i].get("differences")
+                path = f"comparison.subgroups[{i}].differences"
+                break
+        if block is None:
+            return _Read(None, None, "comparison_not_computed_for_scope")
+    if metric in COMPARISON_KEYS:
+        return _comparison_cell(block, path, COMPARISON_KEYS[metric])
+    if metric in SUBGROUP_OP_METRICS and op is not None:
+        per_op = block.get(op) if isinstance(block, dict) else None
+        return _comparison_cell(per_op, f"{path}.{op}", metric)
+    return _Read(None, None, "metric_not_computed")
+
+
 def _reads_for(c: dict[str, Any], doc: dict[str, Any]) -> list[tuple[_Read, Any]]:
     """The (read, scope) pairs one criterion resolves to: one per level in scope."""
     metric = c["metric"]
     op = None if c.get("operating_point") is None else str(c["operating_point"])
     scope = c.get("scope", "overall")
     if c.get("type") == "paired_difference_vs_prior":
-        return [(_Read(None, None, "requires_compare"), scope)]
+        # build day 10: evaluated by compare (the document carries a comparison block);
+        # outside compare the row stays not_assessable / requires_compare
+        if not isinstance(doc.get("comparison"), dict):
+            return [(_Read(None, None, "requires_compare"), scope)]
+        if scope == "overall" or scope.get("level") != "*":
+            return [(_resolve_comparison(doc, metric, op, scope), scope)]
+        attribute = str(scope["attribute"])
+        matched = _subgroup_rows(doc, attribute, "*")
+        if not matched:
+            return [(_Read(None, None, "level_absent"), scope)]
+        return [
+            (
+                _resolve_comparison(
+                    doc, metric, op, {"attribute": attribute, "level": str(r["level"])}
+                ),
+                {"attribute": attribute, "level": str(r["level"])},
+            )
+            for _, r in matched
+        ]
     if metric in NOT_COMPUTED_METRICS:
         return [(_Read(None, None, "metric_not_computed"), scope)]
     if scope == "overall":

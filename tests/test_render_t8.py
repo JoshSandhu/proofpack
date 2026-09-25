@@ -502,11 +502,13 @@ def test_twenty_printed_cells_equal_fmt_number_of_the_document_number():
         rows, re.finditer(r'<tr class="criterion-row"[^>]*>(.*?)</tr>', out, re.S), strict=True
     ):
         cells = re.findall(r"<td[^>]*>([^<]*)</td>", m.group(1))
-        assert cells[7] == fmt.declared(row["value"])
-        assert cells[12] == fmt.scalar(row["compared_value"])
-        assert cells[16] == fmt.scalar(row["max_lower_bound_at_n"])
-        assert cells[13] == STATUS_WORDS[row["status"]]
-        assert cells[14] == row["reason_code"]
+        # E10 inserted the Type column at position 3 (E9 row 121): every later index + 1
+        assert cells[3] == "point"
+        assert cells[8] == fmt.declared(row["value"])
+        assert cells[13] == fmt.scalar(row["compared_value"])
+        assert cells[17] == fmt.scalar(row["max_lower_bound_at_n"])
+        assert cells[14] == STATUS_WORDS[row["status"]]
+        assert cells[15] == row["reason_code"]
         assert int(cells[0]) == rows.index(row) + 1
 
 

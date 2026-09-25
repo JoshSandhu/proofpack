@@ -92,6 +92,7 @@ CRIT = {
     "scope": "overall, op1",
     "statistic": "CI lower bound",
     "comparator": ">=",
+    "type_clause": "",  # E10: empty on a point criterion (tests/test_e10_t2.py feeds the other)
     **AUTHOR,
 }
 
@@ -666,6 +667,31 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
         "250 paired cases (Newcombe paired).",
     ),
     (
+        "paired_diff_not_a_proportion",
+        "PAIRED_DIFF",
+        "not_a_proportion",
+        {
+            "metric_id": "auroc",
+            "numbers": {"diff": DIFF3, "n_pairs": 250},
+            "text": {"prior": "1.2", "new": "1.3"},
+        },
+        "AUROC changed by −0.012 [−0.041, +0.017] from version 1.2 to 1.3 on 250 paired cases "
+        "(DeLong, Wald interval).",
+    ),
+    (
+        "paired_diff_not_estimable",
+        "PAIRED_DIFF",
+        "not_estimable",
+        {
+            "metric_id": "brier",
+            "status": "not_assessable",
+            "numbers": {"diff": _ne("score_not_probability"), "n_pairs": 250},
+            "text": {"prior": "1.2", "new": "1.3"},
+        },
+        "The change in Brier score from version 1.2 to 1.3 on 250 paired cases was not "
+        "estimable with an interval (score_not_probability).",
+    ),
+    (
         "mcnemar",
         "MCNEMAR_RESULT",
         "base",
@@ -685,7 +711,7 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
         "ledger_statement",
         "LEDGER_STATEMENT",
         "base",
-        {"numbers": {"n_prior": 3, "limit": 5}},
+        {"numbers": {"prior_acceptance_runs": 3}, "text": {"limit": "5"}},
         "This test set has been used in 3 prior version comparisons recorded in the local "
         "ledger; the manufacturer's declared limit is 5.",
     ),
@@ -815,7 +841,7 @@ def test_the_cases_cover_every_template_every_variant_and_every_phrase_key():
     wanted = {(tid, v) for tid, v, _ in lib.all_skeletons() if not v.startswith("phrase:")}
     assert wanted - covered == set()
     assert {tid for tid, _ in covered} == set(lib.LIBRARY)
-    assert len(lib.LIBRARY) == 56 and len(wanted) == 62
+    assert len(lib.LIBRARY) == 56 and len(wanted) == 64  # E10: two PAIRED_DIFF variants
     # every phrase key is fed, except MODEL_CARD_LIMITS' limit_item list, which a caller
     # composes into limit_list (no v1 claim uses it: the model card is v1.1)
     for tid, t in lib.LIBRARY.items():

@@ -257,8 +257,13 @@ _T: list[Template] = [
     ),
     Template(
         "CRITERION_STATUS",
-        "Criterion {criterion_id} ({metric_name}, {scope}, {statistic} {comparator} {value}; "
-        "{author}, {date}): observed {est} [{ci}] - {status_word}{reason_clause}.",
+        # {type_clause} (build day 10, E10; E9 row 121 / need 32): " difference against the
+        # prior version" on a paired_difference_vs_prior criterion, empty otherwise, so a
+        # margin on the new-minus-prior difference is never read as a bound on the
+        # subgroup's own statistic. A D4 section 8 skeleton change, recorded in the E10 note.
+        "Criterion {criterion_id} ({metric_name}{type_clause}, {scope}, {statistic} "
+        "{comparator} {value}; {author}, {date}): observed {est} [{ci}] - "
+        "{status_word}{reason_clause}.",
         refs=(0, 1),
         phrases={
             "status_word": {
@@ -366,7 +371,8 @@ _T: list[Template] = [
         "PAIRED_DIFF",
         "{metric_name} changed by {diff} percentage points [{ci}] from version {prior} to {new} "
         "on {n_pairs} paired cases ({method}).",
-        refs=(1, 1),
+        # E10: the difference Number and the pair count (comparison.n_pairs)
+        refs=(1, 2),
         guidance_ref="FDA_PCCP_MP3_PERF_EVAL",
     ),
     Template(
@@ -665,7 +671,9 @@ FACET_BINDINGS: dict[str, dict[str, tuple[str, ...]]] = {
         "method": ("diff.method",),
     },
     "MCNEMAR_RESULT": {"b": ("b.count",), "c": ("c.count",), "p": ("p.p",)},
-    "LEDGER_STATEMENT": {"n_prior": ("n_prior.count",), "limit": ("limit.count",)},
+    # E10: the count of prior comparisons is bound (comparison.ledger.prior_acceptance_runs);
+    # {limit} is a text slot the renderer fills with the declared limit or "no limit declared"
+    "LEDGER_STATEMENT": {"n_prior": ("prior_acceptance_runs.count",)},
     "PSI_RESULT": {
         "psi": ("psi.estci",),
         "crit": ("crit.scalar",),
@@ -747,6 +755,9 @@ METHOD_PHRASES: dict[str, str] = {
     "chi2_psi": "chi-square critical value",
     "exact_mcnemar": "exact McNemar",
     "cc_mcnemar": "continuity-corrected McNemar",
+    # build day 10 (E10): the unpaired version comparison's labelled methods
+    "newcombe10_not_like_for_like": "Newcombe method 10, unpaired (not like-for-like)",
+    "delong_wald_not_like_for_like": "DeLong, Wald interval, unpaired (not like-for-like)",
     "none": "no interval method",
 }
 
@@ -868,10 +879,34 @@ VARIANTS: dict[str, tuple[Variant, ...]] = {
     "CRITERION_STATUS": (
         Variant(
             "not_assessable",
-            "Criterion {criterion_id} ({metric_name}, {scope}, {statistic} {comparator} "
-            "{value}; {author}, {date}): {status_word}{reason_clause}.",
+            "Criterion {criterion_id} ({metric_name}{type_clause}, {scope}, {statistic} "
+            "{comparator} {value}; {author}, {date}): {status_word}{reason_clause}.",
             {},
             statuses=_NA,
+        ),
+    ),
+    # build day 10 (E10): the version comparison's difference sentence for a quantity
+    # that is not a proportion (AUROC, Brier, slope: no "percentage points"; D4 section
+    # 1.2's three-decimal rule), and for a difference carrying a typed reason
+    "PAIRED_DIFF": (
+        Variant(
+            "not_estimable",
+            "The change in {metric_name} from version {prior} to {new} on {n_pairs} paired "
+            "cases was not estimable with an interval ({reason}).",
+            {"n_pairs": ("n_pairs.count",), "reason": ("diff.reason",)},
+            statuses=_NA,
+        ),
+        Variant(
+            "not_a_proportion",
+            "{metric_name} changed by {diff} [{ci}] from version {prior} to {new} on {n_pairs} "
+            "paired cases ({method}).",
+            {
+                "diff": ("diff.est",),
+                "ci": ("diff.ci",),
+                "n_pairs": ("n_pairs.count",),
+                "method": ("diff.method",),
+            },
+            metric_ids=frozenset({"auroc", "brier", "calibration_slope", "ipa", "oe"}),
         ),
     ),
 }
