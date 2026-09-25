@@ -28,10 +28,11 @@ jobs:
       - name: pytest (all markers)
         run: uv run pytest -q -p no:cacheprovider
       # A-P3 repair 3 (CI-1): the --check tests/test_fixtures_cmd.py runs, here outside
-      # pytest, so its printed lines (each captured value whose float differs from
-      # fixtures/oracles_v1.json, with both figures) reach the job log. The step name, the
-      # command and the if: line are read by tests/test_ap3_r3_repair1.py::
-      # test_fan7_ci_runs_the_oracle_check_after_pytest_unless_cancelled.
+      # pytest. It is written to print each captured value whose float differs from
+      # fixtures/oracles_v1.json, with both figures; this step has not run yet (A-P4, 25
+      # September 2026), so whether those lines appear in a job log is not measured. The
+      # step name, the command and the if: line are read by tests/test_ap3_r3_repair1.py::
+      # test_fan7_the_oracle_step_follows_pytest_and_carries_if_not_cancelled.
       - name: oracle capture compared with fixtures/oracles_v1.json
         if: ${{ !cancelled() }}
         run: uv run python scripts/capture_fixture_oracles.py --check

@@ -7,7 +7,10 @@ Neither ``release.yml`` nor ``ci.yml``'s ``docker-smoke`` job has run anywhere (
   ``||``, ``;`` and ``|``; a ``uses: docker://`` step's image and ``with.args``; comment
   lines and commands beginning ``echo`` left out) that one of ``ENGINE_CALL``,
   ``IMAGE_CALL`` or ``MAIN_CALL`` matches carries ``--offline`` as a word of its own
-  (``OFFLINE_FLAG``) before any `` #`` comment mark; the one exempt job is
+  (``OFFLINE_FLAG``: not preceded by a word character, ``.``, ``/``, ``-``, ``=``, ``<``
+  or ``>``, and not followed by a word character, ``.``, ``/`` or ``-``; the split at a
+  single ``&`` keeps ``& echo --offline`` out of the command before it - A-P4, lens FA3-S1)
+  before any `` #`` comment mark; the one exempt job is
   the A-P2 job ``offline-namespace``, whose script runs ``--online`` inside a network
   namespace on purpose and is listed here by name. The patterns do not match
   ``scripts/build_sample_pack.py`` or ``scripts/f17_determinism.py``, which run the engine
@@ -52,10 +55,13 @@ IMAGE_CALL = re.compile(
 )
 #: ``main(["run", ...])`` written inline, as in ``python -c``.
 MAIN_CALL = re.compile(r"main\(\s*\[\s*['\"]" + SUBCOMMANDS)
-SEPARATORS = re.compile(r"&&|\|\||;|\|")
+#: ``&&``, ``||``, ``;``, ``|`` and a single ``&`` (a backgrounded command; A-P4, FA3-S1:
+#: ``proofpack run ... & echo --offline`` read as one command before it).
+SEPARATORS = re.compile(r"&&|\|\||;|\||&")
 #: ``--offline`` as a word of its own: ``--out out--offline`` and ``./--offline-dir`` are
-#: not it (lens FA2-R3, RG2-N2).
-OFFLINE_FLAG = re.compile(r"(?<![\w./-])--offline(?![\w/-])")
+#: not it (lens FA2-R3, RG2-N2); nor are ``--out=--offline``, ``OPT=--offline proofpack
+#: run``, ``>--offline.log`` and ``> --offline.log`` (A-P3 lens FA3-S1, closed by A-P4).
+OFFLINE_FLAG = re.compile(r"(?<![\w./=<>-])--offline(?![\w./-])")
 #: A shell comment: `` #`` to the end of the line (lens FA2-R3: ``# --offline``).
 COMMENT = re.compile(r"(?:^|\s)#.*$")
 #: Jobs whose engine runs are deliberately not --offline (A-P2's namespace job).
@@ -159,6 +165,12 @@ LENS_COUNTER_EXAMPLES = (
     "proofpack run --input a --criteria b  # --offline is added later",
     "proofpack run --input a --criteria b --out out--offline",
     "proofpack run --input a --out ./--offline-dir",
+    # A-P3 lens 3 FA3-S1 (closed by A-P4): each passed offline_violations at 5b1b1f4
+    "proofpack run --input a --criteria b --out=--offline",
+    "OPT=--offline proofpack run --input a --criteria b",
+    "proofpack run --input a --criteria b >--offline.log",
+    "proofpack run --input a --criteria b > --offline.log",
+    "proofpack run --input a --criteria b & echo --offline",
 )
 
 

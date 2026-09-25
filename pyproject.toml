@@ -93,6 +93,7 @@ markers = [
     "fixture: named fixture register entries (F1-F21)",
     "ap2: A-P2 egress, telemetry and --offline (build day 8, lane A); every ap2 test also carries day8",
     "ap3: A-P3 release pipeline, proofpack fixtures, F17, T12 (build day 9, lane A); every ap3 test also carries day9",
+    "ap4: A-P4 DOCX renderer, the [docx] extra, PNG figures (build day 10, lane A); every ap4 test also carries day10",
     "slow: slow tests",
 ]
 addopts = "-ra"

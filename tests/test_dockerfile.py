@@ -109,7 +109,7 @@ def test_the_entrypoint_is_proofpack(text):
     assert len(eps) == 1 and json.loads(eps[0]) == ["proofpack"]
 
 
-def test_no_secret_looking_env_or_arg_and_no_key_material(text):
+def test_no_secretish_env_or_arg_name_no_lic_pem_key_copy_and_no_begin_private_key(text):
     for word, rest in instructions(text):
         if word in ("ENV", "ARG"):
             names = re.findall(r"([A-Za-z_][A-Za-z0-9_]*)=", rest) or [rest.split()[0]]
@@ -169,7 +169,7 @@ def test_each_assertion_fails_on_a_planted_line(text, planted, failing):
         "add": test_no_add_of_an_http_or_git_url_and_no_curl_or_wget_in_run,
         "copy": test_the_copies_and_the_run_are_the_ones_written,
         "user": test_the_image_runs_as_a_non_root_user,
-        "env": test_no_secret_looking_env_or_arg_and_no_key_material,
+        "env": test_no_secretish_env_or_arg_name_no_lic_pem_key_copy_and_no_begin_private_key,
     }
     with pytest.raises(AssertionError):
         checks[failing](mutated)
