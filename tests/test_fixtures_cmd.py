@@ -120,7 +120,7 @@ def test_a_planted_oracle_off_by_2e_9_on_a_closed_form_cell_is_not_matched_and_e
     assert 1.9e-9 < row["max_abs_deviation"] < 2.1e-9
     assert row["reason"] == "outside tolerance: wilson_lo"
     assert rep["exit_code"] == EXIT_FIXTURES_NOT_MATCHED == 6
-    assert rep["summary"]["not_matched"] == 1 and rep["summary"]["matched"] == 29
+    assert rep["summary"]["not_matched"] == 1 and rep["summary"]["matched"] == 32  # E10: +3
     fx.validate_report(rep)
     # the command: the same planted file through main exits 6 and names the row
     monkeypatch.setattr(fx, "load_oracles", lambda: planted)
@@ -254,5 +254,5 @@ def test_without_the_newcombe_file_f14_has_no_oracle_recorded_and_the_exit_is_0(
     f14 = next(r for r in rep["rows"] if r["id"] == "F14-newcombe")
     assert f14["status"] == "no_oracle_recorded" and f14["matched"] is False
     assert f14["reason"] == fx.NEWCOMBE_ABSENT and f14["oracle_source"] is None
-    assert rep["summary"]["matched"] == 29 and rep["exit_code"] == 0
+    assert rep["summary"]["matched"] == 32 and rep["exit_code"] == 0  # E10: three F5 rows
     fx.validate_report(rep)
