@@ -71,6 +71,43 @@ jobs:
       - name: doctor in the CI venv
         run: uv run proofpack doctor --offline
 
+  docx-extra:
+    # A-P4 (build day 10, lane A): the [docx] extra (docxtpl, python-docx, matplotlib) is
+    # installed from the lock and the ap4 marker runs with PROOFPACK_REQUIRE_DOCX=1, under
+    # which tests/ap4_docx.py refuses the "extra not installed" skip. The main test job
+    # installs no extra, so the same tests skip there with that named reason and
+    # `import proofpack` is exercised without the three packages. The install is a download
+    # GitHub makes on its runner. This job had not run anywhere when it was written (26
+    # September 2026): the branch a-p4-docx had not reached this repository's CI.
+    name: pytest -m ap4 with the [docx] extra installed
+    runs-on: ubuntu-latest
+    env:
+      PROOFPACK_REQUIRE_DOCX: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --all-groups --locked --extra docx
+      - name: the three modules import (the skip is refused under PROOFPACK_REQUIRE_DOCX)
+        run: uv run python -c "import docx, docxtpl, matplotlib; print(docxtpl.__version__, matplotlib.__version__)"
+      - name: pytest -m ap4 (the DOCX renderer, templates, figures, round-trip, styles)
+        run: uv run pytest -q -p no:cacheprovider -m ap4
+      - name: "proofpack run --format json,html,docx on the synthetic sample (no licence: exit 4, run.json only, the Next-step line names the .docx files)"
+        run: |
+          set -euo pipefail
+          uv run python scripts/f17_determinism.py --out smoke/in --n 400 --inputs-only
+          set +e
+          uv run proofpack run --input smoke/in/synthetic.csv --criteria smoke/in/criteria.yaml --mapping smoke/in/synthetic.csv.mapping.json --out smoke/pack --format json,html,docx --templates T1,T7,T8 --offline | tee run.txt
+          rc=${PIPESTATUS[0]}
+          set -e
+          test "${rc}" = "4"
+          grep -q "T1.docx, T7.html, T7.docx, T8.html, T8.docx" run.txt
+          test -s smoke/pack/run.json
+          test ! -e smoke/pack/T1.docx
+
   offline-namespace:
     # A-P2 (build day 8, lane A; D1 section 6, F19): the whole `proofpack run` on the
     # synthetic cohort inside a user namespace with no network (`unshare -rn`; if the

@@ -6,7 +6,10 @@ all raise, the telemetry transport raises too, and ``run``, ``compare``, ``map``
 ``doctor`` and ``licence verify`` each complete under ``--offline``. ``proofpack
 fixtures`` (A-P3, build day 9) joined the list: ``test_fixtures_offline_opens_no_socket``
 runs it with ``--html`` under a licence and with ``--r-captures`` (it carries ``day9`` and
-``ap3`` beside this module's markers). The CI job ``offline-namespace``
+``ap3`` beside this module's markers). ``run --format json,html,docx`` (A-P4, build day
+10) joined it: ``test_run_offline_with_format_docx_opens_no_socket`` (``day10``, ``ap4``;
+skipped with a named reason where the ``[docx]`` extra is not installed). The CI job
+``offline-namespace``
 (.github/workflows/ci.yml) runs one whole ``proofpack run`` inside ``unshare -rn`` with
 and without ``--offline``; its first run is GitHub Actions run 35911876338 at ``eda8a35``
 (23 September 2026), job "proofpack run inside unshare -rn (no network)", conclusion
@@ -200,3 +203,30 @@ def test_the_ci_namespace_job_and_its_script_exist_and_assert_both_invocations()
     assert "[W16]" in ci and "telemetry skipped (--offline)" in ci
     script = (repo / "scripts" / "ci_namespace_run.py").read_text(encoding="utf-8")
     assert "run.json" in script and "ephemeral_registry" in script
+
+
+@pytest.mark.day10
+@pytest.mark.ap4
+def test_run_offline_with_format_docx_opens_no_socket(
+    tmp_path: Path, monkeypatch, capsys, no_sockets
+):
+    """A-P4: the DOCX render (docxtpl, python-docx, matplotlib) under ``--offline`` with the
+    three socket entry points refused; the three files exist and nothing was sent."""
+    from ap4_docx import EXTRA_REQUIRED, SKIP_REASON
+    from proofpack.render.docx import extra_available
+
+    if not extra_available() and not EXTRA_REQUIRED:
+        pytest.skip(SKIP_REASON)
+    csv_path, yml, out = prepare(tmp_path, monkeypatch)
+    called = []
+
+    def transport(url, body, timeout):
+        called.append(url)
+        return 204
+
+    rc = run_cli(csv_path, yml, out, "--offline", "--format", "json,html,docx", transport=transport)
+    assert rc in (EXIT_OK, EXIT_WARNINGS)
+    assert (out / "run.json").exists() and (out / "T8.html").exists()
+    assert (out / "T8.docx").exists() and (out / "T8.docx").read_bytes()[:2] == b"PK"
+    assert no_sockets.calls == [] and called == [] and NETWORK_ATTEMPTS == []
+    assert "telemetry skipped (--offline)" in capsys.readouterr().out

@@ -422,15 +422,16 @@ def write_documents(
             "JSON only)"
         )
         return written, notes
-    for fmt_name in wanted:
-        writers = document_writers() if fmt_name == "html" else docx_writers()
-        for template in templates:
-            writer = writers.get(template)
+    by_format = {f: (document_writers() if f == "html" else docx_writers()) for f in wanted}
+    # each template's documents together, in the order document_names() prints them
+    for template in templates:
+        for fmt_name in wanted:
+            writer = by_format[fmt_name].get(template)
             if writer is not None:
                 written.append(writer(outcome.document, out))
                 continue
             exc = TemplateNotBuilt(f"template {template} is not built in this engine version")
-            notes.append(f"{template} not written: {exc}")
+            notes.append(f"{template}.{fmt_name} not written: {exc}")
     return written, notes
 
 

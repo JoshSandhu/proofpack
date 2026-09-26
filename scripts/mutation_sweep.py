@@ -35,6 +35,7 @@ Usage::
 
     python scripts/mutation_sweep.py --marker ap2             # the A-P2 egress list (day 8 A)
     python scripts/mutation_sweep.py --marker ap3             # the A-P3 release list (day 9 A)
+    python scripts/mutation_sweep.py --marker ap4             # the A-P4 DOCX list (day 10 A)
 
 The round-7 repair of build day 4 ran this by hand as a scratch file; it found that the
 two changes that round's commit narrated most prominently were unobservable, which is
@@ -2954,6 +2955,140 @@ AP3_MUTANTS: tuple[Mutant, ...] = (
     ),
 )
 MUTANTS = MUTANTS + AP3_MUTANTS
+
+#: A-P4 (build day 10, lane A): the DOCX renderer, the [docx] extra, the PNG figures.
+#: Run with ``--marker ap4`` (the tests carry ``day10`` and ``ap4``; they need the extra
+#: installed, else they skip and every mutant would count as survived - the sweep's
+#: baseline check does not see a skip, so run it only where the extra imports).
+DOCX_RENDER = "src/proofpack/render/docx.py"
+DOCX_GENERATOR = "scripts/make_docx_templates.py"
+FIGURES_PNG = "src/proofpack/render/figures_png.py"
+FIGURES = "src/proofpack/render/figures.py"
+T1_RENDER = "src/proofpack/render/t1.py"
+RENDER_LINE = r"^    tpl\.render\(ctx, jinja_env=_environment\(\), autoescape=True\)$"
+AP4_MUTANTS: tuple[Mutant, ...] = (
+    Mutant(
+        "ap4_t1_cell_fmt_bypassed",
+        T1_RENDER,
+        r"^        text = fmt\.number\(num, kind\)$",
+        "        text = str((num or {}).get('est'))",
+        what="a Number cell prints repr(est) instead of fmt.number on the way to both documents",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_landscape_footer_dropped",
+        DOCX_GENERATOR,
+        r'^        fp\.add_run\("\{\{ footer \}\}"\)$',
+        '        fp.add_run("" if landscape else "{{ footer }}")',
+        what="the footer part of the landscape section carries no disclaimer slot",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_footer_emptied_in_render",
+        DOCX_RENDER,
+        RENDER_LINE,
+        '    ctx["footer"] = ""\n    tpl.render(ctx, jinja_env=_environment(), autoescape=True)',
+        what="every section footer of the rendered DOCX is empty",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_watermark_slot_emptied",
+        DOCX_RENDER,
+        RENDER_LINE,
+        '    ctx["watermark"] = None\n'
+        "    tpl.render(ctx, jinja_env=_environment(), autoescape=True)",
+        what="the manifest's watermark never reaches a footer",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_style_colour_typed",
+        DOCX_GENERATOR,
+        r'^    return theme\.color\(token\)\.lstrip\("#"\)\.upper\(\)$',
+        '    return "000000"',
+        what="every style colour is a typed constant, not the token",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_png_dpi_150",
+        FIGURES_PNG,
+        r"^DPI = 300$",
+        "DPI = 150",
+        what="the PNGs are 150 dpi",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_map_off_by_one_unit",
+        FIGURES,
+        r"^        return self\.x0 \+ \(float\(v\) - self\.xmin\) / \(self\.xmax - self\.xmin\)"
+        r" \* self\.w$",
+        "        return self.x0 + 1.0 + (float(v) - self.xmin) / (self.xmax - self.xmin) * self.w",
+        what="the SVG x map is one user unit off its documented data-map",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_extra_missing_branch_raises",
+        "src/proofpack/cli.py",
+        r"^            return exc\.exit_code$",
+        "            raise",
+        what="--format docx without the extra is a traceback, not exit 7",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_parity_tolerance_widened",
+        "tests/test_ap4_figures.py",
+        r"^TOL = 1e-9$",
+        "TOL = 1e-2",
+        what="the PNG/SVG parity tolerance is 1e-2",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_extra_modules_drop_matplotlib",
+        DOCX_RENDER,
+        r'^EXTRA_MODULES: tuple\[str, \.\.\.\] = \("docx", "docxtpl", "matplotlib"\)$',
+        'EXTRA_MODULES: tuple[str, ...] = ("docx", "docxtpl")',
+        what="extra_available is true with matplotlib missing",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_zip_mtime_now",
+        DOCX_RENDER,
+        r"^            zi = zipfile\.ZipInfo\(info\.filename, date_time=date_time\)$",
+        "            zi = zipfile.ZipInfo("
+        "info.filename, date_time=_dt.datetime.now().timetuple()[:6])",
+        what="zip entry mtimes are the wall clock",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_figure_width_100mm",
+        DOCX_RENDER,
+        r"^FIGURE_WIDTH_MM = 160$",
+        "FIGURE_WIDTH_MM = 100",
+        what="the inline images are 100 mm wide",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_customer_inline_style_dropped",
+        DOCX_RENDER,
+        r"^            rt\.add\(part\.text, style=STYLE_CUSTOMER_INLINE\)$",
+        "            rt.add(part.text)",
+        what="a claim sentence's customer part loses its manufacturer style",
+        day=10,
+        marker="ap4",
+    ),
+)
+MUTANTS = MUTANTS + AP4_MUTANTS
 
 
 def env_for(copy: Path) -> dict[str, str]:
