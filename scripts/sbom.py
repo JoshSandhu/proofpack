@@ -13,7 +13,8 @@ What it writes, and from what:
 * ``components``: every other ``[[package]]`` of the lock, each with ``type`` library,
   ``bom-ref`` and ``purl`` (``pkg:pypi/<name>@<version>``), the sdist SHA-256 when the
   lock records one, and ``scope``: ``required`` for the closure of the project's runtime
-  dependencies, ``optional`` for what the ``stats`` extra adds, ``excluded`` for the
+  dependencies, ``optional`` for what an extra adds (``stats``; ``docx`` since A-P4, build
+  day 10: docxtpl, python-docx, matplotlib and their closure), ``excluded`` for the
   development group (test oracles, linters) that no install of the wheel carries;
 * ``dependencies``: each package's ``dependsOn`` purls as the lock lists them.
 
@@ -61,9 +62,9 @@ def build_sbom(lock_path: Path) -> dict:
     packages = {p["name"]: p for p in lock["package"]}
     project = next(p for p in lock["package"] if "editable" in p.get("source", {}))
     runtime = _closure(packages, [d["name"] for d in project.get("dependencies", [])])
-    stats = _closure(
+    extras = _closure(
         packages,
-        [d["name"] for d in project.get("optional-dependencies", {}).get("stats", [])],
+        [d["name"] for deps in project.get("optional-dependencies", {}).values() for d in deps],
     )
     serial = uuid.uuid5(uuid.NAMESPACE_URL, "sha256:" + hashlib.sha256(raw).hexdigest())
     components = []
@@ -85,7 +86,7 @@ def build_sbom(lock_path: Path) -> dict:
         )
         if pkg is project:
             continue
-        scope = "required" if name in runtime else ("optional" if name in stats else "excluded")
+        scope = "required" if name in runtime else ("optional" if name in extras else "excluded")
         comp: dict = {
             "type": "library",
             "bom-ref": ref,
