@@ -13,7 +13,7 @@ adds the DOCX's reading beside each (never in place of it):
 
 * the claim sentences (``sentences[*].html``, a ``Markup`` of ``<span>`` elements) - the
   DOCX carries ``rich``, a docxtpl ``RichText`` built from the same
-  :func:`proofpack.render.sentences.claim_parts`: customer parts in the ``PP Customer
+  :func:`proofpack.render.sentences.claim_parts`: customer parts in the ``PP Manufacturer
   Text Inline`` character style, status parts in ``PP Status``, the rest plain;
 * the T8 YAML echo (``criteria_yaml_block``, a ``<pre>``) - the DOCX prints
   ``criteria_yaml``, the plain string the same context already carries;
@@ -31,11 +31,12 @@ adds the DOCX's reading beside each (never in place of it):
 ``css`` (the theme's custom-property block) is unused: the DOCX's colours are the same
 tokens, carried by its named styles.
 
-**What the page keeps.** Customer text in ``PP Customer Text`` (paragraphs) or ``PP
-Customer Text Inline`` (runs); the placeholder box as ``PP Placeholder``; ``‡`` and
-``n.e.`` as text (:mod:`proofpack.render.format` prints them into the context); every
-FDA-draft anchor with its map label in the margin-note tables; the criteria table with the
-three status words only, in ``PP Status``; the manifest's watermark in every section's
+**What the page keeps.** Customer text in ``PP Manufacturer Text`` (paragraphs) or ``PP
+Manufacturer Text Inline`` (runs) - D5 section 3.5's names (the day-10 brief's "PP Customer
+Text" is this style; the file carries D5's name); the placeholder box as ``PP Placeholder``;
+``‡`` and ``n.e.`` as text (:mod:`proofpack.render.format` prints them into the context);
+every FDA-draft anchor with its map label in the margin-note tables; the criteria table with
+the three status words only, in ``PP Status``; the manifest's watermark in every section's
 footer beside the short disclaimer. Every string is XML-escaped by the Jinja environment
 (``autoescape=True``, ``StrictUndefined``); a customer string is written as it is.
 
@@ -79,7 +80,7 @@ EXTRA_LINE = (
     'installed: pip install "proofpack[docx]" (docs: /docs/run); nothing was written'
 )
 #: The character style ids docxtpl's RichText names (python-docx's id of each style name).
-STYLE_CUSTOMER_INLINE = "PPCustomerTextInline"
+STYLE_CUSTOMER_INLINE = "PPManufacturerTextInline"
 STYLE_STATUS = "PPStatus"
 FIGURE_WIDTH_MM = 160
 

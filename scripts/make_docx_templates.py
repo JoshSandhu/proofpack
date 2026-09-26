@@ -72,9 +72,9 @@ STYLE_TOKENS: dict[str, dict[str, str]] = {
     "PP Table": {"type": "table", "color": "ink", "border": "line", "header_fill": "bg-soft"},
     "PP Margin Note": {"type": "paragraph", "color": "ink-soft", "border": "line"},
     "PP Margin Note Draft": {"type": "paragraph", "color": "honesty", "border": "honesty"},
-    "PP Customer Text": {"type": "paragraph", "color": "ink-soft", "border": "ink-faint"},
-    "PP Customer Text Label": {"type": "paragraph", "color": "ink-faint"},
-    "PP Customer Text Inline": {"type": "character", "color": "ink-soft"},
+    "PP Manufacturer Text": {"type": "paragraph", "color": "ink-soft", "border": "ink-faint"},
+    "PP Manufacturer Text Label": {"type": "paragraph", "color": "ink-faint"},
+    "PP Manufacturer Text Inline": {"type": "character", "color": "ink-soft"},
     "PP Placeholder": {
         "type": "paragraph",
         "color": "honesty",
@@ -198,10 +198,10 @@ def add_styles(doc: Any) -> None:
     _p_border(st, _hex(STYLE_TOKENS["PP Margin Note"]["border"]), ("left",))
     st = para("PP Margin Note Draft", _rem("footnote"))
     _p_border(st, _hex(STYLE_TOKENS["PP Margin Note Draft"]["border"]), ("left",))
-    st = para("PP Customer Text", _rem("body"))
+    st = para("PP Manufacturer Text", _rem("body"))
     st.paragraph_format.left_indent = Pt(10)
-    _p_border(st, _hex(STYLE_TOKENS["PP Customer Text"]["border"]), ("left",))
-    st = para("PP Customer Text Label", _rem("tag"))
+    _p_border(st, _hex(STYLE_TOKENS["PP Manufacturer Text"]["border"]), ("left",))
+    st = para("PP Manufacturer Text Label", _rem("tag"))
     st.paragraph_format.left_indent = Pt(10)
     st.paragraph_format.space_after = Pt(0)
     st = para("PP Placeholder", _rem("body"))
@@ -221,7 +221,7 @@ def add_styles(doc: Any) -> None:
     para("PP Disclaimer", _rem("footnote"))
     para("PP Narrative Footer", _rem("footnote"), italic=True)
     char("PP Status").font.bold = True
-    char("PP Customer Text Inline")
+    char("PP Manufacturer Text Inline")
     st = char("PP Mono")
     st.font.name = mono
     st = char("PP Unverified")
@@ -331,7 +331,7 @@ class Builder:
         _add_runs(
             hp,
             [
-                ("{{ header_customer }}", "PP Customer Text Inline"),
+                ("{{ header_customer }}", "PP Manufacturer Text Inline"),
                 (" · {{ header_engine }}", None),
             ],
         )
@@ -384,10 +384,10 @@ class Builder:
         self.p(text, "PP Placeholder")
 
     def manufacturer(self, label: Runs, body: Runs, *, mono: bool = False) -> None:
-        lab = self.doc.add_paragraph(style="PP Customer Text Label")
+        lab = self.doc.add_paragraph(style="PP Manufacturer Text Label")
         lab.add_run("Manufacturer text - ")
         _add_runs(lab, label)
-        paragraph = self.doc.add_paragraph(style="PP Customer Text")
+        paragraph = self.doc.add_paragraph(style="PP Manufacturer Text")
         if mono and isinstance(body, str):
             paragraph.add_run(body).style = "PP Mono"
         else:
@@ -503,7 +503,30 @@ class Builder:
         props.modified = TEMPLATE_STAMP
         props.revision = 1
         self.doc.save(buf)
-        return fixed_zip(buf.getvalue(), TEMPLATE_STAMP)
+        return fixed_zip(strip_thumbnail(buf.getvalue()), TEMPLATE_STAMP)
+
+
+THUMBNAIL = "docProps/thumbnail.jpeg"
+
+
+def strip_thumbnail(data: bytes) -> bytes:
+    """python-docx's default document carries a JPEG thumbnail of a blank page
+    (``docProps/thumbnail.jpeg``, its package relationship and its content type): the
+    part is dropped here, so neither a template nor a rendered pack carries an image of
+    nothing (a rendered pack inherits its template's parts)."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(data)) as src, zipfile.ZipFile(out, "w") as dst:
+        for info in src.infolist():
+            if info.filename == THUMBNAIL:
+                continue
+            raw = src.read(info.filename)
+            if info.filename == "_rels/.rels":
+                target = THUMBNAIL.encode()
+                raw = re.sub(rb'<Relationship [^>]*Target="' + target + rb'"[^>]*/>', b"", raw)
+            elif info.filename == "[Content_Types].xml":
+                raw = re.sub(rb'<Default Extension="jpeg"[^>]*/>', b"", raw)
+            dst.writestr(info, raw)
+    return out.getvalue()
 
 
 def fixed_zip(data: bytes, stamp: _dt.datetime) -> bytes:
@@ -530,7 +553,7 @@ def _n(expr: str) -> Para:
 
 def _c(expr: str) -> Para:
     """A customer-text cell (D4 section 1.3 / DEC-62)."""
-    return ("PP Customer Text", "{{ " + expr + " }}")
+    return ("PP Manufacturer Text", "{{ " + expr + " }}")
 
 
 def _m(expr: str) -> Para:
@@ -611,7 +634,7 @@ def criteria_table(b: Builder) -> None:
         ],
         [
             [_n("r.position")],
-            [("PP Customer Text", [("{{ r.criterion_id }}", "PP Mono")])],
+            [("PP Manufacturer Text", [("{{ r.criterion_id }}", "PP Mono")])],
             [_n("r.metric")],
             [_c("r.scope")],
             op_cell,
@@ -678,7 +701,7 @@ def build_t8() -> bytes:
             [("PP Body", "Model")],
             [
                 (
-                    "PP Customer Text",
+                    "PP Manufacturer Text",
                     "{{ model.name }} v{{ model.version }}{% if model.prior_version is not none %}"
                     " (prior version {{ model.prior_version | fmt_text }}){% endif %}",
                 )
@@ -965,7 +988,7 @@ def build_t7() -> bytes:
     b.p(
         [
             ("Clustering: declared unit ", None),
-            ("{{ clustering.declared }}", "PP Customer Text Inline"),
+            ("{{ clustering.declared }}", "PP Manufacturer Text Inline"),
             (
                 "; clustered path used: {% if clustering.clustered %}yes{% else %}no{% endif %} "
                 "(route ",
@@ -1096,8 +1119,8 @@ def build_t1() -> bytes:
             [("PP Body", "Manufacturer")],
             [
                 (None, '{%p if slots["CT-01"].filled %}'),
-                ("PP Customer Text Label", "Manufacturer text - manufacturer"),
-                ("PP Customer Text", '{{ slots["CT-01"].text }}'),
+                ("PP Manufacturer Text Label", "Manufacturer text - manufacturer"),
+                ("PP Manufacturer Text", '{{ slots["CT-01"].text }}'),
                 (None, "{%p else %}"),
                 ("PP Placeholder", '{{ slots["CT-01"].text }}'),
                 (None, "{%p endif %}"),
@@ -1106,7 +1129,10 @@ def build_t1() -> bytes:
     )
     b.table(
         ["Field", "Value"],
-        [[("PP Body", "Model")], [("PP Customer Text", "{{ model.name }} v{{ model.version }}")]],
+        [
+            [("PP Body", "Model")],
+            [("PP Manufacturer Text", "{{ model.name }} v{{ model.version }}")],
+        ],
     )
     b.table(
         ["Field", "Value"],
@@ -1207,13 +1233,13 @@ def build_t1() -> bytes:
     b.margin_notes("anchors.s7")
     b.placeholder('slots["CT-08"].text')
     b.tag("{%p for p in performance %}")
-    b.h3([("Operating point ", None), ("{{ p.op }}", "PP Customer Text Inline")])
+    b.h3([("Operating point ", None), ("{{ p.op }}", "PP Manufacturer Text Inline")])
     b.caption(
         [
             ("Table T1-6 - two-by-two at operating point ", None),
-            ("{{ p.op }}", "PP Customer Text Inline"),
+            ("{{ p.op }}", "PP Manufacturer Text Inline"),
             (" (threshold ", None),
-            ("{{ p.threshold }}", "PP Customer Text Inline"),
+            ("{{ p.threshold }}", "PP Manufacturer Text Inline"),
             (", rule {{ p.rule }}); totals are the denominators of the Numbers below", None),
         ]
     )
@@ -1256,7 +1282,7 @@ def build_t1() -> bytes:
     b.caption(
         [
             ("Table T1-7 - operating-point metrics at ", None),
-            ("{{ p.op }}", "PP Customer Text Inline"),
+            ("{{ p.op }}", "PP Manufacturer Text Inline"),
             (
                 "; the threshold was {{ p.provenance }}. Wilson score without continuity "
                 "correction for proportions unless the Method column says otherwise",
@@ -1375,16 +1401,16 @@ def build_t1() -> bytes:
     b.placeholder('slots["CT-10"].text')
     b.tag("{%p endif %}")
     b.tag("{%p for s in subgroups %}")
-    b.h3([("Attribute ", None), ("{{ s.attribute }}", "PP Customer Text Inline")])
+    b.h3([("Attribute ", None), ("{{ s.attribute }}", "PP Manufacturer Text Inline")])
     b.tag("{%p for o in s.ops %}")
     b.caption(
         [
             ("Table T1-10 - performance by ", None),
-            ("{{ s.attribute }}", "PP Customer Text Inline"),
+            ("{{ s.attribute }}", "PP Manufacturer Text Inline"),
             (" at operating point ", None),
-            ("{{ o.op }}", "PP Customer Text Inline"),
+            ("{{ o.op }}", "PP Manufacturer Text Inline"),
             ("; reference level ", None),
-            ("{{ s.reference_level }}", "PP Customer Text Inline"),
+            ("{{ s.reference_level }}", "PP Manufacturer Text Inline"),
             (
                 " (rule {{ s.reference_rule }}); {% if s.prespecified %}pre-specified{% else %}"
                 "not pre-specified, exploratory{% endif %}. Interval methods in this table: "
@@ -1405,7 +1431,7 @@ def build_t1() -> bytes:
             "Tier",
         ],
         [
-            [("PP Customer Text", "{{ r.level }}{% if r.is_reference %} (ref){% endif %}")],
+            [("PP Manufacturer Text", "{{ r.level }}{% if r.is_reference %} (ref){% endif %}")],
             [_n("r.n")],
             [_n("r.events")],
             _ncell("r.se"),
@@ -1444,7 +1470,7 @@ def build_t1() -> bytes:
     b.caption(
         [
             ("Table T1-11 - differences against the reference level ", None),
-            ("{{ s.reference_level }}", "PP Customer Text Inline"),
+            ("{{ s.reference_level }}", "PP Manufacturer Text Inline"),
             (
                 " (proportions in percentage points; interval methods in this table: "
                 "{{ o.diff_methods }}; differences only, from which no statement about "
@@ -1458,7 +1484,7 @@ def build_t1() -> bytes:
             "PP Body",
             [
                 ("{% for c in d.criteria %}", None),
-                ("{{ c.id }}", "PP Customer Text Inline"),
+                ("{{ c.id }}", "PP Manufacturer Text Inline"),
                 (" (row {{ c.position }}) → ", None),
                 ("{{ c.status_word }}", "PP Status"),
                 (
@@ -1516,7 +1542,7 @@ def build_t1() -> bytes:
     b.caption(
         [
             ("Table T1-13 - gaps of each level against the reference level ", None),
-            ("{{ fairness.reference_level }}", "PP Customer Text Inline"),
+            ("{{ fairness.reference_level }}", "PP Manufacturer Text Inline"),
             (
                 " (percentage points; AUROC on its own scale). The declared criterion of "
                 "interest is the manufacturer's; every other gap is descriptive and not a "

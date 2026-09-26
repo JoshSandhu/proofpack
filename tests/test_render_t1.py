@@ -266,6 +266,44 @@ def _index(doc, attribute, level):
     )
 
 
+#: The twenty-three cells of ``test_twenty_three_listed_cells_equal_the_run_json_number_by_
+#: d4_rules`` as ``(pointer, kind, facet)``; ``{f}`` and ``{a0}`` are the subgroup row
+#: indices of sex = F and age = 0-40 (:func:`listed_cells` fills them). A-P4's DOCX
+#: round-trip (``tests/test_ap4_roundtrip.py``) reuses this list.
+LISTED_CELLS: tuple[tuple[str, str, str], ...] = (
+    ("/overall/op1/sensitivity", "proportion", "kn"),
+    ("/overall/op1/sensitivity", "proportion", "est"),
+    ("/overall/op1/sensitivity", "proportion", "ci"),
+    ("/overall/op1/specificity", "proportion", "ci"),
+    ("/overall/op1/ppv", "proportion", "est"),
+    ("/overall/op1/npv", "proportion", "ci"),
+    ("/overall/op1/accuracy", "proportion", "kn"),
+    ("/overall/op1/lr_pos", "three_dp", "est"),
+    ("/overall/op1/lr_neg", "three_dp", "ci"),
+    ("/overall/op1/dor", "three_dp", "ci"),
+    ("/overall/op1/f1", "three_dp", "est"),
+    ("/overall/threshold_free/auroc", "three_dp", "cell"),
+    ("/overall/threshold_free/prevalence", "proportion", "cell"),
+    ("/calibration/oe/number", "three_dp", "cell"),
+    ("/calibration/slope/number", "three_dp", "cell"),
+    ("/calibration/ipa/number", "three_dp", "cell"),
+    ("/calibration/brier_ref/number", "three_dp", "cell"),
+    ("/calibration/decile_curve/3/observed/number", "proportion", "cell"),
+    ("/subgroups/{f}/metrics/op1/sensitivity/number", "proportion", "cell"),
+    ("/subgroups/{f}/diff_vs_reference/op1/sensitivity/number", "difference_pp", "cell"),
+    ("/subgroups/{a0}/metrics/auroc/number", "three_dp", "cell"),
+    ("/subgroups/{a0}/diff_vs_reference/auroc/number", "difference_3dp", "cell"),
+    ("/fairness/gaps/0/operating_points/op1/tpr_gap/number", "difference_pp", "cell"),
+)
+
+
+def listed_cells(doc: dict[str, Any]) -> list[tuple[str, str, str]]:
+    """:data:`LISTED_CELLS` with the subgroup row indices of ``doc`` filled in."""
+    f = _index(doc, "sex", "F")
+    a0 = _index(doc, "age", "0-40")
+    return [(ref.format(f=f, a0=a0), kind, facet) for ref, kind, facet in LISTED_CELLS]
+
+
 def test_twenty_three_listed_cells_equal_the_run_json_number_by_d4_rules(cli_run):
     doc, page = cli_run
     assert page == render_t1.render_t1(doc)  # a pure function of run.json
@@ -274,33 +312,7 @@ def test_twenty_three_listed_cells_equal_the_run_json_number_by_d4_rules(cli_run
     by_ref: dict[tuple[str, str], str] = {}
     for c in parser.cells:
         by_ref.setdefault((c["ref"], c["facet"]), c["text"])
-    f = _index(doc, "sex", "F")
-    a0 = _index(doc, "age", "0-40")
-    listed = [
-        ("/overall/op1/sensitivity", "proportion", "kn"),
-        ("/overall/op1/sensitivity", "proportion", "est"),
-        ("/overall/op1/sensitivity", "proportion", "ci"),
-        ("/overall/op1/specificity", "proportion", "ci"),
-        ("/overall/op1/ppv", "proportion", "est"),
-        ("/overall/op1/npv", "proportion", "ci"),
-        ("/overall/op1/accuracy", "proportion", "kn"),
-        ("/overall/op1/lr_pos", "three_dp", "est"),
-        ("/overall/op1/lr_neg", "three_dp", "ci"),
-        ("/overall/op1/dor", "three_dp", "ci"),
-        ("/overall/op1/f1", "three_dp", "est"),
-        ("/overall/threshold_free/auroc", "three_dp", "cell"),
-        ("/overall/threshold_free/prevalence", "proportion", "cell"),
-        ("/calibration/oe/number", "three_dp", "cell"),
-        ("/calibration/slope/number", "three_dp", "cell"),
-        ("/calibration/ipa/number", "three_dp", "cell"),
-        ("/calibration/brier_ref/number", "three_dp", "cell"),
-        ("/calibration/decile_curve/3/observed/number", "proportion", "cell"),
-        (f"/subgroups/{f}/metrics/op1/sensitivity/number", "proportion", "cell"),
-        (f"/subgroups/{f}/diff_vs_reference/op1/sensitivity/number", "difference_pp", "cell"),
-        (f"/subgroups/{a0}/metrics/auroc/number", "three_dp", "cell"),
-        (f"/subgroups/{a0}/diff_vs_reference/auroc/number", "difference_3dp", "cell"),
-        ("/fairness/gaps/0/operating_points/op1/tpr_gap/number", "difference_pp", "cell"),
-    ]
+    listed = listed_cells(doc)
     assert len(listed) == 23
     for ref, kind, facet in listed:
         found, num = resolve_pointer(doc, ref)

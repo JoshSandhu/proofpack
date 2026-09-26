@@ -18,6 +18,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+import zipfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -145,6 +146,15 @@ def test_the_print_css_is_its_own_file_and_nothing_loads_from_outside(document):
     css = (TEMPLATES / "_print.css.j2").read_text(encoding="utf-8")
     assert "@media print" in css and "@page" in css and "position: fixed" in css
     for path in TEMPLATES.iterdir():
+        if path.suffix == ".docx":
+            # A-P4: the DOCX templates are zips; their text is read by tests/test_ap4_*.py
+            # and nothing in them loads from outside (no relationship with TargetMode
+            # External, asserted here from the package's .rels parts)
+            with zipfile.ZipFile(path) as z:
+                for name in z.namelist():
+                    if name.endswith(".rels"):
+                        assert b'TargetMode="External"' not in z.read(name), (path.name, name)
+            continue
         # the rules' own comments name what they forbid; the grep reads the markup
         text = re.sub(r"\{#.*?#\}", "", path.read_text(encoding="utf-8"), flags=re.S)
         for bad in ("@import", "url(", "<link", "<script"):
