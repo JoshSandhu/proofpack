@@ -19,12 +19,15 @@ from __future__ import annotations
 
 import io
 import re
+import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
 import pytest
 
 from ap4_docx import (
+    REPO,
     TEMPLATES,
     footer_parts,
     header_parts,
@@ -54,6 +57,24 @@ def regenerated(tmp_path_factory) -> dict[str, bytes]:
 
 def committed(template_id: str) -> bytes:
     return (TEMPLATES / f"{template_id}.docx").read_bytes()
+
+
+#: DEC-72 (26 September 2026): the one wheel-build route. No pip fallback: ``pip wheel`` in
+#: an isolated build environment downloads hatchling, the deviation DEC-72 records.
+WHEEL_BUILD = ("-m", "uv", "build", "--wheel", "--offline", "--out-dir")
+
+
+def build_wheel_offline(out: Path) -> Path:
+    """A wheel from the working tree by ``python -m uv build --wheel --offline``; skipped
+    only where ``uv`` is not importable by this interpreter (the reason names the route)."""
+    cmd = [sys.executable, *WHEEL_BUILD, str(out)]
+    proc = subprocess.run(cmd, cwd=str(REPO), capture_output=True, text=True)
+    if proc.returncode != 0 and "No module named uv" in proc.stderr:
+        pytest.skip("python -m uv is not available to this interpreter: " + proc.stderr[-300:])
+    assert proc.returncode == 0, proc.stderr[-1200:]
+    wheels = sorted(out.glob("proofpack-*.whl"))
+    assert len(wheels) == 1, wheels
+    return wheels[0]
 
 
 def parts_equal(a: bytes, b: bytes) -> list[str]:
@@ -193,10 +214,9 @@ def test_a_built_wheel_carries_the_three_docx_templates_beside_the_html_ones(tmp
     """The templates live inside the package (``src/proofpack/templates``), so hatch's
     package include ships them with the code: the wheel built from this tree holds the
     three ``.docx`` beside ``T1.html`` and the rest (no force-include line is needed for a
-    file inside the package; ``design/`` and ``schema/`` files need one)."""
-    from test_render_theme import _build_wheel
-
-    wheel = _build_wheel(tmp_path / "dist")
+    file inside the package; ``design/`` and ``schema/`` files need one). Built by
+    ``python -m uv build --wheel --offline`` (DEC-72's route; A-P4 repair 1, RG1-N9)."""
+    wheel = build_wheel_offline(tmp_path / "dist")
     with zipfile.ZipFile(wheel) as z:
         names = set(z.namelist())
         for template_id in IDS:

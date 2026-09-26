@@ -2957,9 +2957,14 @@ AP3_MUTANTS: tuple[Mutant, ...] = (
 MUTANTS = MUTANTS + AP3_MUTANTS
 
 #: A-P4 (build day 10, lane A): the DOCX renderer, the [docx] extra, the PNG figures.
-#: Run with ``--marker ap4`` (the tests carry ``day10`` and ``ap4``; they need the extra
-#: installed, else they skip and every mutant would count as survived - the sweep's
-#: baseline check does not see a skip, so run it only where the extra imports).
+#: Run with ``--marker ap4`` where the extra imports (the tests carry ``day10`` and
+#: ``ap4``). Measured with the three modules hidden by a ``-p`` plugin (win-amd64-cp314,
+#: 26 September 2026): the baseline passes (``29 passed, 101 skipped``, so the sweep runs);
+#: ``ap4_footer_emptied_in_render`` then passes ``-m ap4`` unchanged (``29 passed, 101
+#: skipped``) and is reported SURVIVED, while ``ap4_zip_mtime_now`` and ``ap4_png_dpi_150``
+#: are reported killed by ``tests/test_sweep_ap4.py``'s pattern-count test alone (their
+#: replacement removes the pattern in the planted copy), not by a DOCX test. Under
+#: ``PROOFPACK_REQUIRE_DOCX=1`` the baseline fails and the sweep refuses to run.
 DOCX_RENDER = "src/proofpack/render/docx.py"
 DOCX_GENERATOR = "scripts/make_docx_templates.py"
 FIGURES_PNG = "src/proofpack/render/figures_png.py"
@@ -3084,6 +3089,15 @@ AP4_MUTANTS: tuple[Mutant, ...] = (
         r"^            rt\.add\(part\.text, style=STYLE_CUSTOMER_INLINE\)$",
         "            rt.add(part.text)",
         what="a claim sentence's customer part loses its manufacturer style",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_f5_rows_flipped",
+        FIGURES_PNG,
+        r"^            ax\.set_ylim\(n_rows - 0\.5, -0\.5\)",
+        "            ax.set_ylim(-0.5, n_rows - 0.5)",
+        what="F5 PNG rows run bottom-up, the reverse of the SVG and the table (lens 1 FA-R4)",
         day=10,
         marker="ap4",
     ),

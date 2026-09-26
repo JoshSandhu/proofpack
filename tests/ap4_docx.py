@@ -4,9 +4,13 @@ synthetic document, and DOCX text extraction through python-docx.
 **The skip rule.** A test that needs docxtpl, python-docx or matplotlib carries
 :data:`needs_extra`: it is skipped, with the reason below, when the extra is not installed
 - unless ``PROOFPACK_REQUIRE_DOCX=1`` is set, in which case nothing is skipped and the
-missing package fails the test. The CI job ``docx-extra`` (``.github/workflows/ci.yml``)
-installs the extra and sets that variable, so the skip cannot hide there; the main pytest
-job runs without the extra and the same tests skip with a named reason.
+missing package fails the test. The CI job ``docx-extra`` (``.github/workflows/ci.yml``) is
+written to install the extra and set that variable; the main ``test`` job is written without
+the extra. Neither job had run when this was written (26 September 2026: the branch had not
+reached CI). Measured locally instead, with the three modules hidden by a ``-p`` plugin that
+sets ``sys.modules[name] = None`` (win-amd64-cp314, 26 September 2026): ``pytest -m ap4``
+without the variable gave ``29 passed, 101 skipped``, every skip with the reason below; the
+same command under ``PROOFPACK_REQUIRE_DOCX=1`` gave ``23 failed, 47 passed, 60 errors``.
 
 **Text extraction.** python-docx reads body paragraphs, table cells (each cell once, a
 merged cell not repeated), and each section's header and footer. Customer text is

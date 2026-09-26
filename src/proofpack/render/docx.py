@@ -38,7 +38,18 @@ Text" is this style; the file carries D5's name); the placeholder box as ``PP Pl
 every FDA-draft anchor with its map label in the margin-note tables; the criteria table with
 the three status words only, in ``PP Status``; the manifest's watermark in every section's
 footer beside the short disclaimer. Every string is XML-escaped by the Jinja environment
-(``autoescape=True``, ``StrictUndefined``); a customer string is written as it is.
+(``autoescape=True``, ``StrictUndefined``) and no customer string is evaluated as a
+template. Two rewrites happen after rendering and are docxtpl's, not the customer's text:
+the four two-character sequences ``{_{``, ``}_}``, ``{_%`` and ``%_}`` become ``{{``, ``}}``,
+``{%`` and ``%}`` wherever they occur, and a newline character becomes a ``<w:br/>`` line
+break (``tests/test_ap4_repair1.py::test_docxtpl_rewrites_the_four_escape_sequences_and_a_newline``
+feeds ``m{_{ 7*7 }_}n``, ``p{_% if 1 %_}q`` and ``QQa`` + newline + ``bZZ`` through
+``declarations.model.name`` of T8 and reads ``m{{ 7*7 }}n``, ``p{% if 1 %}q`` and ``QQa`` +
+break + ``bZZ`` back; ``a`` + tab + ``b`` reads back as itself). Through the CLI the four
+sequences are reachable (``criteria.yaml`` ``model.name: m{_{ 7*7 }_}n`` ran to exit 4 with
+``run.json`` written, 26 September 2026, win-amd64-cp314); a newline or a tab in a
+declaration halts at H08 (``control character U+000A`` / ``U+0009``, exit 3, nothing
+written), so the line-break rewrite is reachable through the Python API only.
 
 **The extra.** docxtpl, python-docx and matplotlib are imported inside :func:`render_docx`
 and :func:`proofpack.render.figures_png` only. :func:`extra_available` asks
@@ -51,7 +62,7 @@ CLI checks it before any statistics run.
 with the wall clock; :func:`write_bytes` rewrites the container with every entry's mtime
 set to the manifest's ``started`` (to the zip format's two-second resolution) and
 ``docProps/core.xml``'s created and modified set to the same instant, the author fixed,
-so two renders of one ``run.json`` are byte-identical (``tests/test_ap4_roundtrip.py::
+so two renders of one ``run.json`` are byte-identical (``tests/test_ap4_determinism.py::
 test_two_renders_of_one_document_are_byte_identical``, measured on ``win-amd64-cp314``).
 """
 

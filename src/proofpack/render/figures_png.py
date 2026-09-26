@@ -24,8 +24,9 @@ through :class:`FigureCanvasAgg`: no display, no ``pyplot``, no global figure st
 are 300 dpi, 160 mm wide (:data:`DPI`, :data:`WIDTH_MM`; the height keeps the SVG's aspect
 ratio), with the metadata chunks stripped (``metadata={"Software": None}``): two renders
 of one document give identical bytes on one machine (measured, ``tests/test_ap4_figures.py
-::test_png_bytes_are_identical_across_two_renders``). Byte identity across platforms is
-not claimed: the raster depends on the FreeType and font versions matplotlib finds.
+::test_png_bytes_are_identical_across_two_renders_and_carry_no_metadata``). Byte identity
+across platforms is not claimed: the raster depends on the FreeType and font versions
+matplotlib finds.
 
 matplotlib is imported here only (the ``[docx]`` extra): ``import proofpack.render``,
 ``import proofpack.render.html`` and an HTML render never import this module.

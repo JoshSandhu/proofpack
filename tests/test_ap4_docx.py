@@ -307,7 +307,10 @@ def test_inline_images_are_160_mm_wide_one_per_html_figure_at_the_figure_positio
     extents = re.findall(r'<wp:extent cx="(\d+)" cy="(\d+)"', xml)
     page = render_t1.render_t1(document)
     assert len(extents) == len(re.findall(r"<svg ", page)) == 11
-    assert {int(cx) for cx, _ in extents} == {render_docx.FIGURE_WIDTH_MM * 36000}
+    # 160 mm x 36,000 EMU per mm, typed here and not read from the module: at 4879ac5 the
+    # expected value was read from the module's FIGURE_WIDTH_MM constant, so the planted mutant
+    # ap4_figure_width_100mm passed this test (A-P4 repair 1, RP1-1)
+    assert {int(cx) for cx, _ in extents} == {5_760_000}
     # each image is followed by its caption, as the HTML's figcaption
     d = open_docx(rendered["T1"])
     paras = d.paragraphs

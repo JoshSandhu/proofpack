@@ -1,8 +1,8 @@
 """A-P4 item 0 (build day 10, lane A): the seven sentence violations the A-P3 CI handoff
 left open (``handoffs/2026-09-24_A_ci.md``, "What did not land"), each made true or
-deleted in shipped files. Two of the seven (lens 2 FA N6 and FA3-S2) were in handoff
-notes only and shipped nothing; the five below plus FA3-S1 (``tests/test_workflows.py``,
-its own counter-examples in ``LENS_COUNTER_EXAMPLES``) are the six in the tree.
+deleted in shipped files. One of the seven (lens 2 FA N6) was in a handoff note only and
+shipped nothing; the five below plus FA3-S1 (``tests/test_workflows.py``, its own
+counter-examples in ``LENS_COUNTER_EXAMPLES``) are the six in the tree.
 
 * Lens 2 FA N3: ``test_fan7_ci_runs_the_oracle_check_after_pytest_unless_cancelled`` said
   what CI does; the test reads the YAML. Renamed to what it reads.
