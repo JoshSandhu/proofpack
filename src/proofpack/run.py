@@ -416,13 +416,24 @@ def parse_templates(
 
 
 def write_documents(
-    outcome: RunOutcome, out: str | Path, formats: list[str], templates: list[str]
+    outcome: RunOutcome,
+    out: str | Path,
+    formats: list[str],
+    templates: list[str],
+    *,
+    written: list[Path] | None = None,
 ) -> tuple[list[Path], list[str]]:
     """The HTML documents beside ``run.json`` - only on a licence that is ``ok`` or
     ``grace`` (D1 section 7; the E7 "after grace" decision: the JSON is emitted, the
     documents are not). Returns the paths written and one line per template not
-    written (a template not built in E8, or the licence state)."""
-    written: list[Path] = []
+    written (a template not built in E8, or the licence state).
+
+    ``written``, when given, is the list each path is appended to as soon as its writer
+    returns, so a caller holding it still knows which documents reached disk when a later
+    writer raises (E11 repair 1, the lens's RG-B1: the CLI records the ledger from it in a
+    ``finally``)."""
+    if written is None:
+        written = []
     notes: list[str] = []
     wanted = [f for f in ("html", DOCX_FORMAT) if f in formats]
     if not wanted:
@@ -443,6 +454,7 @@ def write_documents(
         )
         return written, notes
     by_format = {f: (document_writers() if f == "html" else docx_writers()) for f in wanted}
+    html_built = frozenset(document_writers())
     # each template's documents together, in the order document_names() prints them
     for template in templates:
         if template == "T2" and not isinstance(outcome.document.get("comparison"), dict):
@@ -455,6 +467,15 @@ def write_documents(
             writer = by_format[fmt_name].get(template)
             if writer is not None:
                 written.append(writer(outcome.document, out))
+                continue
+            if template in html_built:
+                # E11 repair 1 (FA-N4): the template is built; it has no writer in this
+                # format (T2 has no DOCX writer: render.docx.DOCX_FILES holds T1, T7, T8)
+                notes.append(
+                    f"{template}.{fmt_name} not written: {template} has no "
+                    f"{fmt_name.upper()} writer in this engine version (it is written as "
+                    f"{template}.html under --format html)"
+                )
                 continue
             exc = TemplateNotBuilt(f"template {template} is not built in this engine version")
             notes.append(f"{template}.{fmt_name} not written: {exc}")

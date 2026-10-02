@@ -758,8 +758,9 @@ T1_TITLE_ANCHOR = "FDA_AIDSF_PERF_VALIDATION"
 def template_name(guidance_map: Any = None) -> str:
     """The header line's template part, ``<T1_TITLE>, per draft guidance (January 2025),
     not for implementation``: the qualifier read from the map row (DEC-71 (a); at
-    ad66073 the header, the ``<title>`` and the cover's ``<h1>`` printed the name with no
-    qualifier, the one unqualified AI-DSF mention on a page, found by S4)."""
+    ad66073 the cover's ``<h1>`` printed the name with no qualifier - golden line 135, the
+    one line of that golden carrying the string ``AI-DSF``; its ``<title>`` read
+    ``T1 · ProofPack v0.1.0.dev1 · run test-onl`` - found by S4)."""
     return f"{T1_TITLE}, per {anchors.draft_qualifier(T1_TITLE_ANCHOR, guidance_map)}"
 
 

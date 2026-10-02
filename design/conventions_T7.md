@@ -165,7 +165,8 @@ in the engine, this table is the statement of what the interval does, every clus
 keeps its tier annotation, and `MIN_UNITS_PER_STRATUM` stays at 2. Build day 11 (2 October
 2026) put that interval in the engine for clustered proportions (next subsection): this
 table now describes the cluster bootstrap where it still renders a proportion, which is a
-cell of fewer than five cases.
+cell of two to four cases or a cell the next subsection's route does not print the
+design-effect interval for (E11 repair 1).
 
 The AUROC frozen-share half: every shape the constant renders measured at or above the
 bar in the recorded run; the first shape it refuses did in the recorded run and in six of
@@ -177,7 +178,7 @@ The DEC-08 refusal-below-the-bar is **not implemented on either route** for the
 0.620 in the table above), and the proportion route rendered a clustered cell of 10 cases
 at p = 0.9 (0.672 above) until build day 11, each with its tier annotation and no refusal.
 That was the DEC-18 position stated two paragraphs above; for proportions it is replaced
-by the next subsection for cells of five cases or more.
+by the next subsection on the shapes that subsection's route prints.
 
 ### Design-effect Wilson interval for clustered proportions (DEC-18 (a); build day 11)
 
@@ -198,37 +199,58 @@ one case is not estimable (`deff_not_estimable_single_case`). The Wilson interva
 rows stays refused (`clustered_data_analytic_ci_invalid`) and the flag
 `wilson_refused_clustered` stays on the printed Number; the tier is taken from the cases.
 
-**The bar.** `scripts/coverage_bar.py --deff-wilson` (seed 20261002, R = 4000 cohorts per
-shape, no resampling, nominal level 0.95, the DEC-08 bar 0.90; Monte-Carlo error about
-0.005 per cell; 9 seconds measured on 2 October 2026; committed as
-`design/coverage_deff_wilson.json`) measured the engine's own functions on u cases of w
-rows with a shared case effect (TAU2 = 0.5), truth p:
+**The bar.** `scripts/coverage_bar.py --deff-wilson` v2 (E11 repair 1; seed 20261002,
+R = 4000 cohorts per grid row with a generator of its own per row, no resampling, nominal
+level 0.95, the DEC-08 bar 0.90; Monte-Carlo error about 0.005 per row; 83 seconds
+measured on 2 October 2026; committed as `design/coverage_deff_wilson.json`) measured the
+engine's own functions on 1000 grid rows. Three families of case sizes: equal (u cases of
+w rows, u from 2 to 60, w = 1, 3, 8, 20 and 50), one dominant case (one case of 10, 20, 40
+or 60 rows beside u - 1 cases of 1, 2 or 4 rows, u from 5 to 60) and mixed (the sizes 1,
+2, 3, 4, 5, 6, 8, 10, 12, 20 repeated to u = 10 to 60 cases); each with a shared case
+effect TAU2 = 0.5 or 0.8 and truth 0.5, 0.9, 0.95 or 0.98. The rows at TAU2 = 0.5 and
+truth 0.5 or 0.9 (the process of the build-day-5 and build-day-11 grids) set the
+threshold; every other row is recorded beside them.
 
-| u | w = 1, p = 0.5 | w = 3, p = 0.5 | w = 8, p = 0.5 | w = 1, p = 0.9 | w = 3, p = 0.9 | w = 8, p = 0.9 |
-|---|---|---|---|---|---|---|
-| 2 | 1.000 | 1.000 | 0.793 | 0.992 | 0.975 | 0.960 |
-| 3 | 1.000 | 0.908 | 0.845 | 0.973 | 0.974 | 0.964 |
-| 4 | 0.867 | 0.911 | 0.878 | 0.947 | 0.970 | 0.955 |
-| 5 | 0.935 | 0.945 | 0.914 | 0.918 | 0.948 | 0.964 |
-| 6 | 0.965 | 0.918 | 0.914 | 0.986 | 0.963 | 0.972 |
-| 8 | 0.927 | 0.941 | 0.923 | 0.959 | 0.962 | 0.916 |
-| 10 | 0.977 | 0.936 | 0.943 | 0.929 | 0.965 | 0.911 |
-| 15 | 0.965 | 0.948 | 0.947 | 0.944 | 0.969 | 0.906 |
-| 20 | 0.955 | 0.950 | 0.946 | 0.961 | 0.940 | 0.919 |
-| 40 | 0.959 | 0.947 | 0.945 | 0.947 | 0.934 | 0.924 |
+**Where it is printed** (`stats.bootstrap.deff_wilson_route`, which the script applies to
+every grid row): a cell of at least five cases (`MIN_CASES_DEFF_WILSON = 5`) in which no
+case holds more than a fifth of the rows (`MAX_CASE_SHARE_DEFF_WILSON = 0.20`, chosen: with
+equal case sizes it is the five-case condition) and the cases average at most 50 rows
+(`MAX_ROWS_PER_CASE_DEFF_WILSON = 50`, the grid's largest). Any other clustered proportion
+prints the cluster bootstrap with its tier annotation, as before build day 11, and its
+`detail.design_effect.route` names why: `below_coverage_bar` (two to four cases),
+`case_share_above_grid` or `rows_per_case_above_grid`; one case is refused by the bootstrap
+as before (`not_estimable`).
 
-Every shape with five or more cases covered at or above the bar (lowest 0.906); at four
-cases two did not (0.867 and 0.878). So `MIN_CASES_DEFF_WILSON = 5`: a clustered
-proportion cell of at least five cases prints `wilson_deff` with its tier annotation; a
-cell of two to four cases prints the cluster bootstrap with its tier annotation (`not
-evaluable, shown for transparency` below ten cases), as before build day 11, and its
-`detail.design_effect.route` reads `below_coverage_bar`; one case is refused by the
-bootstrap as before (`route` `not_estimable`). Compared with the cluster bootstrap's
-proportion table above, the design-effect interval covers at or above the bar from five
-cases where the bootstrap fell to 0.407 (five cases) and 0.672 (ten cases) at p = 0.9 with
-one row per case. The grid has equal case sizes only, and the paired version-comparison
-differences (T2) keep the cluster bootstrap. This is a measurement on the grid's shapes,
-not a guarantee.
+Lowest coverage over the grid rows the route prints, by case count u (in brackets, the
+number of rows):
+
+| u | TAU2 0.5, truth 0.5 / 0.9 | TAU2 0.8, truth 0.5 / 0.9 | TAU2 0.5, truth 0.95 / 0.98 | TAU2 0.8, truth 0.95 / 0.98 |
+|---|---|---|---|---|
+| 5 | 0.808 (10) | 0.760 (10) | 0.772 (10) | 0.779 (10) |
+| 6 | 0.822 (10) | 0.757 (10) | 0.800 (10) | 0.793 (10) |
+| 8 | 0.846 (10) | 0.784 (10) | 0.809 (10) | 0.757 (10) |
+| 10 | 0.868 (10) | 0.813 (10) | 0.822 (10) | 0.750 (10) |
+| 15 | 0.892 (10) | 0.861 (10) | 0.826 (10) | 0.767 (10) |
+| 20 | 0.895 (14) | 0.856 (14) | 0.842 (14) | 0.756 (14) |
+| 30 | 0.907 (12) | 0.882 (12) | 0.848 (12) | 0.763 (12) |
+| 40 | 0.908 (18) | 0.901 (18) | 0.886 (18) | 0.783 (18) |
+| 60 | 0.921 (24) | 0.912 (24) | 0.897 (24) | 0.838 (24) |
+
+At the process that sets the threshold, every printed row of 30 cases or more covered at
+or above the bar (lowest 0.907: mixed sizes, 30 cases, truth 0.9), so the script's
+threshold is 30, the case count below which a clustered proportion cell is given its R2
+tier annotation from its case count ("not evaluable, shown for transparency" below ten
+cases, "very low precision" below 30). Twelve printed rows of 5 to 20 cases were below the bar (lowest 0.808: five
+cases of 50 rows, truth 0.9); those cells print with their tier annotation. Of the
+recorded rows, 26 of the 162 printed rows of 30 cases or more were below the bar (lowest
+0.764: 30 cases of 50 rows, TAU2 0.8, truth 0.98), and those cells print with no tier
+annotation: there the interval covered the truth less often than the bar asks, and nothing
+on the cell says so. On the one-dominant-case rows the route does not print (one case
+holding more than a fifth of the rows) the design-effect interval's coverage fell to
+0.137 (one case of 60 rows beside nine of one row, TAU2 0.8, truth 0.5); those cells print
+the cluster bootstrap. At build day 11 the route was the case count alone, measured on
+equal case sizes of at most eight rows. The paired version-comparison differences (T2)
+keep the cluster bootstrap. This is a measurement on the grid's shapes, not a guarantee.
 
 ## Calibration (build day 6, `stats.calibration`)
 

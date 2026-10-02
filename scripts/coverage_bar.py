@@ -84,10 +84,13 @@ from statistics import NormalDist
 import numpy as np
 
 from proofpack.stats.bootstrap import (
+    MAX_CASE_SHARE_DEFF_WILSON,
     MAX_FROZEN_VARIANCE_SHARE,
+    MAX_ROWS_PER_CASE_DEFF_WILSON,
     MIN_UNITS_PER_STRATUM,
     clustered_by_case,
     clustered_flat,
+    deff_wilson_route,
     percentile_bounds,
 )
 from proofpack.stats.discrimination import auroc_mann_whitney
@@ -107,12 +110,26 @@ PROP_UNITS = (1, 2, 3, 4, 5, 10, 20, 40)
 PROP_W = (1, 3)
 PROP_P = (0.5, 0.9)
 CANDIDATE_MIN = (1, 2, 3, 4, 5, 6, 8, 10)
-#: build day 11 (E11 item 5): the wilson_deff family
-DEFF_SCRIPT_VERSION = "coverage_bar.py --deff-wilson v1 (build day 11, 2026-10-02)"
+#: build day 11 (E11 item 5): the wilson_deff family; v2 (E11 repair 1) widens the grid
+#: to the shapes the two cold lenses on 2adfaaa measured below the bar
+DEFF_SCRIPT_VERSION = "coverage_bar.py --deff-wilson v2 (E11 repair 1, 2026-10-02)"
 DEFF_SEED = 20261002
 DEFF_REPS = 4000
-DEFF_UNITS = (2, 3, 4, 5, 6, 8, 10, 15, 20, 40)
-DEFF_W = (1, 3, 8)
+#: equal case sizes: u cases x w rows
+DEFF_UNITS = (2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 40, 60)
+DEFF_W = (1, 3, 8, 20, 50)
+#: one dominant case: one case of B rows beside u - 1 cases of s rows
+DEFF_DOM_UNITS = (5, 10, 20, 40, 60)
+DEFF_DOM_SMALL = (1, 2, 4)
+DEFF_DOM_BIG = (10, 20, 40, 60)
+#: mixed case sizes: this cycle of sizes, repeated to u cases
+DEFF_MIX_CYCLE = (1, 2, 3, 4, 5, 6, 8, 10, 12, 20)
+DEFF_MIX_UNITS = (10, 20, 30, 40, 60)
+#: the shared case effect's share of the latent variance: TAU2 (0.5, the process of the
+#: build-day-5 and build-day-11 grids) sets the constant; 0.8 is recorded beside it
+DEFF_TAU2 = (TAU2, 0.8)
+#: truths that set the constant (PROP_P, at TAU2), and truths recorded beside them
+DEFF_P_RECORDED = (0.95, 0.98)
 CANDIDATE_MAX = (0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50)
 
 _ND = NormalDist()
@@ -236,25 +253,61 @@ def coverage_prop(rng, u, w, p, reps, b_resamples) -> dict:
     }
 
 
-def coverage_deff(rng, u, w, p, reps) -> dict:
-    """The wilson_deff interval's coverage on one proportion shape (E11 item 5)."""
+def deff_shapes() -> list[tuple[str, tuple[int, ...]]]:
+    """Every case-size shape of the ``--deff-wilson`` grid, in run order (v2): the equal
+    family, the one-dominant-case family and the mixed family."""
+    shapes: list[tuple[str, tuple[int, ...]]] = []
+    for w in DEFF_W:
+        for u in DEFF_UNITS:
+            shapes.append(("equal", (w,) * u))
+    for u in DEFF_DOM_UNITS:
+        for s in DEFF_DOM_SMALL:
+            for big in DEFF_DOM_BIG:
+                shapes.append(("one_dominant", (big,) + (s,) * (u - 1)))
+    for u in DEFF_MIX_UNITS:
+        shapes.append(("mixed", tuple(DEFF_MIX_CYCLE[i % len(DEFF_MIX_CYCLE)] for i in range(u))))
+    return shapes
+
+
+def deff_cohort(rng, sizes: tuple[int, ...], p: float, tau2: float):
+    """``prop_cohort``'s process with case sizes ``sizes`` and case-effect share ``tau2``:
+    every row's marginal success probability is ``p``, so the truth is ``p``."""
+    thr = _ND.inv_cdf(1.0 - p)
+    k = len(sizes)
+    b = rng.normal(0.0, math.sqrt(tau2), k)
+    latent = np.repeat(b, sizes) + rng.normal(0.0, math.sqrt(1.0 - tau2), int(sum(sizes)))
+    return latent > thr, np.repeat(np.arange(k), sizes)
+
+
+def coverage_deff(seed_index: int, family: str, sizes, p, tau2, reps) -> dict:
+    """The wilson_deff interval's coverage on one shape (E11 item 5; v2: any case sizes,
+    any ``tau2``; a generator of its own per row, ``default_rng([DEFF_SEED, seed_index])``,
+    so a row re-runs alone)."""
+    rng = np.random.default_rng([DEFF_SEED, seed_index])
+    n = int(sum(sizes))
     covered = 0
     widths = []
     reasons: dict[str, int] = {}
     for _ in range(reps):
-        ind, ids = prop_cohort(rng, u, w, p)
+        ind, ids = deff_cohort(rng, sizes, p, tau2)
         de = design_effect(ind, ids)
         reasons[de.reason] = reasons.get(de.reason, 0) + 1
         if de.deff is None:
             continue
-        num = proportion_deff(int(ind.sum()), int(ind.shape[0]), de, level=LEVEL)
+        num = proportion_deff(int(ind.sum()), n, de, level=LEVEL)
         covered += num.ci_lo <= p <= num.ci_hi
         widths.append(num.ci_hi - num.ci_lo)
     return {
-        "family": "wilson_deff",
-        "u_cases": u,
-        "rows_per_case": w,
+        "family": family,
+        "u_cases": len(sizes),
+        "n_rows": n,
+        "largest_case_rows": int(max(sizes)),
+        "rows_per_case": round(n / len(sizes), 4),
+        "case_sizes": list(sizes) if family != "equal" else None,
         "truth": p,
+        "tau2": tau2,
+        "sets_constant": p in PROP_P and tau2 == TAU2,
+        "route": deff_wilson_route(n, len(sizes), int(max(sizes)), True),
         "coverage": covered / reps,
         "mean_width": round(float(np.mean(widths)), 4) if widths else None,
         "deff_reasons": dict(sorted(reasons.items())),
@@ -263,33 +316,62 @@ def coverage_deff(rng, u, w, p, reps) -> dict:
 
 
 def deff_threshold(rows: list[dict]) -> int | None:
-    """The smallest grid ``u`` at which every shape with at least ``u`` cases covers at or
-    above :data:`BAR`; ``None`` when no ``u`` does."""
-    for u in sorted({r["u_cases"] for r in rows}):
-        if all(r["coverage"] >= BAR for r in rows if r["u_cases"] >= u):
+    """The smallest grid ``u`` at which every shape that sets the constant
+    (``sets_constant``: truth in :data:`PROP_P` at :data:`TAU2`), has at least ``u`` cases
+    and lies inside
+    the case-share and rows-per-case bounds of
+    :func:`proofpack.stats.bootstrap.deff_wilson_route` covers at or above :data:`BAR`;
+    ``None`` when no ``u`` does."""
+    inside = [
+        r
+        for r in rows
+        if r["sets_constant"]
+        and r["largest_case_rows"] <= MAX_CASE_SHARE_DEFF_WILSON * r["n_rows"]
+        and r["n_rows"] <= MAX_ROWS_PER_CASE_DEFF_WILSON * r["u_cases"]
+    ]
+    for u in sorted({r["u_cases"] for r in inside}):
+        if all(r["coverage"] >= BAR for r in inside if r["u_cases"] >= u):
             return u
     return None
 
 
-def main_deff(json_path: str | None, reps: int) -> int:
-    rng = np.random.default_rng(DEFF_SEED)
-    t0 = time.time()
+def deff_rows(reps: int, only: set[int] | None = None) -> list[dict]:
+    """Every grid row, in run order (``only``: just these row indices, for the test that
+    re-runs a sample of the committed rows)."""
     rows = []
+    i = 0
+    for tau2 in DEFF_TAU2:
+        for p in PROP_P + DEFF_P_RECORDED:
+            for family, sizes in deff_shapes():
+                if only is None or i in only:
+                    r = coverage_deff(i, family, sizes, p, tau2, reps)
+                    r["index"] = i
+                    rows.append(r)
+                i += 1
+    return rows
+
+
+def main_deff(json_path: str | None, reps: int) -> int:
+    t0 = time.time()
     print(f"{DEFF_SCRIPT_VERSION}; seed {DEFF_SEED}; R={reps}; nominal {LEVEL}; bar {BAR}")
-    print("wilson_deff family (u cases x w rows, truth p; TAU2 = 0.5)")
-    print(f"{'u':>3} {'w':>2} {'p':>4} {'cover':>6} {'width':>6}  deff reasons")
-    for p in PROP_P:
-        for w in DEFF_W:
-            for u in DEFF_UNITS:
-                r = coverage_deff(rng, u, w, p, reps)
-                rows.append(r)
-                print(
-                    f"{u:>3} {w:>2} {p:>4} {r['coverage']:>6.3f} {r['mean_width']:>6.3f}  "
-                    + ", ".join(f"{k} {v}" for k, v in r["deff_reasons"].items())
-                )
-                sys.stdout.flush()
+    print(
+        "wilson_deff family: equal, one-dominant-case and mixed case sizes; TAU2 "
+        f"{', '.join(map(str, DEFF_TAU2))}; truth {', '.join(map(str, PROP_P))} at TAU2 "
+        f"{TAU2} set the threshold, every other row is recorded"
+    )
+    rows = deff_rows(reps)
+    print(f"{'family':>12} {'u':>3} {'n':>4} {'big':>3} {'tau2':>4} {'p':>4} {'cover':>6}  route")
+    for r in rows:
+        print(
+            f"{r['family']:>12} {r['u_cases']:>3} {r['n_rows']:>4} {r['largest_case_rows']:>3} "
+            f"{r['tau2']:>4} {r['truth']:>4} {r['coverage']:>6.3f}  {r['route']}"
+        )
     threshold = deff_threshold(rows)
-    print(f"\nsmallest u with every shape at u or more cases >= {BAR}: {threshold}")
+    print(
+        f"\nsmallest u with every constant-setting shape at u or more cases, inside the "
+        f"case-share ({MAX_CASE_SHARE_DEFF_WILSON}) and rows-per-case "
+        f"({MAX_ROWS_PER_CASE_DEFF_WILSON}) bounds, >= {BAR}: {threshold}"
+    )
     print(f"elapsed {time.time() - t0:.0f} s")
     if json_path:
         with open(json_path, "w", encoding="utf-8", newline="\n") as fh:
@@ -300,7 +382,12 @@ def main_deff(json_path: str | None, reps: int) -> int:
                     "reps": reps,
                     "level": LEVEL,
                     "bar": BAR,
-                    "tau2": TAU2,
+                    "tau2": list(DEFF_TAU2),
+                    "tau2_setting_the_constant": TAU2,
+                    "truths_setting_the_constant": list(PROP_P),
+                    "truths_recorded": list(DEFF_P_RECORDED),
+                    "max_case_share": MAX_CASE_SHARE_DEFF_WILSON,
+                    "max_rows_per_case": MAX_ROWS_PER_CASE_DEFF_WILSON,
                     "rows": rows,
                     "min_cases_meeting_bar": threshold,
                 },

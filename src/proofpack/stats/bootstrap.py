@@ -257,26 +257,74 @@ MIN_UNITS_PER_STRATUM = 2
 #: ``design/conventions_T7.md``. This is a measurement on the grid's shapes, not a
 #: guarantee.
 MAX_FROZEN_VARIANCE_SHARE = 0.20
-#: **DEC-18 (a), build day 11 (E11 item 5).** A clustered proportion renders the Wilson
-#: interval on the effective sample size ``n / DEFF`` (``wilson_deff``,
-#: :func:`proofpack.stats.proportions.proportion_deff`) when its cell has at least this
-#: many cases; below it the cluster bootstrap renders as before, with its tier annotation
-#: (DEC-18 (c), kept for those shapes), and the cell's ``detail`` says why the design-effect
-#: interval was not used. Measured, not chosen: ``scripts/coverage_bar.py --deff-wilson``
-#: (seed 20261002, R = 4000, nominal 0.95, the DEC-08 bar 0.90; committed as
-#: ``design/coverage_deff_wilson.json``) on u cases x w rows (w = 1, 3, 8; truth 0.5 and
-#: 0.9; a shared case effect at TAU2 = 0.5): every shape with u >= 5 cases covered at or
-#: above the bar (lowest 0.906, u = 15, w = 8, p = 0.9; 0.914 at u = 5, w = 8, p = 0.5),
-#: and at u = 4 one did not (0.867, w = 1, p = 0.5 - the Wilson interval's own
-#: discreteness at four rows; 0.878 at w = 8). Equal case sizes only; a measurement on the
-#: grid's shapes, not a guarantee. Full table: ``design/conventions_T7.md``.
+#: **DEC-18 (a), build day 11 (E11 item 5; the route narrowed by E11 repair 1).** A
+#: clustered proportion renders the Wilson interval on the design-effect sample size
+#: ``n / DEFF`` (``wilson_deff``, :func:`proofpack.stats.proportions.proportion_deff`) when
+#: its cell has at least this many cases, no case holds more than
+#: :data:`MAX_CASE_SHARE_DEFF_WILSON` of the cell's rows and the cases average at most
+#: :data:`MAX_ROWS_PER_CASE_DEFF_WILSON` rows (:func:`deff_wilson_route`). Everywhere else
+#: the cluster bootstrap renders as at ``ad66073``, with its tier annotation (DEC-18 (c)),
+#: and ``detail.design_effect.route`` names why (:data:`DEFF_ROUTES`). The case-share
+#: bound implies five cases or more, so this constant only names the route of a cell of
+#: two to four cases (``below_coverage_bar``).
+#:
+#: What ``scripts/coverage_bar.py --deff-wilson`` v2 measured (E11 repair 1; seed
+#: 20261002, R = 4000 per grid row, 1000 rows; ``design/coverage_deff_wilson.json``; the
+#: tables are in ``design/conventions_T7.md``): on the shapes this route renders at the
+#: grid's own process (TAU2 = 0.5, truth 0.5 and 0.9; equal, one-dominant-case and mixed
+#: case sizes; up to 50 rows per case) every grid row - one shape at one truth and TAU2 -
+#: of 30 cases or more covered at or above the DEC-08 bar (lowest 0.907, mixed sizes, 30
+#: cases, truth 0.9), so the script's threshold is 30 - :data:`VERY_LOW_PRECISION_UNITS`,
+#: the case count below which :func:`precision_flags` of the case count gives a clustered
+#: proportion cell its R2 tier (inspected on one run by ``tests/test_e11_deff_wilson.py::
+#: test_accept_every_printed_cell_under_the_committed_threshold_carries_its_tier``).
+#: Twelve rendered rows of 5 to 20 cases fell below the bar (lowest 0.808: 5 cases of 50
+#: rows, truth 0.9), each printed with its tier annotation. At TAU2 = 0.8 or truth 0.95 or
+#: 0.98, recorded beside the grid and not setting it, 26 of the 162 rendered rows of 30
+#: cases or more covered below the bar (lowest 0.764: 30 cases of 50 rows, TAU2 0.8, truth
+#: 0.98); they print with no tier annotation (carried, E11 repair 1 note). A measurement
+#: on the grid's shapes, not a guarantee. At ``2adfaaa`` the route was the case count
+#: alone, measured on equal case sizes up to 8 rows; the two cold lenses measured it
+#: rendering at coverage 0.364 to 0.70 on shapes with one dominant case (lens notes FA-B1,
+#: RG-B2).
 MIN_CASES_DEFF_WILSON = 5
-#: What a clustered proportion cell's ``detail.design_effect.route`` records (E11 item 5).
+#: E11 repair 1: the largest share of a cell's rows one case may hold for ``wilson_deff``
+#: to render. Chosen, not measured: ``1 / 5``, so that with equal case sizes the condition
+#: is the build-day-11 one (five cases or more). Above it the v2 grid's
+#: one-dominant-case family covered as low as 0.137 (one case of 60 rows beside nine of
+#: one row, TAU2 0.8, truth 0.5), and 18 of its 30 constant-setting rows of 30 cases or
+#: more were below the bar (lowest 0.582); those cells render the cluster bootstrap.
+MAX_CASE_SHARE_DEFF_WILSON = 0.20
+#: E11 repair 1: the largest mean rows per case for ``wilson_deff`` to render - the
+#: largest rows-per-case on the coverage grid (not measured beyond it).
+MAX_ROWS_PER_CASE_DEFF_WILSON = 50
+#: What a clustered proportion cell's ``detail.design_effect.route`` records (E11 item 5;
+#: the two ``*_above_grid`` values since E11 repair 1).
 DEFF_ROUTES = (
-    "wilson_deff",  # rendered: at least MIN_CASES_DEFF_WILSON cases, DEFF estimable
-    "below_coverage_bar",  # fewer cases: the cluster bootstrap renders (DEC-18 (c))
+    "wilson_deff",  # rendered: inside the bounds of deff_wilson_route
+    "below_coverage_bar",  # two to four cases: the cluster bootstrap renders (DEC-18 (c))
+    "case_share_above_grid",  # one case holds too large a share: the bootstrap renders
+    "rows_per_case_above_grid",  # more rows per case than the grid: the bootstrap renders
     "not_estimable",  # one case: the cluster bootstrap's own refusal renders
 )
+
+
+def deff_wilson_route(n: int, n_cases: int, largest_case_rows: int, estimable: bool) -> str:
+    """The :data:`DEFF_ROUTES` value for a clustered proportion cell of ``n`` rows in
+    ``n_cases`` cases whose largest case has ``largest_case_rows`` rows (E11 repair 1).
+    ``scripts/coverage_bar.py --deff-wilson`` applies this same function to every grid
+    shape, so the shapes its table counts as rendered are the ones this routes."""
+    if not estimable or n_cases < 2:
+        return "not_estimable"
+    if n_cases < MIN_CASES_DEFF_WILSON:
+        return "below_coverage_bar"
+    if largest_case_rows > MAX_CASE_SHARE_DEFF_WILSON * n:
+        return "case_share_above_grid"
+    if n > MAX_ROWS_PER_CASE_DEFF_WILSON * n_cases:
+        return "rows_per_case_above_grid"
+    return "wilson_deff"
+
+
 #: R2 section 3.3 precision tiers, measured in **resampling units** - cases when the
 #: rows are clustered, rows when they are not. Advisory only; never a suppression.
 #: Below :data:`LOW_PRECISION_UNITS` the tier is "not evaluable, shown for
@@ -1284,10 +1332,13 @@ def proportion_ci(
     * **clustered** - the Wilson interval on the rows is **refused** with
       ``clustered_data_analytic_ci_invalid`` (the ``analytic`` companion) and the flag
       ``wilson_refused_clustered`` rides on the rendered Number (X2). What renders (E11
-      item 5, DEC-18 (a)): with at least :data:`MIN_CASES_DEFF_WILSON` cases and a design
-      effect that can be estimated, the Wilson interval on ``n / DEFF``
-      (``wilson_deff``; no resampling, ``bootstrap: null``); otherwise the cases are
-      resampled as before (``cluster_bootstrap_percentile``). Either way the cell's
+      item 5, DEC-18 (a); narrowed by E11 repair 1): when :func:`deff_wilson_route` says
+      ``wilson_deff`` (at least :data:`MIN_CASES_DEFF_WILSON` cases, no case above
+      :data:`MAX_CASE_SHARE_DEFF_WILSON` of the rows, at most
+      :data:`MAX_ROWS_PER_CASE_DEFF_WILSON` rows per case, a design effect that can be
+      estimated), the Wilson interval on ``n / DEFF`` (no resampling,
+      ``bootstrap: null``); otherwise the cases are resampled as before
+      (``cluster_bootstrap_percentile``). Either way the cell's
       ``detail.design_effect`` carries the design effect, its reason
       (:data:`proofpack.stats.proportions.DEFF_REASONS`) and the route taken
       (:data:`DEFF_ROUTES`).
@@ -1318,7 +1369,9 @@ def proportion_ci(
         n_cases=de.n_cases,
         ci_level=level,
     )
-    if de.deff is not None and de.n_cases >= MIN_CASES_DEFF_WILSON:
+    _, case_rows = np.unique(np.asarray(ids), return_counts=True)
+    route = deff_wilson_route(n, de.n_cases, int(case_rows.max()), de.deff is not None)
+    if route == "wilson_deff":
         flags = ["wilson_refused_clustered", *precision_flags(de.n_cases)]
         number = proportion_deff(k, n, de, level=level, flags=flags)
         return CellCI(
@@ -1329,7 +1382,6 @@ def proportion_ci(
             cplan.route,
             detail={"design_effect": {**de.as_dict(), "route": "wilson_deff"}},
         )
-    route = "not_estimable" if de.deff is None else "below_coverage_bar"
     resampler = clustered_flat(ids, n_rows=n)
     n_cases = resampler.n_units
 

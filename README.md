@@ -304,7 +304,8 @@ and the same bytes are `manifest.mapping_sha256` in `run.json` (DEC-27).
   (`PROOFPACK_HOME`, else `%LOCALAPPDATA%\proofpack` on Windows, `~/.proofpack`
   elsewhere) counts runs with a `criteria` block that wrote a document, per test set
   (SHA-256 of the analysed `y_true` and `score` bytes), recorded after the documents
-  are written; a `compare` that wrote a document counts as a run on the same key
+  are written (when a writer fails part-way, after the ones that reached disk, so that
+  run is counted); a `compare` that wrote a document counts as a run on the same key
   (DEC-47, DEC-70 (b)); `W14` when the count exceeds
   `ledger.warn_after_acceptance_runs`; no `ledger` block, no warning.
 * **Licence** (`src/proofpack/licence/`): the file at `PROOFPACK_LICENCE`, else the

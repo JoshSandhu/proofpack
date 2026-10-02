@@ -32,7 +32,11 @@ The count is **recorded after the write** (DEC-47): :func:`peek` reads the file 
 returns the count this run will carry if it is counted (the stored count plus one), the
 document is assembled and written with that figure, and :func:`commit` then writes the
 increment - so ``ledger_count`` in the manifest **includes the run that wrote it**, and a
-run that fails before its documents exist leaves the file as it was. :func:`record_run`
+run that fails before its documents exist leaves the file as it was. A run whose writer
+raises after another of its documents reached disk is counted: the CLI commits from the
+paths written, in a ``finally`` (E11 repair 1, lens RG-B1;
+``tests/test_e11_repair1.py::test_a_run_whose_t8_writer_raises_after_t1_and_t7_counts``,
+``::test_a_read_only_t8_after_t1_and_t7_counts_the_run``). :func:`record_run`
 is ``peek`` then ``commit`` in one call (E7's shape, kept for its tests).
 Warning: ``W14`` with ``{count, limit}`` when ``count > ledger.warn_after_acceptance_runs``;
 no ``ledger`` block in ``criteria.yaml`` -> no limit -> no warning ever (D1: "no default").

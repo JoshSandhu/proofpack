@@ -33,6 +33,11 @@ COMPARE_POINTER = (
     "Next step: proofpack compare --input NEW --prior PRIOR --criteria FILE writes "
     "T2.html (docs: /docs/compare)"
 )
+COMPARE_AFTER_LICENCE = (
+    "Next step: proofpack licence install FILE (a licence carrying the compare feature), "
+    "then proofpack compare --input NEW --prior PRIOR --criteria FILE writes T2.html "
+    "(docs: /docs/compare)"
+)
 
 
 def _hide(monkeypatch, names):
@@ -114,7 +119,8 @@ def test_run_templates_t2_names_compare_and_no_t2_file_run_would_write(
     )
     assert rc == (EXIT_LICENCE if not licence else rc)
     assert rc in (EXIT_OK, EXIT_WARNINGS, EXIT_LICENCE)
-    assert _next_step(printed) == COMPARE_POINTER
+    # E11 repair 1 (lens FA-N1): without a licence the line names the licence first
+    assert _next_step(printed) == (COMPARE_POINTER if licence else COMPARE_AFTER_LICENCE)
     assert not list(out.glob("T2.*"))
 
 

@@ -20,8 +20,12 @@ Methods (D1 section 3.1, R2 sections 1.2 and 9):
   a clustered proportion: the observed ``k / n`` with the Wilson interval on
   ``n_eff = n / DEFF``, the design effect estimated from the cases
   (:func:`design_effect`; the estimator **[unverified]**, :data:`DEFF_ESTIMATOR`).
-  :func:`proofpack.stats.bootstrap.proportion_ci` routes it, from the measured case count
-  at which its coverage clears the DEC-08 bar.
+  :func:`proofpack.stats.bootstrap.proportion_ci` routes it by the cell's case count,
+  largest case share and rows per case (:func:`proofpack.stats.bootstrap.deff_wilson_route`);
+  its measured coverage, including the grid shapes where it fell below the DEC-08 bar, is
+  in ``design/conventions_T7.md`` (E11 repair 1: at ``2adfaaa`` this line said the route
+  was set "from the measured case count at which its coverage clears the DEC-08 bar",
+  which two cold lenses measured false on shapes with one dominant case).
 * 2x2 derived metrics, PPA/NPA routing, both-way indeterminate tables, and
   PPV/NPV at a declared prevalence with a logit-scale delta interval.
 

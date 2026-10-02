@@ -123,9 +123,11 @@ METHOD_DESCRIPTIONS: dict[str, str] = {
         "Wilson score interval on the design-effect sample size n / DEFF for a clustered "
         "proportion, the design effect estimated from the cases by the ratio estimator "
         f"after Rao and Scott (1992) {UNVERIFIED_MARK}, {PENDING}; printed for a cell of at "
-        "least five cases, where its measured coverage is at or above the 0.90 bar (section "
-        "6). The Wilson interval on the rows is refused with the typed reason "
-        "clustered_data_analytic_ci_invalid."
+        "least five cases in which no case holds more than a fifth of the rows and the cases "
+        "average at most 50 rows (any other clustered proportion prints the cluster "
+        "bootstrap). Section 6 gives its measured coverage on the grid's shapes, including "
+        "the shapes where it fell below the 0.90 bar. The Wilson interval on the rows is "
+        "refused with the typed reason clustered_data_analytic_ci_invalid."
     ),
     "bootstrap_percentile": (
         "Stratified bootstrap over rows within outcome class, percentile interval (the Brier "

@@ -2973,6 +2973,94 @@ MUTANTS_DAY11: tuple[Mutant, ...] = (
         day=11,
         what="a paired ppv criterion reads comparison_not_computed_for_scope",
     ),
+    # ---------------------------------------------------------------- E11 repair 1
+    Mutant(
+        "e11r1_case_share_bound_dropped",
+        BOOTSTRAP_PY,
+        _lit("    if largest_case_rows > MAX_CASE_SHARE_DEFF_WILSON * n:"),
+        "    if False:",
+        day=11,
+        what="wilson_deff prints on a cell whose one case holds most of the rows (FA-B1, RG-B2)",
+    ),
+    Mutant(
+        "e11r1_rows_per_case_bound_dropped",
+        BOOTSTRAP_PY,
+        _lit("    if n > MAX_ROWS_PER_CASE_DEFF_WILSON * n_cases:"),
+        "    if False:",
+        day=11,
+        what="wilson_deff prints on more rows per case than the coverage grid measured",
+    ),
+    Mutant(
+        "e11r1_route_reads_no_case_sizes",
+        BOOTSTRAP_PY,
+        _lit(
+            "    route = deff_wilson_route(n, de.n_cases, int(case_rows.max()), "
+            "de.deff is not None)"
+        ),
+        "    route = deff_wilson_route(n, de.n_cases, 1, de.deff is not None)",
+        day=11,
+        what="proportion_ci routes on the case count alone, as at 2adfaaa",
+    ),
+    Mutant(
+        "e11r1_run_ledger_not_in_finally",
+        "src/proofpack/cli.py",
+        _lit(
+            "    try:\n"
+            "        _, notes = write_documents(outcome, args.out, formats, templates, "
+            "written=documents)\n"
+            "    finally:\n"
+            "        ledger_failed = record_ledger(outcome, documents)\n"
+            "    doc = outcome.document\n"
+            '    manifest = doc["manifest"]\n'
+            "    # A-P2"
+        ),
+        "    _, notes = write_documents(outcome, args.out, formats, templates, "
+        "written=documents)\n"
+        "    ledger_failed = record_ledger(outcome, documents)\n"
+        "    doc = outcome.document\n"
+        '    manifest = doc["manifest"]\n'
+        "    # A-P2",
+        day=11,
+        what="a run whose writer raises after T1 and T7 are written is not counted (RG-B1)",
+    ),
+    Mutant(
+        "e11r1_compare_ledger_before_the_write",
+        "src/proofpack/cli.py",
+        _lit(
+            "    try:\n"
+            "        _, notes = write_documents(outcome, args.out, formats, templates, "
+            "written=documents)\n"
+            "    finally:\n"
+            "        ledger_failed = record_ledger(outcome, documents)\n"
+            "    doc = outcome.document\n"
+            '    manifest = doc["manifest"]\n'
+            "    from proofpack.egress"
+        ),
+        "    ledger_failed = record_ledger(outcome, [Path(args.out)])\n"
+        "    _, notes = write_documents(outcome, args.out, formats, templates, "
+        "written=documents)\n"
+        "    doc = outcome.document\n"
+        '    manifest = doc["manifest"]\n'
+        "    from proofpack.egress",
+        day=11,
+        what="a compare is counted before its documents are written (lens FA-N6, M19)",
+    ),
+    Mutant(
+        "e11r1_t2_next_step_ignores_the_licence",
+        "src/proofpack/cli.py",
+        _lit("        if lic.usable and compare_licensed(lic):"),
+        "        if True:",
+        day=11,
+        what="run --templates T2 without a compare licence names compare as writing T2.html",
+    ),
+    Mutant(
+        "e11r1_t2_docx_note_says_not_built",
+        "src/proofpack/run.py",
+        _lit("            if template in html_built:"),
+        "            if False:",
+        day=11,
+        what="T2.docx's note says T2 is not built in this engine version (FA-N4)",
+    ),
 )
 
 MUTANTS = (

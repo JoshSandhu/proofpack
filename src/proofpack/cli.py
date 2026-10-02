@@ -5,9 +5,10 @@ row not matched (A-P3), 7 ``run --format ...docx...`` without the ``[docx]`` ext
 one typed line before any statistics run; nothing written; ``compare --format ...docx...``
 the same since E11 item 0 (a)).
 On HALT nothing is written to ``--out``. ``run`` (build day 7, E7: :mod:`proofpack.run`)
-needs a confirmed mapping (DEC-26) and writes ``run.json`` - the assembled document -
-under ``--out``; on a licence that is expired past grace, refused or absent it still
-writes the JSON with the expired watermark and exits 4 (D1 section 7: "after grace
+needs a confirmed mapping (DEC-26) and writes ``run.json`` - the assembled output, which
+the ledger does not count as a document (DEC-47 counts HTML and DOCX documents; E11
+decision 1) - under ``--out``; on a licence that is expired past grace, refused or absent
+it still writes the JSON with the expired watermark and exits 4 (D1 section 7: "after grace
 run/compare emit JSON only; doctor, map, fixtures always work"). Build day 8 (E8):
 ``--format json,html`` (the default) also writes ``T8.html`` beside ``run.json`` when
 the licence is ``ok`` or ``grace``; ``--templates`` names the documents (default T8;
@@ -507,9 +508,16 @@ def cmd_map(args: argparse.Namespace) -> int:
 
 
 def _docx_extra_missing(formats: list[str]) -> int | None:
-    """A-P4: the ``[docx]`` extra is checked before any statistics run, so a missing
-    package is one typed line (exit 7) and never a traceback after ``run.json`` was
-    written; ``None`` when ``docx`` was not asked or the extra is installed. ``run`` and
+    """A-P4: the ``[docx]`` extra is checked before any statistics run. What it inspects
+    is ``importlib.util.find_spec`` of the three top-level modules
+    (:data:`proofpack.render.docx.EXTRA_MODULES`: ``docx``, ``docxtpl``, ``matplotlib``);
+    when one is not found it prints one typed line and returns 7 (exit 7), before anything
+    is written. It does not import them, so a package one of them imports that is
+    missing (``lxml``, for python-docx) is not seen here: that run writes ``run.json`` and
+    the documents before the first DOCX write, then exits 5 (E11 repair 1, lens FA-N3,
+    measured: ``run --format json,html,docx --templates T1,T7`` with ``lxml`` hidden wrote
+    ``run.json`` and ``T1.html``, exit 5, the run counted once in the ledger; carried).
+    ``None`` when ``docx`` was not asked or the three modules are found. ``run`` and
     (since E11 item 0 (a)) ``compare`` call it first."""
     from proofpack.run import DOCX_FORMAT  # noqa: PLC0415
 
@@ -531,6 +539,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         DEFAULT_TEMPLATES,
         DOCX_FORMAT,
         assemble_run,
+        compare_licensed,
         document_names,
         licence_fix,
         parse_formats,
@@ -561,9 +570,15 @@ def cmd_run(args: argparse.Namespace) -> int:
         templates=templates,
     )
     target = write_run(outcome, args.out)
-    documents, notes = write_documents(outcome, args.out, formats, templates)
-    # DEC-47 / E11 item 2: the ledger increment is written after the documents
-    ledger_failed = record_ledger(outcome, documents)
+    # DEC-47 / E11 item 2: the ledger increment is written after the documents. E11
+    # repair 1 (lens RG-B1): it is written in a ``finally`` from the paths that reached
+    # disk, so a writer that raises after another document was written still counts the
+    # run (tests/test_e11_repair1.py::test_a_run_whose_t8_writer_raises_after_t1_and_t7_counts)
+    documents: list[Path] = []
+    try:
+        _, notes = write_documents(outcome, args.out, formats, templates, written=documents)
+    finally:
+        ledger_failed = record_ledger(outcome, documents)
     doc = outcome.document
     manifest = doc["manifest"]
     # A-P2 (build day 8, lane A): the one telemetry call site, after every document is
@@ -608,11 +623,20 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
     elif not document_names(["html", DOCX_FORMAT], templates, command="run"):
         # E11 item 0 (c) (the A-P4 merge lens, B3): run writes no T2 in any format, so a
-        # run asked for T2 alone names the command that writes it
-        summary += (
-            "Next step: proofpack compare --input NEW --prior PRIOR --criteria FILE writes "
-            "T2.html (docs: /docs/compare)"
+        # run asked for T2 alone names the command that writes it. E11 repair 1 (lens
+        # FA-N1): compare writes T2.html only under a usable licence carrying the
+        # compare feature, so without one the line names the licence first
+        compare_line = (
+            "proofpack compare --input NEW --prior PRIOR --criteria FILE writes T2.html "
+            "(docs: /docs/compare)"
         )
+        if lic.usable and compare_licensed(lic):
+            summary += "Next step: " + compare_line
+        else:
+            summary += (
+                "Next step: proofpack licence install FILE (a licence carrying the compare "
+                "feature), then " + compare_line
+            )
     elif not lic.usable:
         # E9 repair 2 (lens-2 FA-N6): under --format json the same flags write no HTML
         # after an install, so the line names --format json,html; A-P4: the names carry
@@ -797,9 +821,13 @@ def cmd_compare(args: argparse.Namespace) -> int:
         templates=templates,
     )
     target = write_run(outcome, args.out)
-    documents, notes = write_documents(outcome, args.out, formats, templates)
-    # DEC-70 (b) / DEC-47: a compare that wrote a document counts as a run, after the write
-    ledger_failed = record_ledger(outcome, documents)
+    # DEC-70 (b) / DEC-47: a compare that wrote a document counts as a run, after the
+    # write; E11 repair 1 (RG-B1): from the paths that reached disk, in a ``finally``
+    documents: list[Path] = []
+    try:
+        _, notes = write_documents(outcome, args.out, formats, templates, written=documents)
+    finally:
+        ledger_failed = record_ledger(outcome, documents)
     doc = outcome.document
     manifest = doc["manifest"]
     from proofpack.egress import telemetry as telemetry_mod  # noqa: PLC0415 - one call site
