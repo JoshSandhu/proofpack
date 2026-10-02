@@ -89,6 +89,7 @@ TIER_LEGEND: tuple[tuple[str, str], ...] = (
     ("ᵃ", "n < 10: not evaluable, shown for transparency"),
     ("ᵇ", "10 <= n < 30 or events < 5: very low precision"),
     ("ᶜ", "Wilson half-width > 0.10: imprecise"),
+    fmt.CLUSTERED_LEGEND_ROW,
 )
 
 #: One fixed description per ``Number.method``; T7 prints the ones the run used.
@@ -124,9 +125,12 @@ METHOD_DESCRIPTIONS: dict[str, str] = {
         "proportion, the design effect estimated from the cases by the ratio estimator "
         f"after Rao and Scott (1992) {UNVERIFIED_MARK}, {PENDING}; printed for a cell of at "
         "least five cases in which no case holds more than a fifth of the rows and the cases "
-        "average at most 50 rows (any other clustered proportion prints the cluster "
-        "bootstrap). Section 6 gives its measured coverage on the grid's shapes, including "
-        "the shapes where it fell below the 0.90 bar. The Wilson interval on the rows is "
+        "average at most 50 rows (a clustered proportion of two or more cases outside "
+        "these bounds is resampled by the cluster bootstrap; one case prints no interval, "
+        "with the typed reason insufficient_clusters). Section 6 gives its measured "
+        "coverage on the grid's shapes, including the shapes where it fell below the 0.90 "
+        "bar; every clustered proportion with an interval carries the tier mark ᵈ "
+        "(coverage not established for its case sizes). The Wilson interval on the rows is "
         "refused with the typed reason clustered_data_analytic_ci_invalid."
     ),
     "bootstrap_percentile": (

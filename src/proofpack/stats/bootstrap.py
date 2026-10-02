@@ -136,7 +136,7 @@ from __future__ import annotations
 import hashlib
 import math
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import numpy as np
@@ -279,14 +279,16 @@ MAX_FROZEN_VARIANCE_SHARE = 0.20
 #: proportion cell its R2 tier (inspected on one run by ``tests/test_e11_deff_wilson.py::
 #: test_accept_every_printed_cell_under_the_committed_threshold_carries_its_tier``).
 #: Twelve rendered rows of 5 to 20 cases fell below the bar (lowest 0.808: 5 cases of 50
-#: rows, truth 0.9), each printed with its tier annotation. At TAU2 = 0.8 or truth 0.95 or
-#: 0.98, recorded beside the grid and not setting it, 26 of the 162 rendered rows of 30
-#: cases or more covered below the bar (lowest 0.764: 30 cases of 50 rows, TAU2 0.8, truth
-#: 0.98); they print with no tier annotation (carried, E11 repair 1 note). A measurement
-#: on the grid's shapes, not a guarantee. At ``2adfaaa`` the route was the case count
-#: alone, measured on equal case sizes up to 8 rows; the two cold lenses measured it
-#: rendering at coverage 0.364 to 0.70 on shapes with one dominant case (lens notes FA-B1,
-#: RG-B2).
+#: rows, truth 0.9). At TAU2 = 0.8 or truth 0.95 or 0.98, recorded beside the grid and not
+#: setting it, 26 of the 162 rendered rows of 30 cases or more covered below the bar
+#: (lowest 0.7635: 30 cases of 50 rows, TAU2 0.8, truth 0.98). Off the grid, shapes of
+#: several large cases inside these bounds covered below the bar at the threshold-setting
+#: process too (:data:`CLUSTERED_COVERAGE_FLAG`). Since E11 repair 2 every clustered
+#: proportion with an interval carries the mark ``ᵈ`` beside its case-count tier. A
+#: measurement on the grid's shapes, not a guarantee. At ``2adfaaa`` the route was the
+#: case count alone, measured on equal case sizes up to 8 rows; the two cold lenses
+#: measured it rendering at coverage 0.364 to 0.70 on shapes with one dominant case (lens
+#: notes FA-B1, RG-B2).
 MIN_CASES_DEFF_WILSON = 5
 #: E11 repair 1: the largest share of a cell's rows one case may hold for ``wilson_deff``
 #: to render. Chosen, not measured: ``1 / 5``, so that with equal case sizes the condition
@@ -323,6 +325,29 @@ def deff_wilson_route(n: int, n_cases: int, largest_case_rows: int, estimable: b
     if n > MAX_ROWS_PER_CASE_DEFF_WILSON * n_cases:
         return "rows_per_case_above_grid"
     return "wilson_deff"
+
+
+#: E11 repair 2 (DEC-18 (c): "every clustered cell keeps its tier annotation"). The flag
+#: :func:`proportion_ci` appends to every clustered proportion that prints an interval,
+#: on either route, at any case count; the page prints it as the tier mark ``ᵈ``
+#: (``render.format.TIER_SUPERSCRIPTS``). Why every cell and not a shape rule: the two
+#: cold lenses of 2 October 2026 measured ``wilson_deff`` cells of 30 cases or more
+#: inside every bound of :func:`deff_wilson_route` at the grid's own threshold-setting
+#: process (TAU2 0.5, truth 0.9) covering below the DEC-08 bar; re-measured in the
+#: repair-2 session at ``0fa9391`` (R 2000): five cases of 50 rows beside 25 one-row
+#: cases 0.7615, 1203 of its 2000 cells printed with no mark at all; four cases of 19 rows
+#: beside 26 one-row cases 0.836. The grid has no family of several large cases, and the
+#: engine cannot read the within-case correlation or the truth. A Number with no interval
+#: gets no mark (``has_ci`` is inspected; the tested input is one case of 7 rows). Tests:
+#: ``tests/test_e11_repair2.py``.
+CLUSTERED_COVERAGE_FLAG = "clustered_coverage_not_established"
+
+
+def _with_clustered_coverage_mark(number: Number) -> Number:
+    """``number`` with :data:`CLUSTERED_COVERAGE_FLAG` appended when it has an interval."""
+    if not number.has_ci or CLUSTERED_COVERAGE_FLAG in number.flags:
+        return number
+    return replace(number, flags=[*number.flags, CLUSTERED_COVERAGE_FLAG])
 
 
 #: R2 section 3.3 precision tiers, measured in **resampling units** - cases when the
@@ -1341,7 +1366,8 @@ def proportion_ci(
       (``cluster_bootstrap_percentile``). Either way the cell's
       ``detail.design_effect`` carries the design effect, its reason
       (:data:`proofpack.stats.proportions.DEFF_REASONS`) and the route taken
-      (:data:`DEFF_ROUTES`).
+      (:data:`DEFF_ROUTES`), and a Number with an interval carries
+      :data:`CLUSTERED_COVERAGE_FLAG` after its other flags (E11 repair 2).
     """
     ind = np.asarray(indicator, dtype=bool)
     pol, cplan, ids = _resolved(policy, plan, int(ind.shape[0]), cluster_ids)
@@ -1373,7 +1399,7 @@ def proportion_ci(
     route = deff_wilson_route(n, de.n_cases, int(case_rows.max()), de.deff is not None)
     if route == "wilson_deff":
         flags = ["wilson_refused_clustered", *precision_flags(de.n_cases)]
-        number = proportion_deff(k, n, de, level=level, flags=flags)
+        number = _with_clustered_coverage_mark(proportion_deff(k, n, de, level=level, flags=flags))
         return CellCI(
             number,
             refused,
@@ -1403,6 +1429,7 @@ def proportion_ci(
         k=k,
         n_cases=n_cases,
     )
+    number = _with_clustered_coverage_mark(number)
     return CellCI(
         number,
         refused,

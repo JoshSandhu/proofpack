@@ -215,11 +215,24 @@ threshold; every other row is recorded beside them.
 every grid row): a cell of at least five cases (`MIN_CASES_DEFF_WILSON = 5`) in which no
 case holds more than a fifth of the rows (`MAX_CASE_SHARE_DEFF_WILSON = 0.20`, chosen: with
 equal case sizes it is the five-case condition) and the cases average at most 50 rows
-(`MAX_ROWS_PER_CASE_DEFF_WILSON = 50`, the grid's largest). Any other clustered proportion
-prints the cluster bootstrap with its tier annotation, as before build day 11, and its
-`detail.design_effect.route` names why: `below_coverage_bar` (two to four cases),
-`case_share_above_grid` or `rows_per_case_above_grid`; one case is refused by the bootstrap
-as before (`not_estimable`).
+(`MAX_ROWS_PER_CASE_DEFF_WILSON = 50`, the grid's largest). A clustered proportion of two
+or more cases outside these bounds prints the cluster bootstrap with its tier annotation, as
+before build day 11, and its `detail.design_effect.route` names why: `below_coverage_bar`
+(two to four cases), `case_share_above_grid` or `rows_per_case_above_grid`. A cell of one
+case prints no interval: the bootstrap refuses it with the typed reason
+`insufficient_clusters` (route `not_estimable`).
+
+**The mark ᵈ (E11 repair 2, DEC-18 (c)).** Every clustered proportion that prints an
+interval, on either route and at any case count, carries the flag
+`clustered_coverage_not_established`, printed as the tier mark ᵈ after its other marks.
+The engine reads a cell's case sizes but not its within-case correlation or the truth, and
+on the grid below, the design-effect interval's coverage ranged from 0.137 to 1.000 across
+case sizes, TAU2 and truth. Off the grid, a shape of several large cases inside every bound of
+the route covered below the bar at the threshold-setting process itself (TAU2 = 0.5, truth
+0.9; R = 2000, measured 2 October 2026 with the engine's `proportion_ci`): five cases of 50
+rows beside 25 one-row cases (30 cases) 0.7615, and four cases of 19 rows beside 26 one-row
+cases (30 cases) 0.836. The grid has no family of that shape. A cell with no interval
+carries no ᵈ.
 
 Lowest coverage over the grid rows the route prints, by case count u (in brackets, the
 number of rows):
@@ -236,21 +249,21 @@ number of rows):
 | 40 | 0.908 (18) | 0.901 (18) | 0.886 (18) | 0.783 (18) |
 | 60 | 0.921 (24) | 0.912 (24) | 0.897 (24) | 0.838 (24) |
 
-At the process that sets the threshold, every printed row of 30 cases or more covered at
-or above the bar (lowest 0.907: mixed sizes, 30 cases, truth 0.9), so the script's
+At the process that sets the threshold, every printed grid row of 30 cases or more covered
+at or above the bar (lowest 0.907: mixed sizes, 30 cases, truth 0.9), so the script's
 threshold is 30, the case count below which a clustered proportion cell is given its R2
 tier annotation from its case count ("not evaluable, shown for transparency" below ten
-cases, "very low precision" below 30). Twelve printed rows of 5 to 20 cases were below the bar (lowest 0.808: five
-cases of 50 rows, truth 0.9); those cells print with their tier annotation. Of the
-recorded rows, 26 of the 162 printed rows of 30 cases or more were below the bar (lowest
-0.764: 30 cases of 50 rows, TAU2 0.8, truth 0.98), and those cells print with no tier
-annotation: there the interval covered the truth less often than the bar asks, and nothing
-on the cell says so. On the one-dominant-case rows the route does not print (one case
-holding more than a fifth of the rows) the design-effect interval's coverage fell to
-0.137 (one case of 60 rows beside nine of one row, TAU2 0.8, truth 0.5); those cells print
-the cluster bootstrap. At build day 11 the route was the case count alone, measured on
-equal case sizes of at most eight rows. The paired version-comparison differences (T2)
-keep the cluster bootstrap. This is a measurement on the grid's shapes, not a guarantee.
+cases, "very low precision" below 30). Twelve printed rows of 5 to 20 cases were below the
+bar (lowest 0.808: five cases of 50 rows, truth 0.9). Of the recorded rows, 26 of the 162
+printed rows of 30 cases or more were below the bar (lowest 0.763: 30 cases of 50 rows,
+TAU2 0.8, truth 0.98). Every one of these cells prints with ᵈ; the cells of fewer than 30
+cases print with their case-count tier as well. On the one-dominant-case rows the route
+does not print (one case holding more than a fifth of the rows) the design-effect
+interval's coverage fell to 0.137 (one case of 60 rows beside nine of one row, TAU2 0.8,
+truth 0.5); those cells print the cluster bootstrap. At build day 11 the route was the case
+count alone, measured on equal case sizes of at most eight rows. The paired
+version-comparison differences (T2) keep the cluster bootstrap. This is a measurement on
+the grid's shapes, not a guarantee.
 
 ## Calibration (build day 6, `stats.calibration`)
 

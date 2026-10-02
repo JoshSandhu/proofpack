@@ -24,7 +24,8 @@ implements and the literal test that feeds it (``tests/test_render_format.py``):
   inline; no digit from ``est`` even when the engine carried one beside the reason.
 * **Tier superscripts** (fifth bullet; R2 section 3.3, a ProofPack convention):
   ``ᵃ`` n < 10, ``ᵇ`` 10 <= n < 30 or events < 5, ``ᶜ`` Wilson half-width
-  > 0.10, appended to the printed cell from the Number's ``flags``.
+  > 0.10, ``ᵈ`` a clustered proportion (E11 repair 2, DEC-18 (c)), appended to the
+  printed cell from the Number's ``flags`` in their order.
 * **Counts** (n, k, events) are the only bare integers.
 * **``[unverified]``** markings in any string pass through verbatim (:func:`text`).
 
@@ -45,7 +46,15 @@ TIER_SUPERSCRIPTS: dict[str, str] = {
     "not_evaluable_shown_for_transparency": "ᵃ",
     "very_low_precision": "ᵇ",
     "imprecise": "ᶜ",
+    # E11 repair 2 (DEC-18 (c)): every clustered proportion with an interval
+    "clustered_coverage_not_established": "ᵈ",
 }
+#: The legend row for ``ᵈ`` that T1 and T7 print (HTML and DOCX) beside the other three.
+CLUSTERED_LEGEND_ROW: tuple[str, str] = (
+    "ᵈ",
+    "clustered proportion: coverage not established for this cell's case sizes and "
+    "within-case correlation (T7 section 6)",
+)
 #: Metric ids printed as proportions, three-decimal quantities, or signed differences.
 PROPORTION_IDS: frozenset[str] = frozenset(
     {

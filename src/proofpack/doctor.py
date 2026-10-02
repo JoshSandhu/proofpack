@@ -171,9 +171,12 @@ def format_checks(checks: list[Check]) -> str:
     ok = all(c.ok for c in checks if c.essential)
     lines.append("")
     lines.append("All essential checks passed." if ok else "Essential check(s) FAILED.")
+    # E11 repair 2 (lens FA-N7): the line named "proofpack declare", which this engine
+    # does not have; tests/test_e11_repair2.py checks every "proofpack <word>" here
+    # against the parser's subcommands
     lines.append(
-        "Next step: proofpack declare --out criteria.yaml, then proofpack map --input "
-        "test.csv --criteria criteria.yaml"
+        "Next step: write criteria.yaml (your acceptance criteria, each with author, date "
+        "and justification), then proofpack map --input test.csv --criteria criteria.yaml"
     )
     return "\n".join(lines)
 

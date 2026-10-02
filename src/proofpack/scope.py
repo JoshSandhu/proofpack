@@ -1,6 +1,6 @@
 """Scope and disclaimer strings, verbatim from D4 section 7 (design draft).
 
-These are ProofPack's own words, pending review by the design partner's RA lead.
+These are ProofPack's own words.
 Templates never hard-code section numbers; guidance references are resolved via
 ``design/guidance_map_v1.csv``.
 """
@@ -17,6 +17,10 @@ SHORT_FORM = (
 
 LONG_FORM_TITLE = "Scope and limits of this document"
 
+#: The Guidance status item carries the slot ``{aidsf_draft}``: the renderer fills it with
+#: the AI-DSF map row's qualifier (``render.html.long_form_items``; E11 repair 2, lens
+#: FA-B2: the month was typed here, so a page printed two dates after a map edit).
+AIDSF_DRAFT_SLOT = "{aidsf_draft}"
 LONG_FORM_ITEMS: tuple[tuple[str, str], ...] = (
     (
         "What ProofPack is.",
@@ -54,10 +58,10 @@ LONG_FORM_ITEMS: tuple[tuple[str, str], ...] = (
     (
         "Guidance status.",
         "Every guidance reference in this document names the document, its version or date and "
-        "whether it is draft or final. Where the reference is to the FDA draft guidance "
+        "whether it is draft or final. Where the reference is to the FDA guidance "
         '"Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and '
-        'Marketing Submission Recommendations" (January 2025), it is a draft, not for '
-        "implementation, and section numbering may change on finalisation. References to the "
+        'Marketing Submission Recommendations", it is {aidsf_draft}, and section numbering '
+        "may change on finalisation. References to the "
         "FDA PCCP guidance are to the version issued 4 December 2024 and updated 18 August 2025. "
         'References to the FDA "Statistical Guidance on Reporting Results from Studies '
         'Evaluating Diagnostic Tests" are to the final guidance of 13 March 2007.',

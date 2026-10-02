@@ -544,7 +544,7 @@
       ]
     },
     "flag": {
-      "description": "Advisory annotations. The three added on build day 4 record the X2 clustered auto-switch and the small-class switch on the Number that is rendered; the typed reason itself rides on the companion analytic Number. 'newcombe_refused_clustered' (build day 5) rides on a subgroup difference computed by the two-sided cluster bootstrap because Newcombe method 10 was refused on clustered rows. The four from 'below_200_events_or_nonevents' (build day 6, stats.calibration): the 200/200 convention after Van Calster 2019 (an annotation, never a suppression - DEC-08), the boundary-score clip for the logit-scale models, and the X2 refusals of the log-delta O:E and the IRLS Wald intervals under clustering.",
+      "description": "Advisory annotations. The three added on build day 4 record the X2 clustered auto-switch and the small-class switch on the Number that is rendered; the typed reason itself rides on the companion analytic Number. 'newcombe_refused_clustered' (build day 5) rides on a subgroup difference computed by the two-sided cluster bootstrap because Newcombe method 10 was refused on clustered rows. The four from 'below_200_events_or_nonevents' (build day 6, stats.calibration): the 200/200 convention after Van Calster 2019 (an annotation, never a suppression - DEC-08), the boundary-score clip for the logit-scale models, and the X2 refusals of the log-delta O:E and the IRLS Wald intervals under clustering. 'clustered_coverage_not_established' (E11 repair 2, DEC-18 (c)) rides on every clustered proportion that prints an interval (stats.bootstrap.proportion_ci, either route), printed as the tier mark ᵈ.",
       "enum": [
         "not_evaluable_shown_for_transparency", "very_low_precision", "imprecise",
         "wald_interval_exceeds_unit_range", "ci_pending_bootstrap",
@@ -553,7 +553,7 @@
         "analytic_ci_replaced_small_class",
         "below_200_events_or_nonevents", "scores_clipped_for_logit",
         "log_delta_refused_clustered", "irls_wald_refused_clustered",
-        "not_like_for_like"
+        "not_like_for_like", "clustered_coverage_not_established"
       ]
     },
 

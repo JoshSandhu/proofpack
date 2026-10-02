@@ -61,7 +61,13 @@ from proofpack.narrate.templates import NARRATIVE_FOOTER, STATUS_WORDS
 from proofpack.render import anchors
 from proofpack.render import format as fmt
 from proofpack.render.theme import css_root_block
-from proofpack.scope import INCOMPLETE_MARK, LONG_FORM_ITEMS, LONG_FORM_TITLE, SHORT_FORM
+from proofpack.scope import (
+    AIDSF_DRAFT_SLOT,
+    INCOMPLETE_MARK,
+    LONG_FORM_ITEMS,
+    LONG_FORM_TITLE,
+    SHORT_FORM,
+)
 
 #: Inside the package, so a built wheel carries the templates with the code (a
 #: repository-root ``templates/`` directory would not ship; D4 section 9 names the
@@ -438,6 +444,24 @@ def warning_rows(document: dict[str, Any]) -> list[dict[str, str]]:
     ]
 
 
+#: The map row whose draft qualifier fills the long form's Guidance status item (E11
+#: repair 2): the same row as T1's header line (``render.t1.T1_TITLE_ANCHOR``).
+AIDSF_STATUS_ANCHOR = "FDA_AIDSF_PERF_VALIDATION"
+
+
+def long_form_items(guidance_map: Any = None) -> tuple[tuple[str, str], ...]:
+    """:data:`proofpack.scope.LONG_FORM_ITEMS` with the Guidance status item's AI-DSF slot
+    filled from the map row (``draft guidance (January 2025), not for implementation``
+    for the committed map), so the item and T1's header line read one row. Lens FA-B2
+    (2 October 2026) set the row's ``version_date`` to 2025-02-03 and measured the
+    header printing February 2025 beside an item still printing January 2025;
+    ``tests/test_e11_repair2.py`` repeats that edit on a copy of the map."""
+    qualifier = anchors.draft_qualifier(AIDSF_STATUS_ANCHOR, guidance_map)
+    return tuple(
+        (title, body.replace(AIDSF_DRAFT_SLOT, qualifier)) for title, body in LONG_FORM_ITEMS
+    )
+
+
 def out_of_scope_items() -> list[str]:
     body = LONG_FORM_ITEMS[3][1]
     return [s.strip().rstrip(".") for s in body.split(";") if s.strip()]
@@ -471,7 +495,7 @@ def t8_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
             "prior_version": model.get("prior_version"),
         },
         "long_form_title": LONG_FORM_TITLE,
-        "long_form_items": LONG_FORM_ITEMS,
+        "long_form_items": long_form_items(guidance_map),
         "manifest_rows": manifest_rows(document),
         "declaration_rows": declaration_rows(document),
         # the declarations block of run.json re-serialised as YAML with sorted keys - the

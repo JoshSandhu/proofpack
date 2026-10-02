@@ -167,6 +167,11 @@ def test_a_decile_bin_with_a_typed_reason_is_not_plotted(clustered):
     entry["number"].update(
         ci_lo=None, ci_hi=None, method="none", not_estimable_reason="boundary_estimate"
     )
+    # E11 repair 2: the engine puts clustered_coverage_not_established only on a clustered
+    # proportion with an interval, so the planted refusal drops it as the engine would
+    entry["number"]["flags"] = [
+        f for f in entry["number"]["flags"] if f != "clustered_coverage_not_established"
+    ]
     bin1 = entry["number"]
     assert bin1["not_estimable_reason"] == "boundary_estimate" and bin1["est"] == 0.0
     page = render_t1.render_t1(doc)

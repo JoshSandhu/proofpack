@@ -124,11 +124,13 @@ def test_a_compare_whose_t2_writer_raises_after_t7_counts(tmp_path, monkeypatch,
     assert _doc(out)["manifest"]["ledger_count"] == 1
 
 
-def test_a_compare_whose_first_writer_raises_writes_nothing_and_is_not_counted(
+def test_a_compare_whose_first_writer_raises_writes_no_document_and_is_not_counted(
     tmp_path, monkeypatch, capsys
 ):
     """The other half of DEC-47 (lens FA-N6's M19: a ledger commit moved above the write
-    survived the suite at ``2adfaaa``)."""
+    survived the suite at ``2adfaaa``). It inspects ``T*.html`` and the ledger; the
+    compare still writes its JSON files (lens 2 FA-N2 measured ``run.json``,
+    ``ingest_report.json``, ``compare_ingest_report.json`` and ``pseudonyms.json``)."""
     home = _home(tmp_path, monkeypatch)
     new, prior, crit = _inputs(tmp_path)
     monkeypatch.setattr(render_t2, "write_t2", _boom)

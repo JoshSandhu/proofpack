@@ -195,11 +195,15 @@ def _coverage_script():
     return coverage_bar
 
 
-def test_the_committed_threshold_leaves_no_unannotated_cell_below_the_bar_at_its_process():
-    """E11 repair 1 (lenses FA-B1, RG-B2). Every printed row (``route == wilson_deff``) of
-    the constant-setting process (TAU2 0.5, truth 0.5 / 0.9) with at least the threshold's
-    cases covers at or above 0.90, and the threshold (30 in the committed run) is at most
-    ``VERY_LOW_PRECISION_UNITS``: below it every clustered cell carries its R2 tier."""
+def test_every_committed_grid_row_at_its_process_of_30_cases_or_more_is_at_or_above_the_bar():
+    """E11 repair 1 (lenses FA-B1, RG-B2); renamed in E11 repair 2 (lens 2 FA-N1: the old
+    name asserted that no unannotated cell was left below the bar, and the lens measured
+    an off-grid shape at this process at 0.8285). It inspects the committed JSON only:
+    every printed grid row (``route == wilson_deff``) of the constant-setting process
+    (TAU2 0.5, truth 0.5 / 0.9) with at least the threshold's cases covers at or above
+    0.90, and the threshold (30 in the committed run) is at most
+    ``VERY_LOW_PRECISION_UNITS``. The mark on every clustered cell is
+    ``tests/test_e11_repair2.py``'s."""
     coverage_bar = _coverage_script()
     data = json.loads(COVERAGE.read_text(encoding="utf-8"))
     assert data["bar"] == 0.9 and data["reps"] == 4000 and data["seed"] == 20261002
@@ -222,7 +226,8 @@ def test_the_committed_threshold_leaves_no_unannotated_cell_below_the_bar_at_its
     assert min(r["coverage"] for r in setting if r["u_cases"] >= threshold) == 0.90675
     below = [r for r in setting if r["coverage"] < 0.9]
     assert len(below) == 12 and max(r["u_cases"] for r in below) == 20
-    # the recorded rows below the bar at 30 cases or more: printed with no tier (carried)
+    # the recorded rows below the bar at 30 cases or more (printed with the mark d since
+    # E11 repair 2)
     recorded = [r for r in printed if not r["sets_constant"] and r["u_cases"] >= 30]
     assert (len(recorded), sum(r["coverage"] < 0.9 for r in recorded)) == (162, 26)
     assert min(r["coverage"] for r in recorded) == 0.7635
@@ -256,8 +261,14 @@ def test_t7_prints_the_committed_table():
         if m:
             table[int(m.group(1))] = m.group(2).split(" | ")
     assert table == expected
-    for literal in ("0.907", "0.808", "0.764", "0.137", "26 of the 162", "Twelve printed rows"):
+    for literal in ("0.907", "0.808", "0.763", "0.137", "26 of the 162", "Twelve printed rows"):
         assert literal in section, literal
+    # E11 repair 2 (lens 2 RG-N1): the prose's lowest recorded figure is the table's own
+    # printing of the same row (0.7635 prints 0.763), not a second rounding
+    recorded = [r for r in printed if not r["sets_constant"] and r["u_cases"] >= 30]
+    lowest = f"{min(r['coverage'] for r in recorded):.3f}"
+    assert f"(lowest {lowest}: 30 cases of 50 rows" in " ".join(section.split())
+    assert "0.764" not in section
 
 
 @pytest.mark.slow

@@ -6,10 +6,11 @@ one typed line before any statistics run; nothing written; ``compare --format ..
 the same since E11 item 0 (a)).
 On HALT nothing is written to ``--out``. ``run`` (build day 7, E7: :mod:`proofpack.run`)
 needs a confirmed mapping (DEC-26) and writes ``run.json`` - the assembled output, which
-the ledger does not count as a document (DEC-47 counts HTML and DOCX documents; E11
-decision 1) - under ``--out``; on a licence that is expired past grace, refused or absent
-it still writes the JSON with the expired watermark and exits 4 (D1 section 7: "after grace
-run/compare emit JSON only; doctor, map, fixtures always work"). Build day 8 (E8):
+the ledger does not count as a document (DEC-47 counts a run that wrote a document; E11
+decision 1 reads a document as an HTML or DOCX file) - under ``--out``; on a licence that
+is expired past grace, refused or absent it still writes the JSON with the expired
+watermark and exits 4 (D1 section 7: "after grace run/compare emit JSON only; doctor, map,
+fixtures always work"). Build day 8 (E8):
 ``--format json,html`` (the default) also writes ``T8.html`` beside ``run.json`` when
 the licence is ``ok`` or ``grace``; ``--templates`` names the documents (default T8;
 ``T1,T7,T8`` writes all three, E9). Build day 10 (E10): ``compare`` runs both versions

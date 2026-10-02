@@ -508,7 +508,7 @@ def t2_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
             ),
         ],
         "long_form_title": render_html.LONG_FORM_TITLE,
-        "long_form_items": render_html.LONG_FORM_ITEMS,
+        "long_form_items": render_html.long_form_items(guidance_map),
         "slots": slots,
         "outstanding": outstanding,
         "anchors": {

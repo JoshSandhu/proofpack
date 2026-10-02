@@ -118,10 +118,11 @@ PUBLIC_SUMMARY_NOTE = (
     "the 510(k) Summary is the submitter's document under 21 CFR 807.92; this table supplies "
     "numbers, not the summary"
 )
-#: D4 section 2 row 15, the model-card heading note, verbatim.
-MODEL_CARD_NOTE = (
-    "model cards are not required per draft guidance (Jan 2025), not for implementation"
-)
+#: D4 section 2 row 15, the model-card heading note. D4 types the month ("Jan 2025");
+#: since E11 repair 2 the qualifier after "per" is read from the map row
+#: :data:`MODEL_CARD_ANCHOR` (:func:`model_card_note`), as T1's header line reads its row.
+MODEL_CARD_NOTE = "model cards are not required per {aidsf_draft}"
+MODEL_CARD_ANCHOR = "FDA_AIDSF_MODEL_CARD"
 COVER_NOTE = (
     "Attachment set prepared for the manufacturer's own submission or record. Not a "
     "submission. No regulator has endorsed this tool."
@@ -764,6 +765,15 @@ def template_name(guidance_map: Any = None) -> str:
     return f"{T1_TITLE}, per {anchors.draft_qualifier(T1_TITLE_ANCHOR, guidance_map)}"
 
 
+def model_card_note(guidance_map: Any = None) -> str:
+    """:data:`MODEL_CARD_NOTE` with the qualifier of :data:`MODEL_CARD_ANCHOR`'s map row:
+    ``model cards are not required per draft guidance (January 2025), not for
+    implementation`` for the committed map."""
+    return MODEL_CARD_NOTE.replace(
+        "{aidsf_draft}", anchors.draft_qualifier(MODEL_CARD_ANCHOR, guidance_map)
+    )
+
+
 def t1_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, Any]:
     ids = [r["id"] for r in document.get("guidance_refs") or [] if isinstance(r, dict)]
     for group in T1_ANCHORS.values():
@@ -795,7 +805,7 @@ def t1_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
             ("Dataset SHA-256", fmt.text(m.get("input_sha256")) or "not recorded", True),
         ],
         "long_form_title": render_html.LONG_FORM_TITLE,
-        "long_form_items": render_html.LONG_FORM_ITEMS,
+        "long_form_items": render_html.long_form_items(guidance_map),
         "slots": slots,
         "outstanding": outstanding,
         "anchors": {
@@ -831,11 +841,12 @@ def t1_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
         "criterion_sentences": claim_sentences(document, {"CRITERION_STATUS"}),
         "public_summary_note": PUBLIC_SUMMARY_NOTE,
         "public_summary": public_summary_rows(document),
-        "model_card_note": MODEL_CARD_NOTE,
+        "model_card_note": model_card_note(guidance_map),
         "tier_legend": (
             ("ᵃ", "n < 10: not evaluable, shown for transparency"),
             ("ᵇ", "10 <= n < 30 or events < 5: very low precision"),
             ("ᶜ", "Wilson half-width > 0.10: imprecise"),
+            fmt.CLUSTERED_LEGEND_ROW,
         ),
         "guidance_refs": refs,
         "figures": figures_mod.figures(document, by_id),

@@ -104,7 +104,10 @@ def _strip_sd(node):
             and not (k == "detail" and isinstance(v, dict) and set(v) == {"design_effect"})
         }
     if isinstance(node, list):
-        return [_strip_sd(v) for v in node]
+        # E11 repair 2: the clustered decile bins gained the flag
+        # ``clustered_coverage_not_established`` (an annotation, not a figure of the
+        # a0c9abc block); tests/test_e11_repair2.py pins it
+        return [_strip_sd(v) for v in node if v != "clustered_coverage_not_established"]
     return node
 
 

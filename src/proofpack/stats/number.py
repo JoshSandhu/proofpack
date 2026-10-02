@@ -176,6 +176,12 @@ FLAGS: frozenset[str] = frozenset(
         "irls_wald_refused_clustered",
         # build day 10 (E10): every Number of an unpaired version comparison
         "not_like_for_like",
+        # E11 repair 2 (DEC-18 (c), lenses FA-B1 / RG-B1 of 2 October 2026): every
+        # clustered proportion that prints an interval (stats.bootstrap.proportion_ci,
+        # either route). The engine reads the case sizes but not the within-case
+        # correlation or the truth, and its coverage runs measured clustered proportion
+        # intervals below the DEC-08 bar at 5 to 60 cases (T7); printed as a tier mark.
+        "clustered_coverage_not_established",
     }
 )
 

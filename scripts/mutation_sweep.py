@@ -3061,6 +3061,59 @@ MUTANTS_DAY11: tuple[Mutant, ...] = (
         day=11,
         what="T2.docx's note says T2 is not built in this engine version (FA-N4)",
     ),
+    # ---------------------------------------------------------------- E11 repair 2
+    Mutant(
+        "e11r2_wilson_deff_cell_unmarked",
+        BOOTSTRAP_PY,
+        _lit(
+            "        number = _with_clustered_coverage_mark("
+            "proportion_deff(k, n, de, level=level, flags=flags))"
+        ),
+        "        number = proportion_deff(k, n, de, level=level, flags=flags)",
+        day=11,
+        what="a wilson_deff cell prints with no mark d, as at 0fa9391 (lens 2 FA-B1 / RG-B1)",
+    ),
+    Mutant(
+        "e11r2_bootstrap_cell_unmarked",
+        BOOTSTRAP_PY,
+        _lit("    number = _with_clustered_coverage_mark(number)"),
+        "    number = number",
+        day=11,
+        what="a clustered proportion on the bootstrap route prints with no mark d",
+    ),
+    Mutant(
+        "e11r2_mark_on_a_cell_without_an_interval",
+        BOOTSTRAP_PY,
+        _lit("    if not number.has_ci or CLUSTERED_COVERAGE_FLAG in number.flags:"),
+        "    if CLUSTERED_COVERAGE_FLAG in number.flags:",
+        day=11,
+        what="a clustered proportion with no interval carries the mark d",
+    ),
+    Mutant(
+        "e11r2_guidance_status_month_not_from_the_map",
+        "src/proofpack/render/html.py",
+        _lit("    qualifier = anchors.draft_qualifier(AIDSF_STATUS_ANCHOR, guidance_map)"),
+        '    qualifier = "draft guidance (January 2025), not for implementation"',
+        day=11,
+        what="the Guidance status item types its month instead of reading the map (FA-B2)",
+    ),
+    Mutant(
+        "e11r2_model_card_month_typed",
+        "src/proofpack/render/t1.py",
+        _lit('MODEL_CARD_NOTE = "model cards are not required per {aidsf_draft}"'),
+        'MODEL_CARD_NOTE = "model cards are not required per draft guidance (Jan 2025), '
+        'not for implementation"',
+        day=11,
+        what="T1's model-card note types 'Jan 2025' as at 0fa9391",
+    ),
+    Mutant(
+        "e11r2_doctor_names_declare",
+        "src/proofpack/doctor.py",
+        _lit('"Next step: write criteria.yaml (your acceptance criteria, each with author, date "'),
+        '"Next step: proofpack declare --out criteria.yaml (your criteria, with author, date "',
+        day=11,
+        what="doctor names a subcommand this engine does not have (FA-N7)",
+    ),
 )
 
 MUTANTS = (
