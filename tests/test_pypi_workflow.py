@@ -7,7 +7,11 @@ publish job only), the publish job's environment name and the absence of any sec
 
 from pathlib import Path
 
+import pytest
 import yaml
+
+# The release-pipeline lane's marks, as tests/test_workflows.py carries them.
+pytestmark = [pytest.mark.day9, pytest.mark.ap3]
 
 WF = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "pypi.yml"
 
