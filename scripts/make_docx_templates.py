@@ -50,6 +50,7 @@ from docx.shared import Mm, Pt, RGBColor
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
+from proofpack.render import t1 as render_t1  # noqa: E402
 from proofpack.render import theme  # noqa: E402
 from proofpack.render.t1 import COVER_NOTE, MODEL_CARD_NOTE, PUBLIC_SUMMARY_NOTE  # noqa: E402
 from proofpack.scope import LONG_FORM_TITLE  # noqa: E402
@@ -1114,7 +1115,9 @@ def _ncell(expr: str) -> list[Para]:
 
 
 def build_t1() -> bytes:
-    b = Builder("T1 · FDA AI-DSF performance evidence attachment set")
+    # E11 item 1: the template's own core title carries the draft qualifier too (the
+    # rendered title is the header line, set from the context at render time)
+    b = Builder(render_t1.template_name())
     # page 1: cover
     cover_and_stamps(b, "{{ cover_note }}")
     b.caption("Cover block")

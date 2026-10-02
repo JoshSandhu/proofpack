@@ -747,6 +747,22 @@ def public_summary_rows(document: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+#: T1's name (D4 section 2's title) and the map row whose draft qualifier the header
+#: line carries beside it (E11 item 1, DEC-71 (a)): every AI-DSF row of
+#: ``design/guidance_map_v1.csv`` is the same draft document, and this is T1's own anchor
+#: (sections 7, 11 and 12).
+T1_TITLE = "T1 · FDA AI-DSF performance evidence attachment set"
+T1_TITLE_ANCHOR = "FDA_AIDSF_PERF_VALIDATION"
+
+
+def template_name(guidance_map: Any = None) -> str:
+    """The header line's template part, ``<T1_TITLE>, per draft guidance (January 2025),
+    not for implementation``: the qualifier read from the map row (DEC-71 (a); at
+    ad66073 the header, the ``<title>`` and the cover's ``<h1>`` printed the name with no
+    qualifier, the one unqualified AI-DSF mention on a page, found by S4)."""
+    return f"{T1_TITLE}, per {anchors.draft_qualifier(T1_TITLE_ANCHOR, guidance_map)}"
+
+
 def t1_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, Any]:
     ids = [r["id"] for r in document.get("guidance_refs") or [] if isinstance(r, dict)]
     for group in T1_ANCHORS.values():
@@ -764,7 +780,7 @@ def t1_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
     ref_std = decl.get("reference_standard") or {}
     crit_rows = render_html.criteria_rows(document)
     ctx: dict[str, Any] = {
-        "template_name": "T1 · FDA AI-DSF performance evidence attachment set",
+        "template_name": template_name(guidance_map),
         "document": document,
         "cover_note": COVER_NOTE,
         "model": {

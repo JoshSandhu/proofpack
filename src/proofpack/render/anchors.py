@@ -72,6 +72,22 @@ def label_for(row: dict[str, str]) -> str:
     return f"{document} ({version}, {status})" if version else f"{document} ({status})"
 
 
+def draft_qualifier(internal_id: str, guidance_map: Any = None) -> str:
+    """The qualifier a draft row's label carries after its title - ``draft guidance
+    (January 2025), not for implementation`` for every AI-DSF row today - built by
+    :func:`label_for` from the row alone. A final row, an unknown id or a draft without
+    ``not for implementation`` is refused with :class:`AnchorError` (E11 item 1: the T1
+    header line names the AI-DSF draft and carries this qualifier in the line itself)."""
+    rows = _rows(guidance_map)
+    if internal_id not in rows:
+        raise AnchorError(f"unknown guidance anchor {internal_id!r}; not in guidance_map_v1.csv")
+    row = rows[internal_id]
+    if not is_draft(row):
+        raise AnchorError(f"guidance map row {internal_id!r} is not a draft; it has no qualifier")
+    label = label_for(row)
+    return label[len(row.get("document", "").strip()) + 2 :]
+
+
 def guidance_ref_item(internal_id: str, guidance_map: Any = None) -> dict[str, Any]:
     rows = _rows(guidance_map)
     if internal_id not in rows:
