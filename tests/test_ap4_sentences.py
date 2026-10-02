@@ -6,10 +6,12 @@ counter-examples in ``LENS_COUNTER_EXAMPLES``) are the six in the tree.
 
 * Lens 2 FA N3: ``test_fan7_ci_runs_the_oracle_check_after_pytest_unless_cancelled`` said
   what CI does; the test reads the YAML. Renamed to what it reads.
-* Lens 2 FA N4 = RG N2: the ``ci.yml`` comment said the step's lines "reach the job log";
-  the step has not run. It now says the step is written to print them and has not run.
+* Lens 2 FA N4 = RG N2: the ``ci.yml`` comment said the step's lines "reach the job log".
+  A-P4 repair 2 (A-P4 lens 2 FA2-S2): the step ran in GitHub Actions run 36020197050 on 24
+  September 2026; the comment quotes the two lines it printed.
 * Lens 2 FA N5 = RG N2: the ``Dockerfile`` comment said docker-smoke "greps the base
-  reference from its build log"; the grep step has not run. The qualifier is back.
+  reference from its build log". A-P4 repair 2 (A-P4 lens 2 FA2-S1): the grep step ran in
+  the same run; the comment quotes the digest it printed.
 * RG3-S1: ``test_the_zap_upload_step_runs_after_a_failed_scan`` read one YAML key. Renamed
   to ``test_the_zap_upload_step_carries_if_always``.
 * FA3-S3: ``test_no_secret_looking_env_or_arg_and_no_key_material`` stated more than it
@@ -39,8 +41,10 @@ PRESENT = [
         "tests/test_ap3_r3_repair1.py",
         "def test_fan7_the_oracle_step_follows_pytest_and_carries_if_not_cancelled():",
     ),
-    (".github/workflows/ci.yml", "this step has not run yet"),
-    ("Dockerfile", "has not yet run with that step"),
+    # A-P4 repair 2 (lens 2 FA2-S1, FA2-S2): both steps ran in GitHub Actions run
+    # 36020197050 on 24 September 2026; the comments now quote what they printed.
+    (".github/workflows/ci.yml", "In GitHub Actions run 36020197050"),
+    ("Dockerfile", "In GitHub Actions run 36020197050"),
     ("tests/test_ap3_repair2.py", "def test_the_zap_upload_step_carries_if_always():"),
     (
         "tests/test_dockerfile.py",

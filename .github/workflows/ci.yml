@@ -29,8 +29,12 @@ jobs:
         run: uv run pytest -q -p no:cacheprovider
       # A-P3 repair 3 (CI-1): the --check tests/test_fixtures_cmd.py runs, here outside
       # pytest. It is written to print each captured value whose float differs from
-      # fixtures/oracles_v1.json, with both figures; this step has not run yet (A-P4, 25
-      # September 2026), so whether those lines appear in a job log is not measured. The
+      # fixtures/oracles_v1.json, with both figures. In GitHub Actions run 36020197050
+      # (commit 81f1102, 24 September 2026) this step succeeded and printed
+      # "captured.F3-delong.values.paired_p: committed 0.0593464387919198 fresh
+      # 0.05934643879191981 abs difference 6.939e-18 iterative tolerance 1e-06 within" and
+      # "captured values: 64 identical, 1 differ within their tolerance, 0 differ outside it"
+      # (read from the run log on 2 October 2026). The
       # step name, the command and the if: line are read by tests/test_ap3_r3_repair1.py::
       # test_fan7_the_oracle_step_follows_pytest_and_carries_if_not_cancelled.
       - name: oracle capture compared with fixtures/oracles_v1.json
@@ -76,10 +80,11 @@ jobs:
     # python-docx, matplotlib) from the lock and run the ap4 marker with
     # PROOFPACK_REQUIRE_DOCX=1, the variable under which tests/ap4_docx.py::needs_extra
     # refuses the "extra not installed" skip; the main test job is written without the
-    # extra. Neither job had run anywhere when this was written (26 September 2026): the
-    # branch a-p4-docx had not reached this repository's CI. Measured locally with the three
-    # modules hidden (win-amd64-cp314): -m ap4 gave 29 passed, 101 skipped without the
-    # variable and 23 failed, 47 passed, 60 errors with it (tests/ap4_docx.py's docstring).
+    # extra. This job had not run in CI on 2 October 2026 (the branch a-p4-docx had not been
+    # pushed). Measured locally at commit 4879ac5 (its 130 ap4 tests) with the three modules
+    # hidden (win-amd64-cp314, 26 September 2026; lens 2 re-measured the same counts there
+    # on 2 October 2026): -m ap4 gave 29 passed, 101 skipped without the variable and 23
+    # failed, 47 passed, 60 errors with it (tests/ap4_docx.py's docstring).
     # The install is a download GitHub makes on its runner.
     name: pytest -m ap4 with the [docx] extra installed
     runs-on: ubuntu-latest

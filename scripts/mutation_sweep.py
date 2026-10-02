@@ -2958,13 +2958,17 @@ MUTANTS = MUTANTS + AP3_MUTANTS
 
 #: A-P4 (build day 10, lane A): the DOCX renderer, the [docx] extra, the PNG figures.
 #: Run with ``--marker ap4`` where the extra imports (the tests carry ``day10`` and
-#: ``ap4``). Measured with the three modules hidden by a ``-p`` plugin (win-amd64-cp314,
-#: 26 September 2026): the baseline passes (``29 passed, 101 skipped``, so the sweep runs);
+#: ``ap4``). Measured at commit 4879ac5 (its 130 ap4 tests) with the three modules hidden
+#: by a ``-p`` plugin (win-amd64-cp314, 26 September 2026): the baseline passes (``29
+#: passed, 101 skipped``, so the sweep runs);
 #: ``ap4_footer_emptied_in_render`` then passes ``-m ap4`` unchanged (``29 passed, 101
 #: skipped``) and is reported SURVIVED, while ``ap4_zip_mtime_now`` and ``ap4_png_dpi_150``
 #: are reported killed by ``tests/test_sweep_ap4.py``'s pattern-count test alone (their
 #: replacement removes the pattern in the planted copy), not by a DOCX test. Under
-#: ``PROOFPACK_REQUIRE_DOCX=1`` the baseline fails and the sweep refuses to run.
+#: ``PROOFPACK_REQUIRE_DOCX=1`` the baseline fails and the sweep refuses to run. Lens 2
+#: re-measured at e2c98df (154 ap4 tests, 2 October 2026): the footer mutant SURVIVED, the
+#: mtime and dpi mutants were killed (``1 failed, 49 passed, 104 skipped``), and the
+#: baseline under ``PROOFPACK_REQUIRE_DOCX=1`` refused.
 DOCX_RENDER = "src/proofpack/render/docx.py"
 DOCX_GENERATOR = "scripts/make_docx_templates.py"
 FIGURES_PNG = "src/proofpack/render/figures_png.py"
@@ -3098,6 +3102,34 @@ AP4_MUTANTS: tuple[Mutant, ...] = (
         r"^            ax\.set_ylim\(n_rows - 0\.5, -0\.5\)",
         "            ax.set_ylim(-0.5, n_rows - 0.5)",
         what="F5 PNG rows run bottom-up, the reverse of the SVG and the table (lens 1 FA-R4)",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_f5_value_text_two_dp",
+        FIGURES_PNG,
+        r'^                    row\["value"\],$',
+        '                    f"{row[\'est\']:.2f}" if row["drawn"] else row["value"],',
+        what="F5 PNG value texts print est to two places, not the engine's string (lens 2 FA2-B1)",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_f5_criterion_legend_raw_value",
+        FIGURES_PNG,
+        r"^                    label=f\"\{crit\['label'\]\}: \{crit\['value_text'\]\} "
+        r"\(heavy dashed\)\",$",
+        "                    label=f\"{crit['label']}: {crit['value']} (heavy dashed)\",",
+        what="F5 PNG criterion legend prints repr(value), not fmt.declared (lens 2 mutant I)",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_png_builtin_rc_dropped",
+        FIGURES_PNG,
+        r'^        with style\.context\("default"\):$',
+        "        if True:",
+        what="the PNG drawer runs under a matplotlibrc found at import (lens 2 FA2-S8)",
         day=10,
         marker="ap4",
     ),

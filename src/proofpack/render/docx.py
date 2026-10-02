@@ -37,33 +37,55 @@ Text" is this style; the file carries D5's name); the placeholder box as ``PP Pl
 ``‡`` and ``n.e.`` as text (:mod:`proofpack.render.format` prints them into the context);
 every FDA-draft anchor with its map label in the margin-note tables; the criteria table with
 the three status words only, in ``PP Status``; the manifest's watermark in every section's
-footer beside the short disclaimer. Every string is XML-escaped by the Jinja environment
-(``autoescape=True``, ``StrictUndefined``) and no customer string is evaluated as a
-template. Two rewrites happen after rendering and are docxtpl's, not the customer's text:
-the four two-character sequences ``{_{``, ``}_}``, ``{_%`` and ``%_}`` become ``{{``, ``}}``,
-``{%`` and ``%}`` wherever they occur, and a newline character becomes a ``<w:br/>`` line
-break (``tests/test_ap4_repair1.py::test_docxtpl_rewrites_the_four_escape_sequences_and_a_newline``
-feeds ``m{_{ 7*7 }_}n``, ``p{_% if 1 %_}q`` and ``QQa`` + newline + ``bZZ`` through
-``declarations.model.name`` of T8 and reads ``m{{ 7*7 }}n``, ``p{% if 1 %}q`` and ``QQa`` +
-break + ``bZZ`` back; ``a`` + tab + ``b`` reads back as itself). Through the CLI the four
-sequences are reachable (``criteria.yaml`` ``model.name: m{_{ 7*7 }_}n`` ran to exit 4 with
-``run.json`` written, 26 September 2026, win-amd64-cp314); a newline or a tab in a
-declaration halts at H08 (``control character U+000A`` / ``U+0009``, exit 3, nothing
-written), so the line-break rewrite is reachable through the Python API only.
+footer beside the short disclaimer. The Jinja environment is built with
+``autoescape=True`` and ``StrictUndefined``.
 
-**The extra.** docxtpl, python-docx and matplotlib are imported inside :func:`render_docx`
-and :func:`proofpack.render.figures_png` only. :func:`extra_available` asks
-``importlib.util.find_spec`` for the three modules without importing them;
-:func:`require_extra` raises :class:`DocxExtraMissing` (exit
+**What docxtpl rewrites after Jinja has run.** Measured through ``declarations.model.name``
+of T8 (``tests/test_ap4_repair1.py::
+test_docxtpl_rewrites_the_four_escape_sequences_and_a_newline``):
+``m{_{ 7*7 }_}n`` reads back ``m{{ 7*7 }}n`` and ``p{_% if 1 %_}q`` reads back ``p{% if 1
+%}q`` (``m49n`` is not in the text); ``QQa`` + newline + ``bZZ`` reads back ``QQa`` +
+``<w:br/>`` + ``bZZ``; ``a`` + tab + ``b`` reads back as itself in the extracted text. Through
+the same slot (``tests/test_ap4_repair2.py::
+test_tab_form_feed_and_bel_in_model_name_change_the_t8_xml``,
+each against ``ab``): ``a`` + tab + ``b`` adds one ``<w:tab/>``; ``a`` + U+000C + ``b`` adds
+one ``w:type="page"`` break and two ``<w:p>``; ``a`` + U+0007 + ``b`` adds one ``<w:p>``.
+
+**What reaches those rewrites through the CLI** (``proofpack run`` with a licence,
+``--offline``, win-amd64-cp314). ``criteria.yaml`` ``model.name: m{_{ 7*7 }_}n`` ran to exit 4
+with ``run.json`` written (26 September 2026). A newline and a tab in ``model.name`` each halt
+at H08 (``control character U+000A`` / ``U+0009``, exit 3, nothing written; 26 September
+2026). ``reference_standard.description`` ``QQa`` + newline + ``bZZ``,
+``operating_points[0].source`` ``TTa`` + tab + ``bUU`` and ``criteria[0].justification``
+``JJa`` + newline + ``bKK`` ran to exit 0, and ``T8.docx`` carries ``QQa</w:t><w:br/>``,
+``JJa</w:t><w:br/>`` and a ``<w:tab/>`` run between ``TTa`` and ``bUU``
+(``tests/test_ap4_repair2.py::
+test_a_newline_and_a_tab_in_three_declaration_fields_reach_the_t8_docx_through_the_cli``,
+and ``tests/test_ap4_repair2.py::
+test_a_newline_or_a_tab_in_model_name_halts_h08_and_writes_nothing`` re-measures the
+``model.name`` halts).
+Those three keys are ``io/declare.py``'s ``MULTILINE_FIELDS`` (DEC-65).
+
+**The extra.** In this module docxtpl and python-docx are imported inside :func:`_rich`,
+:func:`attach_images` and :func:`render_docx_bytes`, and :mod:`proofpack.render.figures_png`
+(which imports matplotlib at its top) is imported inside :func:`attach_images`
+(``tests/test_ap4_repair2.py::test_the_extra_imports_in_docx_py_sit_in_three_named_functions``).
+:func:`extra_available` asks ``importlib.util.find_spec`` for the three modules without
+importing them; :func:`require_extra` raises :class:`DocxExtraMissing` (exit
 :data:`proofpack.errors.EXIT_DOCX_EXTRA_MISSING`, one typed line naming the extra) and the
 CLI checks it before any statistics run.
 
 **Determinism.** docxtpl saves through python-docx, whose zip writer stamps every entry
-with the wall clock; :func:`write_bytes` rewrites the container with every entry's mtime
-set to the manifest's ``started`` (to the zip format's two-second resolution) and
-``docProps/core.xml``'s created and modified set to the same instant, the author fixed,
-so two renders of one ``run.json`` are byte-identical (``tests/test_ap4_determinism.py::
-test_two_renders_of_one_document_are_byte_identical``, measured on ``win-amd64-cp314``).
+with the wall clock. :func:`render_docx_bytes` sets ``docProps/core.xml``'s created and
+modified to the manifest's ``started`` and the author to ``ProofPack``; :func:`fixed_zip`
+then rewrites the container with every entry's mtime set to the same instant (to the zip
+format's two-second resolution).
+The synthetic document rendered twice in one process gives equal bytes for T1, T7 and T8
+(``tests/test_ap4_determinism.py::
+test_two_renders_of_one_document_are_byte_identical``, measured on ``win-amd64-cp314``), and
+its ``T1.docx`` rendered from a working directory holding a ``matplotlibrc`` has the same
+SHA-256 as one rendered from a directory without (``tests/test_ap4_repair2.py::
+test_a_matplotlibrc_in_the_working_directory_changes_no_png_byte``).
 """
 
 from __future__ import annotations

@@ -6,11 +6,12 @@ synthetic document, and DOCX text extraction through python-docx.
 - unless ``PROOFPACK_REQUIRE_DOCX=1`` is set, in which case nothing is skipped and the
 missing package fails the test. The CI job ``docx-extra`` (``.github/workflows/ci.yml``) is
 written to install the extra and set that variable; the main ``test`` job is written without
-the extra. Neither job had run when this was written (26 September 2026: the branch had not
-reached CI). Measured locally instead, with the three modules hidden by a ``-p`` plugin that
-sets ``sys.modules[name] = None`` (win-amd64-cp314, 26 September 2026): ``pytest -m ap4``
-without the variable gave ``29 passed, 101 skipped``, every skip with the reason below; the
-same command under ``PROOFPACK_REQUIRE_DOCX=1`` gave ``23 failed, 47 passed, 60 errors``.
+the extra. ``docx-extra`` had not run in CI on 2 October 2026 (the branch had not been
+pushed). Measured locally instead at commit ``4879ac5`` (its 130 ap4 tests), with the three
+modules hidden by a ``-p`` plugin that sets ``sys.modules[name] = None`` (win-amd64-cp314,
+26 September 2026; lens 2 re-measured the same counts there on 2 October 2026): ``pytest -m
+ap4`` without the variable gave ``29 passed, 101 skipped``, every skip with the reason below;
+the same command under ``PROOFPACK_REQUIRE_DOCX=1`` gave ``23 failed, 47 passed, 60 errors``.
 
 **Text extraction.** python-docx reads body paragraphs, table cells (each cell once, a
 merged cell not repeated), and each section's header and footer. Customer text is

@@ -12,21 +12,36 @@ inverse of E9's documented linear map (``figures.PlotMap``: ``px = x0 + (x - xmi
 (xmax - xmin) * w``, ``py = y0 + h - (y - ymin) / (ymax - ymin) * h``, read from each
 figure's ``data-map`` attribute), to 1e-9; never pixels.
 
-Rules kept from the SVG drawer: at most two series per figure; colour is never the only
-encoding (every series has a dash pattern and a text label in the legend); the colours
-are the theme's tokens (``design/tokens.json`` through :mod:`proofpack.render.theme`); no
-shaded region; F4 is omitted for a score that is not a probability (the reason prints as
-text in the document, not here); F5's criterion line only where a ``ci_lower_bound``
-criterion names the attribute, metric and operating point (:func:`figures.criterion_values`).
+Rules kept from the SVG drawer: at most two series per figure; every labelled line has a
+dash pattern of its own and a text label in the legend; no shaded region; F4 is omitted
+for a score that is not a probability (the reason prints as text in the document, not
+here); F5's criterion line only where a ``ci_lower_bound`` criterion names the attribute,
+metric and operating point (:func:`figures.criterion_values`). Colours: every line colour
+and patch face colour of the synthetic document's eleven figures is one of five tokens of
+``design/tokens.json`` (``tests/test_ap4_figures.py::
+test_two_labelled_series_at_most_each_with_its_own_dash_pattern_in_the_tokens``); the legend
+texts and F2's operating-point annotation are drawn in matplotlib's default text colour,
+``#000000``, which is not a token (measured 2 October 2026).
+
+**Every figure is drawn and saved under matplotlib's built-in defaults**
+(:func:`_builtin_rc`: ``matplotlib.style.context("default")`` around each drawing function
+and :func:`png_bytes`), not under a ``matplotlibrc`` the process found at import.
+``tests/test_ap4_repair2.py::test_a_matplotlibrc_in_the_working_directory_changes_no_png_byte``
+renders the synthetic document's eleven PNGs and its ``T1.docx`` in a subprocess whose
+working directory holds a ``matplotlibrc`` with ``axes.grid: True``, ``savefig.transparent:
+True``, ``text.color: red``, ``legend.labelcolor: red``, ``text.usetex: True``,
+``lines.linewidth: 5`` and ``font.size: 20``, and in one whose directory holds none, and
+compares the SHA-256 of each.
 
 The backend is **Agg**, forced at import (``matplotlib.use`` below) and used explicitly
 through :class:`FigureCanvasAgg`: no display, no ``pyplot``, no global figure state. PNGs
 are 300 dpi, 160 mm wide (:data:`DPI`, :data:`WIDTH_MM`; the height keeps the SVG's aspect
-ratio), with the metadata chunks stripped (``metadata={"Software": None}``): two renders
-of one document give identical bytes on one machine (measured, ``tests/test_ap4_figures.py
-::test_png_bytes_are_identical_across_two_renders_and_carry_no_metadata``). Byte identity
-across platforms is not claimed: the raster depends on the FreeType and font versions
-matplotlib finds.
+ratio), with the metadata chunks stripped (``metadata={"Software": None}``). The
+synthetic document rendered twice in one process gives identical PNG bytes
+(``tests/test_ap4_figures.py
+::test_png_bytes_are_identical_across_two_renders_and_carry_no_metadata``, win-amd64-cp314).
+Byte identity across platforms is not claimed: the raster depends on the FreeType and font
+versions matplotlib finds.
 
 matplotlib is imported here only (the ``[docx]`` extra): ``import proofpack.render``,
 ``import proofpack.render.html`` and an HTML render never import this module.
@@ -34,13 +49,16 @@ matplotlib is imported here only (the ``[docx]`` extra): ``import proofpack.rend
 
 from __future__ import annotations
 
+import functools
 import io
+from collections.abc import Callable
 from typing import Any
 
 import matplotlib
 
 matplotlib.use("Agg")  # the DOCX drawer never opens a window and never reads a display
 
+from matplotlib import style  # noqa: E402
 from matplotlib.backends.backend_agg import FigureCanvasAgg  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
 
@@ -54,6 +72,19 @@ VIEW_W = float(figures.VIEW_W)
 REFERENCE_DASHES = (6, 4)
 CRITERION_DASHES = (10, 4)
 FONT_PT = 9.0
+
+
+def _builtin_rc(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """Run ``fn`` under matplotlib's built-in rcParams (``style.context("default")``:
+    ``rcParamsDefault`` less the backend keys), so a ``matplotlibrc`` read at import does
+    not reach the figure (lens 2 FA2-S8)."""
+
+    @functools.wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        with style.context("default"):
+            return fn(*args, **kwargs)
+
+    return wrapper
 
 
 def _colours() -> dict[str, str]:
@@ -86,6 +117,7 @@ def _style_axes(ax: Any, c: dict[str, str]) -> None:
     ax.set_facecolor(c["bg"])
 
 
+@_builtin_rc
 def png_bytes(fig: Figure) -> bytes:
     """The figure as PNG bytes at :data:`DPI`, metadata stripped."""
     buf = io.BytesIO()
@@ -149,6 +181,7 @@ def _curve_figure(
     return fig
 
 
+@_builtin_rc
 def f2_figure(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> Figure | None:
     """F2 (ROC) with its declared operating points, or ``None`` when the SVG omits it."""
     spec = figures.f2_roc(document, refs_by_id)
@@ -160,6 +193,7 @@ def f2_figure(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -
     )
 
 
+@_builtin_rc
 def f3_figure(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> Figure | None:
     """F3 (precision-recall) with the prevalence baseline, or ``None`` when the SVG omits it."""
     spec = figures.f3_pr(document, refs_by_id)
@@ -175,6 +209,7 @@ def f3_figure(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -
 # ------------------------------------------------------------------ F4
 
 
+@_builtin_rc
 def f4_figure(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -> Figure | None:
     """F4 (calibration by decile) with the histogram strip, or ``None`` when the SVG omits
     it (``calibration`` null: the reason is printed as text in the document)."""
@@ -256,6 +291,7 @@ def f4_figure(document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]) -
 # ------------------------------------------------------------------ F5
 
 
+@_builtin_rc
 def f5_figures(
     document: dict[str, Any], refs_by_id: dict[str, dict[str, Any]]
 ) -> dict[str, list[Figure]]:

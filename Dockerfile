@@ -3,12 +3,14 @@
 #
 # Base image digest: [unverified] - not pinned in this file. No image was pulled on the
 # build machine, so no digest was read there. The CI job docker-smoke
-# (.github/workflows/ci.yml) is written to grep the base reference from its build log (the
-# grep step was written after GitHub Actions run 36005620750, whose build log shows the
-# reference, and has not yet run with that step);
-# the pin "FROM --platform=linux/amd64 python:3.12-slim@sha256:<digest>" is added from that
-# printed value (tests/test_dockerfile.py accepts the tag alone only while this comment is
-# here).
+# (.github/workflows/ci.yml) is written to grep the base reference from its build log, in
+# the step "record the base image digest". In GitHub Actions run 36020197050 (commit
+# 81f1102, 24 September 2026) that step succeeded and printed
+# docker.io/library/python:3.12-slim@sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9
+# (read from the run log with gh run view --log on 2 October 2026). The FROM line below
+# has not been changed to that digest; the pin
+# "FROM --platform=linux/amd64 python:3.12-slim@sha256:<digest>" is added from that printed
+# value (tests/test_dockerfile.py accepts the tag alone only while this comment is here).
 #
 # This file COPYs two inputs: requirements.lock, written by
 #   uv export --locked --no-dev --extra stats --no-emit-project --format requirements-txt

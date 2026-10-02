@@ -64,13 +64,15 @@ PRESENT = [
         "src/proofpack/render/docx.py",
         "tests/test_ap4_determinism.py::\ntest_two_renders_of_one_document_are_byte_identical",
     ),
-    ("src/proofpack/render/docx.py", "no customer string is evaluated as a\ntemplate"),
+    # repair 2 (lens 2 RG2-S3) deleted that sentence; the pin now reads its replacement
+    ("src/proofpack/render/docx.py", "The Jinja environment is built with"),
     (
         "src/proofpack/render/figures_png.py",
         "::test_png_bytes_are_identical_across_two_renders_and_carry_no_metadata``",
     ),
-    ("tests/ap4_docx.py", "Neither job had run when this was written"),
-    (".github/workflows/ci.yml", "Neither job had run anywhere when this was written"),
+    # repair 2 (lens 2 FA2-S3): the main test job had run; the texts now name docx-extra
+    ("tests/ap4_docx.py", "``docx-extra`` had not run in CI on 2 October 2026"),
+    (".github/workflows/ci.yml", "This job had not run in CI on 2 October 2026"),
     ("scripts/mutation_sweep.py", "is reported SURVIVED"),
     ("tests/test_ap4_sentences.py", "One of the seven (lens 2 FA N6)"),
     ("tests/test_ap4_templates.py", '"--offline"'),
