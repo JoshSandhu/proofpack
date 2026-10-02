@@ -1,0 +1,54 @@
+name: pypi
+
+# Publishes the engine wheel built from the commit it is dispatched on to pypi.org, so that
+# the name `proofpack` is held by this repository (Josh, 2 October 2026: "reserve the PyPI
+# name"; /checkout/success and /docs/install print `pip install proofpack`). Manual only:
+# it runs when someone dispatches it, never on a push or a tag. Trusted publishing: no
+# password or token is stored; Josh adds the pending publisher on pypi.org (project
+# proofpack, owner JoshSandhu, repository proofpack, workflow pypi.yml, environment pypi)
+# before the first dispatch. A version number can be uploaded to PyPI once only.
+# tests/test_pypi_workflow.py reads this file.
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  UV_VERSION: "0.8.17"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  build:
+    name: wheel
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv build --wheel --out-dir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: dist/*.whl
+          if-no-files-found: error
+
+  publish:
+    name: publish to pypi.org (trusted publishing)
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
