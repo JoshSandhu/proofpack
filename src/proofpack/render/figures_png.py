@@ -12,8 +12,10 @@ inverse of E9's documented linear map (``figures.PlotMap``: ``px = x0 + (x - xmi
 (xmax - xmin) * w``, ``py = y0 + h - (y - ymin) / (ymax - ymin) * h``, read from each
 figure's ``data-map`` attribute), to 1e-9; never pixels.
 
-Rules kept from the SVG drawer: at most two series per figure; every labelled line has a
-dash pattern of its own and a text label in the legend; no shaded region; F4 is omitted
+Rules kept from the SVG drawer: at most two series per figure; in F2, F3 and F5 every
+labelled line has a dash pattern of its own and a text label in the legend, and F4's
+labelled decile series is drawn as points (marker ``o``, line style ``None``) beside solid
+interval bars (lens 3 FA3-S2 = RG3-S1); no shaded region; F4 is omitted
 for a score that is not a probability (the reason prints as text in the document, not
 here); F5's criterion line only where a ``ci_lower_bound`` criterion names the attribute,
 metric and operating point (:func:`figures.criterion_values`). Colours: every line colour
@@ -75,13 +77,15 @@ FONT_PT = 9.0
 
 
 def _builtin_rc(fn: Callable[..., Any]) -> Callable[..., Any]:
-    """Run ``fn`` under matplotlib's built-in rcParams (``style.context("default")``:
-    ``rcParamsDefault`` less the backend keys), so a ``matplotlibrc`` read at import does
-    not reach the figure (lens 2 FA2-S8)."""
+    """Run ``fn`` under ``style.context("default")`` (lens 2 FA2-S8; the keys it leaves out
+    are ``matplotlib.style.core.STYLE_BLACKLIST``) with ``text.parse_math`` off, so a
+    customer string such as ``$\\foo$`` in a level or a criterion author is drawn as
+    written instead of being parsed as mathtext (``test_ap4_repair3.py::
+    test_a_dollar_backslash_string_in_a_criterion_author_draws_as_written``)."""
 
     @functools.wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        with style.context("default"):
+        with style.context("default"), matplotlib.rc_context({"text.parse_math": False}):
             return fn(*args, **kwargs)
 
     return wrapper

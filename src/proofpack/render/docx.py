@@ -51,9 +51,11 @@ test_tab_form_feed_and_bel_in_model_name_change_the_t8_xml``,
 each against ``ab``): ``a`` + tab + ``b`` adds one ``<w:tab/>``; ``a`` + U+000C + ``b`` adds
 one ``w:type="page"`` break and two ``<w:p>``; ``a`` + U+0007 + ``b`` adds one ``<w:p>``.
 
-**What reaches those rewrites through the CLI** (``proofpack run`` with a licence,
-``--offline``, win-amd64-cp314). ``criteria.yaml`` ``model.name: m{_{ 7*7 }_}n`` ran to exit 4
-with ``run.json`` written (26 September 2026). A newline and a tab in ``model.name`` each halt
+**What reaches those rewrites through the CLI** (``proofpack run``, ``--offline``,
+win-amd64-cp314). ``criteria.yaml`` ``model.name: m{_{ 7*7 }_}n`` ran to exit 4 with
+``run.json`` written and no document when no licence was installed (26 September 2026);
+with a licence the same declaration ran to exit 0 (lens 3 FA3-S1, 2 October 2026). A
+newline and a tab in ``model.name`` each halt
 at H08 (``control character U+000A`` / ``U+0009``, exit 3, nothing written; 26 September
 2026). ``reference_standard.description`` ``QQa`` + newline + ``bZZ``,
 ``operating_points[0].source`` ``TTa`` + tab + ``bUU`` and ``criteria[0].justification``

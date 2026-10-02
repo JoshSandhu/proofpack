@@ -3127,9 +3127,29 @@ AP4_MUTANTS: tuple[Mutant, ...] = (
     Mutant(
         "ap4_png_builtin_rc_dropped",
         FIGURES_PNG,
-        r'^        with style\.context\("default"\):$',
-        "        if True:",
+        r'^        with style\.context\("default"\), matplotlib\.rc_context\('
+        r'\{"text\.parse_math": False\}\):$',
+        '        with matplotlib.rc_context({"text.parse_math": False}):',
         what="the PNG drawer runs under a matplotlibrc found at import (lens 2 FA2-S8)",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_png_mathtext_parsed",
+        FIGURES_PNG,
+        r'^        with style\.context\("default"\), matplotlib\.rc_context\('
+        r'\{"text\.parse_math": False\}\):$',
+        '        with style.context("default"):',
+        what="a $\\foo$ customer string is parsed as mathtext and png_bytes raises (FA2-N1)",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_curve_legend_two_dp",
+        FIGURES_PNG,
+        r'^        label=spec\["legend"\],$',
+        '        label=spec["legend"].replace("0.835 [0.795, 0.876]", "0.84 [0.80, 0.88]"),',
+        what="F2 PNG legend AUROC printed to two places (lens 3 RG3-B1's mutant)",
         day=10,
         marker="ap4",
     ),
