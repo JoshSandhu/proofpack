@@ -192,7 +192,8 @@ paper. Typed cases, recorded in the cell's `detail.design_effect.reason`: an est
 below 1 is floored at 1 (`deff_floored_at_one`), so the interval is never narrower than
 the Wilson interval on the rows; one row per case gives `DEFF = 1` without estimation
 (`deff_one_row_per_case`); every row agreeing (`k = 0` or `k = n`) with some case of more
-than one row takes the cases as the units, `DEFF = n / K` (`deff_boundary_cases_as_units`);
+than one row takes the design effect at within-case correlation 1, `DEFF = sum_i m_i^2 / n`
+(`n / K` when every case has the same number of rows; `deff_boundary_cases_as_units`);
 one case is not estimable (`deff_not_estimable_single_case`). The Wilson interval on the
 rows stays refused (`clustered_data_analytic_ci_invalid`) and the flag
 `wilson_refused_clustered` stays on the printed Number; the tier is taken from the cases.

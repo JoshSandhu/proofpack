@@ -118,6 +118,10 @@ def test_the_typed_cases():
     boundary = design_effect(np.ones(9, bool), np.repeat([1, 2, 3], 3))
     assert boundary.reason == "deff_boundary_cases_as_units"
     assert boundary.deff == 3.0 and boundary.n_eff == 3.0
+    # unequal case sizes 1, 2, 5: sum m^2 / n = 30 / 8 (within-case correlation 1), not 8 / 3
+    uneven = design_effect(np.zeros(8, bool), np.array(["a", "b", "b"] + ["c"] * 5))
+    assert uneven.deff == 30 / 8 and abs(uneven.n_eff - 64 / 30) <= 1e-15
+    assert uneven.deff == hand_deff(np.zeros(8, bool), ["a", "b", "b"] + ["c"] * 5)[0]
     assert set(DEFF_REASONS) == {
         "deff_estimated",
         "deff_floored_at_one",

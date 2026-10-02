@@ -18,7 +18,7 @@ from typing import Any
 
 def hand_deff(indicator: Any, case_ids: list[Any]) -> tuple[float, int]:
     """``(DEFF, K)`` with the typed cases of the engine's rule: one row per case -> 1;
-    all rows agree with a case of two or more rows -> n / K; below 1 -> 1."""
+    all rows agree with a case of two or more rows -> sum m_i^2 / n; below 1 -> 1."""
     ys: dict[Any, list[int]] = {}
     for v, c in zip([bool(x) for x in indicator], case_ids, strict=True):
         ys.setdefault(c, []).append(int(v))
@@ -30,7 +30,7 @@ def hand_deff(indicator: Any, case_ids: list[Any]) -> tuple[float, int]:
         return 1.0, big_k
     k = sum(sum(v) for v in ys.values())
     if k in (0, n):
-        return n / big_k, big_k
+        return sum(len(v) ** 2 for v in ys.values()) / n, big_k
     p = k / n
     ss = sum((sum(v) - p * len(v)) ** 2 for v in ys.values())
     v = big_k / (big_k - 1) * ss / (n * n)

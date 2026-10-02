@@ -318,8 +318,9 @@ DEFF_REASONS: tuple[str, ...] = (
     # proportion is 1 by definition (1 + (m - 1) rho at m = 1); not estimated
     "deff_one_row_per_case",
     # every row agrees (k = 0 or k = n) and some case has more than one row: the estimate
-    # is 0 / 0, so the cases are taken as the units (DEFF = n / n_cases, n_eff = n_cases,
-    # the design effect at within-case correlation 1 for equal case sizes)
+    # is 0 / 0, so the design effect at within-case correlation 1 is used,
+    # DEFF = sum m_i^2 / n (n_eff = n^2 / sum m_i^2; n / n_cases and n_cases when every case
+    # has the same number of rows)
     "deff_boundary_cases_as_units",
     # one case: no between-case variance exists; not estimable
     "deff_not_estimable_single_case",
@@ -373,8 +374,12 @@ def design_effect(indicator: np.ndarray, cluster_ids: np.ndarray) -> DesignEffec
     and the design effect is ``DEFF = v / (p (1 - p) / n)`` - **[unverified]** as from
     Rao and Scott (1992), see :data:`DEFF_ESTIMATOR`. ``DEFF < 1`` is floored at 1; one row
     per case gives ``DEFF = 1`` without estimation; ``k = 0`` or ``k = n`` with a case of
-    more than one row takes the cases as the units (``DEFF = n / K``); one case is not
-    estimable. The reasons are :data:`DEFF_REASONS`."""
+    more than one row takes ``DEFF = sum m_i^2 / n``, its value at within-case correlation
+    1 (``n / K`` for equal case sizes); one case is not
+    estimable. The boundary value is the ratio estimator's design effect when every case's
+    rows agree (within-case correlation 1): each case is one draw of weight ``m_i``, so the
+    variance is ``p (1 - p) sum m_i^2 / n^2`` and ``DEFF = sum m_i^2 / n``. The reasons are
+    :data:`DEFF_REASONS`."""
     ind = np.asarray(indicator, dtype=bool)
     ids = np.asarray(cluster_ids)
     n = int(ind.shape[0])
@@ -391,7 +396,7 @@ def design_effect(indicator: np.ndarray, cluster_ids: np.ndarray) -> DesignEffec
         return DesignEffect(1.0, n / 1.0, n, n_cases, "deff_one_row_per_case")
     k = int(ind.sum())
     if k in (0, n):
-        deff = n / n_cases
+        deff = float(np.sum(m * m)) / n
         return DesignEffect(deff, n / deff, n, n_cases, "deff_boundary_cases_as_units")
     y = np.bincount(inv, weights=ind.astype(np.float64), minlength=n_cases)
     p = k / n
