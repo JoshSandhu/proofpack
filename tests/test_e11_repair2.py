@@ -88,8 +88,8 @@ def test_the_lens_in_route_shape_prints_the_mark():
 @pytest.mark.parametrize(
     ("sizes", "successes", "route", "method"),
     [
-        # two to four cases
-        ([3] * 4, [2, 1, 3, 0], "below_coverage_bar", "cluster_bootstrap_percentile"),
+        # two to four cases: since E11 repair 3 (DEC-75 (c)) no interval prints there, so
+        # the route is tested in tests/test_e11_repair3.py, not here
         # one case of 60 rows beside 39 one-row cases (repair 1's FA shape)
         ([60] + [1] * 39, [54] + [1] * 35 + [0] * 4, "case_share_above_grid", None),
         # five cases of 60 rows
@@ -142,7 +142,8 @@ def test_a_run_on_the_lens_shape_prints_the_mark_on_t1_and_the_legend_on_t1_and_
         page
     )
     assert "was 228/275 (82.9%ᵈ), 95% CI 77.2% to 87.4%" in page
-    legend = "clustered proportion: coverage not established for this cell's case sizes"
+    # E11 repair 3 (DEC-75 (b)): the row names a clustered interval, not a proportion
+    legend = "clustered interval: coverage not established for this cell's case sizes"
     assert legend in html.unescape(page)
     assert legend in html.unescape(render_t7.render_t7(doc))
 

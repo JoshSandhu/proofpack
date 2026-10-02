@@ -266,7 +266,8 @@ MAX_FROZEN_VARIANCE_SHARE = 0.20
 #: the cluster bootstrap renders as at ``ad66073``, with its tier annotation (DEC-18 (c)),
 #: and ``detail.design_effect.route`` names why (:data:`DEFF_ROUTES`). The case-share
 #: bound implies five cases or more, so this constant only names the route of a cell of
-#: two to four cases (``below_coverage_bar``).
+#: two to four cases (``below_coverage_bar``), which since E11 repair 3 prints no interval
+#: (:data:`MIN_CLUSTERED_CASES`, DEC-75 (c)).
 #:
 #: What ``scripts/coverage_bar.py --deff-wilson`` v2 measured (E11 repair 1; seed
 #: 20261002, R = 4000 per grid row, 1000 rows; ``design/coverage_deff_wilson.json``; the
@@ -304,7 +305,8 @@ MAX_ROWS_PER_CASE_DEFF_WILSON = 50
 #: the two ``*_above_grid`` values since E11 repair 1).
 DEFF_ROUTES = (
     "wilson_deff",  # rendered: inside the bounds of deff_wilson_route
-    "below_coverage_bar",  # two to four cases: the cluster bootstrap renders (DEC-18 (c))
+    # two to four cases: no interval, fewer_than_five_cases (DEC-75 (c), E11 repair 3)
+    "below_coverage_bar",
     "case_share_above_grid",  # one case holds too large a share: the bootstrap renders
     "rows_per_case_above_grid",  # more rows per case than the grid: the bootstrap renders
     "not_estimable",  # one case: the cluster bootstrap's own refusal renders
@@ -337,17 +339,67 @@ def deff_wilson_route(n: int, n_cases: int, largest_case_rows: int, estimable: b
 #: repair-2 session at ``0fa9391`` (R 2000): five cases of 50 rows beside 25 one-row
 #: cases 0.7615, 1203 of its 2000 cells printed with no mark at all; four cases of 19 rows
 #: beside 26 one-row cases 0.836. The grid has no family of several large cases, and the
-#: engine cannot read the within-case correlation or the truth. A Number with no interval
-#: gets no mark (``has_ci`` is inspected; the tested input is one case of 7 rows). Tests:
-#: ``tests/test_e11_repair2.py``.
+#: engine estimates a cell's design effect from its rows but cannot read the true
+#: within-case correlation of the process behind them, or the truth (E11 repair 3, lens 3
+#: FA-N3: the sentence here said "cannot read the within-case correlation"). A Number
+#: with no interval gets no mark (``has_ci`` is inspected; the tested input is one case of
+#: 7 rows). Tests: ``tests/test_e11_repair2.py``. E11 repair 3 (DEC-75 (b)):
+#: :func:`clustered_number` puts it on every clustered Number with an interval, not only
+#: proportions - the subgroup and paired differences, AUROC and its differences, Brier,
+#: reference Brier, IPA, O:E, calibration slope and intercepts. Lens 3 of 2 October 2026
+#: measured the T2-3 paired sensitivity difference covering 0.8638 (five cases of 50 rows
+#: beside 25 one-row cases) and 0.8799 (ten cases of ten rows) with no mark and no tier;
+#: the repair-3 session re-ran its probe at R 1000, B 500: 0.8849 and 0.8850, every
+#: printed cell then carrying the mark (``tests/test_e11_repair3.py``).
 CLUSTERED_COVERAGE_FLAG = "clustered_coverage_not_established"
+#: E11 repair 3 (DEC-75 (c), Josh 2 October 2026): below this many cases a clustered cell
+#: prints no interval, on every route that :func:`clustered_number` is applied to, the
+#: cluster bootstrap included, with the typed reason :data:`FEWER_THAN_FIVE_CASES`
+#: (DEC-08: "refused with a typed reason below" the bar). What the day-5 coverage table
+#: in T7 measured for the cluster bootstrap of a proportion at two to four cases: 0.190 to
+#: 0.870 (``scripts/coverage_bar.py --full``, seed 20260915, R 400). The count inspected
+#: is the cell's own ``n_cases`` (for a difference, the smaller side's; for an AUROC, every
+#: case of the cell, both classes together). Tests: ``tests/test_e11_repair3.py``.
+MIN_CLUSTERED_CASES = 5
+FEWER_THAN_FIVE_CASES = "fewer_than_five_cases"
 
 
-def _with_clustered_coverage_mark(number: Number) -> Number:
-    """``number`` with :data:`CLUSTERED_COVERAGE_FLAG` appended when it has an interval."""
-    if not number.has_ci or CLUSTERED_COVERAGE_FLAG in number.flags:
+def clustered_number(number: Number, n_cases: int | None) -> Number:
+    """DEC-75 (b) and (c) on one Number of a clustered cell (E11 repair 3).
+
+    * ``n_cases`` below :data:`MIN_CLUSTERED_CASES` and an interval: the interval is
+      refused - a Number with the same estimate, counts and flags (``imprecise`` dropped,
+      it describes an interval no longer printed), method ``none`` and the typed reason
+      :data:`FEWER_THAN_FIVE_CASES`;
+    * otherwise the case-count tier of :func:`precision_flags` is added when the Number
+      carries no tier yet (an AUROC cell's :func:`auroc_precision_flags` tier is kept), and
+      a Number with an interval gets :data:`CLUSTERED_COVERAGE_FLAG` after every other
+      flag (printed ``ᵈ``);
+    * a Number with no interval keeps its own typed reason and gets no ``ᵈ``.
+
+    ``Number`` is frozen: a new Number is built (``dataclasses.replace``), so the
+    constructor's checks run on it.
+    """
+    if number.suppressed:
         return number
-    return replace(number, flags=[*number.flags, CLUSTERED_COVERAGE_FLAG])
+    if n_cases is None:
+        raise ValueError("a clustered Number needs the case count of its cell")
+    flags = [f for f in number.flags if f != CLUSTERED_COVERAGE_FLAG]
+    if not set(Number.PRECISION_TIERS) & set(flags):
+        flags += precision_flags(n_cases)
+    if not number.has_ci:
+        return number if flags == number.flags else replace(number, flags=flags)
+    if n_cases < MIN_CLUSTERED_CASES:
+        return replace(
+            number,
+            ci_lo=None,
+            ci_hi=None,
+            method="none",
+            n_cases=number.n_cases if number.n_cases is not None else n_cases,
+            flags=[f for f in flags if f != "imprecise"],
+            not_estimable_reason=FEWER_THAN_FIVE_CASES,
+        )
+    return replace(number, flags=[*flags, CLUSTERED_COVERAGE_FLAG])
 
 
 #: R2 section 3.3 precision tiers, measured in **resampling units** - cases when the
@@ -1288,6 +1340,8 @@ def auroc_ci(
             n_neg=n_neg,
             n_cases=n_cases,
         )
+        # DEC-75 (b), (c): the mark d, and no interval below five cases (E11 repair 3)
+        number = clustered_number(number, n_cases)
         return CellCI(
             number,
             refused,
@@ -1366,8 +1420,9 @@ def proportion_ci(
       (``cluster_bootstrap_percentile``). Either way the cell's
       ``detail.design_effect`` carries the design effect, its reason
       (:data:`proofpack.stats.proportions.DEFF_REASONS`) and the route taken
-      (:data:`DEFF_ROUTES`), and a Number with an interval carries
-      :data:`CLUSTERED_COVERAGE_FLAG` after its other flags (E11 repair 2).
+      (:data:`DEFF_ROUTES`), and :func:`clustered_number` is applied to the rendered
+      Number: below :data:`MIN_CLUSTERED_CASES` cases no interval (DEC-75 (c), E11 repair
+      3), otherwise :data:`CLUSTERED_COVERAGE_FLAG` after its other flags (E11 repair 2).
     """
     ind = np.asarray(indicator, dtype=bool)
     pol, cplan, ids = _resolved(policy, plan, int(ind.shape[0]), cluster_ids)
@@ -1399,7 +1454,7 @@ def proportion_ci(
     route = deff_wilson_route(n, de.n_cases, int(case_rows.max()), de.deff is not None)
     if route == "wilson_deff":
         flags = ["wilson_refused_clustered", *precision_flags(de.n_cases)]
-        number = _with_clustered_coverage_mark(proportion_deff(k, n, de, level=level, flags=flags))
+        number = clustered_number(proportion_deff(k, n, de, level=level, flags=flags), de.n_cases)
         return CellCI(
             number,
             refused,
@@ -1429,7 +1484,7 @@ def proportion_ci(
         k=k,
         n_cases=n_cases,
     )
-    number = _with_clustered_coverage_mark(number)
+    number = clustered_number(number, n_cases)
     return CellCI(
         number,
         refused,

@@ -192,7 +192,7 @@
 </tbody>
 </table>
 </div>
-{% if calibration.ipa_tiers or calibration.clustered %}<p class="footnote">{% if calibration.ipa_tiers %}The IPA row's tier superscript ({{ calibration.ipa_tiers }}) is the proportion tier applied to the IPA's own interval: it states the half-width on the IPA's scale and nothing about a proportion (ProofPack reporting convention; T7, DEC-35).{% endif %}{% if calibration.ipa_tiers and calibration.clustered %} {% endif %}{% if calibration.clustered %}Under the clustered plan every interval above is a cluster-bootstrap interval; each cell keeps its tier annotation and the measured coverage of the route, including the one cell below the bar, is in T7 (DEC-18 (c), DEC-34).{% endif %}</p>{% endif %}
+{% if calibration.ipa_tiers or calibration.clustered %}<p class="footnote">{% if calibration.ipa_tiers %}The IPA row's tier superscript ({{ calibration.ipa_tiers }}) is the proportion tier applied to the IPA's own interval: it states the half-width on the IPA's scale and nothing about a proportion (ProofPack reporting convention; T7, DEC-35).{% endif %}{% if calibration.ipa_tiers and calibration.clustered %} {% endif %}{% if calibration.clustered %}Under the clustered plan every interval above is a cluster-bootstrap interval and carries the mark ᵈ (coverage not established for its case sizes; legend in section 9); each cell keeps its tier annotation and the measured coverage of the route, including the one cell below the bar, is in T7 (DEC-18 (c), DEC-34).{% endif %}</p>{% endif %}
 <div class="table-wrap">
 <table class="deciles">
 <caption>Decile table - ten equal-mass bins by score; observed k/n (%) with its interval</caption>

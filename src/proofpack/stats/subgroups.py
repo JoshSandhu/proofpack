@@ -158,6 +158,7 @@ from proofpack.stats.bootstrap import (
     bootstrap_percentile,
     clustered_by_case,
     clustered_flat,
+    clustered_number,
     percentile_bounds,
     plan_clustering,
     precision_flags,
@@ -606,6 +607,9 @@ def _proportion_difference(
         flags=["newcombe_refused_clustered", *precision_flags(n_cases)],
         **counts,
     )
+    # DEC-75 (b), (c) (E11 repair 3): the mark d, and no interval below five cases on the
+    # smaller side (lens 3 FA-B1 measured this difference at 0.8864 with no mark)
+    number = clustered_number(number, n_cases)
     return CellCI(
         number,
         refused,
@@ -721,6 +725,8 @@ def _auroc_difference(
         flags=["delong_refused_clustered", *precision_flags(n_cases)],
         **counts,
     )
+    # DEC-75 (b), (c) (E11 repair 3): the mark d, and no interval below five cases
+    number = clustered_number(number, n_cases)
     cell = CellCI(
         number,
         refused,
@@ -776,6 +782,9 @@ def _brier_cell(
     number = _number_from_draw(
         draw, est=est, method=method, level=level, flags=precision_flags(n_units), **counts
     )
+    if arrays.clustered:
+        # DEC-75 (b), (c) (E11 repair 3): the mark d, and no interval below five cases
+        number = clustered_number(number, n_units)
     status = "refused_clustered" if arrays.clustered else "used"
     analytic = (
         not_estimable("clustered_data_analytic_ci_invalid", est=est, ci_level=level, **counts)

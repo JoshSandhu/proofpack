@@ -246,7 +246,11 @@ def test_f5_case_id_c_i_over_2_assesses_a_paired_se_criterion_and_t2_prints_the_
             assert num["method"] == "cluster_bootstrap_percentile", (entry["level"], metric)
     page = render_t2(doc)
     assert "insufficient_clusters" not in page
-    assert "n.e." not in page
+    # E11 repair 3 (DEC-75 (a)): on this clustered plan the three McNemar cells of T2-3 and
+    # the caption print n.e. with the typed reason; nothing else on the page prints n.e.
+    assert page.count("n.e. (mcnemar_assumes_independent_pairs)") == 4
+    assert page.count("n.e.") == 4
+    assert page.count('<td class="num" data-mcnemar=') == 6
     visible = html.unescape(re.sub(r"<[^>]+>", "", page))
     assert visible.count("Criterion Cse (sensitivity difference against the prior version") == 1
     assert "criterion met" in page and "not assessable" not in page

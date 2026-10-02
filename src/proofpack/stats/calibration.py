@@ -210,6 +210,7 @@ from proofpack.stats.bootstrap import (
     bootstrap_percentile,
     clustered_by_case,
     clustered_flat,
+    clustered_number,
     plan_clustering,
     precision_flags,
     proportion_ci,
@@ -547,7 +548,9 @@ def _clustered_cell(
             flags=flags,
             **counts,
         )
-        status = "refused_clustered"
+        # DEC-75 (b), (c) (E11 repair 3): the mark d, and no interval below five cases
+        number = clustered_number(number, counts["n_cases"])
+        status = "refused_clustered" if number.has_ci else "unavailable"
     return CellCI(
         number,
         refused,
@@ -756,6 +759,9 @@ def _brier_cells(ctx: _Ctx) -> dict[str, CellCI]:
     def cell(key: str, est: float, statistic: Callable[[np.ndarray], float]) -> CellCI:
         draw = bootstrap_percentile(statistic, resampler, pol.rng(key), pol.n_resamples, level)
         number = _number_from_draw(draw, est=est, method=method, level=level, flags=tier, **counts)
+        if ctx.clustered:
+            # DEC-75 (b), (c) (E11 repair 3): the mark d, and no interval below five cases
+            number = clustered_number(number, counts["n_cases"])
         status = "refused_clustered" if ctx.clustered else "used"
         if not number.has_ci:
             status = "unavailable"

@@ -1,4 +1,7 @@
-"""Scope and disclaimer strings, verbatim from D4 section 7 (design draft).
+"""Scope and disclaimer strings, written from D4 section 7 (design draft) and edited since.
+
+Not verbatim: E11 repair 2 rewrote the Guidance status item so that its qualifier is read
+from the guidance map (E11 repair 3, lens 3 FA-N2: this line said "verbatim").
 
 These are ProofPack's own words.
 Templates never hard-code section numbers; guidance references are resolved via

@@ -664,7 +664,7 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
             "text": {"prior": "1.2", "new": "1.3"},
         },
         "Sensitivity changed by −3.2 percentage points [−6.1, −0.4] from version 1.2 to 1.3 on "
-        "250 paired cases (Newcombe paired).",
+        "250 paired rows (Newcombe paired).",
     ),
     (
         "paired_diff_not_a_proportion",
@@ -675,7 +675,7 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
             "numbers": {"diff": DIFF3, "n_pairs": 250},
             "text": {"prior": "1.2", "new": "1.3"},
         },
-        "AUROC changed by −0.012 [−0.041, +0.017] from version 1.2 to 1.3 on 250 paired cases "
+        "AUROC changed by −0.012 [−0.041, +0.017] from version 1.2 to 1.3 on 250 paired rows "
         "(DeLong, Wald interval).",
     ),
     (
@@ -688,7 +688,7 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
             "numbers": {"diff": _ne("score_not_probability"), "n_pairs": 250},
             "text": {"prior": "1.2", "new": "1.3"},
         },
-        "The change in Brier score from version 1.2 to 1.3 on 250 paired cases was not "
+        "The change in Brier score from version 1.2 to 1.3 on 250 paired rows was not "
         "estimable with an interval (score_not_probability).",
     ),
     (

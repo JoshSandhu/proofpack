@@ -135,7 +135,7 @@
 <h3 id="t2-s4-2">4.2 Paired comparison, new version against prior (Table T2-3)</h3>
 <div class="table-wrap">
 <table class="comparison">
-<caption>Table T2-3 - {{ tables.caption }}. Δ is new − prior; proportions in percentage points, AUROC, Brier and slope on their own scale; the interval method of each Δ is in its Method column; Discordant b / c are the pairs correct under the prior version only / the new version only among the row's own pairs (every pair on the Accuracy row, the reference-positive pairs on the {{ tables.se_label }} row, the reference-negative pairs on the {{ tables.sp_label }} row), McNemar exact below 25 discordant pairs and continuity-corrected chi-square otherwise{% if not tables.has_margin %}; no paired_difference_vs_prior criterion is declared, so no margin and no status column is printed{% endif %}</caption>
+<caption>Table T2-3 - {{ tables.caption }}. Δ is new − prior; proportions in percentage points, AUROC, Brier and slope on their own scale; the interval method of each Δ is in its Method column; Discordant b / c are the pairs correct under the prior version only / the new version only among the row's own pairs (every pair on the Accuracy row, the reference-positive pairs on the {{ tables.se_label }} row, the reference-negative pairs on the {{ tables.sp_label }} row), McNemar exact below 25 discordant pairs and continuity-corrected chi-square otherwise{% if tables.mcnemar_refused %}; on this clustered plan no McNemar test is computed and each McNemar cell prints n.e. (mcnemar_assumes_independent_pairs): the test treats the discordant pairs as independent, and here b / c count rows, several of which can belong to one case{% endif %}{% if not tables.has_margin %}; no paired_difference_vs_prior criterion is declared, so no margin and no status column is printed{% endif %}</caption>
 <thead><tr><th scope="col">Metric (operating point)</th><th scope="col" class="num">Prior version k/n (%) [95% CI]</th><th scope="col" class="num">New version k/n (%) [95% CI]</th><th scope="col" class="num">Δ new − prior [95% CI]</th><th scope="col">Method</th><th scope="col" class="num">Discordant b / c</th><th scope="col" class="num">McNemar p (method)</th>{% if tables.has_margin %}<th scope="col" class="num">Margin (criterion id)</th><th scope="col">Status</th>{% endif %}</tr></thead>
 <tbody>
 {% for block in tables.per_op %}
@@ -153,6 +153,14 @@
 </table>
 </div>
 <p class="comparison-facts">Clustering route: <span class="mono">{{ tables.clustering_route }}</span>; bootstrap B {{ tables.bootstrap.B }}, seed {{ tables.bootstrap.seed }}, {{ tables.bootstrap.interval }} interval (the paired bootstrap differences and any cluster-bootstrap difference).</p>
+<table class="tiers">
+<caption>Tier superscripts on the cells of Tables T2-2 to T2-5 - ProofPack reporting convention (R2 section 3.3); annotations, never suppression</caption>
+<tbody>
+{% for mark, text in tier_legend %}
+<tr><th scope="row">{{ mark }}</th><td>{{ text }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
 {{ narrative(comparison_sentences) }}
 <h3 id="t2-s4-3">4.3 Per-subgroup paired comparison (Table T2-4)</h3>
 {% if tables.subgroup_rows %}

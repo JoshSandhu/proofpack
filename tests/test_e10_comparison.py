@@ -254,7 +254,8 @@ def test_the_f5_fixture_pair_reproduces_b_10_c_2_through_compare_versions():
         policy=BootstrapPolicy(n_resamples=200, seed=20240101),
     )
     assert block["paired"] is True and block["label"] is None and block["n_pairs"] == 100
-    assert block["mcnemar"]["op1"] == cmp.mcnemar(10, 2).as_dict()
+    # E11 repair 3 (DEC-75 (a)): every entry carries not_computed_reason, null here
+    assert block["mcnemar"]["op1"] == {**cmp.mcnemar(10, 2).as_dict(), "not_computed_reason": None}
     acc = block["differences"]["op1"]["accuracy"]["number"]
     assert acc["method"] == "newcombe_paired" and acc["n"] == 100
     assert abs(acc["est"] + 0.08) < 1e-12
@@ -349,7 +350,13 @@ def test_f5_case_id_c_i_over_2_se_sp_cells_equal_a_clustered_flat_rerun():
         assert num["not_estimable_reason"] is None
         assert num["ci_lo"] is not None and num["ci_hi"] is not None
         assert num["ci_lo"] < num["est"] < num["ci_hi"]
-        assert num["flags"] == ["newcombe_refused_clustered"]
+        # E11 repair 3 (DEC-75 (b)): the case-count tier and the mark d follow the refusal
+        # flag (at 3302d59 the flags were ["newcombe_refused_clustered"] alone)
+        assert num["flags"] == [
+            "newcombe_refused_clustered",
+            "very_low_precision",
+            "clustered_coverage_not_established",
+        ]
         assert num["n_cases"] == n_cases and num["est"] == ana["est"]
         # the oracle: the same resampler, seed, key and B on the same conditioned pairs
         pos = new.pos[rows]

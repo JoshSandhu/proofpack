@@ -172,7 +172,10 @@ def test_the_route_switches_at_five_cases_and_names_each_other_route():
     assert deff_wilson_route(6, 1, 6, False) == "not_estimable"
     below, _, _ = _clustered_cell(MIN_CASES_DEFF_WILSON - 1)
     at, ind, ids = _clustered_cell(MIN_CASES_DEFF_WILSON)
-    assert below.number.method == "cluster_bootstrap_percentile"
+    # E11 repair 3 (DEC-75 (c)): four cases print no interval (at 3302d59 the cluster
+    # bootstrap printed one with its tier)
+    assert below.number.method == "none"
+    assert below.number.not_estimable_reason == "fewer_than_five_cases"
     assert below.detail["design_effect"]["route"] == "below_coverage_bar"
     assert "not_evaluable_shown_for_transparency" in below.number.flags
     assert at.number.method == "wilson_deff" and at.policy is None
@@ -301,12 +304,18 @@ def test_accept_every_printed_cell_under_the_committed_threshold_carries_its_tie
     threshold = json.loads(COVERAGE.read_text(encoding="utf-8"))["min_cases_meeting_bar"]
     cols, crit = _clustered_run_cohort()
     doc = assemble(cols, copy.deepcopy(crit))
-    seen = {"wilson_deff": 0, "cluster_bootstrap_percentile": 0}
+    seen = {"wilson_deff": 0, "cluster_bootstrap_percentile": 0, "fewer_than_five_cases": 0}
     tiers = {"not_evaluable_shown_for_transparency", "very_low_precision"}
     for row in doc["subgroups"]:
         for metric in ("sensitivity", "specificity", "ppv", "npv", "accuracy"):
             cell = row["metrics"]["op1"][metric]
             num = cell["number"]
+            if num["n_cases"] < 5:
+                # E11 repair 3 (DEC-75 (c)): sites S9 (2 cases) and S8 (4 cases) print no
+                # interval; at 3302d59 they printed the cluster bootstrap with a tier
+                assert num["ci_lo"] is None, (row["level"], metric)
+                if num["not_estimable_reason"] == "fewer_than_five_cases":
+                    seen["fewer_than_five_cases"] += 1
             if num["ci_lo"] is None:
                 continue
             seen[num["method"]] += 1
@@ -319,7 +328,7 @@ def test_accept_every_printed_cell_under_the_committed_threshold_carries_its_tie
                 assert route == "below_coverage_bar"
             if num["n_cases"] < threshold:
                 assert tiers & set(num["flags"]), (row["level"], metric, num["flags"])
-    assert seen["wilson_deff"] > 0 and seen["cluster_bootstrap_percentile"] > 0
+    assert seen["wilson_deff"] > 0 and seen["fewer_than_five_cases"] > 0
 
 
 def test_t7_names_the_method_and_prints_the_coverage_section():

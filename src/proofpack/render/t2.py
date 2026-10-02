@@ -123,6 +123,8 @@ T2_1_NOTE = (
     "T2-6 carries their traceability rows."
 )
 PAIRED_TYPE = "paired_difference_vs_prior"
+#: The McNemar method column's words for the two computed methods.
+MCNEMAR_METHOD_WORDS = {"exact_mcnemar": "exact", "cc_mcnemar": "continuity-corrected chi-square"}
 _SE_SP = {
     "reference_standard": ("sensitivity", "specificity"),
     "comparator": ("ppa", "npa"),
@@ -236,6 +238,16 @@ def comparison_tables(document: dict[str, Any]) -> dict[str, Any]:
             mc_ref = _p("comparison", "mcnemar_by_metric", op, metric)
         if not mc:
             mc, mc_ref = None, ""
+        # E11 repair 3 (DEC-75 (a)): under a clustered plan the entry carries no p and a
+        # typed reason; the cell prints "n.e. (<reason>)", never a p-value
+        refused = bool(mc) and mc.get("not_computed_reason") is not None
+        if refused:
+            p_text, mc_method = fmt.NOT_ESTIMABLE, fmt.text(mc.get("not_computed_reason"))
+        elif mc:
+            p_text = fmt.p_value(mc.get("p"))
+            mc_method = MCNEMAR_METHOD_WORDS.get(str(mc.get("method")), fmt.text(mc.get("method")))
+        else:
+            p_text, mc_method = "—", "—"
         margins = _margins_for(paired_rows, metric, op, "overall")
         return {
             "label": label,
@@ -248,14 +260,8 @@ def comparison_tables(document: dict[str, Any]) -> dict[str, Any]:
             "mc_ref": mc_ref,
             "b": fmt.count(mc.get("b")) if mc else "—",
             "c": fmt.count(mc.get("c")) if mc else "—",
-            "p": fmt.p_value(mc.get("p")) if mc else "—",
-            "mcnemar_method": (
-                {"exact_mcnemar": "exact", "cc_mcnemar": "continuity-corrected chi-square"}.get(
-                    str(mc.get("method")), fmt.text(mc.get("method"))
-                )
-                if mc
-                else "—"
-            ),
+            "p": p_text,
+            "mcnemar_method": mc_method,
             "margins": margins,
         }
 
@@ -357,10 +363,18 @@ def comparison_tables(document: dict[str, Any]) -> dict[str, Any]:
                 "criteria": crits,
             }
         )
+    mcnemar_refused = any(
+        isinstance(e, dict) and e.get("not_computed_reason") is not None
+        for e in [
+            *mcnemar.values(),
+            *(v for per in by_metric.values() if isinstance(per, dict) for v in per.values()),
+        ]
+    )
     return {
         "paired": paired,
         "label": fmt.text(comparison.get("label")),
         "caption": caption,
+        "mcnemar_refused": mcnemar_refused,
         "has_margin": has_margin,
         "per_op": per_op,
         "free_rows": free_rows,
@@ -533,6 +547,9 @@ def t2_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
         "impact_sentences": claim_sentences(document, {"IMPACT_INPUTS_NOTE"}),
         "ledger_sentences": claim_sentences(document, {"LEDGER_STATEMENT", "LEDGER_WARNING"}),
         "impact_caption": IMPACT_CAPTION,
+        # E11 repair 3 (DEC-75 (b), lens 3 FA-N4 / RG-N1): T2's cells print tier marks, d
+        # included, and T2 printed no legend for them
+        "tier_legend": fmt.TIER_LEGEND,
         "impact_rows": impact_rows(document, tables),
         "traceability_rows": traceability_rows(document),
         "ledger": {

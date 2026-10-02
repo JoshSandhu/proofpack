@@ -1065,7 +1065,10 @@ def register() -> tuple[Row, ...]:
             "the Newcombe paired method 10 interval (difference_paired, which gives the F5 "
             "accuracy difference -0.08 [-0.1554, -0.0102]) against the method 10 rows of "
             "Table III of Newcombe 1998 (paired data), read from the primary PDF on build "
-            "day 11",
+            "day 11; 35 of its 36 printed method 10 limits are compared, and the 36th (cells "
+            "1 97 1 1, lower: printed 0.8736 for method 10 and 0.8737 for method 8, engine "
+            "0.873672) is recorded in the file's excluded entry, not compared (DEC-75 (d): "
+            "Josh counts 35 of 36 as verified, 2 October 2026)",
             "reported_rounding",
             _f5_newcombe_paired,
             _f5_newcombe_paired_oracle,

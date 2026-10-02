@@ -370,8 +370,10 @@ _T: list[Template] = [
     Template(
         "PAIRED_DIFF",
         "{metric_name} changed by {diff} percentage points [{ci}] from version {prior} to {new} "
-        "on {n_pairs} paired cases ({method}).",
-        # E10: the difference Number and the pair count (comparison.n_pairs)
+        "on {n_pairs} paired rows ({method}).",
+        # E10: the difference Number and the pair count (comparison.n_pairs). E11 repair 3
+        # (lens 3 FA-N6): "paired rows", not D4's "paired cases" - n_pairs counts rows, and
+        # on a clustered plan a case holds several rows (100 rows of 45 cases measured)
         refs=(1, 2),
         guidance_ref="FDA_PCCP_MP3_PERF_EVAL",
     ),
@@ -900,14 +902,14 @@ VARIANTS: dict[str, tuple[Variant, ...]] = {
         Variant(
             "not_estimable",
             "The change in {metric_name} from version {prior} to {new} on {n_pairs} paired "
-            "cases was not estimable with an interval ({reason}).",
+            "rows was not estimable with an interval ({reason}).",
             {"n_pairs": ("n_pairs.count",), "reason": ("diff.reason",)},
             statuses=_NA,
         ),
         Variant(
             "not_a_proportion",
             "{metric_name} changed by {diff} [{ci}] from version {prior} to {new} on {n_pairs} "
-            "paired cases ({method}).",
+            "paired rows ({method}).",
             {
                 "diff": ("diff.est",),
                 "ci": ("diff.ci",),

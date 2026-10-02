@@ -150,7 +150,13 @@ def test_status_words_only_in_status_elements_and_no_forbidden_word_outside_exem
 # ------------------------------------------------------------------ twenty-three cells
 
 
-_TIERS = {"not_evaluable_shown_for_transparency": "ᵃ", "very_low_precision": "ᵇ", "imprecise": "ᶜ"}
+_TIERS = {
+    "not_evaluable_shown_for_transparency": "ᵃ",
+    "very_low_precision": "ᵇ",
+    "imprecise": "ᶜ",
+    # E11 repair 2 / 3 (DEC-18 (c), DEC-75 (b)): every clustered interval
+    "clustered_coverage_not_established": "ᵈ",
+}
 
 
 def _own_fmt(num: dict[str, Any] | None, kind: str, facet: str) -> str:

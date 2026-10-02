@@ -24,8 +24,9 @@ implements and the literal test that feeds it (``tests/test_render_format.py``):
   inline; no digit from ``est`` even when the engine carried one beside the reason.
 * **Tier superscripts** (fifth bullet; R2 section 3.3, a ProofPack convention):
   ``ᵃ`` n < 10, ``ᵇ`` 10 <= n < 30 or events < 5, ``ᶜ`` Wilson half-width
-  > 0.10, ``ᵈ`` a clustered proportion (E11 repair 2, DEC-18 (c)), appended to the
-  printed cell from the Number's ``flags`` in their order.
+  > 0.10, ``ᵈ`` a clustered interval (E11 repair 2 for proportions, DEC-18 (c); repair
+  3 for every clustered interval, DEC-75 (b)), appended to the printed cell from the
+  Number's ``flags`` in their order.
 * **Counts** (n, k, events) are the only bare integers.
 * **``[unverified]``** markings in any string pass through verbatim (:func:`text`).
 
@@ -46,14 +47,26 @@ TIER_SUPERSCRIPTS: dict[str, str] = {
     "not_evaluable_shown_for_transparency": "ᵃ",
     "very_low_precision": "ᵇ",
     "imprecise": "ᶜ",
-    # E11 repair 2 (DEC-18 (c)): every clustered proportion with an interval
+    # E11 repair 2 (DEC-18 (c)) and repair 3 (DEC-75 (b)): every clustered interval
     "clustered_coverage_not_established": "ᵈ",
 }
-#: The legend row for ``ᵈ`` that T1 and T7 print (HTML and DOCX) beside the other three.
+#: The legend row for ``ᵈ``. Since E11 repair 3 (DEC-75 (b)) the mark is on every
+#: clustered interval, not only proportions; T7 prints section 6 when the run carries a
+#: ``cluster_bootstrap_percentile`` or ``wilson_deff`` Number, the two methods a Number
+#: carrying the mark has (lens 3 RG-N2: an unclustered T7 has no section 6).
 CLUSTERED_LEGEND_ROW: tuple[str, str] = (
     "ᵈ",
-    "clustered proportion: coverage not established for this cell's case sizes and "
-    "within-case correlation (T7 section 6)",
+    "clustered interval: coverage not established for this cell's case sizes and "
+    "within-case correlation (T7 section 6, printed when the run has a clustered interval)",
+)
+#: D4 section 1.2's tier definitions (fifth bullet) plus ``ᵈ``: the legend T1, T2, T7 and
+#: T8 print (E11 repair 3 adds T2 and T8, DEC-75 (b) and lens 3 FA-N4 / RG-N1: both pages
+#: printed ``ᵈ`` and ``ᶜ`` with no legend).
+TIER_LEGEND: tuple[tuple[str, str], ...] = (
+    ("ᵃ", "n < 10: not evaluable, shown for transparency"),
+    ("ᵇ", "10 <= n < 30 or events < 5: very low precision"),
+    ("ᶜ", "Wilson half-width > 0.10: imprecise"),
+    CLUSTERED_LEGEND_ROW,
 )
 #: Metric ids printed as proportions, three-decimal quantities, or signed differences.
 PROPORTION_IDS: frozenset[str] = frozenset(

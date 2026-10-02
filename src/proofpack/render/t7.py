@@ -85,12 +85,7 @@ CONVENTIONS_SENTENCE = (
     'convention" wherever it appears (T7, T8, /trust) and none produces a status word.'
 )
 #: D4 section 1.2's tier definitions (fifth bullet), the legend the tables use.
-TIER_LEGEND: tuple[tuple[str, str], ...] = (
-    ("ᵃ", "n < 10: not evaluable, shown for transparency"),
-    ("ᵇ", "10 <= n < 30 or events < 5: very low precision"),
-    ("ᶜ", "Wilson half-width > 0.10: imprecise"),
-    fmt.CLUSTERED_LEGEND_ROW,
-)
+TIER_LEGEND: tuple[tuple[str, str], ...] = fmt.TIER_LEGEND
 
 #: One fixed description per ``Number.method``; T7 prints the ones the run used.
 METHOD_DESCRIPTIONS: dict[str, str] = {
@@ -118,20 +113,23 @@ METHOD_DESCRIPTIONS: dict[str, str] = {
         "Cluster bootstrap: cases, not rows, resampled (within outcome class where the "
         "statistic needs both classes), percentile interval, with the seed and B of section "
         "1. Used where rows are clustered; the analytic interval is then refused with the "
-        "typed reason clustered_data_analytic_ci_invalid."
+        "typed reason clustered_data_analytic_ci_invalid. Every interval it prints carries "
+        "the tier mark ᵈ and its case-count tier, and a cell of fewer than five cases prints "
+        "none (fewer_than_five_cases; section 6)."
     ),
     "wilson_deff": (
         "Wilson score interval on the design-effect sample size n / DEFF for a clustered "
         "proportion, the design effect estimated from the cases by the ratio estimator "
         f"after Rao and Scott (1992) {UNVERIFIED_MARK}, {PENDING}; printed for a cell of at "
         "least five cases in which no case holds more than a fifth of the rows and the cases "
-        "average at most 50 rows (a clustered proportion of two or more cases outside "
-        "these bounds is resampled by the cluster bootstrap; one case prints no interval, "
+        "average at most 50 rows (a clustered proportion of five or more cases outside "
+        "these bounds is resampled by the cluster bootstrap; two to four cases print no "
+        "interval, with the typed reason fewer_than_five_cases; one case prints no interval, "
         "with the typed reason insufficient_clusters). Section 6 gives its measured "
         "coverage on the grid's shapes, including the shapes where it fell below the 0.90 "
-        "bar; every clustered proportion with an interval carries the tier mark ᵈ "
-        "(coverage not established for its case sizes). The Wilson interval on the rows is "
-        "refused with the typed reason clustered_data_analytic_ci_invalid."
+        "bar; every clustered interval carries the tier mark ᵈ (coverage not established "
+        "for its case sizes). The Wilson interval on the rows is refused with the typed "
+        "reason clustered_data_analytic_ci_invalid."
     ),
     "bootstrap_percentile": (
         "Stratified bootstrap over rows within outcome class, percentile interval (the Brier "

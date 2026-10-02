@@ -471,7 +471,17 @@ def calibration_block(document: dict[str, Any]) -> dict[str, Any]:
         "deciles": deciles,
         "curve_note": fmt.text(flag.get("note")) if isinstance(flag, dict) else None,
         "clustered": bool((document.get("flow") or {}).get("clustered")),
-        "ipa_tiers": fmt.tiers((cal.get("ipa") or {}).get("number") or {}),
+        # the footnote below explains the proportion tiers on the IPA; the mark d (a
+        # clustered interval, E11 repair 3) is the legend's, not part of that sentence
+        "ipa_tiers": fmt.tiers(
+            {
+                "flags": [
+                    f
+                    for f in ((cal.get("ipa") or {}).get("number") or {}).get("flags") or []
+                    if f != "clustered_coverage_not_established"
+                ]
+            }
+        ),
         "sentences": claim_sentences(document, {"CALIB_HIERARCHY", "CALIB_NA"}),
     }
 
@@ -842,12 +852,7 @@ def t1_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
         "public_summary_note": PUBLIC_SUMMARY_NOTE,
         "public_summary": public_summary_rows(document),
         "model_card_note": model_card_note(guidance_map),
-        "tier_legend": (
-            ("ᵃ", "n < 10: not evaluable, shown for transparency"),
-            ("ᵇ", "10 <= n < 30 or events < 5: very low precision"),
-            ("ᶜ", "Wilson half-width > 0.10: imprecise"),
-            fmt.CLUSTERED_LEGEND_ROW,
-        ),
+        "tier_legend": fmt.TIER_LEGEND,
         "guidance_refs": refs,
         "figures": figures_mod.figures(document, by_id),
     }

@@ -165,18 +165,21 @@ in the engine, this table is the statement of what the interval does, every clus
 keeps its tier annotation, and `MIN_UNITS_PER_STRATUM` stays at 2. Build day 11 (2 October
 2026) put that interval in the engine for clustered proportions (next subsection): this
 table now describes the cluster bootstrap where it still renders a proportion, which is a
-cell of two to four cases or a cell the next subsection's route does not print the
-design-effect interval for (E11 repair 1).
+cell of five or more cases the next subsection's route does not print the design-effect
+interval for (E11 repair 1); a cell of two to four cases prints no interval since E11
+repair 3 (DEC-75 (c)).
 
 The AUROC frozen-share half: every shape the constant renders measured at or above the
 bar in the recorded run; the first shape it refuses did in the recorded run and in six of
 eight cells over four runs (see the constants paragraph above for the seed-to-seed spread
 at the 0.20 and 0.30 rows).
 
-The DEC-08 refusal-below-the-bar is **not implemented on either route** for the
-`MIN_UNITS_PER_STRATUM` half: the AUROC route renders the u = 2, m = 0 shape (0.715 /
-0.620 in the table above), and the proportion route rendered a clustered cell of 10 cases
-at p = 0.9 (0.672 above) until build day 11, each with its tier annotation and no refusal.
+The DEC-08 refusal-below-the-bar is **not implemented by `MIN_UNITS_PER_STRATUM`** on either
+route: the AUROC route renders the u = 2, m = 0 shape (0.715 / 0.620 in the table above;
+that cell has 32 or 122 cases, both classes counted), and the proportion route rendered a
+clustered cell of 10 cases at p = 0.9 (0.672 above) until build day 11, each with its tier
+annotation and no refusal. Since E11 repair 3 (DEC-75 (c)) a clustered cell of fewer than
+five cases in all is refused (`fewer_than_five_cases`, below).
 That was the DEC-18 position stated two paragraphs above; for proportions it is replaced
 by the next subsection on the shapes that subsection's route prints.
 
@@ -215,24 +218,45 @@ threshold; every other row is recorded beside them.
 every grid row): a cell of at least five cases (`MIN_CASES_DEFF_WILSON = 5`) in which no
 case holds more than a fifth of the rows (`MAX_CASE_SHARE_DEFF_WILSON = 0.20`, chosen: with
 equal case sizes it is the five-case condition) and the cases average at most 50 rows
-(`MAX_ROWS_PER_CASE_DEFF_WILSON = 50`, the grid's largest). A clustered proportion of two
+(`MAX_ROWS_PER_CASE_DEFF_WILSON = 50`, the grid's largest). A clustered proportion of five
 or more cases outside these bounds prints the cluster bootstrap with its tier annotation, as
-before build day 11, and its `detail.design_effect.route` names why: `below_coverage_bar`
-(two to four cases), `case_share_above_grid` or `rows_per_case_above_grid`. A cell of one
-case prints no interval: the bootstrap refuses it with the typed reason
-`insufficient_clusters` (route `not_estimable`).
+before build day 11, and its `detail.design_effect.route` names why:
+`case_share_above_grid` or `rows_per_case_above_grid`. A cell of two to four cases
+(`below_coverage_bar`) prints no interval since E11 repair 3: the typed reason
+`fewer_than_five_cases` (next paragraph but one). A cell of one case prints no interval:
+the bootstrap refuses it with the typed reason `insufficient_clusters` (route
+`not_estimable`).
 
-**The mark ᵈ (E11 repair 2, DEC-18 (c)).** Every clustered proportion that prints an
-interval, on either route and at any case count, carries the flag
-`clustered_coverage_not_established`, printed as the tier mark ᵈ after its other marks.
-The engine reads a cell's case sizes but not its within-case correlation or the truth, and
-on the grid below, the design-effect interval's coverage ranged from 0.137 to 1.000 across
-case sizes, TAU2 and truth. Off the grid, a shape of several large cases inside every bound of
-the route covered below the bar at the threshold-setting process itself (TAU2 = 0.5, truth
+**The mark ᵈ (E11 repair 2, DEC-18 (c); E11 repair 3, DEC-75 (b)).** Every clustered
+Number that prints an interval carries the flag `clustered_coverage_not_established`,
+printed as the tier mark ᵈ after its other marks, together with its case-count tier: the
+proportions on either route, the subgroup differences (and the fairness gaps read from
+them), the paired version-comparison differences of T2 (proportions, AUROC, Brier,
+calibration slope), the AUROC, the Brier score, the reference Brier, IPA, O:E, the
+calibration slope, intercept and calibration-in-the-large. Repair 2 marked the proportions
+only; the cold lens on it measured the T2 paired sensitivity difference at 0.8638 (five
+cases of 50 rows beside 25 one-row cases) and 0.8799 (ten cases of ten rows), printed with
+no mark and, at 3302d59, no case-count tier at any case count. The engine estimates a
+cell's design effect from its rows, but it cannot read the true within-case correlation of
+the process behind them, or the truth; on the grid below, the design-effect interval's
+coverage ranged from 0.137 to 1.000 across case sizes, TAU2 and truth. The clustered AUROC
+(the day-5 table above) and the clustered O:E, slope and intercepts (the Calibration
+section's coverage table) were measured on their own grids, each on one process; the Brier
+score, the reference Brier, IPA and the AUROC, Brier and slope differences have no coverage
+run in this repository. Off the grid, a shape of several large cases inside every bound of
+the design-effect route covered below the bar at the threshold-setting process itself (TAU2 = 0.5, truth
 0.9; R = 2000, measured 2 October 2026 with the engine's `proportion_ci`): five cases of 50
 rows beside 25 one-row cases (30 cases) 0.7615, and four cases of 19 rows beside 26 one-row
 cases (30 cases) 0.836. The grid has no family of that shape. A cell with no interval
-carries no ᵈ.
+carries no ᵈ. The mark says coverage is not established for the cell's shape,
+not that it is below the bar.
+
+**Fewer than five cases (E11 repair 3, DEC-75 (c)).** A clustered cell whose case count is
+below five prints no interval on any route, the cluster bootstrap included, with the typed
+reason `fewer_than_five_cases` (`stats.bootstrap.MIN_CLUSTERED_CASES = 5`): DEC-08's refusal
+below the bar. The count is the cell's own: for a difference, the smaller side's; for an
+AUROC, every case of the cell, both classes together. The day-5 table above measured the
+cluster bootstrap of a proportion at two to four cases between 0.190 and 0.870.
 
 Lowest coverage over the grid rows the route prints, by case count u (in brackets, the
 number of rows):
@@ -257,13 +281,18 @@ cases, "very low precision" below 30). Twelve printed rows of 5 to 20 cases were
 bar (lowest 0.808: five cases of 50 rows, truth 0.9). Of the recorded rows, 26 of the 162
 printed rows of 30 cases or more were below the bar (lowest 0.763: 30 cases of 50 rows,
 TAU2 0.8, truth 0.98). Every one of these cells prints with ᵈ; the cells of fewer than 30
-cases print with their case-count tier as well. On the one-dominant-case rows the route
+cases print with their case-count tier as well, and since E11 repair 3 a cell of fewer
+than five cases prints no interval. On the one-dominant-case rows the route
 does not print (one case holding more than a fifth of the rows) the design-effect
 interval's coverage fell to 0.137 (one case of 60 rows beside nine of one row, TAU2 0.8,
 truth 0.5); those cells print the cluster bootstrap. At build day 11 the route was the case
 count alone, measured on equal case sizes of at most eight rows. The paired
-version-comparison differences (T2) keep the cluster bootstrap. This is a measurement on
-the grid's shapes, not a guarantee.
+version-comparison differences (T2) keep the cluster bootstrap, with ᵈ and their case-count
+tier since E11 repair 3. On a clustered plan T2 prints no McNemar test (DEC-75 (a)): the
+test treats the discordant pairs as independent, and the cold lens of 2 October 2026
+measured it rejecting a true null at p < 0.05 in 0.538 of 2000 tables of five cases of 50
+rows beside 25 one-row cases, and in 0.263 on 30 cases of ten rows. This is a measurement
+on the grid's shapes, not a guarantee.
 
 ## Calibration (build day 6, `stats.calibration`)
 

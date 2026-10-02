@@ -148,6 +148,20 @@ def test_item25_every_other_figure_of_the_block_is_unchanged_against_a0c9abc():
     # are compared within 1e-6 relative (the F4 IRLS tolerance, this block being an IRLS fit on
     # scores at 1e-160) and all else exactly; the IRLS iteration count is not compared
     json.dumps(now, allow_nan=False)
+    # E11 repair 3 (DEC-75 (c)): every decile bin here holds three two-row cases; the one
+    # bin with both outcomes (bin 4: the others are all one outcome and print no interval
+    # either way) now prints no interval (fewer_than_five_cases) where a0c9abc printed the
+    # cluster bootstrap's. Scoped to that bin: the snapshot's bin had fewer than five cases
+    # and the same estimate, and only then is the refused Number put in its place
+    refused = 0
+    for b_now, b_then in zip(now["decile_curve"], before["decile_curve"], strict=True):
+        num, old = b_now["observed"]["number"], b_then["observed"]["number"]
+        if num.get("not_estimable_reason") == "fewer_than_five_cases":
+            assert old["n_cases"] < 5 and old["method"] == "cluster_bootstrap_percentile"
+            assert _close(num["est"], old["est"]) and num["n_cases"] == old["n_cases"]
+            b_then["observed"]["number"] = num
+            refused += 1
+    assert refused == 1
     assert _close(now, before), _first_difference(now, before)
     # the snapshot's one non-finite value was the O:E resample_sd, nothing else
     text = json.dumps(snap["block"])

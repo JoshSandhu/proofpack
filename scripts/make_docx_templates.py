@@ -816,6 +816,9 @@ def build_t8() -> bytes:
     b.margin_notes("anchor.criteria", single=True)
     b.tag("{%p if has_criteria %}")
     criteria_table(b)
+    # E11 repair 3 (DEC-75 (b), lens 3 FA-N4 / RG-N1): the criteria cells print the tier
+    # marks, d included; the legend follows the table that prints them
+    tier_table(b)
     b.tag("{%p else %}")
     b.p("No acceptance criteria were declared; estimates and intervals only.")
     b.tag("{%p endif %}")
@@ -1360,7 +1363,8 @@ def build_t1() -> bytes:
         "on the IPA's scale and nothing about a proportion (ProofPack reporting convention; T7, "
         "DEC-35).{% endif %}{% if calibration.ipa_tiers and calibration.clustered %} {% endif %}"
         "{% if calibration.clustered %}Under the clustered plan every interval above is a "
-        "cluster-bootstrap interval; each cell keeps its tier annotation and the measured "
+        "cluster-bootstrap interval and carries the mark ᵈ (coverage not established for its "
+        "case sizes; legend in section 9); each cell keeps its tier annotation and the measured "
         "coverage of the route, including the one cell below the bar, is in T7 (DEC-18 (c), "
         "DEC-34).{% endif %}",
         "PP Caption",

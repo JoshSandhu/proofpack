@@ -132,6 +132,11 @@ NOT_ESTIMABLE_REASONS: frozenset[str] = frozenset(
         # with --allow-unpaired) has no paired bootstrap for the Brier and slope
         # differences; the quantity is refused, never computed on a false pairing
         "unpaired_not_like_for_like",
+        # E11 repair 3 (DEC-75 (c), Josh 2 October 2026): a clustered cell whose case
+        # count is below stats.bootstrap.MIN_CLUSTERED_CASES (5) prints no interval, on
+        # every clustered route, the cluster bootstrap included (DEC-08: refused with a
+        # typed reason); stats.bootstrap.clustered_number applies it
+        "fewer_than_five_cases",
     }
 )
 
@@ -176,11 +181,13 @@ FLAGS: frozenset[str] = frozenset(
         "irls_wald_refused_clustered",
         # build day 10 (E10): every Number of an unpaired version comparison
         "not_like_for_like",
-        # E11 repair 2 (DEC-18 (c), lenses FA-B1 / RG-B1 of 2 October 2026): every
-        # clustered proportion that prints an interval (stats.bootstrap.proportion_ci,
-        # either route). The engine reads the case sizes but not the within-case
-        # correlation or the truth, and its coverage runs measured clustered proportion
-        # intervals below the DEC-08 bar at 5 to 60 cases (T7); printed as a tier mark.
+        # E11 repair 2 (DEC-18 (c), lenses FA-B1 / RG-B1 of 2 October 2026) on every
+        # clustered proportion that prints an interval; E11 repair 3 (DEC-75 (b)) on every
+        # clustered Number that prints an interval - proportions, subgroup and paired
+        # differences, AUROC, Brier, IPA, O:E, calibration slope and intercepts
+        # (stats.bootstrap.clustered_number). The coverage runs measured clustered
+        # proportion intervals below the DEC-08 bar at 5 to 60 cases, and clustered
+        # differences below it at 10 and 30 cases (T7 section 6); printed as a tier mark.
         "clustered_coverage_not_established",
     }
 )

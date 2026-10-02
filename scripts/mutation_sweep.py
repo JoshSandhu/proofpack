@@ -2676,8 +2676,8 @@ MUTANTS_DAY11: tuple[Mutant, ...] = (
     Mutant(
         "e11_se_sp_mcnemar_b_c_swapped",
         "src/proofpack/stats/comparison.py",
-        _lit("out[op][key] = mcnemar(g_prior_only, f_new_only).as_dict()"),
-        "out[op][key] = mcnemar(f_new_only, g_prior_only).as_dict()",
+        _lit("out[op][key] = mcnemar_entry(g_prior_only, f_new_only, clustered=clustered)"),
+        "out[op][key] = mcnemar_entry(f_new_only, g_prior_only, clustered=clustered)",
         day=11,
         what="the Se / Sp discordants print c / b",
     ),
@@ -3066,8 +3066,8 @@ MUTANTS_DAY11: tuple[Mutant, ...] = (
         "e11r2_wilson_deff_cell_unmarked",
         BOOTSTRAP_PY,
         _lit(
-            "        number = _with_clustered_coverage_mark("
-            "proportion_deff(k, n, de, level=level, flags=flags))"
+            "        number = clustered_number("
+            "proportion_deff(k, n, de, level=level, flags=flags), de.n_cases)"
         ),
         "        number = proportion_deff(k, n, de, level=level, flags=flags)",
         day=11,
@@ -3076,7 +3076,7 @@ MUTANTS_DAY11: tuple[Mutant, ...] = (
     Mutant(
         "e11r2_bootstrap_cell_unmarked",
         BOOTSTRAP_PY,
-        _lit("    number = _with_clustered_coverage_mark(number)"),
+        r"^    number = clustered_number\(number, n_cases\)$",
         "    number = number",
         day=11,
         what="a clustered proportion on the bootstrap route prints with no mark d",
@@ -3084,8 +3084,11 @@ MUTANTS_DAY11: tuple[Mutant, ...] = (
     Mutant(
         "e11r2_mark_on_a_cell_without_an_interval",
         BOOTSTRAP_PY,
-        _lit("    if not number.has_ci or CLUSTERED_COVERAGE_FLAG in number.flags:"),
-        "    if CLUSTERED_COVERAGE_FLAG in number.flags:",
+        _lit(
+            "    if not number.has_ci:\n"
+            "        return number if flags == number.flags else replace(number, flags=flags)\n"
+        ),
+        "",
         day=11,
         what="a clustered proportion with no interval carries the mark d",
     ),
@@ -3113,6 +3116,132 @@ MUTANTS_DAY11: tuple[Mutant, ...] = (
         '"Next step: proofpack declare --out criteria.yaml (your criteria, with author, date "',
         day=11,
         what="doctor names a subcommand this engine does not have (FA-N7)",
+    ),
+    # ---------------------------------------------------------------- E11 repair 3
+    Mutant(
+        "e11r3_mcnemar_not_refused_under_clustering",
+        COMPARISON,
+        _lit('    if clustered:\n        return {\n            "b": int(b),'),
+        '    if False:\n        return {\n            "b": int(b),',
+        day=11,
+        what="McNemar prints a p-value on clustered pairs, as at 3302d59 (DEC-75 (a), FA-B2)",
+    ),
+    Mutant(
+        "e11r3_min_clustered_cases_four",
+        BOOTSTRAP_PY,
+        _lit("MIN_CLUSTERED_CASES = 5"),
+        "MIN_CLUSTERED_CASES = 4",
+        day=11,
+        what="a four-case clustered cell prints an interval (DEC-75 (c))",
+    ),
+    Mutant(
+        "e11r3_few_cases_not_refused",
+        BOOTSTRAP_PY,
+        _lit("    if n_cases < MIN_CLUSTERED_CASES:"),
+        "    if False:",
+        day=11,
+        what="below five cases the cluster bootstrap prints its interval (DEC-75 (c))",
+    ),
+    Mutant(
+        "e11r3_no_case_count_tier",
+        BOOTSTRAP_PY,
+        _lit("        flags += precision_flags(n_cases)"),
+        "        flags += []",
+        day=11,
+        what="a clustered difference prints with no case-count tier (FA-B1)",
+    ),
+    Mutant(
+        "e11r3_no_mark_d",
+        BOOTSTRAP_PY,
+        _lit("    return replace(number, flags=[*flags, CLUSTERED_COVERAGE_FLAG])"),
+        "    return replace(number, flags=flags)",
+        day=11,
+        what="no clustered Number carries the mark d (DEC-75 (b))",
+    ),
+    Mutant(
+        "e11r3_paired_differences_unmarked",
+        COMPARISON,
+        _lit('    return _cell(clustered_number(number, n_cases), refusal, "refused_clustered")'),
+        '    return _cell(number, refusal, "refused_clustered")',
+        count=2,
+        what="the T2-3 paired proportion and AUROC differences print as at 3302d59 (FA-B1)",
+        day=11,
+    ),
+    Mutant(
+        "e11r3_paired_calibration_differences_unmarked",
+        COMPARISON,
+        _lit('            number = clustered_number(number, counts["n_cases"])\n'),
+        "",
+        day=11,
+        what="the T2-3 Brier and slope differences print with no mark d (DEC-75 (b))",
+    ),
+    Mutant(
+        "e11r3_subgroup_proportion_difference_unmarked",
+        SUBGROUPS,
+        _lit(
+            "    # smaller side (lens 3 FA-B1 measured this difference at 0.8864 with no mark)\n"
+            "    number = clustered_number(number, n_cases)\n"
+        ),
+        "",
+        day=11,
+        what="a clustered subgroup difference prints with no mark d (FA-B1)",
+    ),
+    Mutant(
+        "e11r3_calibration_cells_unmarked",
+        CALIBRATION,
+        _lit('        number = clustered_number(number, counts["n_cases"])\n'),
+        "",
+        count=2,
+        what="the clustered O:E, slope, intercepts, Brier and IPA print with no mark d",
+        day=11,
+    ),
+    Mutant(
+        "e11r3_auroc_unmarked",
+        BOOTSTRAP_PY,
+        r"^        number = clustered_number\(number, n_cases\)\n",
+        "",
+        day=11,
+        what="a clustered AUROC prints with no mark d (DEC-75 (b))",
+    ),
+    Mutant(
+        "e11r3_t2_prints_the_refused_p",
+        "src/proofpack/render/t2.py",
+        _lit('        refused = bool(mc) and mc.get("not_computed_reason") is not None'),
+        "        refused = False",
+        day=11,
+        what="T2-3 prints a dash and a method for a refused McNemar entry",
+    ),
+    Mutant(
+        "e11r3_mcnemar_sentence_on_a_refused_entry",
+        "src/proofpack/narrate/claims.py",
+        _lit('            if not isinstance(entry, dict) or entry.get("p") is None:'),
+        "            if not isinstance(entry, dict):",
+        day=11,
+        what="a MCNEMAR_RESULT sentence is built for a test that was not computed",
+    ),
+    Mutant(
+        "e11r3_t2_legend_dropped",
+        "src/proofpack/render/t2.py",
+        _lit('        "tier_legend": fmt.TIER_LEGEND,'),
+        '        "tier_legend": (),',
+        day=11,
+        what="T2 prints the tier marks with no legend (FA-N4 / RG-N1)",
+    ),
+    Mutant(
+        "e11r3_t8_legend_dropped",
+        "src/proofpack/render/html.py",
+        _lit('        "tier_legend": fmt.TIER_LEGEND,'),
+        '        "tier_legend": (),',
+        day=11,
+        what="T8 prints the tier marks with no legend (FA-N4 / RG-N1)",
+    ),
+    Mutant(
+        "e11r3_paired_cases_wording",
+        "src/proofpack/narrate/templates.py",
+        _lit('        "on {n_pairs} paired rows ({method}).",'),
+        '        "on {n_pairs} paired cases ({method}).",',
+        day=11,
+        what="the PAIRED_DIFF sentence calls rows cases (FA-N6)",
     ),
 )
 

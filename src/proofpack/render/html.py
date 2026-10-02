@@ -535,6 +535,9 @@ def t8_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
         },
         "customer_sections_outstanding": outstanding,
         "status_words": STATUS_WORDS,
+        # E11 repair 3 (DEC-75 (b), lens 3 FA-N4 / RG-N1): the criteria cells print tier
+        # marks, d included, and T8 printed no legend for them
+        "tier_legend": fmt.TIER_LEGEND,
     }
     ctx.update(furniture(document, "T8", refs, len(outstanding)))
     return ctx

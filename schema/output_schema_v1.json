@@ -528,7 +528,7 @@
       ]
     },
     "notEstimableReason": {
-      "description": "Typed reasons a quantity carries no interval. There is no untyped fallback. 'cases_span_both_groups' and 'insufficient_levels' were added on build day 5 (stats.subgroups). The six from 'score_not_probability' to 'fixed_by_outcome_stratification' were added on build day 6 (stats.calibration): two suppression reasons, three typed IRLS outcomes, and the reference Brier under an outcome-stratified resampler.",
+      "description": "Typed reasons a quantity carries no interval. There is no untyped fallback. 'cases_span_both_groups' and 'insufficient_levels' were added on build day 5 (stats.subgroups). The six from 'score_not_probability' to 'fixed_by_outcome_stratification' were added on build day 6 (stats.calibration): two suppression reasons, three typed IRLS outcomes, and the reference Brier under an outcome-stratified resampler. 'fewer_than_five_cases' (E11 repair 3, DEC-75 (c)): a clustered cell of fewer than five cases prints no interval on any route (stats.bootstrap.clustered_number).",
       "enum": [
         "zero_denominator", "single_class", "insufficient_positives",
         "insufficient_negatives", "zero_cell_log_undefined",
@@ -540,11 +540,11 @@
         "score_not_probability", "score_not_positive_class_probability",
         "irls_not_converged", "complete_separation", "constant_score",
         "fixed_by_outcome_stratification",
-        "unpaired_not_like_for_like", "no_score_column"
+        "unpaired_not_like_for_like", "no_score_column", "fewer_than_five_cases"
       ]
     },
     "flag": {
-      "description": "Advisory annotations. The three added on build day 4 record the X2 clustered auto-switch and the small-class switch on the Number that is rendered; the typed reason itself rides on the companion analytic Number. 'newcombe_refused_clustered' (build day 5) rides on a subgroup difference computed by the two-sided cluster bootstrap because Newcombe method 10 was refused on clustered rows. The four from 'below_200_events_or_nonevents' (build day 6, stats.calibration): the 200/200 convention after Van Calster 2019 (an annotation, never a suppression - DEC-08), the boundary-score clip for the logit-scale models, and the X2 refusals of the log-delta O:E and the IRLS Wald intervals under clustering. 'clustered_coverage_not_established' (E11 repair 2, DEC-18 (c)) rides on every clustered proportion that prints an interval (stats.bootstrap.proportion_ci, either route), printed as the tier mark ᵈ.",
+      "description": "Advisory annotations. The three added on build day 4 record the X2 clustered auto-switch and the small-class switch on the Number that is rendered; the typed reason itself rides on the companion analytic Number. 'newcombe_refused_clustered' (build day 5) rides on a subgroup difference computed by the two-sided cluster bootstrap because Newcombe method 10 was refused on clustered rows. The four from 'below_200_events_or_nonevents' (build day 6, stats.calibration): the 200/200 convention after Van Calster 2019 (an annotation, never a suppression - DEC-08), the boundary-score clip for the logit-scale models, and the X2 refusals of the log-delta O:E and the IRLS Wald intervals under clustering. 'clustered_coverage_not_established' (E11 repair 2, DEC-18 (c)) rode on every clustered proportion that prints an interval; since E11 repair 3 (DEC-75 (b)) it rides on every clustered Number that prints an interval - proportions, subgroup and paired differences, AUROC, Brier, IPA, O:E, calibration slope and intercepts (stats.bootstrap.clustered_number) - printed as the tier mark ᵈ.",
       "enum": [
         "not_evaluable_shown_for_transparency", "very_low_precision", "imprecise",
         "wald_interval_exceeds_unit_range", "ci_pending_bootstrap",
@@ -554,6 +554,39 @@
         "below_200_events_or_nonevents", "scores_clipped_for_logit",
         "log_delta_refused_clustered", "irls_wald_refused_clustered",
         "not_like_for_like", "clustered_coverage_not_established"
+      ]
+    },
+
+    "mcnemarEntry": {
+      "description": "One McNemar entry (build day 10; not_computed_reason since E11 repair 3, DEC-75 (a)): the discordant counts b and c (rows) and, on an unclustered plan, the test (exact_mcnemar with statistic null, or cc_mcnemar) with not_computed_reason null; under a clustered plan no test - statistic and p null, method none, not_computed_reason mcnemar_assumes_independent_pairs.",
+      "type": "object",
+      "required": ["b", "c", "n_discordant", "statistic", "p", "method", "not_computed_reason"],
+      "additionalProperties": false,
+      "properties": {
+        "b": { "type": "integer", "minimum": 0 },
+        "c": { "type": "integer", "minimum": 0 },
+        "n_discordant": { "type": "integer", "minimum": 0 },
+        "statistic": { "type": ["number", "null"], "minimum": 0 },
+        "p": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "method": { "enum": ["exact_mcnemar", "cc_mcnemar", "none"] },
+        "not_computed_reason": { "enum": [null, "mcnemar_assumes_independent_pairs"] }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "p": { "type": "number" },
+            "method": { "enum": ["exact_mcnemar", "cc_mcnemar"] },
+            "not_computed_reason": { "type": "null" }
+          }
+        },
+        {
+          "properties": {
+            "statistic": { "type": "null" },
+            "p": { "type": "null" },
+            "method": { "const": "none" },
+            "not_computed_reason": { "const": "mcnemar_assumes_independent_pairs" }
+          }
+        }
       ]
     },
 
@@ -620,29 +653,17 @@
         },
         "score_is_probability": { "type": "boolean" },
         "mcnemar": {
-          "description": "Per operating point id, on the accuracy discordants: b prior correct and new wrong, c new correct and prior wrong; exact (statistic null) below 25 discordant pairs, continuity-corrected chi-square otherwise. Null on an unpaired comparison.",
+          "description": "Per operating point id, on the accuracy discordants: b prior correct and new wrong, c new correct and prior wrong; exact (statistic null) below 25 discordant pairs, continuity-corrected chi-square otherwise; under a clustered plan the counts with no test (mcnemarEntry, E11 repair 3, DEC-75 (a)). Null on an unpaired comparison.",
           "oneOf": [
             { "type": "null" },
             {
               "type": "object",
-              "additionalProperties": {
-                "type": "object",
-                "required": ["b", "c", "n_discordant", "statistic", "p", "method"],
-                "additionalProperties": false,
-                "properties": {
-                  "b": { "type": "integer", "minimum": 0 },
-                  "c": { "type": "integer", "minimum": 0 },
-                  "n_discordant": { "type": "integer", "minimum": 0 },
-                  "statistic": { "type": ["number", "null"], "minimum": 0 },
-                  "p": { "type": "number", "minimum": 0, "maximum": 1 },
-                  "method": { "enum": ["exact_mcnemar", "cc_mcnemar"] }
-                }
-              }
+              "additionalProperties": { "$ref": "#/$defs/mcnemarEntry" }
             }
           ]
         },
         "mcnemar_by_metric": {
-          "description": "E11 item 3 (DEC-70 (d)): per operating point id, McNemar on the discordant pairs of each conditioned proportion - sensitivity or ppa on the reference-positive pairs, specificity or npa on the reference-negative pairs: b prior correct and new wrong, c new correct and prior wrong (the Newcombe paired interval's g and f); the same exact / continuity-corrected rule as mcnemar. Null on an unpaired comparison.",
+          "description": "E11 item 3 (DEC-70 (d)): per operating point id, McNemar on the discordant pairs of each conditioned proportion - sensitivity or ppa on the reference-positive pairs, specificity or npa on the reference-negative pairs: b prior correct and new wrong, c new correct and prior wrong (the Newcombe paired interval's g and f); the same exact / continuity-corrected rule as mcnemar, and the same refusal under a clustered plan. Null on an unpaired comparison.",
           "oneOf": [
             { "type": "null" },
             {
@@ -650,19 +671,7 @@
               "additionalProperties": {
                 "type": "object",
                 "propertyNames": { "enum": ["sensitivity", "specificity", "ppa", "npa"] },
-                "additionalProperties": {
-                  "type": "object",
-                  "required": ["b", "c", "n_discordant", "statistic", "p", "method"],
-                  "additionalProperties": false,
-                  "properties": {
-                    "b": { "type": "integer", "minimum": 0 },
-                    "c": { "type": "integer", "minimum": 0 },
-                    "n_discordant": { "type": "integer", "minimum": 0 },
-                    "statistic": { "type": ["number", "null"], "minimum": 0 },
-                    "p": { "type": "number", "minimum": 0, "maximum": 1 },
-                    "method": { "enum": ["exact_mcnemar", "cc_mcnemar"] }
-                  }
-                }
+                "additionalProperties": { "$ref": "#/$defs/mcnemarEntry" }
               }
             }
           ]

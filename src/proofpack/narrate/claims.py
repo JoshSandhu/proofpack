@@ -581,7 +581,11 @@ def _comparison_claims(doc: dict[str, Any], seq: int) -> tuple[list[dict[str, An
                 )
             )
         for op in ops:
-            if op not in (comparison.get("mcnemar") or {}):
+            entry = (comparison.get("mcnemar") or {}).get(op)
+            # E11 repair 3 (DEC-75 (a)): under a clustered plan the entry carries no p and
+            # a typed reason; no sentence states a test that was not computed (Table T2-3
+            # prints the reason on the row)
+            if not isinstance(entry, dict) or entry.get("p") is None:
                 continue
             seq += 1
             out.append(

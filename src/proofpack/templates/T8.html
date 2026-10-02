@@ -85,6 +85,14 @@
 {{ margin_note(anchor.criteria) }}
 {% if has_criteria %}
 {{ criteria_table(criteria_rows) }}
+<table class="tiers">
+<caption>Tier superscripts - ProofPack reporting convention (R2 section 3.3); annotations, never suppression</caption>
+<tbody>
+{% for mark, text in tier_legend %}
+<tr><th scope="row">{{ mark }}</th><td>{{ text }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
 {% else %}
 <p>No acceptance criteria were declared; estimates and intervals only.</p>
 {% endif %}

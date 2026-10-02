@@ -28,7 +28,11 @@ Methods, each written here or reused from the day-2/3/4 modules
   ``b = c = 0`` gives ``p = 1`` and no statistic. Otherwise the continuity-corrected
   chi-square ``(|b - c| - 1)^2 / (b + c)`` on one degree of freedom, ``p = erfc(sqrt(
   statistic / 2))`` (``mcnemar(exact=False, correction=True)``). The ``method`` field
-  names which (``exact_mcnemar`` / ``cc_mcnemar``, D1 section 4.1's enum).
+  names which (``exact_mcnemar`` / ``cc_mcnemar``, D1 section 4.1's enum). **Under a
+  clustered plan no McNemar test is computed** (E11 repair 3, DEC-75 (a)): every entry
+  carries its ``b`` and ``c`` (rows), ``statistic`` / ``p`` ``null``, ``method`` ``none``
+  and ``not_computed_reason`` :data:`MCNEMAR_REFUSED_CLUSTERED` (:func:`mcnemar_entry`);
+  on an unclustered plan ``not_computed_reason`` is ``null``.
 * **Paired proportion difference** (:func:`paired_proportion_difference`): the four
   paired cells ``e`` (both correct), ``f`` (new correct only), ``g`` (prior correct only),
   ``h`` (neither) through :func:`proofpack.stats.proportions.difference_paired`, the
@@ -49,6 +53,10 @@ Methods, each written here or reused from the day-2/3/4 modules
   resampled in one stratum, the resampler ``proportion_ci`` uses for the run's own
   proportions; the Newcombe paired interval assumes independent pairs and is carried as
   the ``analytic`` refusal), with ``newcombe_refused_clustered`` on the rendered Number.
+  Since E11 repair 3 (DEC-75 (b), (c)) every clustered difference - proportion, AUROC,
+  Brier, slope - goes through :func:`proofpack.stats.bootstrap.clustered_number`: its
+  case-count tier, the flag ``clustered_coverage_not_established`` (printed ``ᵈ``), and no
+  interval (``fewer_than_five_cases``) below five cases.
   On the F5 pair with ``case_id = c{i // 2}`` this gives the twelve proportion and
   AUROC difference cells (overall and both ``sex`` entries) an interval
   (``tests/test_e10_comparison.py::test_f5_case_id_c_i_over_2_se_sp_cells_equal_a_clustered_flat_rerun``).
@@ -86,9 +94,12 @@ from proofpack.stats.bootstrap import (
     BootstrapPolicy,
     ClusterPlan,
     Resampler,
+    auroc_precision_flags,
     bootstrap_percentile,
     clustered_by_case,
     clustered_flat,
+    clustered_number,
+    precision_flags,
     stratified_by_outcome,
 )
 from proofpack.stats.calibration import CLIP_EPS, _fit_joint
@@ -102,11 +113,13 @@ from proofpack.stats.proportions import difference_paired, difference_unpaired
 
 __all__ = [
     "EXACT_BELOW",
+    "MCNEMAR_REFUSED_CLUSTERED",
     "Join",
     "McNemar",
     "VersionArrays",
     "compare_versions",
     "mcnemar",
+    "mcnemar_entry",
     "paired_join",
     "paired_proportion_difference",
 ]
@@ -114,6 +127,14 @@ __all__ = [
 #: Below this many discordant pairs the McNemar test is exact (R2 section 6, D1 section
 #: 3.1: "McNemar exact when b + c < 25 else continuity-corrected chi-square").
 EXACT_BELOW = 25
+#: E11 repair 3 (DEC-75 (a), Josh 2 October 2026): the typed reason a McNemar entry
+#: carries in place of a p-value under a clustered plan. The test treats the discordant
+#: rows as independent pairs; lens 3 of 2 October 2026 measured the printed test rejecting
+#: a true null at the nominal five per cent level in 0.5380 of 2000 tables (five cases of
+#: 50 rows beside 25 one-row cases) and 0.2630 (30 cases of ten rows), against 0.0300 on
+#: 275 one-row cases.
+#: No cluster-adjusted McNemar is built (DEC-75 (a)).
+MCNEMAR_REFUSED_CLUSTERED = "mcnemar_assumes_independent_pairs"
 #: The label every unpaired Number carries (D1 section 3.1; D4 section 5.7's caption).
 NOT_LIKE_FOR_LIKE = "not like-for-like"
 #: The three conditioned proportions compared per operating point, in the vocabulary of
@@ -422,6 +443,7 @@ def _paired_proportion_cell(
     def stat(idx: np.ndarray) -> float:
         return float(a[idx].mean() - b[idx].mean()) if idx.shape[0] else float("nan")
 
+    n_cases = resampler.n_units
     number = _bootstrap_number(
         stat,
         analytic.est,
@@ -430,11 +452,13 @@ def _paired_proportion_cell(
         key=_cell_key(*key_parts, op, metric),
         level=level,
         method="cluster_bootstrap_percentile",
-        flags=["newcombe_refused_clustered"],
+        flags=["newcombe_refused_clustered", *precision_flags(n_cases)],
         n=n,
-        n_cases=resampler.n_units,
+        n_cases=n_cases,
     )
-    return _cell(number, refusal, "refused_clustered")
+    # DEC-75 (b), (c) (E11 repair 3; lens 3 FA-B1): the case-count tier (none at 3302d59
+    # at any case count), the mark d, and no interval below five cases
+    return _cell(clustered_number(number, n_cases), refusal, "refused_clustered")
 
 
 def _paired_auroc_cell(
@@ -475,6 +499,7 @@ def _paired_auroc_cell(
             return float("nan")
         return float(auroc_mann_whitney(sn[idx], p) - auroc_mann_whitney(sp[idx], p))
 
+    n_cases = resampler.n_units
     number = _bootstrap_number(
         stat,
         diff,
@@ -483,12 +508,17 @@ def _paired_auroc_cell(
         key=_cell_key(*key_parts, "auroc"),
         level=level,
         method="cluster_bootstrap_percentile",
-        flags=["delong_refused_clustered"],
+        flags=[
+            "delong_refused_clustered",
+            *auroc_precision_flags(n_cases, resampler.class_units.values()),
+        ],
         n_pos=n_pos,
         n_neg=n_neg,
-        n_cases=resampler.n_units,
+        n_cases=n_cases,
     )
-    return _cell(number, refusal, "refused_clustered")
+    # DEC-75 (b), (c) (E11 repair 3): the AUROC cell's tier, the mark d, no interval below
+    # five cases
+    return _cell(clustered_number(number, n_cases), refusal, "refused_clustered")
 
 
 def _logit(p: np.ndarray) -> np.ndarray:
@@ -571,6 +601,10 @@ def _paired_calibration_cells(
             flags=[],
             **counts,
         )
+        if clustered:
+            # DEC-75 (b), (c) (E11 repair 3): the case-count tier, the mark d, and no
+            # interval below five cases
+            number = clustered_number(number, counts["n_cases"])
         out[key] = _cell(number, None, "used")
     return out
 
@@ -616,25 +650,53 @@ def _paired_differences(
     return out
 
 
-def _mcnemar_by_op(new: VersionArrays, prior: VersionArrays, ops: Sequence[str]) -> dict[str, Any]:
+def mcnemar_entry(b: int, c: int, *, clustered: bool) -> dict[str, Any]:
+    """One ``comparison.mcnemar`` / ``mcnemar_by_metric`` entry: the discordant counts and
+    :func:`mcnemar` with ``not_computed_reason`` ``null``; under a clustered plan (E11
+    repair 3, DEC-75 (a)) the counts with no test - ``statistic`` and ``p`` ``null``,
+    ``method`` ``none`` and ``not_computed_reason``
+    :data:`MCNEMAR_REFUSED_CLUSTERED`. ``b`` and ``c`` count rows in either case."""
+    if clustered:
+        return {
+            "b": int(b),
+            "c": int(c),
+            "n_discordant": int(b) + int(c),
+            "statistic": None,
+            "p": None,
+            "method": "none",
+            "not_computed_reason": MCNEMAR_REFUSED_CLUSTERED,
+        }
+    return {**mcnemar(b, c).as_dict(), "not_computed_reason": None}
+
+
+def _mcnemar_by_op(
+    new: VersionArrays, prior: VersionArrays, ops: Sequence[str], *, clustered: bool
+) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for op in ops:
         correct_new = new.pos == new.pred[op]
         correct_prior = prior.pos == prior.pred[op]
         b = int((correct_prior & ~correct_new).sum())
         c = int((correct_new & ~correct_prior).sum())
-        out[op] = mcnemar(b, c).as_dict()
+        out[op] = mcnemar_entry(b, c, clustered=clustered)
     return out
 
 
 def _mcnemar_by_metric(
-    new: VersionArrays, prior: VersionArrays, ops: Sequence[str], se_key: str, sp_key: str
+    new: VersionArrays,
+    prior: VersionArrays,
+    ops: Sequence[str],
+    se_key: str,
+    sp_key: str,
+    *,
+    clustered: bool,
 ) -> dict[str, Any]:
     """McNemar per operating point on the sensitivity and specificity discordants (E11
     item 3, DEC-70 (d)): each conditioned the way :func:`paired_proportion_difference`
     conditions the row's Newcombe interval (:func:`_conditioned`), ``b`` = prior correct
     and new wrong (``g``), ``c`` = new correct and prior wrong (``f``); the same
-    :func:`mcnemar` and the same ``b + c < EXACT_BELOW`` rule as the accuracy test."""
+    :func:`mcnemar_entry` and the same ``b + c < EXACT_BELOW`` rule as the accuracy test,
+    and the same refusal under a clustered plan (DEC-75 (a))."""
     out: dict[str, Any] = {}
     for op in ops:
         out[op] = {}
@@ -643,7 +705,7 @@ def _mcnemar_by_metric(
             _, correct_prior = _conditioned(prior.pos, prior.pred[op], metric)
             g_prior_only = int((correct_prior & ~correct_new).sum())
             f_new_only = int((correct_new & ~correct_prior).sum())
-            out[op][key] = mcnemar(g_prior_only, f_new_only).as_dict()
+            out[op][key] = mcnemar_entry(g_prior_only, f_new_only, clustered=clustered)
     return out
 
 
@@ -782,8 +844,10 @@ def compare_versions(
     if paired:
         if new.n != prior.n:
             raise ValueError("a paired comparison needs aligned arrays")
-        block["mcnemar"] = _mcnemar_by_op(new, prior, ops)
-        block["mcnemar_by_metric"] = _mcnemar_by_metric(new, prior, ops, se_key, sp_key)
+        block["mcnemar"] = _mcnemar_by_op(new, prior, ops, clustered=clustered)
+        block["mcnemar_by_metric"] = _mcnemar_by_metric(
+            new, prior, ops, se_key, sp_key, clustered=clustered
+        )
         block["differences"] = _paired_differences(
             new,
             prior,
