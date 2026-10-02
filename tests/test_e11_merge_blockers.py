@@ -20,10 +20,11 @@ import sys
 
 import pytest
 
+from ap4_docx import EXTRA_REQUIRED, SKIP_REASON
 from conftest import ephemeral_registry
 from proofpack.cli import main
 from proofpack.errors import EXIT_DOCX_EXTRA_MISSING, EXIT_LICENCE, EXIT_OK, EXIT_WARNINGS
-from proofpack.render.docx import EXTRA_LINE, EXTRA_MODULES
+from proofpack.render.docx import EXTRA_LINE, EXTRA_MODULES, extra_available
 from test_e10_compare_cli import _compare, _home, _inputs
 from test_run_cli import _own_home, _prepare
 
@@ -46,6 +47,14 @@ def _hide(monkeypatch, names):
         for loaded in list(sys.modules):
             if loaded.startswith(name + "."):
                 monkeypatch.setitem(sys.modules, loaded, None)
+
+
+def _skip_without_extra(formats: str) -> None:
+    """A case that asks for docx needs the [docx] extra; CI's main job runs
+    without it (the ap4 job installs it and sets PROOFPACK_REQUIRE_DOCX=1).
+    Engine CI run 37069070435 failed these cases with exit 7 there."""
+    if "docx" in formats.split(",") and not extra_available() and not EXTRA_REQUIRED:
+        pytest.skip(SKIP_REASON)
 
 
 def _next_step(printed: str) -> str:
@@ -114,6 +123,7 @@ def _run(tmp_path, monkeypatch, capsys, *flags, licence=True):
 def test_run_templates_t2_names_compare_and_no_t2_file_run_would_write(
     tmp_path, monkeypatch, capsys, licence, formats
 ):
+    _skip_without_extra(formats)
     rc, printed, out = _run(
         tmp_path, monkeypatch, capsys, "--templates", "T2", "--format", formats, licence=licence
     )
@@ -150,6 +160,7 @@ def test_run_templates_t2_names_compare_and_no_t2_file_run_would_write(
 def test_run_templates_t2_t8_names_t8_only(
     tmp_path, monkeypatch, capsys, licence, formats, expected
 ):
+    _skip_without_extra(formats)
     _, printed, _ = _run(
         tmp_path, monkeypatch, capsys, "--templates", "T2,T8", "--format", formats, licence=licence
     )
@@ -187,6 +198,7 @@ def test_run_templates_t2_t8_names_t8_only(
 def test_compare_next_step_never_names_t2_docx(
     tmp_path, monkeypatch, capsys, lic, formats, templates, expected
 ):
+    _skip_without_extra(formats)
     if lic == "ok":
         _home(tmp_path, monkeypatch)
     else:
