@@ -30,6 +30,7 @@ Usage::
     python scripts/mutation_sweep.py --marker day8            # the day-8 list (E8)
     python scripts/mutation_sweep.py --marker day9            # the day-9 list (E9)
     python scripts/mutation_sweep.py --marker day10           # the day-10 list (E10)
+    python scripts/mutation_sweep.py --marker day11           # the day-11 list (E11)
     python scripts/mutation_sweep.py --marker day5 --only ref_largest_to_smallest
     python scripts/mutation_sweep.py --list
     python scripts/mutation_sweep.py --marker day5 --fail-on-survivor   # exit 1 if any survive
@@ -2578,7 +2579,411 @@ MUTANTS_DAY10: tuple[Mutant, ...] = (
     ),
 )
 
-MUTANTS = MUTANTS + MUTANTS_DAY6_A + MUTANTS_DAY7 + MUTANTS_DAY8 + MUTANTS_DAY9 + MUTANTS_DAY10
+#: Build day 11 (E11 item 9): one mutant or more per item landed, run with
+#: ``--marker day11``. Patterns are literal source lines, escaped. Each changes behaviour;
+#: the E11 build note records the result.
+CALIBRATION = "src/proofpack/stats/calibration.py"
+DESCRIPTIVE = "src/proofpack/stats/descriptive.py"
+BOOTSTRAP_PY = "src/proofpack/stats/bootstrap.py"
+
+
+def _lit(text: str) -> str:
+    return re.escape(text)
+
+
+MUTANTS_DAY11: tuple[Mutant, ...] = (
+    # ---------------------------------------------------------------- item 0
+    Mutant(
+        "e11_compare_docx_extra_check_dropped",
+        "src/proofpack/cli.py",
+        _lit(
+            "    missing = _docx_extra_missing(formats)\n    if missing is not None:\n"
+            "        return missing\n    outcome = assemble_compare("
+        ),
+        "    outcome = assemble_compare(",
+        day=11,
+        what="compare --format docx without the extra writes run.json and the HTML first",
+    ),
+    Mutant(
+        "e11_t1_11_type_note_dropped",
+        "src/proofpack/render/t1.py",
+        _lit('" (difference against the prior version)"'),
+        '""',
+        day=11,
+        what="T1-11 prints no type note on a paired subgroup criterion (HTML and DOCX)",
+    ),
+    Mutant(
+        "e11_run_next_step_names_t2",
+        "src/proofpack/run.py",
+        _lit('"run": {"html": frozenset({"T1", "T7", "T8"})'),
+        '"run": {"html": frozenset({"T1", "T2", "T7", "T8"})',
+        day=11,
+        what="run's Next step names T2.html, which run never writes",
+    ),
+    # ---------------------------------------------------------------- item 1
+    Mutant(
+        "e11_t1_header_qualifier_dropped",
+        "src/proofpack/render/t1.py",
+        _lit(
+            '    return f"{T1_TITLE}, per {anchors.draft_qualifier(T1_TITLE_ANCHOR, guidance_map)}"'
+        ),
+        "    return T1_TITLE",
+        day=11,
+        what="the T1 title line names the AI-DSF draft without its qualifier",
+    ),
+    # ---------------------------------------------------------------- item 2
+    Mutant(
+        "e11_compare_not_counted",
+        "src/proofpack/run.py",
+        _lit(
+            "    counts = bool(decl.criteria) and writes_documents(\n"
+            '        licence, compare_licensed(licence), formats, templates, command="compare"\n'
+            "    )"
+        ),
+        "    counts = False",
+        day=11,
+        what="a comparison that wrote a document is not counted as a run",
+    ),
+    Mutant(
+        "e11_compare_ledger_own_key",
+        "src/proofpack/run.py",
+        _lit(
+            "    led = ledger.peek(key, counts_this_run=counts, limit=limit, home=ledger_home)\n"
+            "    # the runs recorded before this one, compares included (DEC-70 (b))"
+        ),
+        '    led = ledger.peek("compare:" + key, counts_this_run=counts, limit=limit, '
+        "home=ledger_home)",
+        day=11,
+        what="a comparison is counted under its own compare: key, apart from the runs",
+    ),
+    Mutant(
+        "e11_ledger_counted_without_a_document",
+        "src/proofpack/run.py",
+        _lit("    if outcome.ledger is None or not documents:"),
+        "    if outcome.ledger is None:",
+        day=11,
+        what="the ledger increment is written although no document was",
+    ),
+    Mutant(
+        "e11_no_limit_sentence_reverted",
+        "src/proofpack/render/sentences.py",
+        _lit('NO_LIMIT_DECLARED = "none declared"'),
+        'NO_LIMIT_DECLARED = "no limit declared"',
+        day=11,
+        what="the no-declaration slot reads '... : no limit declared.'",
+    ),
+    # ---------------------------------------------------------------- item 3
+    Mutant(
+        "e11_se_sp_mcnemar_b_c_swapped",
+        "src/proofpack/stats/comparison.py",
+        _lit("out[op][key] = mcnemar(g_prior_only, f_new_only).as_dict()"),
+        "out[op][key] = mcnemar(f_new_only, g_prior_only).as_dict()",
+        day=11,
+        what="the Se / Sp discordants print c / b",
+    ),
+    Mutant(
+        "e11_exact_threshold_moved_to_26",
+        "src/proofpack/stats/comparison.py",
+        r"^EXACT_BELOW = 25$",
+        "EXACT_BELOW = 26",
+        day=11,
+        what="b + c = 25 takes the exact route",
+    ),
+    Mutant(
+        "e11_sp_row_reads_se_cells",
+        "src/proofpack/stats/comparison.py",
+        _lit('for metric, key in (("se", se_key), ("sp", sp_key)):'),
+        'for metric, key in (("se", se_key), ("se", sp_key)):',
+        day=11,
+        what="the Specificity row's McNemar is computed on the sensitivity pairs",
+    ),
+    Mutant(
+        "e11_margins_same_scope_dropped",
+        "src/proofpack/render/t2.py",
+        _lit('row.get("operating_point") == op and same_scope'),
+        'row.get("operating_point") == op',
+        day=11,
+        what="a subgroup-scoped paired criterion also prints on the overall T2-3 row (L1)",
+    ),
+    Mutant(
+        "e11_margins_operating_point_dropped",
+        "src/proofpack/render/t2.py",
+        _lit('row.get("metric") == metric and row.get("operating_point") == op and same_scope'),
+        'row.get("metric") == metric and same_scope',
+        day=11,
+        what="an op1 criterion prints on op2's T2-3 row (L2)",
+    ),
+    Mutant(
+        "e11_record_on_not_assessable",
+        "src/proofpack/render/t2.py",
+        _lit('"record": row.get("status") == "not_met",'),
+        '"record": row.get("status") != "met",',
+        day=11,
+        what="a not_assessable T2-3 line carries the record string (L4)",
+    ),
+    # ---------------------------------------------------------------- item 4
+    Mutant(
+        "e11_newcombe_phi_uncorrected",
+        PROPORTIONS,
+        _lit("    if num > 0:  # continuity correction, method 10"),
+        "    if False:  # continuity correction, method 10",
+        day=11,
+        what="the paired interval is Newcombe's method 8 (phi not continuity-corrected)",
+    ),
+    # ---------------------------------------------------------------- item 5
+    Mutant(
+        "e11_deff_forced_to_one",
+        PROPORTIONS,
+        _lit(
+            "    return DesignEffect(estimate, n / estimate, n, n_cases, "
+            '"deff_estimated", estimate)'
+        ),
+        '    return DesignEffect(1.0, n / 1.0, n, n_cases, "deff_estimated", estimate)',
+        day=11,
+        what="the design effect is taken as 1 (the clustered interval is the rows' Wilson)",
+    ),
+    Mutant(
+        "e11_n_eff_times_deff",
+        PROPORTIONS,
+        _lit("    lo, hi = wilson_effective_bounds(k / n, de.n_eff, level)"),
+        "    lo, hi = wilson_effective_bounds(k / n, n * de.deff, level)",
+        day=11,
+        what="n_eff = n * DEFF (narrower where it must be wider)",
+    ),
+    Mutant(
+        "e11_coverage_bar_at_0_85",
+        "scripts/coverage_bar.py",
+        r"^BAR = 0\.90$",
+        "BAR = 0.85",
+        day=11,
+        what="the DEC-08 bar the coverage run applies is 0.85",
+    ),
+    Mutant(
+        "e11_min_cases_at_4",
+        BOOTSTRAP_PY,
+        r"^MIN_CASES_DEFF_WILSON = 5$",
+        "MIN_CASES_DEFF_WILSON = 4",
+        day=11,
+        what="wilson_deff renders on four cases, below its measured bar",
+    ),
+    Mutant(
+        "e11_deff_not_floored",
+        PROPORTIONS,
+        _lit("    if estimate < 1.0:"),
+        "    if estimate < -1.0:",
+        day=11,
+        what="a design effect below 1 narrows the interval below the rows' Wilson",
+    ),
+    Mutant(
+        "e11_boundary_not_estimable",
+        PROPORTIONS,
+        _lit(
+            "        deff = float(np.sum(m * m)) / n\n"
+            "        return DesignEffect(deff, n / deff, n, n_cases, "
+            '"deff_boundary_cases_as_units")'
+        ),
+        '        return DesignEffect(None, None, n, n_cases, "deff_boundary_cases_as_units")',
+        day=11,
+        what="k = 0 or k = n on multi-row cases has no design effect (bootstrap refusal)",
+    ),
+    Mutant(
+        "e11_boundary_deff_equal_sizes_only",
+        PROPORTIONS,
+        _lit("        deff = float(np.sum(m * m)) / n"),
+        "        deff = n / n_cases",
+        day=11,
+        what="the boundary design effect is n / K, short of sum m^2 / n on unequal cases",
+    ),
+    # ---------------------------------------------------------------- item 7
+    Mutant(
+        "e11_obs01_decile_plan_none",
+        CALIBRATION,
+        _lit("            policy=ctx.policy,\n            plan=ctx.plan,"),
+        "            policy=ctx.policy,\n            plan=None,",
+        day=11,
+        what="day-6 item 1: the decile bins are computed with plan=None",
+    ),
+    Mutant(
+        "e11_obs02_iid_events_rule_dropped",
+        CALIBRATION,
+        _lit("        events = int(self.pos.sum()) if not self.clustered else None"),
+        "        events = None",
+        day=11,
+        what="day-6 item 2: the few-events tier is lost on i.i.d. rows",
+    ),
+    Mutant(
+        "e11_obs03_ipa_full_cohort_brier",
+        CALIBRATION,
+        _lit('        return 1.0 - float(sq[idx].mean()) / r if r > 0.0 else float("nan")'),
+        '        return 1.0 - float(sq.mean()) / r if r > 0.0 else float("nan")',
+        day=11,
+        what="day-6 item 3: the IPA resample uses the full-cohort Brier",
+    ),
+    Mutant(
+        "e11_obs04_irls_tol_loose",
+        CALIBRATION,
+        r"^IRLS_TOL = 1e-10$",
+        "IRLS_TOL = 1e-3",
+        day=11,
+        what="day-6 item 4: the IRLS tolerance is 1e-3",
+    ),
+    Mutant(
+        "e11_obs05_clustered_tier_dropped",
+        CALIBRATION,
+        _lit("    flags = [refused_flag, *extra_flags, *ctx.tier(resampler)]"),
+        "    flags = [refused_flag, *extra_flags]",
+        day=11,
+        what="day-6 item 5: the clustered O:E and fits lose their tier",
+    ),
+    Mutant(
+        "e11_obs06_curve_flag_on_cases",
+        CALIBRATION,
+        _lit("    below = events < CURVE_MIN_EVENTS or nonevents < CURVE_MIN_EVENTS"),
+        "    below = (len(set(ids[pos].tolist())) if ids is not None else events) < "
+        "CURVE_MIN_EVENTS or (len(set(ids[~pos].tolist())) if ids is not None else "
+        "nonevents) < CURVE_MIN_EVENTS",
+        day=11,
+        what="day-6 item 6: the 200/200 rule counts cases under clustering",
+    ),
+    Mutant(
+        "e11_obs07_unknown_site_counted",
+        DESCRIPTIVE,
+        _lit(
+            '        levels = {str(v) for v in table.attributes["site"][mask].tolist()} '
+            "- {UNKNOWN_LEVEL}"
+        ),
+        '        levels = {str(v) for v in table.attributes["site"][mask].tolist()}',
+        day=11,
+        what="day-6 item 7: flow.n_sites counts Unknown/missing",
+    ),
+    Mutant(
+        "e11_obs08_dev_over_not_mask",
+        DESCRIPTIVE,
+        _lit('"dev": table1_levels(table, decl, dev_rows) if has_dev else None,'),
+        '"dev": table1_levels(table, decl, ~mask) if has_dev else None,',
+        day=11,
+        what="day-6 item 8: table1.dev is tabulated over the excluded rows",
+    ),
+    Mutant(
+        "e11_obs09_companion_est_none",
+        CALIBRATION,
+        _lit('        "clustered_data_analytic_ci_invalid", est=est, ci_level=ctx.level, **counts'),
+        '        "clustered_data_analytic_ci_invalid", est=None, ci_level=ctx.level, **counts',
+        day=11,
+        what="day-6 item 9: the DEC-09 companion of the O:E and fits loses its estimate",
+    ),
+    Mutant(
+        "e11_obs10_degenerate_status",
+        CALIBRATION,
+        _lit(
+            "        number = not_estimable(draw.reason, est=est, ci_level=ctx.level, flags=flags, "
+            '**counts)\n        status = "unavailable"'
+        ),
+        "        number = not_estimable(draw.reason, est=est, ci_level=ctx.level, flags=flags, "
+        '**counts)\n        status = "refused_clustered"',
+        day=11,
+        what="day-6 item 10: a degenerate clustered draw reports refused_clustered",
+    ),
+    Mutant(
+        "e11_obs11_clip_flag_dropped",
+        CALIBRATION,
+        _lit("                extra_flags=clip_flags,"),
+        "                extra_flags=(),",
+        day=11,
+        what="day-6 item 11: the clustered fits lose scores_clipped_for_logit",
+    ),
+    Mutant(
+        "e11_obs12_case_id_unsliced",
+        CALIBRATION,
+        _lit("        cluster_ids = table.case_id[mask]"),
+        "        cluster_ids = table.case_id",
+        day=11,
+        what="day-6 item 12: calibration_from_table passes the unmasked case column",
+    ),
+    Mutant(
+        "e11_obs13_event_cases_from_nonevents",
+        CALIBRATION,
+        _lit('            curve_flag["event_cases"] = int(np.unique(ids[pos]).shape[0])'),
+        '            curve_flag["event_cases"] = int(np.unique(ids[~pos]).shape[0])',
+        day=11,
+        what="day-6 item 13: event_cases counts the non-event rows' cases",
+    ),
+    Mutant(
+        "e11_obs14_events_rule_under_clustering",
+        CALIBRATION,
+        _lit("        events = int(self.pos.sum()) if not self.clustered else None"),
+        "        events = int(self.pos.sum())",
+        day=11,
+        what="day-6 item 14: the few-events tier applies under clustering",
+    ),
+    Mutant(
+        "e11_obs15_last_unit_skipped",
+        CALIBRATION,
+        _lit("        units = per_unit[start : start + stratum.n_units]"),
+        "        units = per_unit[start : start + stratum.n_units - 1]",
+        day=11,
+        what="day-6 item 15: _prevalence_invariant never inspects a stratum's last unit",
+    ),
+    Mutant(
+        "e11_obs16_wald_z_at_default_level",
+        CALIBRATION,
+        _lit("        z = z_for(ctx.level)"),
+        "        z = z_for(DEFAULT_LEVEL)",
+        day=11,
+        what="day-6 item 16: the Wald bounds ignore the declared level",
+    ),
+    Mutant(
+        "e11_obs17_mean_pred_median",
+        CALIBRATION,
+        _lit('                "mean_pred": float(ctx.p[rows].mean()) if n_b else None,'),
+        '                "mean_pred": float(np.median(ctx.p[rows])) if n_b else None,',
+        day=11,
+        what="day-6 item 17: mean_pred is the bin's median",
+    ),
+    Mutant(
+        "e11_obs18_separation_tol_loose",
+        CALIBRATION,
+        r"^SEPARATION_TOL = 1e-8$",
+        "SEPARATION_TOL = 1e-4",
+        day=11,
+        what="day-6 item 18: scores within 1e-5 of their labels are typed complete_separation",
+    ),
+    Mutant(
+        "e11_obs19_failed_refit_usable",
+        CALIBRATION,
+        _lit('                return float("nan") if r.reason is not None else float(r.beta[_c])'),
+        "                return 0.0 if r.reason is not None else float(r.beta[_c])",
+        day=11,
+        what="day-6 item 19: a refit that did not converge counts as a usable resample",
+    ),
+    # ---------------------------------------------------------------- item 8
+    Mutant(
+        "e11_row132_reason_reverted",
+        "src/proofpack/stats/comparison.py",
+        _lit('            reason = "no_score_column"'),
+        '            reason = "score_not_probability"',
+        day=11,
+        what="a y_pred-only pair's Brier / slope differences read score_not_probability",
+    ),
+    Mutant(
+        "e11_row149_reason_reverted",
+        "src/proofpack/criteria.py",
+        _lit('        return _Read(None, None, "metric_not_compared")'),
+        '        return _Read(None, None, "comparison_not_computed_for_scope")',
+        day=11,
+        what="a paired ppv criterion reads comparison_not_computed_for_scope",
+    ),
+)
+
+MUTANTS = (
+    MUTANTS
+    + MUTANTS_DAY6_A
+    + MUTANTS_DAY7
+    + MUTANTS_DAY8
+    + MUTANTS_DAY9
+    + MUTANTS_DAY10
+    + MUTANTS_DAY11
+)
 
 
 def make_copy() -> Path:
