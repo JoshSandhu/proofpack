@@ -207,6 +207,7 @@ def comparison_tables(document: dict[str, Any]) -> dict[str, Any]:
     differences = comparison.get("differences") or {}
     ops = [k for k in differences if k not in ("auroc", "brier", "slope")]
     mcnemar = comparison.get("mcnemar") or {}
+    by_metric = comparison.get("mcnemar_by_metric") or {}
     unpaired = comparison.get("unpaired_rows") or {}
     excluded = sum(int(unpaired.get(k) or 0) for k in ("new_only", "prior_only", "label_mismatch"))
     if paired:
@@ -224,9 +225,17 @@ def comparison_tables(document: dict[str, Any]) -> dict[str, Any]:
 
     def row(label: str, metric: str, op: str | None, prior_ref: str, new_ref: str, diff_ref: str):
         kind = "proportion" if metric in fmt.PROPORTION_IDS else "three_dp"
-        # the McNemar test is on the accuracy discordants at the operating point: its
-        # b / c and p print on the Accuracy row only (recorded in the E10 note)
-        mc = mcnemar.get(op) if op is not None and paired and metric == "accuracy" else None
+        # McNemar on the row's own discordant pairs (D4 section 5.7): the accuracy
+        # discordants on the Accuracy row (E10), the sensitivity / specificity ones on
+        # those rows (E11 item 3, DEC-70 (d)); data-mcnemar names the run.json entry
+        mc, mc_ref = None, ""
+        if op is not None and paired and metric == "accuracy":
+            mc, mc_ref = mcnemar.get(op), _p("comparison", "mcnemar", op)
+        elif op is not None and paired and metric in (se, sp):
+            mc = (by_metric.get(op) or {}).get(metric)
+            mc_ref = _p("comparison", "mcnemar_by_metric", op, metric)
+        if not mc:
+            mc, mc_ref = None, ""
         margins = _margins_for(paired_rows, metric, op, "overall")
         return {
             "label": label,
@@ -236,6 +245,7 @@ def comparison_tables(document: dict[str, Any]) -> dict[str, Any]:
             "new": cell(document, new_ref, kind),
             "delta": cell(document, diff_ref, _difference_kind(metric)),
             "method": cell(document, diff_ref, _difference_kind(metric), "method"),
+            "mc_ref": mc_ref,
             "b": fmt.count(mc.get("b")) if mc else "—",
             "c": fmt.count(mc.get("c")) if mc else "—",
             "p": fmt.p_value(mc.get("p")) if mc else "—",

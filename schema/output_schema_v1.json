@@ -584,7 +584,8 @@
       "type": "object",
       "required": [
         "paired", "label", "n_pairs", "unpaired_rows", "n_new", "n_prior", "clustering_route",
-        "bootstrap", "score_is_probability", "mcnemar", "differences", "subgroups",
+        "bootstrap", "score_is_probability", "mcnemar", "mcnemar_by_metric", "differences",
+        "subgroups",
         "subgroups_not_computed", "prior_version", "prior", "ledger"
       ],
       "additionalProperties": false,
@@ -634,6 +635,32 @@
                   "statistic": { "type": ["number", "null"], "minimum": 0 },
                   "p": { "type": "number", "minimum": 0, "maximum": 1 },
                   "method": { "enum": ["exact_mcnemar", "cc_mcnemar"] }
+                }
+              }
+            }
+          ]
+        },
+        "mcnemar_by_metric": {
+          "description": "E11 item 3 (DEC-70 (d)): per operating point id, McNemar on the discordant pairs of each conditioned proportion - sensitivity or ppa on the reference-positive pairs, specificity or npa on the reference-negative pairs: b prior correct and new wrong, c new correct and prior wrong (the Newcombe paired interval's g and f); the same exact / continuity-corrected rule as mcnemar. Null on an unpaired comparison.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "propertyNames": { "enum": ["sensitivity", "specificity", "ppa", "npa"] },
+                "additionalProperties": {
+                  "type": "object",
+                  "required": ["b", "c", "n_discordant", "statistic", "p", "method"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "b": { "type": "integer", "minimum": 0 },
+                    "c": { "type": "integer", "minimum": 0 },
+                    "n_discordant": { "type": "integer", "minimum": 0 },
+                    "statistic": { "type": ["number", "null"], "minimum": 0 },
+                    "p": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "method": { "enum": ["exact_mcnemar", "cc_mcnemar"] }
+                  }
                 }
               }
             }

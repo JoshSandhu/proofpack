@@ -17,7 +17,12 @@ Methods, each written here or reused from the day-2/3/4 modules
 -----------------------------------------------------------------
 
 * **McNemar** (:func:`mcnemar`): on the discordant counts of *accuracy* at one operating
-  point. Exact when ``b + c < EXACT_BELOW`` (25): the two-sided binomial test on
+  point (``comparison.mcnemar[op]``), and - since build day 11 (E11 item 3, DEC-70 (d)) -
+  on the discordant pairs of each conditioned proportion, sensitivity (or PPA) on the
+  reference-positive pairs and specificity (or NPA) on the reference-negative pairs
+  (``comparison.mcnemar_by_metric[op][metric]``): ``b`` = ``g`` (prior correct only) and
+  ``c`` = ``f`` (new correct only), the two paired cells the Newcombe interval of the
+  same row conditions on. Exact when ``b + c < EXACT_BELOW`` (25): the two-sided binomial test on
   ``min(b, c)`` with ``n = b + c`` and ``p = 1/2``, ``p = min(1, 2 * P(X <= min(b, c)))``,
   which is what ``statsmodels.stats.contingency_tables.mcnemar(exact=True)`` computes;
   ``b = c = 0`` gives ``p = 1`` and no statistic. Otherwise the continuity-corrected
@@ -614,6 +619,26 @@ def _mcnemar_by_op(new: VersionArrays, prior: VersionArrays, ops: Sequence[str])
     return out
 
 
+def _mcnemar_by_metric(
+    new: VersionArrays, prior: VersionArrays, ops: Sequence[str], se_key: str, sp_key: str
+) -> dict[str, Any]:
+    """McNemar per operating point on the sensitivity and specificity discordants (E11
+    item 3, DEC-70 (d)): each conditioned the way :func:`paired_proportion_difference`
+    conditions the row's Newcombe interval (:func:`_conditioned`), ``b`` = prior correct
+    and new wrong (``g``), ``c`` = new correct and prior wrong (``f``); the same
+    :func:`mcnemar` and the same ``b + c < EXACT_BELOW`` rule as the accuracy test."""
+    out: dict[str, Any] = {}
+    for op in ops:
+        out[op] = {}
+        for metric, key in (("se", se_key), ("sp", sp_key)):
+            _, correct_new = _conditioned(new.pos, new.pred[op], metric)
+            _, correct_prior = _conditioned(prior.pos, prior.pred[op], metric)
+            g_prior_only = int((correct_prior & ~correct_new).sum())
+            f_new_only = int((correct_new & ~correct_prior).sum())
+            out[op][key] = mcnemar(g_prior_only, f_new_only).as_dict()
+    return out
+
+
 # ----------------------------------------------------------------- unpaired comparison
 
 
@@ -750,6 +775,7 @@ def compare_versions(
         if new.n != prior.n:
             raise ValueError("a paired comparison needs aligned arrays")
         block["mcnemar"] = _mcnemar_by_op(new, prior, ops)
+        block["mcnemar_by_metric"] = _mcnemar_by_metric(new, prior, ops, se_key, sp_key)
         block["differences"] = _paired_differences(
             new,
             prior,
@@ -794,6 +820,7 @@ def compare_versions(
         block["subgroups_not_computed"] = None
     else:
         block["mcnemar"] = None
+        block["mcnemar_by_metric"] = None
         block["differences"] = _unpaired_differences(
             new, prior, ops=ops, se_key=se_key, sp_key=sp_key, clustered=clustered, level=level
         )

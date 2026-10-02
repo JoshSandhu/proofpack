@@ -265,8 +265,35 @@ def test_every_printed_number_cell_traces_to_run_json(page, document):
         assert ref in refs, ref
     mc = document["comparison"]["mcnemar"]["op1"]
     row = re.search(r'<tr data-metric="accuracy" data-op="op1">(.*?)</tr>', page, re.S).group(1)
-    assert f'<td class="num">{mc["b"]} / {mc["c"]}</td>' in row
-    assert f'<td class="num">{mc["p"]:.3f} (exact)</td>' in row
+    ref = 'data-mcnemar="/comparison/mcnemar/op1"'
+    assert f'<td class="num" {ref} data-facet="b_c">{mc["b"]} / {mc["c"]}</td>' in row
+    assert f'<td class="num" {ref} data-facet="p">{mc["p"]:.3f} (exact)</td>' in row
+    # E11 item 3 (DEC-70 (d)): every discordant-count and McNemar cell of T2-3 (the
+    # accuracy, sensitivity and specificity rows) names its run.json entry and prints it
+    mc_cells = re.findall(
+        r'<tr data-metric="([a-z]+)" data-op="([^"]+)">.*?'
+        r'<td class="num" data-mcnemar="([^"]+)" data-facet="b_c">([^<]*)</td>'
+        r'<td class="num" data-mcnemar="\3" data-facet="p">([^<]*)</td>',
+        page,
+        re.S,
+    )
+    assert {(m, op) for m, op, *_ in mc_cells} == {
+        ("sensitivity", "op1"),
+        ("specificity", "op1"),
+        ("accuracy", "op1"),
+    }
+    phrases = {"exact_mcnemar": "exact", "cc_mcnemar": "continuity-corrected chi-square"}
+    for metric, op, pointer, b_c, p_text in mc_cells:
+        found, entry = resolve_pointer(document, pointer)
+        assert found, pointer
+        expected_ptr = (
+            f"/comparison/mcnemar/{op}"
+            if metric == "accuracy"
+            else f"/comparison/mcnemar_by_metric/{op}/{metric}"
+        )
+        assert pointer == expected_ptr
+        assert b_c == f"{entry['b']} / {entry['c']}"
+        assert p_text == f"{entry['p']:.3f} ({phrases[entry['method']]})"
     assert f'data-count="n_pairs" colspan="2">{document["comparison"]["n_pairs"]}<' in page
     assert (
         f'data-count="prior_acceptance_runs">{document["comparison"]["ledger"]["prior_acceptance_runs"]}<'
