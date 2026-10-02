@@ -1,0 +1,51 @@
+{
+  "fixture_id": "F5",
+  "title": "Newcombe 1998 (paired data) Table III, method 10 rows - 95 per cent intervals for the difference between paired binomial proportions",
+  "primary_reference": "Newcombe RG. Improved confidence intervals for the difference between binomial proportions based on paired data. Statistics in Medicine 1998;17(22):2635-2650. doi:10.1002/(SICI)1097-0258(19981130)17:22<2635::AID-SIM954>3.0.CO;2-C",
+  "provenance": {
+    "transcribed_from_primary_pdf": true,
+    "fetched": "2026-10-02, build day 11 (E11 item 4, DEC-70 (a): a free copy only, tried once)",
+    "attempts": [
+      "https://doi.org/10.1002/(SICI)1097-0258(19981130)17:22<2635::AID-SIM954>3.0.CO;2-C -> HTTP 302 to onlinelibrary.wiley.com",
+      "https://onlinelibrary.wiley.com/doi/10.1002/(SICI)1097-0258(19981130)17:22%3C2635::AID-SIM954%3E3.0.CO;2-C -> HTTP 403 (no body read; nothing paid, no sign-in)",
+      "http://www.eiti.uottawa.ca/~nat/Courses/csi5388/Newcombe.1998.pdf (openly hosted course copy, the one full-text candidate taken from a single web search) -> the PDF, 139,150 bytes, 16 pages, SHA-256 90a3a04944c41bebde4d92d4b9cce9c77f3b67f407433b7a103bebc35e0d0f87"
+    ],
+    "pdf_identity": "page 1 prints 'STATISTICS IN MEDICINE Statist. Med. 17, 2635-2650 (1998)', the title above and 'ROBERT G. NEWCOMBE'; PDF metadata CreationDate 1998-10-14, Producer 'Acrobat Distiller 3.02 for Power Macintosh' - the publisher's typeset pages",
+    "extraction": "pypdf 'extract_text' of pages 5, 7 and 8; the PDF's font encoding prints the decimal point as ')' and the minus sign as '!' (for example '!0)0664'); each value below was read with that mapping and checked by eye against the row's cell counts",
+    "method_10_as_printed": "page 5: '8. Method based on Wilson score interval for the single proportion without continuity correction. Interval is theta-hat - delta to theta-hat + epsilon where delta = sqrt(dl2^2 - 2 phi-hat dl2 du3 + du3^2), epsilon = sqrt(du2^2 - 2 phi-hat du2 dl3 + dl3^2). Here dl2 = (e+f)/n - l2, du2 = u2 - (e+f)/n where l2 and u2 are roots of |pi - (e+f)/n| = z sqrt(pi(1-pi)/n). Likewise dl3 = (e+g)/n - l3, du3 = u3 - (e+g)/n ... Also phi-hat = (eh - fg)/sqrt((e+f)(g+h)(e+g)(f+h)), but phi-hat = 0 if this denominator is 0.' ... '10. Method using score intervals but continuity corrected phi-hat: as method 8 above, but with the numerator of phi-hat replaced by max(eh - fg - n/2, 0) if eh > fg.' (theta = pi2 - pi3, estimated by (f - g)/n, Table I)",
+    "status": "verified against the primary PDF, 17 of 18 rows to the printed four decimals; one value excluded (see excluded)",
+    "captured": "2026-10-02"
+  },
+  "confidence_level": 0.95,
+  "decimals": 4,
+  "rows": [
+    {"e": 36, "f": 12, "g": 2, "h": 0, "method10": {"lower": 0.0569, "upper": 0.3404}},
+    {"e": 20, "f": 12, "g": 2, "h": 16, "method10": {"lower": 0.0562, "upper": 0.3292}},
+    {"e": 18, "f": 12, "g": 2, "h": 18, "method10": {"lower": 0.0562, "upper": 0.3290}},
+    {"e": 36, "f": 14, "g": 0, "h": 0, "method10": {"lower": 0.1528, "upper": 0.4167}},
+    {"e": 35, "f": 14, "g": 0, "h": 1, "method10": {"lower": 0.1461, "upper": 0.4175}},
+    {"e": 18, "f": 14, "g": 0, "h": 18, "method10": {"lower": 0.1441, "upper": 0.3963}},
+    {"e": 2, "f": 97, "g": 1, "h": 0, "method10": {"lower": 0.8721, "upper": 0.9854}},
+    {"e": 1, "f": 97, "g": 1, "h": 1, "method10": {"upper": 0.9850}},
+    {"e": 0, "f": 29, "g": 1, "h": 0, "method10": {"lower": 0.6666, "upper": 0.9882}},
+    {"e": 2, "f": 98, "g": 0, "h": 0, "method10": {"lower": 0.9178, "upper": 0.9945}},
+    {"e": 1, "f": 98, "g": 0, "h": 1, "method10": {"lower": 0.9171, "upper": 0.9916}},
+    {"e": 0, "f": 30, "g": 0, "h": 0, "method10": {"lower": 0.8395, "upper": 1.0}},
+    {"e": 54, "f": 0, "g": 0, "h": 0, "method10": {"lower": -0.0664, "upper": 0.0664}},
+    {"e": 53, "f": 0, "g": 0, "h": 1, "method10": {"lower": -0.0729, "upper": 0.0729}},
+    {"e": 30, "f": 0, "g": 0, "h": 24, "method10": {"lower": -0.0358, "upper": 0.0358}},
+    {"e": 29, "f": 0, "g": 0, "h": 25, "method10": {"lower": -0.0354, "upper": 0.0354}},
+    {"e": 28, "f": 0, "g": 0, "h": 26, "method10": {"lower": -0.0352, "upper": 0.0352}},
+    {"e": 27, "f": 0, "g": 0, "h": 27, "method10": {"lower": -0.0351, "upper": 0.0351}}
+  ],
+  "excluded": [
+    {
+      "e": 1, "f": 97, "g": 1, "h": 1,
+      "value": "method10 lower",
+      "printed": 0.8736,
+      "printed_method8_same_row": 0.8737,
+      "engine": 0.873672,
+      "reason": "Here eh - fg = 1 - 97 < 0, so by the paper's own definition (method 10 differs from method 8 only when eh > fg) the method 8 and method 10 lower limits of this row are the same number; the paper prints 0.8737 for method 8 and 0.8736 for method 10. The engine's 0.873672 (and the hand derivation in tests/test_e11_newcombe.py, written from the printed formula) rounds to 0.8737, the method 8 figure. Not compared; recorded so a reader can see it."
+    }
+  ]
+}

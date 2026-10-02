@@ -89,8 +89,9 @@ TOLERANCE_RULES: dict[str, str] = {
     "F1d-clopper-pearson, F3-delong, F4-irls, F5-delong-pair and F6-p",
     "reported_rounding": "absolute deviation at most half a unit in the last printed decimal "
     "of each value, plus 1e-12. D1 section 9 gives reported rounding for bootstrap CIs; this "
-    "report applies it to the rows F3-bootstrap, F9-cluster-bootstrap and F14-newcombe (a "
-    "published table, for which D1 section 9 gives no tolerance)",
+    "report applies it to the rows F3-bootstrap, F9-cluster-bootstrap, F14-newcombe (a "
+    "published table, for which D1 section 9 gives no tolerance) and F5-newcombe-paired (a "
+    "published table too, read from the primary PDF on build day 11)",
     "register": "absolute deviation at most 1e-4 on the printed value (D1 section 3.2: "
     "'tolerance 1e-4 on the shown rounding')",
 }
@@ -101,8 +102,9 @@ TOLERANCE_SOURCE = (
 )
 ROUNDING_SLACK = 1e-12
 #: ``no_independent_oracle`` (build day 10, E10): a frozen engine value with no oracle
-#: outside the engine (F5's Newcombe paired interval, [unverified] against the paper):
-#: never ``matched`` against itself, never ``not_matched``; it does not move the exit code.
+#: outside the engine: never ``matched`` against itself, never ``not_matched``; it does not
+#: move the exit code. F5's Newcombe paired interval carried it on day 10; since build day
+#: 11 (E11 item 4) that row is compared with the paper's Table III and no row carries it.
 STATUSES = (
     "matched",
     "not_matched",
@@ -167,6 +169,37 @@ F3_REGISTER_NAMES = F3_AUROC_NAMES + tuple(n for n in F3_DELONG_NAMES if n != "d
 BOOTSTRAP_NAMES = ("ci_lo", "ci_hi")
 F5_MCNEMAR_NAMES = ("mcnemar_exact_p", "cc_chi2", "cc_chi2_p")
 F5_REGISTER_NAMES = F5_MCNEMAR_NAMES + ("accuracy_diff",)
+#: E11 item 4: the cell sets of Newcombe 1998 (paired) Table III, method 10, with the sides
+#: the transcription compares (``fixtures/newcombe1998_paired.json``; the lower limit of
+#: e 1 f 97 g 1 h 1 is recorded there as excluded, with the reason).
+F5_NEWCOMBE_PAIRED_CASES: tuple[tuple[int, int, int, int, tuple[str, ...]], ...] = tuple(
+    (*cells, ("upper",) if cells == (1, 97, 1, 1) else ("lower", "upper"))
+    for cells in (
+        (36, 12, 2, 0),
+        (20, 12, 2, 16),
+        (18, 12, 2, 18),
+        (36, 14, 0, 0),
+        (35, 14, 0, 1),
+        (18, 14, 0, 18),
+        (2, 97, 1, 0),
+        (1, 97, 1, 1),
+        (0, 29, 1, 0),
+        (2, 98, 0, 0),
+        (1, 98, 0, 1),
+        (0, 30, 0, 0),
+        (54, 0, 0, 0),
+        (53, 0, 0, 1),
+        (30, 0, 0, 24),
+        (29, 0, 0, 25),
+        (28, 0, 0, 26),
+        (27, 0, 0, 27),
+    )
+)
+F5_NEWCOMBE_PAIRED_NAMES = tuple(
+    f"e {e} f {f} g {g} h {h} method10 {side}"
+    for e, f, g, h, sides in F5_NEWCOMBE_PAIRED_CASES
+    for side in sides
+)
 F5_DELONG_PAIR_NAMES = ("est", "var_diff", "ci_lo", "ci_hi")
 F4_CLOSED_NAMES = (
     "oe",
@@ -259,6 +292,10 @@ class Oracles(dict):
 
 
 NEWCOMBE_FILE = "newcombe_table2.json"
+#: E11 item 4 (DEC-70 (a)): Table III of Newcombe 1998 (paired data), transcribed from the
+#: primary PDF on 2 October 2026 (provenance inside the file); packaged as
+#: ``proofpack/_fixtures/newcombe1998_paired.json``.
+NEWCOMBE_PAIRED_FILE = "newcombe1998_paired.json"
 
 
 def load_oracles() -> dict[str, Any]:
@@ -273,6 +310,7 @@ def load_oracles() -> dict[str, Any]:
     paths: dict[str, Callable[[], Path]] = {
         "oracles_v1.json": lambda: resource_path("oracles_v1.json"),
         "f4_expected.json": lambda: resource_path("f4_expected.json"),
+        NEWCOMBE_PAIRED_FILE: lambda: resource_path(NEWCOMBE_PAIRED_FILE),
     }
     root = source_checkout_root()
     if root is not None:
@@ -628,6 +666,55 @@ def _f11() -> dict[str, float]:
     return out
 
 
+def _paired_rows(doc: dict[str, Any]) -> list[tuple[str, float]]:
+    out = []
+    for row in doc["rows"]:
+        cells = f"e {row['e']} f {row['f']} g {row['g']} h {row['h']}"
+        for side in ("lower", "upper"):
+            if side in row["method10"]:
+                out.append((f"{cells} method10 {side}", float(row["method10"][side])))
+    return out
+
+
+def _f5_newcombe_paired() -> dict[str, float]:
+    """``proportions.difference_paired`` (Newcombe 1998 paired, method 10) on every cell
+    set of the paper's Table III that the transcription carries."""
+    from proofpack.stats.proportions import difference_paired
+
+    out = {}
+    for e, f, g, h, sides in F5_NEWCOMBE_PAIRED_CASES:
+        num = difference_paired(e, f, g, h)
+        for side in sides:
+            out[f"e {e} f {f} g {g} h {h} method10 {side}"] = float(
+                num.ci_lo if side == "lower" else num.ci_hi
+            )
+    return out
+
+
+def _f5_newcombe_paired_oracle(o: dict[str, Any]):
+    doc = o[NEWCOMBE_PAIRED_FILE]
+    values = dict(_paired_rows(doc))
+    excluded = "; ".join(
+        f"e {x['e']} f {x['f']} g {x['g']} h {x['h']} {x['value']} not compared: printed "
+        f"{x['printed']}, method 8 of the same row printed {x['printed_method8_same_row']}"
+        for x in doc.get("excluded") or []
+    )
+    return (
+        values,
+        {k: rounding_tolerance(int(doc["decimals"])) for k in values},
+        {
+            "kind": "published_table",
+            "file": f"fixtures/{NEWCOMBE_PAIRED_FILE}",
+            "entry": "rows",
+            "detail": f"{doc['primary_reference']}; Table III, method 10, transcribed from "
+            f"the primary PDF ({doc['provenance']['captured']}); {excluded}",
+            "library_versions": None,
+            "unverified": False,
+            "marking": None,
+        },
+    )
+
+
 def _f14() -> dict[str, float]:
     from proofpack.stats.proportions import newcombe10_bounds, newcombe11_bounds
 
@@ -975,13 +1062,14 @@ def register() -> tuple[Row, ...]:
         Row(
             "F5-newcombe-paired",
             "F5",
-            "the Newcombe paired method 10 interval of the F5 accuracy difference "
-            "(difference_paired): -0.08 [-0.1554, -0.0102], frozen on build day 10",
-            status="no_independent_oracle",
-            reason="[unverified] the value is the engine's own from the formula as recalled "
-            "from Newcombe 1998 (paired data), not fetched; tests/test_e10_comparison.py "
-            "re-derives it by hand from that formula, which is not an independent oracle",
-            suite_tests=("tests/test_e10_comparison.py",),
+            "the Newcombe paired method 10 interval (difference_paired, which gives the F5 "
+            "accuracy difference -0.08 [-0.1554, -0.0102]) against the method 10 rows of "
+            "Table III of Newcombe 1998 (paired data), read from the primary PDF on build "
+            "day 11",
+            "reported_rounding",
+            _f5_newcombe_paired,
+            _f5_newcombe_paired_oracle,
+            compares=F5_NEWCOMBE_PAIRED_NAMES,
         ),
         Row(
             "F5-delong-pair",

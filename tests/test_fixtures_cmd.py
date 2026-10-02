@@ -71,10 +71,10 @@ def test_the_report_validates_against_its_schema_and_carries_the_measured_counts
     # E10: F5's one not_built row became four (two captured, one register, one frozen)
     assert doc["summary"] == {
         "rows": 46,
-        "matched": 33,
+        "matched": 34,
         "not_matched": 0,
         "no_oracle_recorded": 2,
-        "no_independent_oracle": 1,
+        "no_independent_oracle": 0,
         "not_built": 5,
         "suite_only": 5,
     }
@@ -87,7 +87,8 @@ def test_the_report_validates_against_its_schema_and_carries_the_measured_counts
     for n in range(1, 22):
         assert f"F{n}" in fixtures, n
     assert {"F1b", "F1c", "F1d", "F13b"} <= fixtures
-    assert "rows 46: matched 33, not matched 0" in printed
+    # E11 item 4: F5-newcombe-paired is compared with Newcombe 1998 Table III (34 matched)
+    assert "rows 46: matched 34, not matched 0" in printed
     # every matched row compared at least one value, each within its own tolerance
     for r in doc["rows"]:
         if r["status"] == "matched":
@@ -120,7 +121,8 @@ def test_a_planted_oracle_off_by_2e_9_on_a_closed_form_cell_is_not_matched_and_e
     assert 1.9e-9 < row["max_abs_deviation"] < 2.1e-9
     assert row["reason"] == "outside tolerance: wilson_lo"
     assert rep["exit_code"] == EXIT_FIXTURES_NOT_MATCHED == 6
-    assert rep["summary"]["not_matched"] == 1 and rep["summary"]["matched"] == 32  # E10: +3
+    # E10: +3; E11: +1 (F5-newcombe-paired)
+    assert rep["summary"]["not_matched"] == 1 and rep["summary"]["matched"] == 33
     fx.validate_report(rep)
     # the command: the same planted file through main exits 6 and names the row
     monkeypatch.setattr(fx, "load_oracles", lambda: planted)
@@ -172,7 +174,9 @@ def test_the_statuses_of_the_register_rows_are_the_ones_named(report):
         "F3-auprc",
         "F7",
     ]
-    assert [k for k, v in status.items() if v == "no_independent_oracle"] == ["F5-newcombe-paired"]
+    # E11 item 4: no row is frozen without an oracle since Table III was read
+    assert [k for k, v in status.items() if v == "no_independent_oracle"] == []
+    assert status["F5-newcombe-paired"] == "matched"
     assert sorted(k for k, v in status.items() if v == "suite_only") == [
         "F12",
         "F17",
@@ -254,5 +258,5 @@ def test_without_the_newcombe_file_f14_has_no_oracle_recorded_and_the_exit_is_0(
     f14 = next(r for r in rep["rows"] if r["id"] == "F14-newcombe")
     assert f14["status"] == "no_oracle_recorded" and f14["matched"] is False
     assert f14["reason"] == fx.NEWCOMBE_ABSENT and f14["oracle_source"] is None
-    assert rep["summary"]["matched"] == 32 and rep["exit_code"] == 0  # E10: three F5 rows
+    assert rep["summary"]["matched"] == 33 and rep["exit_code"] == 0  # E10: 3 F5 rows; E11: +1
     fx.validate_report(rep)

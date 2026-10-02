@@ -7,8 +7,10 @@
   ``b + c = 25`` the corrected one; ``b = c = 0`` gives ``p = 1`` with no statistic;
 * **the Newcombe paired interval of the F5 accuracy difference** equals this test's own
   derivation from the published formula, stated in :func:`newcombe_paired_by_hand`;
-  the formula's source status is **[unverified]** (the paper was not fetched; the
-  register row ``F5-newcombe-paired`` says so and is never ``matched``);
+  since build day 11 (E11 item 4) the formula is the one printed on page 5 of the paper
+  (read from the publisher's PDF; ``fixtures/newcombe1998_paired.json``) and the register
+  row ``F5-newcombe-paired`` compares ``difference_paired`` with Table III's method 10
+  rows (``tests/test_e11_newcombe.py``);
 * **the paired DeLong difference on R2's F3 pair** equals this test's own O(m n)
   structural-component computation (DeLong 1988, with the covariance term) to 1e-9;
 * **the bootstrap differences reproduce under the same seed** (two calls, one document);
@@ -122,10 +124,9 @@ def test_no_discordant_pairs_gives_p_one_and_no_statistic():
 def newcombe_paired_by_hand(e: int, f: int, g: int, h: int) -> tuple[float, float, float]:
     """Newcombe (1998, Stat Med 17:2635-2650, 'Improved confidence intervals for the
     difference between binomial proportions based on paired data') **method 10**, as
-    this test states it - the paper was not fetched in this build environment, so the
-    formula is [unverified] against the primary source (no worked example of the paired
-    paper is in the repository; ``fixtures/newcombe_table2.json`` holds three examples
-    of the *independent*-proportions paper, ``56/70 - 48/80`` and two more):
+    the paper prints it on page 5 (methods 8 and 10; read from the publisher's PDF on
+    2 October 2026, E11 item 4 - the reading and Table III's method 10 rows are in
+    ``fixtures/newcombe1998_paired.json``; at E10 the paper had not been fetched):
 
         n = e + f + g + h;  p1 = (e + f) / n;  p2 = (e + g) / n;  d = p1 - p2 = (f - g) / n
         (l1, u1), (l2, u2): the Wilson score intervals of p1 and p2 (no continuity correction)
@@ -161,8 +162,8 @@ def test_f5_newcombe_paired_interval_equals_the_hand_derivation_and_is_frozen():
     assert num.method == "newcombe_paired" and num.n == 100
     assert abs(num.est - d) < 1e-12 and abs(d + 0.08) < 1e-12
     assert abs(num.ci_lo - lo) < 1e-12 and abs(num.ci_hi - hi) < 1e-12
-    # the frozen figures, four decimals (the register row F5-newcombe-paired states them
-    # [unverified]; R2's Wald interval (-0.1461, -0.0139) is a different interval)
+    # the frozen figures, four decimals (the formula verified against Table III of the paper
+    # on build day 11; R2's Wald interval (-0.1461, -0.0139) is a different interval)
     assert (round(lo, 4), round(hi, 4)) == (-0.1554, -0.0102)
     assert lo < -0.05 < hi
     # the same through the comparison module's indicator form

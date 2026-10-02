@@ -168,4 +168,11 @@ def test_the_fixture_is_not_packaged_into_the_wheel():
         force_include = tomllib.load(fh)["tool"]["hatch"]["build"]["targets"]["wheel"][
             "force-include"
         ]
-    assert not any("newcombe" in key.lower() for key in force_include)
+    # E11 item 4: the rule is "no unverified fixture ships", not "no Newcombe file ships":
+    # newcombe1998_paired.json (Table III of the paired paper, read from the primary PDF) is
+    # packaged; the [unverified] Table II transcription is not, and no packaged fixture
+    # carries an [unverified] marking
+    assert "fixtures/newcombe_table2.json" not in force_include
+    for src in force_include:
+        if src.startswith("fixtures/"):
+            assert "[unverified" not in (REPO / src).read_text(encoding="utf-8"), src

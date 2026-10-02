@@ -70,6 +70,8 @@ packages = ["src/proofpack"]
 "fixtures/oracles_v1.json" = "proofpack/_fixtures/oracles_v1.json"
 "fixtures/f4_expected.json" = "proofpack/_fixtures/f4_expected.json"
 "fixtures/f4_calibration.csv" = "proofpack/_fixtures/f4_calibration.csv"
+# E11 item 4: Newcombe 1998 (paired) Table III, transcribed from the primary PDF
+"fixtures/newcombe1998_paired.json" = "proofpack/_fixtures/newcombe1998_paired.json"
 
 [tool.hatch.build.targets.sdist]
 include = ["src/proofpack", "schema", "fixtures", "README.md", "pyproject.toml"]

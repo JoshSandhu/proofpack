@@ -38,6 +38,11 @@ _CANDIDATES = {
     "oracles_v1.json": ["_fixtures/oracles_v1.json", "../../fixtures/oracles_v1.json"],
     "f4_expected.json": ["_fixtures/f4_expected.json", "../../fixtures/f4_expected.json"],
     "f4_calibration.csv": ["_fixtures/f4_calibration.csv", "../../fixtures/f4_calibration.csv"],
+    # E11 item 4: Newcombe 1998 (paired data) Table III, method 10, from the primary PDF
+    "newcombe1998_paired.json": [
+        "_fixtures/newcombe1998_paired.json",
+        "../../fixtures/newcombe1998_paired.json",
+    ],
 }
 
 

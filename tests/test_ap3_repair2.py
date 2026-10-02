@@ -230,7 +230,8 @@ def test_a_truncated_oracle_file_is_not_matched_and_the_report_is_written(tmp_pa
     assert rc == 6 and doc is not None
     fx.validate_report(doc)
     # 29 since E10: the three F5 rows that read oracles_v1.json join the not-matched set
-    assert doc["summary"]["matched"] == 4 and doc["summary"]["not_matched"] == 29
+    # E11 item 4: F5-newcombe-paired reads newcombe1998_paired.json, not oracles_v1.json
+    assert doc["summary"]["matched"] == 5 and doc["summary"]["not_matched"] == 29
     assert set(_not_matched(doc).values()) == {
         "oracle_file_unreadable: oracles_v1.json (JSONDecodeError)"
     }

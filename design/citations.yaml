@@ -6,9 +6,10 @@
 # run.json), and lists every entry with verified: false under "Open verification items".
 #
 # verified is true only when the reference was read in its primary source and the reading
-# is recorded; no entry here meets that bar in the engine repository on 24 September 2026,
-# so every entry is false and T7 prints each one "citation pending verification" with its
-# [unverified] marking kept (CLAUDE.md: anything not checked against a primary source
+# is recorded; no entry here met that bar in the engine repository on 24 September 2026.
+# On 2 October 2026 (build day 11, E11 item 4) newcombe_1998_paired did: its reading is
+# fixtures/newcombe1998_paired.json. Every other entry is false and T7 prints each one
+# "citation pending verification" with its [unverified] marking kept (CLAUDE.md: anything not checked against a primary source
 # stays marked). The text of each entry is the spec's own wording (the source field names
 # the line); no page, volume or title was added from memory.
 schema_version: 1
@@ -24,7 +25,13 @@ citations:
     source: "R2 sections 1.2 and 9; D1 section 10 (Newcombe 1998 Table II transcription open, F14)"
     url: "http://www.stats.org.uk/statistical-inference/Newcombe1998.pdf"
     verified: false
-    used_by: [newcombe10, newcombe11, newcombe_paired]
+    used_by: [newcombe10, newcombe11]
+  - id: newcombe_1998_paired
+    text: "Newcombe (1998): improved confidence intervals for the difference between binomial proportions based on paired data (method 10)"
+    source: "Statistics in Medicine 17:2635-2650, read from the publisher's typeset PDF on 2 October 2026 (E11 item 4): method 10 as printed on page 5 and the method 10 rows of Table III (pages 7-8), 35 of 36 printed limits reproduced to four decimals; the reading, the one excluded limit and the fetch record are in fixtures/newcombe1998_paired.json"
+    url: "http://www.eiti.uottawa.ca/~nat/Courses/csi5388/Newcombe.1998.pdf"
+    verified: true
+    used_by: [newcombe_paired]
   - id: delong_1988
     text: "DeLong (1988): the variance of the area under the ROC curve from placements"
     source: "R2 section 1.3 (AUROC with DeLong SE/CI via structural components)"
