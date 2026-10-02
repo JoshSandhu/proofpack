@@ -106,10 +106,6 @@ INGEST_REPORT = "ingest_report.json"
 #: ``proofpack compare`` (E10) keeps writing the day-1 ingest report of both tables.
 COMPARE_INGEST_REPORT = "compare_ingest_report.json"
 MAPPING_SUFFIX = ".mapping.json"
-#: The ledger key namespace of a version comparison (E10): the count of prior
-#: comparisons of one test set is kept apart from the count of acceptance runs on it
-#: (DEC-47's per-user ledger, one file), under ``compare:<sha256>``.
-COMPARE_LEDGER_PREFIX = "compare:"
 #: The licence payload feature a T2 needs (D1 section 7's ``features`` list).
 COMPARE_FEATURE = "compare"
 
@@ -502,6 +498,37 @@ def document_names(formats: list[str], templates: list[str], *, command: str = "
     return [f"{t}.{ext}" for t in templates for ext in exts if t in writable[ext]]
 
 
+def writes_documents(
+    licence: LicenceResult,
+    compare_ok: bool,
+    formats: list[str] | None,
+    templates: list[str] | None,
+    *,
+    command: str,
+) -> bool:
+    """Whether :func:`write_documents` will write at least one document for this licence,
+    these formats and templates (the rule it applies: a usable licence, the ``compare``
+    feature for ``compare``, and a template / format pair the command writes -
+    :data:`WRITABLE`). ``None`` reads the command's defaults. The ledger counts a run only
+    when this is true (DEC-47, E11 item 2)."""
+    if not licence.usable or not compare_ok:
+        return False
+    fmts = formats if formats is not None else parse_formats(DEFAULT_FORMAT)
+    default = DEFAULT_COMPARE_TEMPLATES if command == "compare" else DEFAULT_TEMPLATES
+    allowed = COMPARE_TEMPLATE_IDS if command == "compare" else TEMPLATE_IDS
+    tids = templates if templates is not None else parse_templates(default, allowed, default)
+    return bool(document_names(fmts, tids, command=command))
+
+
+def record_ledger(outcome: RunOutcome, documents: list[Path]) -> Finding | None:
+    """After the write (DEC-47): commit the ledger increment :func:`assemble_run` /
+    :func:`assemble_compare` read, when the run counts and wrote a document. Returns
+    ``W15`` when the file could not be written, else ``None``."""
+    if outcome.ledger is None or not documents:
+        return None
+    return ledger.commit(outcome.ledger)
+
+
 def _warning_entry(f: Finding) -> dict[str, Any]:
     return {"code": f.code, "text_id": None, "params": dict(f.detail)}
 
@@ -534,12 +561,16 @@ def assemble_run(
     registry: KeyRegistry | None = None,
     ledger_home: Path | None = None,
     data_marking: str | None = None,
+    formats: list[str] | None = None,
+    templates: list[str] | None = None,
 ) -> RunOutcome:
-    """Everything ``proofpack run`` computes, as one document. Writes nothing under
-    ``--out``; the one file it writes is ``<PROOFPACK_HOME>/ledger.json`` through
-    :func:`proofpack.io.ledger.record_run` (``tests/test_run_cli.py::
-    test_assemble_run_writes_only_the_ledger_file_under_home`` walks the directory
-    tree before and after and names that file as the one addition)."""
+    """Everything ``proofpack run`` computes, as one document. Writes nothing: the
+    ledger is read here (:func:`proofpack.io.ledger.peek`) and its increment is written by
+    :func:`record_ledger` after the documents exist (DEC-47: "the count is recorded after
+    the write"; E11 item 2). ``formats`` and ``templates`` are the ones the documents will
+    be written with (the CLI's; ``None`` = the defaults): with them the run knows whether
+    it writes a document, and only then counts (``tests/test_run_cli.py::
+    test_assemble_run_writes_nothing_and_the_ledger_after_the_documents``)."""
     started = manifest_mod.utc_now_iso()
     t0 = time.perf_counter()
     licence = resolve(registry=registry)
@@ -585,7 +616,10 @@ def assemble_run(
         None if table.y_pred is None else table.y_pred[mask],
     )
     limit = (decl.raw.get("ledger") or {}).get("warn_after_acceptance_runs")
-    led = ledger.record_run(key, has_criteria=bool(decl.criteria), limit=limit, home=ledger_home)
+    counts = bool(decl.criteria) and writes_documents(
+        licence, True, formats, templates, command="run"
+    )
+    led = ledger.peek(key, counts_this_run=counts, limit=limit, home=ledger_home)
     if led.warning is not None:
         warnings.append(led.warning)
     doc["warnings"] = [_warning_entry(w) for w in warnings]
@@ -681,6 +715,8 @@ def assemble_compare(
     registry: KeyRegistry | None = None,
     ledger_home: Path | None = None,
     data_marking: str | None = None,
+    formats: list[str] | None = None,
+    templates: list[str] | None = None,
 ) -> RunOutcome:
     """Everything ``proofpack compare`` computes (build day 10, E10; D1 section 7): the
     new version's document exactly as :func:`assemble_run` builds it, plus the
@@ -693,9 +729,12 @@ def assemble_compare(
     gates; H12 on the ``row_id`` sets (:func:`proofpack.gates.check_paired`) and on the
     analysed rows' join (a pair whose ``y_true`` differs, or a row analysed in one version
     only, is not a pair: without ``--allow-unpaired`` that is H12 too); the new document's
-    statistics; the comparison; criteria; narrative; the compare ledger (the count of
-    prior comparisons of this test set under ``compare:<sha256>``); the manifest, which
-    also carries ``prior_input_sha256``. Writes nothing under ``--out``."""
+    statistics; the comparison; criteria; narrative; the ledger (DEC-70 (b): one limit -
+    a comparison that writes a document is a run under DEC-47 and counts on the run's own
+    key, the SHA-256 of the new table's analysed rows, against
+    ``ledger.warn_after_acceptance_runs``; read here, written by :func:`record_ledger`
+    after the documents); the manifest, which also carries ``prior_input_sha256``. Writes
+    nothing."""
     started = manifest_mod.utc_now_iso()
     t0 = time.perf_counter()
     licence = resolve(registry=registry)
@@ -794,12 +833,12 @@ def assemble_compare(
         None if table.y_pred is None else table.y_pred[mask],
     )
     limit = (decl.raw.get("ledger") or {}).get("warn_after_acceptance_runs")
-    led = ledger.record_run(
-        COMPARE_LEDGER_PREFIX + key, has_criteria=bool(decl.criteria), limit=limit, home=ledger_home
+    counts = bool(decl.criteria) and writes_documents(
+        licence, compare_licensed(licence), formats, templates, command="compare"
     )
-    prior_runs = None
-    if led.count is not None:
-        prior_runs = led.count - 1 if decl.criteria else led.count
+    led = ledger.peek(key, counts_this_run=counts, limit=limit, home=ledger_home)
+    # the runs recorded before this one, compares included (DEC-70 (b))
+    prior_runs = led.stored
     comparison["ledger"] = {
         "test_set_sha256": key,
         "prior_acceptance_runs": prior_runs,

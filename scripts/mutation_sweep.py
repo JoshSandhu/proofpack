@@ -1346,8 +1346,9 @@ MUTANTS_DAY7: tuple[Mutant, ...] = (
     Mutant(
         "ledger_increment_by_two",
         LEDGER,
-        r"counts\[key\] = counts\.get\(key, 0\) \+ 1",
-        "counts[key] = counts.get(key, 0) + 2",
+        # E11 item 2: the increment is ledger.commit's, written after the documents
+        r"counts\[result\.key\] = counts\.get\(result\.key, 0\) \+ 1",
+        "counts[result.key] = counts.get(result.key, 0) + 2",
         day=7,
         what="the ledger increment counts two per run",
     ),

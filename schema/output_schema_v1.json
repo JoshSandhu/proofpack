@@ -115,7 +115,7 @@
     "drift": { "type": ["object", "null"] },
     "ledger": {
       "type": "object",
-      "description": "Build day 7 (E7, io.ledger; D4 section 11 item 6): the analysed test set's SHA-256, the acceptance runs recorded on it in the local ledger (including this run, when it carried criteria), the customer's declared limit (null when no ledger block was declared), and whether the count could be read.",
+      "description": "Build day 7 (E7, io.ledger; D4 section 11 item 6): the analysed test set's SHA-256, the acceptance runs recorded on it in the local ledger (including this run, when it carried criteria and wrote a document - DEC-47; a compare that wrote a document is a run on the same key - DEC-70 (b)), the customer's declared limit (null when no ledger block was declared), and whether the count could be read.",
       "required": ["test_set_sha256", "acceptance_runs", "warn_limit", "counted"],
       "additionalProperties": false,
       "properties": {
@@ -672,7 +672,7 @@
         },
         "ledger": {
           "type": "object",
-          "description": "The test-set ledger sentence's inputs (D4 section 3 row 7): the analysed new table's SHA-256, the count of prior comparisons recorded under it in the per-user ledger (DEC-47; null when the ledger could not be read), the declared limit (criteria.yaml ledger.warn_after_acceptance_runs; null when none) and whether the count has reached it.",
+          "description": "The test-set ledger sentence's inputs (D4 section 3 row 7): the analysed new table's SHA-256, the count of acceptance runs recorded under it in the per-user ledger before this one, version comparisons included (DEC-47, DEC-70 (b): one key, one limit; null when the ledger could not be read), the declared limit (criteria.yaml ledger.warn_after_acceptance_runs; null when none) and whether the count has reached it.",
           "required": ["test_set_sha256", "prior_acceptance_runs", "warn_limit", "limit_reached"],
           "additionalProperties": false,
           "properties": {

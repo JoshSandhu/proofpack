@@ -302,8 +302,10 @@ and the same bytes are `manifest.mapping_sha256` in `run.json` (DEC-27).
   `comparator` beside it (H08 otherwise).
 * **Ledger** (`io/ledger.py`): `ledger.json` in the per-user directory
   (`PROOFPACK_HOME`, else `%LOCALAPPDATA%\proofpack` on Windows, `~/.proofpack`
-  elsewhere) counts runs with a `criteria` block per test set (SHA-256 of the
-  analysed `y_true` and `score` bytes); `W14` when the count exceeds
+  elsewhere) counts runs with a `criteria` block that wrote a document, per test set
+  (SHA-256 of the analysed `y_true` and `score` bytes), recorded after the documents
+  are written; a `compare` that wrote a document counts as a run on the same key
+  (DEC-47, DEC-70 (b)); `W14` when the count exceeds
   `ledger.warn_after_acceptance_runs`; no `ledger` block, no warning.
 * **Licence** (`src/proofpack/licence/`): the file at `PROOFPACK_LICENCE`, else the
   per-user `proofpack.lic`, else `./proofpack.lic`, verified against the shipped

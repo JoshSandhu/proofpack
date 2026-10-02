@@ -22,14 +22,24 @@ table, the bytes ``y_pred\\n`` followed by the ``y_pred`` strings joined by ``\\
 set with the same labels and scores in the same row order has the same key on every
 platform; a re-ordered file does not (row order is part of the data as handed over).
 
-Count: incremented once per ``run`` whose declarations carry a ``criteria`` block (a run
-without criteria is an estimate-only run and is not an acceptance decision); read back
-after the increment, so ``ledger_count`` in the manifest **includes the run that wrote
-it**. Warning: ``W14`` with ``{count, limit}`` when ``count > ledger.warn_after_acceptance_
-runs``; no ``ledger`` block in ``criteria.yaml`` -> no limit -> no warning ever (D1: "no
-default"). A ledger file that cannot be read or written gives ``W15`` and
-``ledger_count: null`` rather than a halt or a traceback: the pack is still the pack, and
-the manifest says the count is unknown.
+Count: incremented once per ``run`` **or** ``compare`` whose declarations carry a
+``criteria`` block and which **wrote a document** (DEC-47; DEC-70 (b): one limit, a
+version comparison that wrote a document is a run and counts on the same key). A run
+without criteria is an estimate-only run and is not an acceptance decision; a HALT, a
+licence refusal, a licence without the ``compare`` feature, ``--format json`` alone or a
+``--templates`` list the command writes nothing for writes no document and is not counted.
+The count is **recorded after the write** (DEC-47): :func:`peek` reads the file and
+returns the count this run will carry if it is counted (the stored count plus one), the
+document is assembled and written with that figure, and :func:`commit` then writes the
+increment - so ``ledger_count`` in the manifest **includes the run that wrote it**, and a
+run that fails before its documents exist leaves the file as it was. :func:`record_run`
+is ``peek`` then ``commit`` in one call (E7's shape, kept for its tests).
+Warning: ``W14`` with ``{count, limit}`` when ``count > ledger.warn_after_acceptance_runs``;
+no ``ledger`` block in ``criteria.yaml`` -> no limit -> no warning ever (D1: "no default").
+A ledger file that cannot be read gives ``W15`` and ``ledger_count: null`` rather than a
+halt or a traceback: the pack is still the pack, and the manifest says the count is
+unknown; one that cannot be written after the documents gives ``W15`` on the printed
+summary (the documents already carry the count they were written with).
 
 ``--offline`` changes nothing here: the file is local.
 """
@@ -71,13 +81,20 @@ def test_set_key(
 
 @dataclass(frozen=True)
 class LedgerResult:
-    """What one run learnt from the ledger; JSON-ready via :meth:`as_dict`."""
+    """What one run learnt from the ledger; JSON-ready via :meth:`as_dict`.
+
+    ``count`` is the count including this run when it is counted (``pending``), else the
+    stored count; ``stored`` is the count read from the file before this run (``None``
+    when the file could not be read). ``pending`` is an increment :func:`commit` has not
+    written yet."""
 
     key: str
     count: int | None
     limit: int | None
     path: str | None
     warning: Finding | None
+    stored: int | None = None
+    pending: bool = False
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -105,6 +122,61 @@ def _read(path: Path) -> dict[str, int]:
     return dict(counts)
 
 
+def _w15(exc: Exception) -> Finding:
+    return Finding(
+        "W15",
+        "the local ledger could not be read or written; acceptance runs on this "
+        "test set were not counted",
+        {"error": type(exc).__name__},
+    )
+
+
+def peek(
+    key: str,
+    *,
+    counts_this_run: bool,
+    limit: int | None,
+    home: Path | None = None,
+) -> LedgerResult:
+    """Read the stored count on ``key``; when ``counts_this_run`` (criteria declared and a
+    document will be written, DEC-47) the result's ``count`` includes this run and
+    ``pending`` is set for :func:`commit`. Writes nothing. ``W14`` when ``count > limit``."""
+    path = ledger_path(home)
+    try:
+        stored = _read(path).get(key, 0)
+    except (OSError, ValueError) as exc:
+        return LedgerResult(key, None, limit, None, _w15(exc))
+    count = stored + 1 if counts_this_run else stored
+    warning = None
+    if limit is not None and count > limit:
+        warning = Finding(
+            "W14",
+            "the declared limit on acceptance runs against this test set is exceeded",
+            {"count": count, "limit": int(limit)},
+        )
+    return LedgerResult(key, count, limit, str(path), warning, stored, bool(counts_this_run))
+
+
+def commit(result: LedgerResult) -> Finding | None:
+    """Write the increment ``result`` holds (after the documents are written, DEC-47):
+    re-read the file, add one on ``result.key``, write it back. Nothing when nothing is
+    pending. Returns ``W15`` when the file could not be read or written, else ``None``."""
+    if not result.pending or result.path is None:
+        return None
+    path = Path(result.path)
+    try:
+        counts = _read(path)
+        counts[result.key] = counts.get(result.key, 0) + 1
+        path.parent.mkdir(parents=True, exist_ok=True)
+        body = {"schema": LEDGER_SCHEMA, "counts": counts}
+        path.write_text(
+            json.dumps(body, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
+        )
+    except (OSError, ValueError) as exc:
+        return _w15(exc)
+    return None
+
+
 def record_run(
     key: str,
     *,
@@ -112,36 +184,10 @@ def record_run(
     limit: int | None,
     home: Path | None = None,
 ) -> LedgerResult:
-    """Count this run on ``key`` when it carries criteria; compare with ``limit``."""
-    path = ledger_path(home)
-    try:
-        counts = _read(path)
-        if has_criteria:
-            counts[key] = counts.get(key, 0) + 1
-            path.parent.mkdir(parents=True, exist_ok=True)
-            body = {"schema": LEDGER_SCHEMA, "counts": counts}
-            path.write_text(
-                json.dumps(body, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
-            )
-        count: int | None = counts.get(key, 0)
-    except (OSError, ValueError) as exc:
-        return LedgerResult(
-            key,
-            None,
-            limit,
-            None,
-            Finding(
-                "W15",
-                "the local ledger could not be read or written; acceptance runs on this "
-                "test set were not counted",
-                {"error": type(exc).__name__},
-            ),
-        )
-    warning = None
-    if limit is not None and count is not None and count > limit:
-        warning = Finding(
-            "W14",
-            "the declared limit on acceptance runs against this test set is exceeded",
-            {"count": count, "limit": int(limit)},
-        )
-    return LedgerResult(key, count, limit, str(path), warning)
+    """:func:`peek` then :func:`commit`: count this run on ``key`` when it carries
+    criteria (E7's one-call shape; the CLI peeks before the write and commits after it)."""
+    result = peek(key, counts_this_run=has_criteria, limit=limit, home=home)
+    failed = commit(result)
+    if failed is not None:
+        return LedgerResult(key, None, limit, None, failed)
+    return result

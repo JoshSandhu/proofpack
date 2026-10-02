@@ -66,6 +66,7 @@ from proofpack.narrate.templates import METRIC_NAMES, STATUS_WORDS
 from proofpack.render import anchors
 from proofpack.render import format as fmt
 from proofpack.render import html as render_html
+from proofpack.render.sentences import NO_LIMIT_DECLARED
 from proofpack.render.t1 import _p, cell, claim_sentences, table1_rows
 from proofpack.render.t7 import flow_rows
 from proofpack.scope import PLACEHOLDER
@@ -529,7 +530,7 @@ def t2_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
             "short": fmt.text(ledger.get("test_set_sha256"))[:12],
             "prior_runs": fmt.count(ledger.get("prior_acceptance_runs")),
             "warn_limit": (
-                "no limit declared"
+                NO_LIMIT_DECLARED
                 if ledger.get("warn_limit") is None
                 else fmt.count(ledger.get("warn_limit"))
             ),

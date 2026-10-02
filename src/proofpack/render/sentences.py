@@ -58,7 +58,9 @@ MCNEMAR_PHRASES: dict[str, str] = {
     "cc_mcnemar": "continuity-corrected chi-square",
 }
 #: ``LEDGER_STATEMENT``'s ``{limit}`` when ``criteria.yaml`` declares no ledger limit.
-NO_LIMIT_DECLARED = "no limit declared"
+#: E11 item 2 (row 143): the slot follows a colon, so "...(ledger.warn_after_acceptance_
+#: runs): none declared." (at ad66073 the sentence read "... is no limit declared.")
+NO_LIMIT_DECLARED = "none declared"
 #: The status phrase ``CRITERION_NOT_MET_RECORD`` opens with (printed inside ``.status``).
 RECORD_PREFIX = "Record of criterion not met"
 #: ``AUROC_ESTIMATE``'s ``method_phrase`` key, from the Number's own method.

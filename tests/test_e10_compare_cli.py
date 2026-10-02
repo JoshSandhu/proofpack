@@ -342,15 +342,15 @@ def test_the_compare_ledger_counts_prior_comparisons_and_reaches_the_declared_li
     page = (tmp_path / "pack3" / "T2.html").read_text(encoding="utf-8")
     # E10 repair 1 (lens 1 FA-N3): the banner names the declaration the limit came from
     assert (
-        "has reached or exceeded the manufacturer's declared ledger limit "
+        "has reached or exceeded the manufacturer's declared limit "
         "(ledger.warn_after_acceptance_runs)"
     ) in html.unescape(page)
     assert 'data-slot="ledger-warning"' in page
     assert "LEDGER_WARNING" in [c["template_id"] for c in doc["claims"]]
-    # a compare is counted under its own key (compare:<sha256>), apart from run's
+    # E11 item 2 (DEC-70 (b)): a compare that wrote a document is a run, counted on the
+    # run's own key (no compare: namespace since E11)
     ledger = json.loads((tmp_path / "home" / "ledger.json").read_text(encoding="utf-8"))
-    keys = list(ledger["counts"])
-    assert len(keys) == 1 and keys[0].startswith("compare:") and ledger["counts"][keys[0]] == 4
+    assert ledger["counts"] == {doc["ledger"]["test_set_sha256"]: 4}
 
 
 # ------------------------------------------------------------------ determinism

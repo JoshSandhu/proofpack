@@ -553,18 +553,32 @@ def test_a_clustered_run_has_a_cluster_bootstrap_overall_block_and_cells(
     assert method in ("cluster_bootstrap_percentile", "none")
 
 
-def test_assemble_run_writes_only_the_ledger_file_under_home(tmp_path: Path, monkeypatch):
-    """Lens 1 of 21 September, RG-N1: the earlier test walked tmp_path's top level only
-    and the docstring said 'writes nothing'; assemble_run writes <home>/ledger.json
-    through ledger.record_run. The walk is recursive and names the one addition."""
+def test_assemble_run_writes_nothing_and_the_ledger_after_the_documents(
+    tmp_path: Path, monkeypatch
+):
+    """Lens 1 of 21 September, RG-N1, walked the tree recursively and found
+    <home>/ledger.json the one addition of assemble_run. E11 item 2 (DEC-47: "the count is
+    recorded after the write"): assemble_run reads the ledger and writes nothing; the
+    increment is written by record_ledger after the documents, and only when one was
+    written. The walk is recursive."""
+    from proofpack.run import record_ledger, write_documents, write_run
+
     home = _own_home(tmp_path, monkeypatch)
     csv_path, yml = _prepare(tmp_path)
     before = {p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*")}
     outcome = assemble_run(csv_path, yml, registry=ephemeral_registry())
     assert outcome.exit_code == EXIT_OK and outcome.document["criteria_results"]
     after = {p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*")}
-    assert after - before == {"home/ledger.json"}
-    assert (home / "ledger.json").exists() and not (tmp_path / "pack").exists()
+    assert after - before == set()
+    assert outcome.document["manifest"]["ledger_count"] == 1 and outcome.ledger.pending
+    write_run(outcome, tmp_path / "pack")
+    assert not (home / "ledger.json").exists()
+    assert record_ledger(outcome, []) is None and not (home / "ledger.json").exists()
+    documents, _ = write_documents(outcome, tmp_path / "pack", ["json", "html"], ["T8"])
+    assert [p.name for p in documents] == ["T8.html"]
+    assert record_ledger(outcome, documents) is None
+    counts = json.loads((home / "ledger.json").read_text(encoding="utf-8"))["counts"]
+    assert counts == {outcome.document["ledger"]["test_set_sha256"]: 1}
 
 
 def test_python_m_proofpack_cli_run_in_a_subprocess_without_a_licence(tmp_path: Path):

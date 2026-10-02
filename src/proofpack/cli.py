@@ -535,6 +535,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         licence_fix,
         parse_formats,
         parse_templates,
+        record_ledger,
         write_documents,
         write_run,
     )
@@ -551,9 +552,18 @@ def cmd_run(args: argparse.Namespace) -> int:
     missing = _docx_extra_missing(formats)
     if missing is not None:
         return missing
-    outcome = assemble_run(args.input, args.criteria, mapping=args.mapping, registry=args.registry)
+    outcome = assemble_run(
+        args.input,
+        args.criteria,
+        mapping=args.mapping,
+        registry=args.registry,
+        formats=formats,
+        templates=templates,
+    )
     target = write_run(outcome, args.out)
     documents, notes = write_documents(outcome, args.out, formats, templates)
+    # DEC-47 / E11 item 2: the ledger increment is written after the documents
+    ledger_failed = record_ledger(outcome, documents)
     doc = outcome.document
     manifest = doc["manifest"]
     # A-P2 (build day 8, lane A): the one telemetry call site, after every document is
@@ -588,6 +598,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         summary += f"  document written: {path}\n"
     for note in notes:
         summary += f"  {note}\n"
+    if ledger_failed is not None:
+        summary += f"  [{ledger_failed.code}] {ledger_failed.message}\n"
     if documents:
         summary += (
             "Next step: open the documents beside run.json ("
@@ -753,6 +765,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
         licence_fix,
         parse_formats,
         parse_templates,
+        record_ledger,
         write_documents,
         write_run,
     )
@@ -780,9 +793,13 @@ def cmd_compare(args: argparse.Namespace) -> int:
         mapping=args.mapping,
         allow_unpaired=args.allow_unpaired,
         registry=args.registry,
+        formats=formats,
+        templates=templates,
     )
     target = write_run(outcome, args.out)
     documents, notes = write_documents(outcome, args.out, formats, templates)
+    # DEC-70 (b) / DEC-47: a compare that wrote a document counts as a run, after the write
+    ledger_failed = record_ledger(outcome, documents)
     doc = outcome.document
     manifest = doc["manifest"]
     from proofpack.egress import telemetry as telemetry_mod  # noqa: PLC0415 - one call site
@@ -821,6 +838,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
         summary += f"  document written: {path}\n"
     for note in notes:
         summary += f"  {note}\n"
+    if ledger_failed is not None:
+        summary += f"  [{ledger_failed.code}] {ledger_failed.message}\n"
     if documents:
         summary += (
             "Next step: open the documents beside run.json; --templates T2,T7,T8 writes all "

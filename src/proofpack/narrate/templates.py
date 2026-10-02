@@ -390,16 +390,21 @@ _T: list[Template] = [
     ),
     Template(
         "LEDGER_STATEMENT",
-        "This test set has been used in {n_prior} prior version comparisons recorded in the "
-        "local ledger; the manufacturer's declared ledger limit "
-        "(ledger.warn_after_acceptance_runs) is {limit}.",
+        # E11 item 2 (DEC-70 (b)): one limit; a comparison that wrote a document is a run
+        # (DEC-47). D4 section 5 row 7 / section 8 still read "prior version comparisons"
+        # and "comparisons" (rows 143 and 145; the D4 amendment is need 39).
+        "This test set has been used in {n_prior} prior acceptance runs recorded in the local "
+        "ledger (a version comparison that wrote a document counts as a run); the "
+        "manufacturer's declared limit on those runs (ledger.warn_after_acceptance_runs): "
+        "{limit}.",
         refs=(0, 2),
         guidance_ref="FDA_PCCP_MP1_DATA",
     ),
     Template(
         "LEDGER_WARNING",
-        "The count of version comparisons recorded against this test set has reached or "
-        "exceeded the manufacturer's declared ledger limit (ledger.warn_after_acceptance_runs).",
+        "The count of acceptance runs recorded against this test set, version comparisons "
+        "included, has reached or exceeded the manufacturer's declared limit "
+        "(ledger.warn_after_acceptance_runs).",
         guidance_ref="FDA_PCCP_MP1_DATA",
     ),
     Template(
@@ -674,7 +679,7 @@ FACET_BINDINGS: dict[str, dict[str, tuple[str, ...]]] = {
     },
     "MCNEMAR_RESULT": {"b": ("b.count",), "c": ("c.count",), "p": ("p.p",)},
     # E10: the count of prior comparisons is bound (comparison.ledger.prior_acceptance_runs);
-    # {limit} is a text slot the renderer fills with the declared limit or "no limit declared"
+    # {limit} is a text slot the renderer fills with the declared limit or "none declared"
     "LEDGER_STATEMENT": {"n_prior": ("prior_acceptance_runs.count",)},
     "PSI_RESULT": {
         "psi": ("psi.estci",),

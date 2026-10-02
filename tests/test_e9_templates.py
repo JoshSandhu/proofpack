@@ -712,17 +712,19 @@ CASES: list[tuple[str, str, str, dict[str, Any], str]] = [
         "LEDGER_STATEMENT",
         "base",
         {"numbers": {"prior_acceptance_runs": 3}, "text": {"limit": "5"}},
-        "This test set has been used in 3 prior version comparisons recorded in the local "
-        "ledger; the manufacturer's declared ledger limit (ledger.warn_after_acceptance_runs) "
-        "is 5.",
+        # E11 item 2 (DEC-70 (b)): a comparison counts as a run
+        "This test set has been used in 3 prior acceptance runs recorded in the local ledger "
+        "(a version comparison that wrote a document counts as a run); the manufacturer's "
+        "declared limit on those runs (ledger.warn_after_acceptance_runs): 5.",
     ),
     (
         "ledger_warning",
         "LEDGER_WARNING",
         "base",
         {},
-        "The count of version comparisons recorded against this test set has reached or "
-        "exceeded the manufacturer's declared ledger limit (ledger.warn_after_acceptance_runs).",
+        "The count of acceptance runs recorded against this test set, version comparisons "
+        "included, has reached or exceeded the manufacturer's declared limit "
+        "(ledger.warn_after_acceptance_runs).",
     ),
     (
         "impact",
