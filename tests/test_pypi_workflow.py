@@ -44,3 +44,14 @@ def test_the_publish_step_targets_pypi_org_without_a_secret():
     step = doc["jobs"]["publish"]["steps"][-1]
     assert step["uses"] == "pypa/gh-action-pypi-publish@release/v1"
     assert "repository-url" not in step["with"]
+
+
+def test_the_readme_status_that_pypi_shows_names_the_six_subcommands_and_not_the_day_7_state():
+    # pyproject.toml's readme is README.md; PyPI shows it as the project page, fixed per version.
+    readme = (WF.parents[2] / "README.md").read_text(encoding="utf-8")
+    status = readme.split("## Status", 1)[1].split("\n## ", 1)[0]
+    assert "Templates, narrative and egress land on later build days" not in status
+    assert "Build day 7 (E7, 2026-09-21)" not in status
+    for sub in ("doctor", "map", "run", "compare", "fixtures", "licence"):
+        assert f"`{sub}`" in status, sub
+    assert "not yet on sale" in status

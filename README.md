@@ -10,12 +10,14 @@ accepted, approved or endorsed it (see `src/proofpack/scope.py`).
 
 ## Status
 
-Build day 7 (E7, 2026-09-21): `proofpack run` writes the assembled document
-(`run.json`: manifest, declarations echo, flow, Table 1, missingness, overall,
-calibration, subgroups, fairness, criteria results, ledger) from a confirmed mapping;
-`proofpack licence show | verify | install` verifies an Ed25519 licence against the
-shipped public key. Templates, narrative and egress land on later build days. See
-`handoffs/`.
+Pre-release (`0.1.0.dev1`), still being built and not yet on sale. The command line
+has six subcommands: `doctor`, `map`, `run`, `compare`, `fixtures` and `licence`
+(`proofpack --help`). `run` writes the assembled document `run.json` from a confirmed
+mapping and, with a usable licence installed, the HTML documents named by
+`--templates`; `compare` writes `run.json` with a comparison block and `T2.html`;
+`licence show | verify | install` verifies an Ed25519 licence against the shipped
+public key. Each build day's record, including what is not built yet, is in
+`handoffs/` in the source repository, https://github.com/JoshSandhu/proofpack.
 
 ## Develop
 
