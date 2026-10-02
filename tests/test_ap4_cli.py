@@ -141,7 +141,15 @@ def test_document_names_and_parse_formats():
         "T8.docx",
     ]
     assert document_names(["docx"], ["T7"]) == ["T7.docx"]
-    assert document_names(["json"], ["T8"]) == ["T8.html"]
+    # E11 item 0 (c): no html/docx asked -> no names (the CLI names the html fallback
+    # itself, after "with --format json,html"); T2 is never a run document, T2.docx none
+    assert document_names(["json"], ["T8"]) == []
+    assert document_names(["html", "docx"], ["T2", "T8"]) == ["T8.html", "T8.docx"]
+    assert document_names(["html", "docx"], ["T2", "T7"], command="compare") == [
+        "T2.html",
+        "T7.html",
+        "T7.docx",
+    ]
     assert parse_formats("json,html,docx") == ["json", "html", "docx"]
     assert parse_formats("docx") == ["docx"]
     with pytest.raises(ValueError):

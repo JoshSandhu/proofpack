@@ -2,7 +2,8 @@
 
 Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal, 6 ``fixtures`` with a
 row not matched (A-P3), 7 ``run --format ...docx...`` without the ``[docx]`` extra (A-P4:
-one typed line before any statistics run; nothing written).
+one typed line before any statistics run; nothing written; ``compare --format ...docx...``
+the same since E11 item 0 (a)).
 On HALT nothing is written to ``--out``. ``run`` (build day 7, E7: :mod:`proofpack.run`)
 needs a confirmed mapping (DEC-26) and writes ``run.json`` - the assembled document -
 under ``--out``; on a licence that is expired past grace, refused or absent it still
@@ -127,8 +128,9 @@ def _build_parser() -> argparse.ArgumentParser:
     c.add_argument(
         "--format",
         default=None,
-        help="comma list of json, html (default json,html; HTML is written only when the "
-        "licence is ok or in grace and carries the compare feature)",
+        help="comma list of json, html, docx (default json,html; HTML and DOCX are written "
+        "only when the licence is ok or in grace and carries the compare feature; docx needs "
+        "the [docx] extra and is written for T7 and T8, not T2)",
     )
     c.add_argument(
         "--templates",
@@ -504,6 +506,25 @@ def cmd_map(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _docx_extra_missing(formats: list[str]) -> int | None:
+    """A-P4: the ``[docx]`` extra is checked before any statistics run, so a missing
+    package is one typed line (exit 7) and never a traceback after ``run.json`` was
+    written; ``None`` when ``docx`` was not asked or the extra is installed. ``run`` and
+    (since E11 item 0 (a)) ``compare`` call it first."""
+    from proofpack.run import DOCX_FORMAT  # noqa: PLC0415
+
+    if DOCX_FORMAT not in formats:
+        return None
+    from proofpack.render.docx import DocxExtraMissing, require_extra  # noqa: PLC0415
+
+    try:
+        require_extra()
+    except DocxExtraMissing as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return exc.exit_code
+    return None
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     from proofpack.run import (
         DEFAULT_FORMAT,
@@ -527,16 +548,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_INTERNAL
-    if DOCX_FORMAT in formats:
-        # A-P4: the extra is checked before any statistics run, so a missing package is
-        # one typed line (exit 7) and never a traceback after run.json was written
-        from proofpack.render.docx import DocxExtraMissing, require_extra  # noqa: PLC0415
-
-        try:
-            require_extra()
-        except DocxExtraMissing as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            return exc.exit_code
+    missing = _docx_extra_missing(formats)
+    if missing is not None:
+        return missing
     outcome = assemble_run(args.input, args.criteria, mapping=args.mapping, registry=args.registry)
     target = write_run(outcome, args.out)
     documents, notes = write_documents(outcome, args.out, formats, templates)
@@ -580,21 +594,30 @@ def cmd_run(args: argparse.Namespace) -> int:
             + ", ".join(p.name for p in documents)
             + "); --templates T1,T7,T8 writes all three (docs: /docs/run)"
         )
+    elif not document_names(["html", DOCX_FORMAT], templates, command="run"):
+        # E11 item 0 (c) (the A-P4 merge lens, B3): run writes no T2 in any format, so a
+        # run asked for T2 alone names the command that writes it
+        summary += (
+            "Next step: proofpack compare --input NEW --prior PRIOR --criteria FILE writes "
+            "T2.html (docs: /docs/compare)"
+        )
     elif not lic.usable:
         # E9 repair 2 (lens-2 FA-N6): under --format json the same flags write no HTML
         # after an install, so the line names --format json,html; A-P4: the names carry
-        # the extension of each format asked (T1.html, T1.docx, ...)
+        # the extension of each format asked (T1.html, T1.docx, ...); E11 item 0 (c): only
+        # documents run can write (never T2)
+        asked = document_names(formats, templates, command="run")
         summary += (
             "Next step: proofpack licence install FILE, then run again "
-            + ("" if ("html" in formats or DOCX_FORMAT in formats) else "with --format json,html ")
+            + ("" if asked else "with --format json,html ")
             + "for "
-            + ", ".join(document_names(formats, templates))
+            + ", ".join(asked or document_names(["html"], templates, command="run"))
             + " (docs: /docs/run)"
         )
     else:
         summary += (
             "Next step: run again with --format json,html for "
-            + ", ".join(document_names(formats, templates))
+            + ", ".join(document_names(["html"], templates, command="run"))
             + " (docs: /docs/run)"
         )
     _emit(
@@ -726,6 +749,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
         DEFAULT_COMPARE_TEMPLATES,
         DEFAULT_FORMAT,
         assemble_compare,
+        document_names,
         licence_fix,
         parse_formats,
         parse_templates,
@@ -744,6 +768,11 @@ def cmd_compare(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_INTERNAL
+    # E11 item 0 (a) (the A-P4 merge lens, B1): cmd_run's check, before any statistics
+    # run; at a13931b compare wrote run.json, the ingest reports and the HTML first
+    missing = _docx_extra_missing(formats)
+    if missing is not None:
+        return missing
     outcome = assemble_compare(
         args.input,
         args.prior,
@@ -798,17 +827,19 @@ def cmd_compare(args: argparse.Namespace) -> int:
             "three (docs: /docs/compare)"
         )
     elif not lic.usable or not outcome.compare_licensed:
+        # E11 item 0 (c): only documents compare can write (T2 has no DOCX writer)
+        asked = document_names(formats, templates, command="compare")
         summary += (
             "Next step: proofpack licence install FILE, then compare again "
-            + ("" if "html" in formats else "with --format json,html ")
+            + ("" if asked else "with --format json,html ")
             + "for "
-            + ", ".join(f"{t}.html" for t in templates)
+            + ", ".join(asked or document_names(["html"], templates, command="compare"))
             + " (docs: /docs/compare)"
         )
     else:
         summary += (
             "Next step: compare again with --format json,html for "
-            + ", ".join(f"{t}.html" for t in templates)
+            + ", ".join(document_names(["html"], templates, command="compare"))
             + " (docs: /docs/compare)"
         )
     _emit(

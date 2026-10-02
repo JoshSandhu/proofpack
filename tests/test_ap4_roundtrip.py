@@ -439,3 +439,73 @@ def test_no_forbidden_word_outside_customer_text_and_status_words_only_in_pp_sta
 
 def test_helper_paths_exist():
     assert Path(TEMPLATES).is_dir()
+
+
+# ------------------------------------------------------------------ E11 item 0 (b)
+
+#: A paired subgroup criterion (E10's ``paired_difference_vs_prior`` on ``sex = F``) beside
+#: the synthetic CRITERIA: its T1-11 cell carries E10's type note in T1.html, and at
+#: a13931b the T1.docx cell did not (the A-P4 merge lens's B2).
+PAIRED_SUBGROUP = {
+    "id": "C_pd_sub",
+    "metric": "sensitivity",
+    "type": "paired_difference_vs_prior",
+    "operating_point": "op1",
+    "scope": {"attribute": "sex", "level": "F"},
+    "statistic": "ci_lower_bound",
+    "comparator": ">=",
+    "value": -0.05,
+    "author": "E11 item 0 (b)",
+    "date": "2026-10-02",
+    "justification": "a paired criterion on a subgroup cell, so T1-11 prints the type note",
+}
+TYPE_NOTE = "(difference against the prior version)"
+
+
+@pytest.fixture(scope="module")
+def paired_t1(tmp_path_factory):
+    base = tmp_path_factory.mktemp("e11pd")
+    mp = pytest.MonkeyPatch()
+    try:
+        _own_home(base, mp)
+        crit = make_criteria(
+            criteria=[*copy.deepcopy(CRITERIA), dict(PAIRED_SUBGROUP)], fairness=FAIRNESS
+        )
+        csv_path, yml = _prepare(base, cohort_with_a_thirty_row_site(), crit)
+        out = base / "pack"
+        argv = ["run", "--input", str(csv_path), "--criteria", str(yml), "--out", str(out)]
+        rc = main(
+            [*argv, "--offline", "--format", "json,html,docx", "--templates", "T1"],
+            registry=ephemeral_registry(),
+        )
+        assert rc in (EXIT_OK, EXIT_WARNINGS)
+        return (out / "T1.html").read_text(encoding="utf-8"), (out / "T1.docx").read_bytes()
+    finally:
+        mp.undo()
+
+
+@pytest.mark.day11
+def test_t1_criteria_cells_with_a_paired_subgroup_criterion_equal_the_html_in_the_docx(
+    paired_t1,
+):
+    """Every T1 cell that carries a criterion id (T1-11's criterion cells and T1-17's
+    criteria table) prints in T1.docx as T1.html shows it, the type note included."""
+    page, docx_bytes = paired_t1
+    ids = [c["id"] for c in CRITERIA] + [PAIRED_SUBGROUP["id"]]
+    html_cells = [
+        c
+        for c in _html_cells(page)
+        if any(re.search(rf"(?<!\w){re.escape(i)}(?!\w)", c) for i in ids)
+    ]
+    t1_11 = [c for c in html_cells if "→" in c]
+    assert any(PAIRED_SUBGROUP["id"] in c and TYPE_NOTE in c for c in t1_11), t1_11
+    # whitespace dropped on both sides: T1-11 joins criteria with <br> (no text node in the
+    # HTML parser's cell) where the DOCX has a line break
+    squash = "".join
+    docx_cells = {_norm(c) for c in cell_texts(docx_bytes)}
+    squashed = {squash(c.split()) for c in docx_cells}
+    missing = [c for c in html_cells if squash(c.split()) not in squashed]
+    assert missing == [], missing
+    note_html = sum(c.count(TYPE_NOTE) for c in t1_11)
+    note_docx = sum(c.count(TYPE_NOTE) for c in docx_cells if "→" in c)
+    assert note_html == note_docx >= 1, (note_html, note_docx)

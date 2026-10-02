@@ -483,11 +483,23 @@ def docx_writers() -> dict[str, Any]:
     return {tid: write_docx(tid) for tid in DOCX_FILES}
 
 
-def document_names(formats: list[str], templates: list[str]) -> list[str]:
-    """The file names ``formats`` and ``templates`` ask for, as the Next-step lines
-    print them (``T1.html, T1.docx, ...``)."""
-    exts = [f for f in ("html", DOCX_FORMAT) if f in formats] or ["html"]
-    return [f"{t}.{ext}" for t in templates for ext in exts]
+#: The documents each command can write, per format (E11 item 0 (c)): ``run`` writes no
+#: T2 (``compare`` does); no command writes ``T2.docx`` (``render.docx.DOCX_FILES`` holds
+#: T1, T7 and T8; ``compare`` refuses T1).
+WRITABLE: dict[str, dict[str, frozenset[str]]] = {
+    "run": {"html": frozenset({"T1", "T7", "T8"}), DOCX_FORMAT: frozenset({"T1", "T7", "T8"})},
+    "compare": {"html": frozenset({"T2", "T7", "T8"}), DOCX_FORMAT: frozenset({"T7", "T8"})},
+}
+
+
+def document_names(formats: list[str], templates: list[str], *, command: str = "run") -> list[str]:
+    """The file names ``formats`` and ``templates`` ask for that ``command`` can write, as
+    the Next-step lines print them (``T1.html, T1.docx, ...``). A name the command does
+    not write (``T2.html`` from ``run``; ``T2.docx`` from either) is left out, so the list
+    can be empty (E11 item 0 (c), the A-P4 merge lens's B3)."""
+    exts = [f for f in ("html", DOCX_FORMAT) if f in formats]
+    writable = WRITABLE[command]
+    return [f"{t}.{ext}" for t in templates for ext in exts if t in writable[ext]]
 
 
 def _warning_entry(f: Finding) -> dict[str, Any]:

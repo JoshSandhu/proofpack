@@ -3222,8 +3222,9 @@ AP4_MUTANTS: tuple[Mutant, ...] = (
     Mutant(
         "ap4_extra_missing_branch_raises",
         "src/proofpack/cli.py",
-        r"^            return exc\.exit_code$",
-        "            raise",
+        # E11 item 0 (a): the check is cli._docx_extra_missing, shared by run and compare
+        r"^        return exc\.exit_code$",
+        "        raise",
         what="--format docx without the extra is a traceback, not exit 7",
         day=10,
         marker="ap4",

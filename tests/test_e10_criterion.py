@@ -416,7 +416,10 @@ ALLOWED: dict[str, tuple[str, ...]] = {
     "src/proofpack/render/figures.py": (
         "``Cpd`` (sensitivity, op1, sex = F, value -0.05) was drawn at x = 178.5 on the op1",
     ),
-    # A-P4's PNG drawer (merged 2 Oct 2026): two text positions in axes and figure fractions
+    # A-P4's PNG drawer (merged 2 Oct 2026): two text positions - ax.text in data
+    # coordinates (transform ax.transData; it equals axes fractions only while xlim and
+    # ylim are (0, 1), the A-P4 merge lens's N3) and fig.legend's bbox_to_anchor in
+    # figure fractions (transFigure)
     "src/proofpack/render/figures_png.py": (
         'ax.text(0.03, 0.93, spec["flag_short"], fontsize=FONT_PT, color=c["ink"])',
         'fig.legend(loc="upper left", bbox_to_anchor=(0.02, 0.31), fontsize=7.5, frameon=False)',

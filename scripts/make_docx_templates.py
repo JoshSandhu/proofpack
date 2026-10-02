@@ -1492,7 +1492,10 @@ def build_t1() -> bytes:
                 ("{{ c.id }}", "PP Manufacturer Text Inline"),
                 (" (row {{ c.position }}) → ", None),
                 ("{{ c.status_word }}", "PP Status"),
+                # E11 item 0 (b) (the A-P4 merge lens, B2): E10's type note after the status,
+                # outside PP Status, as T1.html prints it outside .status
                 (
+                    "{{ c.type_note }}"
                     "; max LB {{ c.max_lb }} at n = {{ c.n }}, attainable: {{ c.attainable }}"
                     "{% if not loop.last %}\n{% endif %}{% endfor %}",
                     None,
