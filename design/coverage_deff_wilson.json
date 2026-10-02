@@ -1,0 +1,795 @@
+{
+ "version": "coverage_bar.py --deff-wilson v1 (build day 11, 2026-10-02)",
+ "seed": 20261002,
+ "reps": 4000,
+ "level": 0.95,
+ "bar": 0.9,
+ "tau2": 0.5,
+ "rows": [
+  {
+   "family": "wilson_deff",
+   "u_cases": 2,
+   "rows_per_case": 1,
+   "truth": 0.5,
+   "coverage": 1.0,
+   "mean_width": 0.7352,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 3,
+   "rows_per_case": 1,
+   "truth": 0.5,
+   "coverage": 1.0,
+   "mean_width": 0.69,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 4,
+   "rows_per_case": 1,
+   "truth": 0.5,
+   "coverage": 0.8665,
+   "mean_width": 0.6494,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 5,
+   "rows_per_case": 1,
+   "truth": 0.5,
+   "coverage": 0.93525,
+   "mean_width": 0.6176,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 6,
+   "rows_per_case": 1,
+   "truth": 0.5,
+   "coverage": 0.96525,
+   "mean_width": 0.5891,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 8,
+   "rows_per_case": 1,
+   "truth": 0.5,
+   "coverage": 0.92675,
+   "mean_width": 0.5434,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 10,
+   "rows_per_case": 1,
+   "truth": 0.5,
+   "coverage": 0.97725,
+   "mean_width": 0.5061,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 15,
+   "rows_per_case": 1,
+   "truth": 0.5,
+   "coverage": 0.96475,
+   "mean_width": 0.439,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 20,
+   "rows_per_case": 1,
+   "truth": 0.5,
+   "coverage": 0.95525,
+   "mean_width": 0.3926,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 40,
+   "rows_per_case": 1,
+   "truth": 0.5,
+   "coverage": 0.9585,
+   "mean_width": 0.2924,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 2,
+   "rows_per_case": 3,
+   "truth": 0.5,
+   "coverage": 1.0,
+   "mean_width": 0.6883,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 496,
+    "deff_estimated": 2505,
+    "deff_floored_at_one": 999
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 3,
+   "rows_per_case": 3,
+   "truth": 0.5,
+   "coverage": 0.90775,
+   "mean_width": 0.622,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 140,
+    "deff_estimated": 2959,
+    "deff_floored_at_one": 901
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 4,
+   "rows_per_case": 3,
+   "truth": 0.5,
+   "coverage": 0.911,
+   "mean_width": 0.5719,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 26,
+    "deff_estimated": 2994,
+    "deff_floored_at_one": 980
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 5,
+   "rows_per_case": 3,
+   "truth": 0.5,
+   "coverage": 0.9445,
+   "mean_width": 0.5341,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 7,
+    "deff_estimated": 3272,
+    "deff_floored_at_one": 721
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 6,
+   "rows_per_case": 3,
+   "truth": 0.5,
+   "coverage": 0.9185,
+   "mean_width": 0.5045,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 1,
+    "deff_estimated": 3380,
+    "deff_floored_at_one": 619
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 8,
+   "rows_per_case": 3,
+   "truth": 0.5,
+   "coverage": 0.941,
+   "mean_width": 0.4522,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 1,
+    "deff_estimated": 3635,
+    "deff_floored_at_one": 364
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 10,
+   "rows_per_case": 3,
+   "truth": 0.5,
+   "coverage": 0.936,
+   "mean_width": 0.4151,
+   "deff_reasons": {
+    "deff_estimated": 3724,
+    "deff_floored_at_one": 276
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 15,
+   "rows_per_case": 3,
+   "truth": 0.5,
+   "coverage": 0.94825,
+   "mean_width": 0.3506,
+   "deff_reasons": {
+    "deff_estimated": 3893,
+    "deff_floored_at_one": 107
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 20,
+   "rows_per_case": 3,
+   "truth": 0.5,
+   "coverage": 0.95025,
+   "mean_width": 0.3093,
+   "deff_reasons": {
+    "deff_estimated": 3966,
+    "deff_floored_at_one": 34
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 40,
+   "rows_per_case": 3,
+   "truth": 0.5,
+   "coverage": 0.9465,
+   "mean_width": 0.2246,
+   "deff_reasons": {
+    "deff_estimated": 3999,
+    "deff_floored_at_one": 1
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 2,
+   "rows_per_case": 8,
+   "truth": 0.5,
+   "coverage": 0.79325,
+   "mean_width": 0.5779,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 106,
+    "deff_estimated": 2939,
+    "deff_floored_at_one": 955
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 3,
+   "rows_per_case": 8,
+   "truth": 0.5,
+   "coverage": 0.84525,
+   "mean_width": 0.543,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 9,
+    "deff_estimated": 3411,
+    "deff_floored_at_one": 580
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 4,
+   "rows_per_case": 8,
+   "truth": 0.5,
+   "coverage": 0.8785,
+   "mean_width": 0.5027,
+   "deff_reasons": {
+    "deff_estimated": 3630,
+    "deff_floored_at_one": 370
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 5,
+   "rows_per_case": 8,
+   "truth": 0.5,
+   "coverage": 0.914,
+   "mean_width": 0.4746,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 2,
+    "deff_estimated": 3816,
+    "deff_floored_at_one": 182
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 6,
+   "rows_per_case": 8,
+   "truth": 0.5,
+   "coverage": 0.9145,
+   "mean_width": 0.4461,
+   "deff_reasons": {
+    "deff_estimated": 3877,
+    "deff_floored_at_one": 123
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 8,
+   "rows_per_case": 8,
+   "truth": 0.5,
+   "coverage": 0.92275,
+   "mean_width": 0.3995,
+   "deff_reasons": {
+    "deff_estimated": 3949,
+    "deff_floored_at_one": 51
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 10,
+   "rows_per_case": 8,
+   "truth": 0.5,
+   "coverage": 0.94325,
+   "mean_width": 0.3669,
+   "deff_reasons": {
+    "deff_estimated": 3989,
+    "deff_floored_at_one": 11
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 15,
+   "rows_per_case": 8,
+   "truth": 0.5,
+   "coverage": 0.94675,
+   "mean_width": 0.3077,
+   "deff_reasons": {
+    "deff_estimated": 3999,
+    "deff_floored_at_one": 1
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 20,
+   "rows_per_case": 8,
+   "truth": 0.5,
+   "coverage": 0.94575,
+   "mean_width": 0.27,
+   "deff_reasons": {
+    "deff_estimated": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 40,
+   "rows_per_case": 8,
+   "truth": 0.5,
+   "coverage": 0.9445,
+   "mean_width": 0.1959,
+   "deff_reasons": {
+    "deff_estimated": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 2,
+   "rows_per_case": 1,
+   "truth": 0.9,
+   "coverage": 0.9915,
+   "mean_width": 0.6849,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 3,
+   "rows_per_case": 1,
+   "truth": 0.9,
+   "coverage": 0.9725,
+   "mean_width": 0.6084,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 4,
+   "rows_per_case": 1,
+   "truth": 0.9,
+   "coverage": 0.947,
+   "mean_width": 0.5491,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 5,
+   "rows_per_case": 1,
+   "truth": 0.9,
+   "coverage": 0.91775,
+   "mean_width": 0.4998,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 6,
+   "rows_per_case": 1,
+   "truth": 0.9,
+   "coverage": 0.98625,
+   "mean_width": 0.4645,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 8,
+   "rows_per_case": 1,
+   "truth": 0.9,
+   "coverage": 0.9585,
+   "mean_width": 0.4095,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 10,
+   "rows_per_case": 1,
+   "truth": 0.9,
+   "coverage": 0.92875,
+   "mean_width": 0.3697,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 15,
+   "rows_per_case": 1,
+   "truth": 0.9,
+   "coverage": 0.944,
+   "mean_width": 0.3036,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 20,
+   "rows_per_case": 1,
+   "truth": 0.9,
+   "coverage": 0.961,
+   "mean_width": 0.2625,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 40,
+   "rows_per_case": 1,
+   "truth": 0.9,
+   "coverage": 0.9465,
+   "mean_width": 0.1855,
+   "deff_reasons": {
+    "deff_one_row_per_case": 4000
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 2,
+   "rows_per_case": 3,
+   "truth": 0.9,
+   "coverage": 0.97475,
+   "mean_width": 0.6508,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 2436,
+    "deff_estimated": 1400,
+    "deff_floored_at_one": 164
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 3,
+   "rows_per_case": 3,
+   "truth": 0.9,
+   "coverage": 0.974,
+   "mean_width": 0.5448,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 1924,
+    "deff_estimated": 1811,
+    "deff_floored_at_one": 265
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 4,
+   "rows_per_case": 3,
+   "truth": 0.9,
+   "coverage": 0.96975,
+   "mean_width": 0.4658,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 1485,
+    "deff_estimated": 2083,
+    "deff_floored_at_one": 432
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 5,
+   "rows_per_case": 3,
+   "truth": 0.9,
+   "coverage": 0.9475,
+   "mean_width": 0.4082,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 1162,
+    "deff_estimated": 2267,
+    "deff_floored_at_one": 571
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 6,
+   "rows_per_case": 3,
+   "truth": 0.9,
+   "coverage": 0.96325,
+   "mean_width": 0.3622,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 895,
+    "deff_estimated": 2359,
+    "deff_floored_at_one": 746
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 8,
+   "rows_per_case": 3,
+   "truth": 0.9,
+   "coverage": 0.962,
+   "mean_width": 0.3055,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 561,
+    "deff_estimated": 2523,
+    "deff_floored_at_one": 916
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 10,
+   "rows_per_case": 3,
+   "truth": 0.9,
+   "coverage": 0.96525,
+   "mean_width": 0.2669,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 333,
+    "deff_estimated": 2601,
+    "deff_floored_at_one": 1066
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 15,
+   "rows_per_case": 3,
+   "truth": 0.9,
+   "coverage": 0.969,
+   "mean_width": 0.2146,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 106,
+    "deff_estimated": 2835,
+    "deff_floored_at_one": 1059
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 20,
+   "rows_per_case": 3,
+   "truth": 0.9,
+   "coverage": 0.93975,
+   "mean_width": 0.1847,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 22,
+    "deff_estimated": 3066,
+    "deff_floored_at_one": 912
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 40,
+   "rows_per_case": 3,
+   "truth": 0.9,
+   "coverage": 0.9345,
+   "mean_width": 0.1316,
+   "deff_reasons": {
+    "deff_estimated": 3667,
+    "deff_floored_at_one": 333
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 2,
+   "rows_per_case": 8,
+   "truth": 0.9,
+   "coverage": 0.96,
+   "mean_width": 0.5345,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 1589,
+    "deff_estimated": 2114,
+    "deff_floored_at_one": 297
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 3,
+   "rows_per_case": 8,
+   "truth": 0.9,
+   "coverage": 0.96375,
+   "mean_width": 0.4136,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 1019,
+    "deff_estimated": 2695,
+    "deff_floored_at_one": 286
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 4,
+   "rows_per_case": 8,
+   "truth": 0.9,
+   "coverage": 0.955,
+   "mean_width": 0.3473,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 619,
+    "deff_estimated": 2901,
+    "deff_floored_at_one": 480
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 5,
+   "rows_per_case": 8,
+   "truth": 0.9,
+   "coverage": 0.96425,
+   "mean_width": 0.3012,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 395,
+    "deff_estimated": 3045,
+    "deff_floored_at_one": 560
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 6,
+   "rows_per_case": 8,
+   "truth": 0.9,
+   "coverage": 0.9715,
+   "mean_width": 0.2668,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 265,
+    "deff_estimated": 3175,
+    "deff_floored_at_one": 560
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 8,
+   "rows_per_case": 8,
+   "truth": 0.9,
+   "coverage": 0.91575,
+   "mean_width": 0.2288,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 103,
+    "deff_estimated": 3333,
+    "deff_floored_at_one": 564
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 10,
+   "rows_per_case": 8,
+   "truth": 0.9,
+   "coverage": 0.91125,
+   "mean_width": 0.2076,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 33,
+    "deff_estimated": 3573,
+    "deff_floored_at_one": 394
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 15,
+   "rows_per_case": 8,
+   "truth": 0.9,
+   "coverage": 0.90575,
+   "mean_width": 0.1703,
+   "deff_reasons": {
+    "deff_boundary_cases_as_units": 3,
+    "deff_estimated": 3782,
+    "deff_floored_at_one": 215
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 20,
+   "rows_per_case": 8,
+   "truth": 0.9,
+   "coverage": 0.91925,
+   "mean_width": 0.1501,
+   "deff_reasons": {
+    "deff_estimated": 3895,
+    "deff_floored_at_one": 105
+   },
+   "reps": 4000
+  },
+  {
+   "family": "wilson_deff",
+   "u_cases": 40,
+   "rows_per_case": 8,
+   "truth": 0.9,
+   "coverage": 0.92375,
+   "mean_width": 0.1078,
+   "deff_reasons": {
+    "deff_estimated": 3995,
+    "deff_floored_at_one": 5
+   },
+   "reps": 4000
+  }
+ ],
+ "min_cases_meeting_bar": 5
+}

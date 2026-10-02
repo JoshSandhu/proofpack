@@ -188,8 +188,9 @@ def test_b2_a_met_clustered_cell_carries_no_attainability_flag_through_run(
     rows = {r["criterion_id"]: r for r in doc["criteria_results"]}
     for cid in ("sp_S3", "acc_S3"):
         row = rows[cid]
-        assert (row["status"], row["compared_value"], row["n"]) == ("met", 0.9, 30), row
-        assert row["method"] == "cluster_bootstrap_percentile"
+        assert (row["status"], row["n"]) == ("met", 30), row
+        assert round(row["compared_value"], 4) == 0.8299  # E11 item 5: wilson_deff's ci_lo
+        assert row["method"] == "wilson_deff"
         assert row["attainable_at_n"] is None and row["max_lower_bound_at_n"] is None
         assert row["detail"] == {"attainability_not_computed": "method_not_wilson"}
     assert_no_met_row_is_marked_unattainable(doc["criteria_results"])
@@ -545,12 +546,13 @@ def test_a_clustered_run_has_a_cluster_bootstrap_overall_block_and_cells(
     doc = json.loads((out / "run.json").read_text(encoding="utf-8"))
     assert doc["flow"]["clustered"] is True
     overall = doc["overall"]
-    assert overall["op1"]["sensitivity"]["method"] == "cluster_bootstrap_percentile"
+    # E11 item 5 (DEC-18 (a)): a clustered proportion of five cases or more is wilson_deff
+    assert overall["op1"]["sensitivity"]["method"] == "wilson_deff"
     assert "wilson_refused_clustered" in overall["op1"]["sensitivity"]["flags"]
     assert overall["threshold_free"]["auroc"]["method"] == "cluster_bootstrap_percentile"
     assert overall["op1"]["f1"]["not_estimable_reason"] == "clustered_data_analytic_ci_invalid"
     method = doc["subgroups"][0]["metrics"]["op1"]["sensitivity"]["number"]["method"]
-    assert method in ("cluster_bootstrap_percentile", "none")
+    assert method in ("cluster_bootstrap_percentile", "wilson_deff", "none")  # E11 item 5
 
 
 def test_assemble_run_writes_nothing_and_the_ledger_after_the_documents(

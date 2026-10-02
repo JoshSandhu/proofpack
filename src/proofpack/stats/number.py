@@ -44,6 +44,9 @@ METHODS: frozenset[str] = frozenset(
         "delong_logit",
         "delong_wald",
         "cluster_bootstrap_percentile",
+        # build day 11 (E11 item 5, DEC-18 (a)): a clustered proportion's Wilson interval
+        # on the effective sample size n / DEFF (stats.proportions.proportion_deff)
+        "wilson_deff",
         "bootstrap_percentile",
         "bootstrap_bca",
         "irls_wald",

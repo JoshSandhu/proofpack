@@ -914,8 +914,12 @@ def test_dec10_every_proportion_number_is_wilson_or_the_cluster_bootstrap():
     rep = run(dup, make_criteria(clustering={"unit": "case_id", "declared_by": "t"}))
     nums = _proportion_numbers(rep)
     for path, num in nums:
-        assert num["method"] in ("cluster_bootstrap_percentile", "none"), (path, num)
-        if num["method"] == "cluster_bootstrap_percentile":
+        # E11 item 5 (DEC-18 (a)): a clustered proportion of five cases or more is wilson_deff
+        assert num["method"] in ("cluster_bootstrap_percentile", "wilson_deff", "none"), (
+            path,
+            num,
+        )
+        if num["method"] in ("cluster_bootstrap_percentile", "wilson_deff"):
             assert "wilson_refused_clustered" in num["flags"]
     # nothing anywhere carries a Wald interval or a two_by_two_metrics-only method
     for _path, num in walk_numbers(rep.as_dict()):
@@ -1078,7 +1082,7 @@ def test_a_case_id_column_is_used_even_when_not_passed_and_detected_clustering_r
     crit = make_criteria()  # clustering.unit: none, but case_id repeats -> detected
     rep = run(cols, crit)
     for _path, num in _proportion_numbers(rep):
-        assert num["method"] in ("cluster_bootstrap_percentile", "none")
+        assert num["method"] in ("cluster_bootstrap_percentile", "wilson_deff", "none")
     cell = rep.row("sex", "F")["metrics"]["op1"]["sensitivity"]
     assert cell["clustering_route"] == "detected"
     assert rep.row("sex", "F")["metrics"]["auroc"]["clustering_route"] == "detected"
@@ -1720,9 +1724,12 @@ def test_the_two_sided_cluster_bootstrap_refuses_a_difference_whose_one_side_is_
     rep = run(separated_level_cohort_with_case_ids(), criteria_for(SITE_REF_B, **CLUSTERED_BY_CASE))
     row_a, row_b = rep.row("site", "A"), rep.row("site", "B")
     assert row_a["metrics"]["auroc"]["number"]["not_estimable_reason"] == "boundary_estimate"
-    assert row_a["metrics"]["op1"]["sensitivity"]["number"]["not_estimable_reason"] == (
-        "boundary_estimate"
-    )
+    # E11 item 5: level A's own sensitivity (k = n) is wilson_deff with the cases as the
+    # units (deff_boundary_cases_as_units); at ad66073 it was the bootstrap's
+    # boundary_estimate. The difference cells below are unchanged.
+    own_a = row_a["metrics"]["op1"]["sensitivity"]
+    assert own_a["number"]["method"] == "wilson_deff"
+    assert own_a["detail"]["design_effect"]["reason"] == "deff_boundary_cases_as_units"
     auroc_b = row_b["metrics"]["auroc"]["number"]["est"]
     sens_b = row_b["metrics"]["op1"]["sensitivity"]["number"]
     assert 0.0 < auroc_b < 1.0 and 0 < sens_b["k"] < sens_b["n"]

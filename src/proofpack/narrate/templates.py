@@ -754,6 +754,7 @@ METHOD_PHRASES: dict[str, str] = {
     "delong_logit": "DeLong, logit-transformed interval",
     "delong_wald": "DeLong, Wald interval",
     "cluster_bootstrap_percentile": "cluster bootstrap, percentile interval",
+    "wilson_deff": "Wilson score on the design-effect sample size n / DEFF",
     "bootstrap_percentile": "bootstrap, percentile interval",
     "bootstrap_bca": "bootstrap, BCa interval",
     "irls_wald": "IRLS, Wald interval",

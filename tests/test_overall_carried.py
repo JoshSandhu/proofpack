@@ -5,8 +5,9 @@ Oracles, none of them through the code under test:
 
 * the clustered overall sensitivity's ``est`` equals the pooled ``k/n`` counted here by
   hand from the fixture columns, and its interval equals what ``proportion_ci`` (the
-  subgroup rows' cluster-bootstrap route) gives on the same rows, same case ids, same
-  seed, same B and the same cell key - the function the block claims to reuse;
+  subgroup rows' clustered route: ``wilson_deff`` since build day 11, the cluster
+  bootstrap before) gives on the same rows, same case ids, same seed, same B and the same
+  cell key - the function the block claims to reuse;
 * the y_pred-only two-by-two equals scikit-learn's ``confusion_matrix`` on the fixture;
 * a one-level attribute puts every analysed row in one subgroup stratum, and that
   stratum's rendered Number carries the same ``est``, ``n``, ``k``, ``n_cases`` and
@@ -85,7 +86,8 @@ def test_the_clustered_overall_sensitivity_is_the_pooled_k_over_n_and_the_subgro
     k, n, indicator, ids = _hand_sensitivity(cols)
     assert (num["k"], num["n"]) == (k, n)
     assert num["est"] == pytest.approx(k / n, abs=1e-15)
-    assert num["method"] == "cluster_bootstrap_percentile"
+    # E11 item 5 (DEC-18 (a)): a clustered proportion of five cases or more is wilson_deff
+    assert num["method"] == "wilson_deff"
     assert "wilson_refused_clustered" in num["flags"]
     assert num["n_cases"] == len(set(ids))
     # the subgroup route on the same rows: proportion_ci with the same policy, plan,
@@ -104,11 +106,17 @@ def test_the_clustered_overall_sensitivity_is_the_pooled_k_over_n_and_the_subgro
     assert (cell.number.ci_lo, cell.number.ci_hi) == (num["ci_lo"], num["ci_hi"])
     assert cell.number.est == num["est"]
     assert policy.n_resamples == 200 and policy.seed == 20240101
-    # the same interval is NOT the i.i.d. Wilson interval (the analytic method was refused)
-    from proofpack.stats.proportions import proportion
+    # E11 item 5: the interval is the Wilson interval on n / DEFF, the design effect from
+    # the cases (this test's own arithmetic, tests/deff_hand.py); the Wilson interval on the
+    # rows is refused (the method string differs). On this cohort the estimate is below 1
+    # and floored, so the bounds equal the rows' Wilson bounds; at ad66073 they were the
+    # cluster bootstrap's and differed from them.
+    from deff_hand import hand_deff_wilson
 
-    wilson = proportion(k, n)
-    assert (wilson.ci_lo, wilson.ci_hi) != (num["ci_lo"], num["ci_hi"])
+    deff, lo, hi = hand_deff_wilson(indicator, ids)
+    assert (num["ci_lo"], num["ci_hi"]) == pytest.approx((lo, hi), abs=1e-12)
+    assert cell.as_dict()["detail"]["design_effect"]["deff"] == pytest.approx(deff, abs=1e-12)
+    assert num["method"] == "wilson_deff"
 
 
 def test_the_two_by_two_only_metrics_are_typed_clustered_data_analytic_ci_invalid(
@@ -140,7 +148,7 @@ def test_the_two_by_two_only_metrics_are_typed_clustered_data_analytic_ci_invali
     assert tf["auroc"]["method"] == "cluster_bootstrap_percentile"
     assert "delong_refused_clustered" in tf["auroc"]["flags"]
     assert tf["auroc_wald"] is None and tf["roc"][0] == [0.0, 0.0, None]
-    assert tf["prevalence"]["method"] == "cluster_bootstrap_percentile"
+    assert tf["prevalence"]["method"] == "wilson_deff"  # E11 item 5
     assert tf["prevalence"] == block["prevalence"]
     json.dumps(doc["overall"], allow_nan=False)
     jsonschema.validate(doc, load_json_schema("output_schema_v1.json"))
@@ -159,7 +167,7 @@ def test_a_one_level_attribute_stratum_carries_the_same_counts_as_the_overall_ce
         num = doc["overall"]["op1"][metric]
         for key in ("est", "n", "k", "n_cases", "method"):
             assert cell[key] == num[key], (metric, key)
-        assert cell["method"] == "cluster_bootstrap_percentile"
+        assert cell["method"] == "wilson_deff"  # E11 item 5
         assert row["metrics"]["op1"][metric]["analytic_status"] == "refused_clustered"
     assert row["metrics"]["op1"]["two_by_two"] == doc["overall"]["op1"]["two_by_two"]
     auroc = row["metrics"]["auroc"]["number"]
@@ -216,7 +224,7 @@ def test_a_criterion_at_scope_overall_on_a_clustered_run_is_compared(tmp_path: P
     rows = {r["criterion_id"]: r for r in doc["criteria_results"]}
     assert rows["C_over"]["status"] in ("met", "not_met")
     assert rows["C_over"]["reason_code"] == "statistic_compared"
-    assert rows["C_over"]["method"] == "cluster_bootstrap_percentile"
+    assert rows["C_over"]["method"] == "wilson_deff"  # E11 item 5
     assert rows["C_over"]["compared_value"] == doc["overall"]["op1"]["sensitivity"]["ci_lo"]
     assert rows["C_over"]["detail"] == {"attainability_not_computed": "method_not_wilson"}
     assert rows["C_auroc"]["status"] in ("met", "not_met")
@@ -279,7 +287,7 @@ def test_the_y_pred_only_overall_two_by_two_equals_sklearn_and_the_threshold_fre
     jsonschema.validate(doc, load_json_schema("output_schema_v1.json"))
 
 
-def test_a_y_pred_only_clustered_table_routes_the_overall_through_the_cluster_bootstrap(
+def test_a_y_pred_only_clustered_table_routes_the_overall_through_the_clustered_route(
     tmp_path: Path, monkeypatch
 ):
     cols = make_cohort(n=200, with_y_pred=True, with_case_id=True)
@@ -287,10 +295,10 @@ def test_a_y_pred_only_clustered_table_routes_the_overall_through_the_cluster_bo
     del cols["score"]
     doc = _run_doc(tmp_path, monkeypatch, cols, _clustered_crit())
     se = doc["overall"]["op1"]["sensitivity"]
-    assert se["method"] == "cluster_bootstrap_percentile" and "n_cases" in se
+    assert se["method"] == "wilson_deff" and "n_cases" in se  # E11 item 5
     assert doc["overall"]["threshold_free"]["suppressed_reason"] == "no_score_column"
     prev = doc["overall"]["threshold_free"]["prevalence"]
-    assert prev["method"] == "cluster_bootstrap_percentile"
+    assert prev["method"] == "wilson_deff"  # E11 item 5
     jsonschema.validate(doc, load_json_schema("output_schema_v1.json"))
 
 
@@ -310,5 +318,5 @@ def test_the_assembler_document_carries_the_same_overall_shape(tmp_path: Path):
     from assembler import assemble
 
     doc = assemble(_clustered_cols(), copy.deepcopy(_clustered_crit()))
-    assert doc["overall"]["op1"]["sensitivity"]["method"] == "cluster_bootstrap_percentile"
+    assert doc["overall"]["op1"]["sensitivity"]["method"] == "wilson_deff"  # E11 item 5
     jsonschema.validate(doc, load_json_schema("output_schema_v1.json"))

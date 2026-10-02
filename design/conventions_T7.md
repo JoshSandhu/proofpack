@@ -162,7 +162,10 @@ too narrow and only a "very low precision" or no annotation. ProofPack's decisio
 September 2026 (DEC-18): a design-effect-adjusted Wilson interval for clustered proportions
 is a planned engine item, with its own method name and its own coverage run; until it is
 in the engine, this table is the statement of what the interval does, every clustered cell
-keeps its tier annotation, and `MIN_UNITS_PER_STRATUM` stays at 2.
+keeps its tier annotation, and `MIN_UNITS_PER_STRATUM` stays at 2. Build day 11 (2 October
+2026) put that interval in the engine for clustered proportions (next subsection): this
+table now describes the cluster bootstrap where it still renders a proportion, which is a
+cell of fewer than five cases.
 
 The AUROC frozen-share half: every shape the constant renders measured at or above the
 bar in the recorded run; the first shape it refuses did in the recorded run and in six of
@@ -171,9 +174,60 @@ at the 0.20 and 0.30 rows).
 
 The DEC-08 refusal-below-the-bar is **not implemented on either route** for the
 `MIN_UNITS_PER_STRATUM` half: the AUROC route renders the u = 2, m = 0 shape (0.715 /
-0.620 in the table above) and the proportion route renders a clustered cell of 10 cases at
-p = 0.9 (0.672 above), each with its tier annotation and no refusal. That is the DEC-18
-position stated two paragraphs above.
+0.620 in the table above), and the proportion route rendered a clustered cell of 10 cases
+at p = 0.9 (0.672 above) until build day 11, each with its tier annotation and no refusal.
+That was the DEC-18 position stated two paragraphs above; for proportions it is replaced
+by the next subsection for cells of five cases or more.
+
+### Design-effect Wilson interval for clustered proportions (DEC-18 (a); build day 11)
+
+**Method `wilson_deff`.** A clustered proportion `k / n` (rows) over `K` cases is printed
+with the Wilson score interval computed on the design-effect sample size `n_eff = n / DEFF`
+in place of `n`, with the observed proportion. The design effect is estimated from the
+cases by the ratio-estimator variance, `v = K / (K - 1) * sum_i (y_i - p m_i)^2 / n^2`,
+`DEFF = v / (p (1 - p) / n)` (case `i` has `m_i` rows and `y_i` successes), after Rao and
+Scott (1992) [unverified] citation pending verification: the paper was not read in its
+primary source and the formula is tested against a hand computation, not against the
+paper. Typed cases, recorded in the cell's `detail.design_effect.reason`: an estimate
+below 1 is floored at 1 (`deff_floored_at_one`), so the interval is never narrower than
+the Wilson interval on the rows; one row per case gives `DEFF = 1` without estimation
+(`deff_one_row_per_case`); every row agreeing (`k = 0` or `k = n`) with some case of more
+than one row takes the cases as the units, `DEFF = n / K` (`deff_boundary_cases_as_units`);
+one case is not estimable (`deff_not_estimable_single_case`). The Wilson interval on the
+rows stays refused (`clustered_data_analytic_ci_invalid`) and the flag
+`wilson_refused_clustered` stays on the printed Number; the tier is taken from the cases.
+
+**The bar.** `scripts/coverage_bar.py --deff-wilson` (seed 20261002, R = 4000 cohorts per
+shape, no resampling, nominal level 0.95, the DEC-08 bar 0.90; Monte-Carlo error about
+0.005 per cell; 9 seconds measured on 2 October 2026; committed as
+`design/coverage_deff_wilson.json`) measured the engine's own functions on u cases of w
+rows with a shared case effect (TAU2 = 0.5), truth p:
+
+| u | w = 1, p = 0.5 | w = 3, p = 0.5 | w = 8, p = 0.5 | w = 1, p = 0.9 | w = 3, p = 0.9 | w = 8, p = 0.9 |
+|---|---|---|---|---|---|---|
+| 2 | 1.000 | 1.000 | 0.793 | 0.992 | 0.975 | 0.960 |
+| 3 | 1.000 | 0.908 | 0.845 | 0.973 | 0.974 | 0.964 |
+| 4 | 0.867 | 0.911 | 0.878 | 0.947 | 0.970 | 0.955 |
+| 5 | 0.935 | 0.945 | 0.914 | 0.918 | 0.948 | 0.964 |
+| 6 | 0.965 | 0.918 | 0.914 | 0.986 | 0.963 | 0.972 |
+| 8 | 0.927 | 0.941 | 0.923 | 0.959 | 0.962 | 0.916 |
+| 10 | 0.977 | 0.936 | 0.943 | 0.929 | 0.965 | 0.911 |
+| 15 | 0.965 | 0.948 | 0.947 | 0.944 | 0.969 | 0.906 |
+| 20 | 0.955 | 0.950 | 0.946 | 0.961 | 0.940 | 0.919 |
+| 40 | 0.959 | 0.947 | 0.945 | 0.947 | 0.934 | 0.924 |
+
+Every shape with five or more cases covered at or above the bar (lowest 0.906); at four
+cases two did not (0.867 and 0.878). So `MIN_CASES_DEFF_WILSON = 5`: a clustered
+proportion cell of at least five cases prints `wilson_deff` with its tier annotation; a
+cell of two to four cases prints the cluster bootstrap with its tier annotation (`not
+evaluable, shown for transparency` below ten cases), as before build day 11, and its
+`detail.design_effect.route` reads `below_coverage_bar`; one case is refused by the
+bootstrap as before (`route` `not_estimable`). Compared with the cluster bootstrap's
+proportion table above, the design-effect interval covers at or above the bar from five
+cases where the bootstrap fell to 0.407 (five cases) and 0.672 (ten cases) at p = 0.9 with
+one row per case. The grid has equal case sizes only, and the paired version-comparison
+differences (T2) keep the cluster bootstrap. This is a measurement on the grid's shapes,
+not a guarantee.
 
 ## Calibration (build day 6, `stats.calibration`)
 

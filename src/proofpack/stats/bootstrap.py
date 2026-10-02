@@ -144,7 +144,7 @@ import numpy as np
 from proofpack.errors import Finding
 from proofpack.stats.discrimination import SMALL_CLASS, auroc_mann_whitney, auroc_number
 from proofpack.stats.number import Number, not_estimable
-from proofpack.stats.proportions import proportion
+from proofpack.stats.proportions import design_effect, proportion, proportion_deff
 
 __all__ = [
     "DEFAULT_B",
@@ -257,6 +257,26 @@ MIN_UNITS_PER_STRATUM = 2
 #: ``design/conventions_T7.md``. This is a measurement on the grid's shapes, not a
 #: guarantee.
 MAX_FROZEN_VARIANCE_SHARE = 0.20
+#: **DEC-18 (a), build day 11 (E11 item 5).** A clustered proportion renders the Wilson
+#: interval on the effective sample size ``n / DEFF`` (``wilson_deff``,
+#: :func:`proofpack.stats.proportions.proportion_deff`) when its cell has at least this
+#: many cases; below it the cluster bootstrap renders as before, with its tier annotation
+#: (DEC-18 (c), kept for those shapes), and the cell's ``detail`` says why the design-effect
+#: interval was not used. Measured, not chosen: ``scripts/coverage_bar.py --deff-wilson``
+#: (seed 20261002, R = 4000, nominal 0.95, the DEC-08 bar 0.90; committed as
+#: ``design/coverage_deff_wilson.json``) on u cases x w rows (w = 1, 3, 8; truth 0.5 and
+#: 0.9; a shared case effect at TAU2 = 0.5): every shape with u >= 5 cases covered at or
+#: above the bar (lowest 0.906, u = 15, w = 8, p = 0.9; 0.914 at u = 5, w = 8, p = 0.5),
+#: and at u = 4 one did not (0.867, w = 1, p = 0.5 - the Wilson interval's own
+#: discreteness at four rows; 0.878 at w = 8). Equal case sizes only; a measurement on the
+#: grid's shapes, not a guarantee. Full table: ``design/conventions_T7.md``.
+MIN_CASES_DEFF_WILSON = 5
+#: What a clustered proportion cell's ``detail.design_effect.route`` records (E11 item 5).
+DEFF_ROUTES = (
+    "wilson_deff",  # rendered: at least MIN_CASES_DEFF_WILSON cases, DEFF estimable
+    "below_coverage_bar",  # fewer cases: the cluster bootstrap renders (DEC-18 (c))
+    "not_estimable",  # one case: the cluster bootstrap's own refusal renders
+)
 #: R2 section 3.3 precision tiers, measured in **resampling units** - cases when the
 #: rows are clustered, rows when they are not. Advisory only; never a suppression.
 #: Below :data:`LOW_PRECISION_UNITS` the tier is "not evaluable, shown for
@@ -1017,6 +1037,9 @@ class CellCI:
     #: :attr:`BootstrapDraw.sd_reason`, carried into the cell so a ``resample_sd`` of
     #: ``null`` beside a rendered interval is explained where it is read (item 25).
     resample_sd_reason: str | None = None
+    #: Statistics that are not Numbers (E11 item 5: a clustered proportion's design
+    #: effect, ``{"design_effect": {...}}``); ``None`` when there is nothing to add.
+    detail: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.analytic_status not in ANALYTIC_STATUS:
@@ -1041,6 +1064,8 @@ class CellCI:
                 "resampling": self.resampling,
                 **self.policy.as_dict(),
             }
+        if self.detail is not None:
+            out["detail"] = self.detail
         return out
 
 
@@ -1256,9 +1281,16 @@ def proportion_ci(
     the indicator is "predicted positive".
 
     * **i.i.d.** - Wilson, unchanged from build day 2. No bootstrap.
-    * **clustered** - cases resampled; **Wilson refused** with
-      ``clustered_data_analytic_ci_invalid`` and the flag ``wilson_refused_clustered``
-      on the rendered Number (X2).
+    * **clustered** - the Wilson interval on the rows is **refused** with
+      ``clustered_data_analytic_ci_invalid`` (the ``analytic`` companion) and the flag
+      ``wilson_refused_clustered`` rides on the rendered Number (X2). What renders (E11
+      item 5, DEC-18 (a)): with at least :data:`MIN_CASES_DEFF_WILSON` cases and a design
+      effect that can be estimated, the Wilson interval on ``n / DEFF``
+      (``wilson_deff``; no resampling, ``bootstrap: null``); otherwise the cases are
+      resampled as before (``cluster_bootstrap_percentile``). Either way the cell's
+      ``detail.design_effect`` carries the design effect, its reason
+      (:data:`proofpack.stats.proportions.DEFF_REASONS`) and the route taken
+      (:data:`DEFF_ROUTES`).
     """
     ind = np.asarray(indicator, dtype=bool)
     pol, cplan, ids = _resolved(policy, plan, int(ind.shape[0]), cluster_ids)
@@ -1277,6 +1309,27 @@ def proportion_ci(
 
     if ids is None:  # unreachable: _resolved refuses a clustered plan without ids
         raise ValueError("a clustered plan needs cluster_ids")
+    de = design_effect(ind, ids)
+    refused = not_estimable(
+        "clustered_data_analytic_ci_invalid",
+        est=k / n,
+        n=n,
+        k=k,
+        n_cases=de.n_cases,
+        ci_level=level,
+    )
+    if de.deff is not None and de.n_cases >= MIN_CASES_DEFF_WILSON:
+        flags = ["wilson_refused_clustered", *precision_flags(de.n_cases)]
+        number = proportion_deff(k, n, de, level=level, flags=flags)
+        return CellCI(
+            number,
+            refused,
+            "refused_clustered",
+            cell_key,
+            cplan.route,
+            detail={"design_effect": {**de.as_dict(), "route": "wilson_deff"}},
+        )
+    route = "not_estimable" if de.deff is None else "below_coverage_bar"
     resampler = clustered_flat(ids, n_rows=n)
     n_cases = resampler.n_units
 
@@ -1284,9 +1337,6 @@ def proportion_ci(
         return float(ind[idx].mean())
 
     draw = bootstrap_percentile(statistic, resampler, pol.rng(cell_key), pol.n_resamples, level)
-    refused = not_estimable(
-        "clustered_data_analytic_ci_invalid", est=k / n, n=n, k=k, n_cases=n_cases, ci_level=level
-    )
     # n is the row count; under clustering the effective sample size is the case count,
     # and a subgroup table that printed n = 160 for twenty patients would overstate the
     # evidence by the design effect. Both are carried, and the tier is taken from cases.
@@ -1312,4 +1362,5 @@ def proportion_ci(
         draw.sd,
         resampler.describe(),
         resample_sd_reason=draw.sd_reason,
+        detail={"design_effect": {**de.as_dict(), "route": route}},
     )

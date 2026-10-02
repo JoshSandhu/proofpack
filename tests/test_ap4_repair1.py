@@ -195,13 +195,14 @@ def test_f5_png_rows_sit_at_the_svg_row_fractions_top_down(document):
 
 
 @needs_extra
-def test_t7_unverified_runs_are_twenty_in_pp_unverified_and_one_in_the_conventions_paragraph(
+def test_t7_unverified_runs_are_21_in_pp_unverified_and_one_in_the_conventions_paragraph(
     document,
 ):
     from proofpack.render import docx as render_docx
 
     runs = styled_runs(render_docx.render_docx_bytes(document, "T7"))
     marked = [(r, t) for t, _, r in runs if "[unverified]" in t]
-    assert Counter(r for r, _ in marked) == {"PP Unverified": 20, None: 1}
+    # 21 since E11 item 5: the rao_scott_1992 citation (wilson_deff) is an open item
+    assert Counter(r for r, _ in marked) == {"PP Unverified": 21, None: 1}
     (plain,) = [t for r, t in marked if r is None]
     assert plain.startswith("Fairness is measured, never mitigated.")

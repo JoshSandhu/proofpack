@@ -99,6 +99,9 @@ def _strip_sd(node):
             # platform on this near-degenerate input (35 on the ubuntu CI runner, 40 on
             # the Windows build machine, run 21 Sept 16:12 UTC); not a figure of the block
             if k not in ("resample_sd", "resample_sd_reason", "iterations")
+            # E11 item 5: the clustered decile bins gained ``detail.design_effect`` (a key,
+            # not a figure of the a0c9abc block); tests/test_e11_deff_wilson.py pins it
+            and not (k == "detail" and isinstance(v, dict) and set(v) == {"design_effect"})
         }
     if isinstance(node, list):
         return [_strip_sd(v) for v in node]

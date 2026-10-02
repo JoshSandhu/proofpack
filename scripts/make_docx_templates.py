@@ -1047,7 +1047,7 @@ def build_t7() -> bytes:
     b.no_data("calibration: null - the run document records no reason")
     b.tag("{%p endif %}")
     b.tag("{%p if has_cluster_bootstrap %}")
-    b.h2("6. Cluster-bootstrap coverage")
+    b.h2("6. Coverage of the clustered intervals")
     conventions(b, "coverage_conventions_blocks")
     b.tag("{%p endif %}")
     b.tag("{%p if fairness %}")

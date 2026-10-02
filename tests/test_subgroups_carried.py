@@ -125,9 +125,14 @@ def test_item17_a_bootstrap_at_level_0_90_is_strictly_inside_its_0_95_interval_a
             c90 = row90["metrics"]["op1"][key]["number"]
             if c95["ci_lo"] is None or c90["ci_lo"] is None:
                 continue
-            assert c95["method"] == c90["method"] == "cluster_bootstrap_percentile"
+            # E11 item 5: cells of five cases or more are wilson_deff, fewer bootstrap
+            assert c95["method"] == c90["method"]
+            assert c95["method"] in ("cluster_bootstrap_percentile", "wilson_deff")
             assert c90["ci_level"] == 0.9 and c95["ci_level"] == 0.95
-            assert c95["ci_lo"] <= c90["ci_lo"] and c90["ci_hi"] <= c95["ci_hi"], (
+            # E11 item 5: 1e-12 of slack on the upper bound - at k = n the Wilson upper
+            # bound is 1 - 1 ulp at some n (12 rows or cases: 0.9999999999999999 at 0.95,
+            # 1.0 at 0.90; wilson_bounds has done this since build day 2)
+            assert c95["ci_lo"] <= c90["ci_lo"] and c90["ci_hi"] <= c95["ci_hi"] + 1e-12, (
                 row95["level"],
                 key,
             )

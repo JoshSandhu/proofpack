@@ -11,6 +11,8 @@ committed, and re-runnable::
     python scripts/coverage_bar.py --quick     # R=100, B=200; 41 s measured 2026-09-15
     python scripts/coverage_bar.py --full      # the recorded run, R=400, B=1000; 743-781 s
     python scripts/coverage_bar.py --full --json out.json
+    python scripts/coverage_bar.py --deff-wilson   # build day 11: the wilson_deff family
+    python scripts/coverage_bar.py --deff-wilson --json design/coverage_deff_wilson.json
 
 What it measures
 ----------------
@@ -44,6 +46,21 @@ Two families of shapes:
   frozen-share dimension collapses to ``u = 1`` (share 1) and the grid is a grid over
   ``u``, which is what ``MIN_UNITS_PER_STRATUM`` decides for this route.
 
+The design-effect Wilson family (build day 11, E11 item 5, DEC-18 (a))
+-------------------------------------------------------------------
+``--deff-wilson`` measures the clustered proportion's ``wilson_deff`` interval
+(:func:`proofpack.stats.proportions.design_effect` and
+:func:`~proofpack.stats.proportions.proportion_deff`, the engine's own functions) on the
+proportion family's process above: ``u`` cases of ``w`` rows, the shared case effect at
+``TAU2 = 0.5``, truth ``p``. No resampling, so R is larger (``DEFF_REPS``, 4000;
+Monte-Carlo standard error about 0.005 at a coverage of 0.90). The grid is ``u`` in
+:data:`DEFF_UNITS`, ``w`` in :data:`DEFF_W` and ``p`` in :data:`PROP_P`; every draw is
+counted (a draw whose design effect is not estimable is not covered - there is none on
+this grid, since ``u >= 2``). The last line prints the smallest ``u`` at which every grid
+shape with at least ``u`` cases covers at or above the bar:
+``stats.bootstrap.MIN_CASES_DEFF_WILSON`` is set by hand from it. Equal case sizes only;
+mixed case sizes are not on the grid.
+
 Reading the table
 -----------------
 The last block prints, for every candidate ``(MIN_UNITS_PER_STRATUM,
@@ -74,6 +91,7 @@ from proofpack.stats.bootstrap import (
     percentile_bounds,
 )
 from proofpack.stats.discrimination import auroc_mann_whitney
+from proofpack.stats.proportions import design_effect, proportion_deff
 
 SCRIPT_VERSION = "coverage_bar.py v1 (build day 5, 2026-09-15)"
 SEED = 20260915
@@ -89,6 +107,12 @@ PROP_UNITS = (1, 2, 3, 4, 5, 10, 20, 40)
 PROP_W = (1, 3)
 PROP_P = (0.5, 0.9)
 CANDIDATE_MIN = (1, 2, 3, 4, 5, 6, 8, 10)
+#: build day 11 (E11 item 5): the wilson_deff family
+DEFF_SCRIPT_VERSION = "coverage_bar.py --deff-wilson v1 (build day 11, 2026-10-02)"
+DEFF_SEED = 20261002
+DEFF_REPS = 4000
+DEFF_UNITS = (2, 3, 4, 5, 6, 8, 10, 15, 20, 40)
+DEFF_W = (1, 3, 8)
 CANDIDATE_MAX = (0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50)
 
 _ND = NormalDist()
@@ -212,6 +236,81 @@ def coverage_prop(rng, u, w, p, reps, b_resamples) -> dict:
     }
 
 
+def coverage_deff(rng, u, w, p, reps) -> dict:
+    """The wilson_deff interval's coverage on one proportion shape (E11 item 5)."""
+    covered = 0
+    widths = []
+    reasons: dict[str, int] = {}
+    for _ in range(reps):
+        ind, ids = prop_cohort(rng, u, w, p)
+        de = design_effect(ind, ids)
+        reasons[de.reason] = reasons.get(de.reason, 0) + 1
+        if de.deff is None:
+            continue
+        num = proportion_deff(int(ind.sum()), int(ind.shape[0]), de, level=LEVEL)
+        covered += num.ci_lo <= p <= num.ci_hi
+        widths.append(num.ci_hi - num.ci_lo)
+    return {
+        "family": "wilson_deff",
+        "u_cases": u,
+        "rows_per_case": w,
+        "truth": p,
+        "coverage": covered / reps,
+        "mean_width": round(float(np.mean(widths)), 4) if widths else None,
+        "deff_reasons": dict(sorted(reasons.items())),
+        "reps": reps,
+    }
+
+
+def deff_threshold(rows: list[dict]) -> int | None:
+    """The smallest grid ``u`` at which every shape with at least ``u`` cases covers at or
+    above :data:`BAR`; ``None`` when no ``u`` does."""
+    for u in sorted({r["u_cases"] for r in rows}):
+        if all(r["coverage"] >= BAR for r in rows if r["u_cases"] >= u):
+            return u
+    return None
+
+
+def main_deff(json_path: str | None, reps: int) -> int:
+    rng = np.random.default_rng(DEFF_SEED)
+    t0 = time.time()
+    rows = []
+    print(f"{DEFF_SCRIPT_VERSION}; seed {DEFF_SEED}; R={reps}; nominal {LEVEL}; bar {BAR}")
+    print("wilson_deff family (u cases x w rows, truth p; TAU2 = 0.5)")
+    print(f"{'u':>3} {'w':>2} {'p':>4} {'cover':>6} {'width':>6}  deff reasons")
+    for p in PROP_P:
+        for w in DEFF_W:
+            for u in DEFF_UNITS:
+                r = coverage_deff(rng, u, w, p, reps)
+                rows.append(r)
+                print(
+                    f"{u:>3} {w:>2} {p:>4} {r['coverage']:>6.3f} {r['mean_width']:>6.3f}  "
+                    + ", ".join(f"{k} {v}" for k, v in r["deff_reasons"].items())
+                )
+                sys.stdout.flush()
+    threshold = deff_threshold(rows)
+    print(f"\nsmallest u with every shape at u or more cases >= {BAR}: {threshold}")
+    print(f"elapsed {time.time() - t0:.0f} s")
+    if json_path:
+        with open(json_path, "w", encoding="utf-8", newline="\n") as fh:
+            json.dump(
+                {
+                    "version": DEFF_SCRIPT_VERSION,
+                    "seed": DEFF_SEED,
+                    "reps": reps,
+                    "level": LEVEL,
+                    "bar": BAR,
+                    "tau2": TAU2,
+                    "rows": rows,
+                    "min_cases_meeting_bar": threshold,
+                },
+                fh,
+                indent=1,
+            )
+            fh.write("\n")
+    return 0
+
+
 def renders(row: dict, min_units: int, max_share: float) -> bool:
     """Would the day-4 rule render this shape under the candidate constants?"""
     if row["family"] == "auroc":
@@ -252,8 +351,16 @@ def main(argv: list[str] | None = None) -> int:
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--quick", action="store_true", help="R=100, B=200")
     mode.add_argument("--full", action="store_true", help="R=400, B=1000 (the recorded run)")
+    mode.add_argument(
+        "--deff-wilson",
+        action="store_true",
+        help=f"the wilson_deff family (build day 11), R={DEFF_REPS}",
+    )
     ap.add_argument("--json", help="also write every row and the feasibility table here")
+    ap.add_argument("--reps", type=int, default=None, help="--deff-wilson only: override R")
     args = ap.parse_args(argv)
+    if args.deff_wilson:
+        return main_deff(args.json, args.reps or DEFF_REPS)
     reps, b = (100, 200) if args.quick else (400, 1000)
     rng = np.random.default_rng(SEED)
     t0 = time.time()

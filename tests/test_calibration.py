@@ -461,7 +461,8 @@ def test_a_clustered_plan_refuses_every_analytic_interval_and_routes_to_the_clus
     for d_ in b["decile_curve"]:
         cell = d_["observed"]
         assert cell["analytic"]["not_estimable_reason"] == "clustered_data_analytic_ci_invalid"
-        assert cell["number"]["method"] in ("cluster_bootstrap_percentile", "none")
+        # E11 item 5 (DEC-18 (a)): a clustered proportion of five cases or more is wilson_deff
+        assert cell["number"]["method"] in ("cluster_bootstrap_percentile", "wilson_deff", "none")
         assert "wilson_refused_clustered" in cell["number"]["flags"]
         # 200 events / 200 non-events short on this cohort: the flag rides on the
         # rendered Number, not on the companion (lens 1 of 2026-09-18, FA-N2 M18)
@@ -697,7 +698,8 @@ def test_dec10_every_decile_bin_number_is_wilson_or_the_cluster_bootstrap():
     b2 = calibration_block(p2, y2, decl(), cluster_ids=ids, policy=POLICY).block
     for d_ in b2["decile_curve"]:
         num = d_["observed"]["number"]
-        assert num["method"] in ("cluster_bootstrap_percentile", "none")
+        # E11 item 5 (DEC-18 (a)): a clustered proportion of five cases or more is wilson_deff
+        assert num["method"] in ("cluster_bootstrap_percentile", "wilson_deff", "none")
     for name, blk in (("iid", b), ("clustered", b2)):
         for path, num in walk_numbers(blk):
             assert num["method"] in METHODS, (name, path)
@@ -708,7 +710,7 @@ def test_dec10_every_decile_bin_number_is_wilson_or_the_cluster_bootstrap():
             assert all(f in FLAGS for f in num["flags"])
 
 
-def test_each_decile_bins_cluster_bootstrap_groups_the_bins_own_rows_by_case():
+def test_each_decile_bins_clustered_interval_groups_the_bins_own_rows_by_case():
     """Lens 2 of 2026-09-18, FA-N5 L2-2: a ``_decile_curve`` that passed a same-length
     *prefix* of the case column instead of ``ids[rows]`` survived the whole suite, because
     every clustered test cohort is built by ``np.repeat`` (a case's rows are identical and
@@ -719,7 +721,13 @@ def test_each_decile_bins_cluster_bootstrap_groups_the_bins_own_rows_by_case():
     independent case bootstrap written here - the bin's rows grouped by their own case
     ids in first-appearance order, ``m`` cases drawn from ``m`` with the cell's own
     generator - reproduces the rendered bounds within 1e-12 and the case count exactly.
-    With the prefix mutant bin 3 reads 20 cases and (0.1, 0.35)."""
+    With the prefix mutant bin 3 reads 20 cases and (0.1, 0.35).
+
+    E11 item 5 (DEC-18 (a)): every bin here has 36-40 cases, so its interval is now
+    ``wilson_deff``; the check is the same in substance - the design effect from the bin's
+    own rows grouped by their own case ids (this test's own ratio-estimator arithmetic, not
+    ``stats.proportions``) and the Wilson interval on ``n / DEFF`` reproduce the rendered
+    bounds within 1e-12 and the case count exactly (bin 3: 40 rows, 38 cases)."""
     rng = np.random.default_rng(2)
     n = 400
     ids = np.repeat(np.array([f"c{i}" for i in range(200)], dtype=object), 2)
@@ -731,30 +739,21 @@ def test_each_decile_bins_cluster_bootstrap_groups_the_bins_own_rows_by_case():
     bins = hand_equal_mass(p)
     cases_per_bin = [38, 36, 38, 39, 40, 39, 39, 38, 38, 37]
     assert [len(set(ids[rows].tolist())) for rows in bins] == cases_per_bin
+    from deff_hand import hand_deff_wilson
+
     for k, rows in enumerate(bins):
         entry = b["decile_curve"][k]
         num = entry["observed"]["number"]
-        groups: dict[str, list[int]] = {}
-        for j, case in enumerate(ids[rows].tolist()):
-            groups.setdefault(case, []).append(j)
-        units = [np.array(g) for g in groups.values()]
-        m = len(units)
+        m = len(set(ids[rows].tolist()))
         assert num["n_cases"] == m
-        assert entry["observed"]["bootstrap"]["resampling"]["units_per_stratum"] == {"all": m}
-        g = policy.rng(entry["observed"]["bootstrap"]["cell_key"])
-        ind = y[rows]
-        values = []
-        for _ in range(policy.n_resamples):
-            sel = g.integers(0, m, m)
-            values.append(float(ind[np.concatenate([units[i] for i in sel])].mean()))
-        lo, hi = np.quantile(values, [0.025, 0.975])
-        assert num["method"] == "cluster_bootstrap_percentile", k
-        assert num["ci_lo"] == pytest.approx(float(lo), abs=1e-12), k
-        assert num["ci_hi"] == pytest.approx(float(hi), abs=1e-12), k
+        assert entry["observed"]["detail"]["design_effect"]["n_cases"] == m
+        assert entry["observed"]["bootstrap"] is None
+        _, lo, hi = hand_deff_wilson(y[rows], ids[rows].tolist())
+        assert num["method"] == "wilson_deff", k
+        assert num["ci_lo"] == pytest.approx(lo, abs=1e-12), k
+        assert num["ci_hi"] == pytest.approx(hi, abs=1e-12), k
     bin3 = b["decile_curve"][2]["observed"]["number"]
     assert bin3["n"] == 40 and bin3["n_cases"] == 38
-    assert bin3["ci_lo"] == pytest.approx(0.0975609756097561, abs=1e-12)
-    assert bin3["ci_hi"] == pytest.approx(0.358974358974359, abs=1e-12)
 
 
 # ------------------------------------------------------------------------------- Brier

@@ -227,7 +227,9 @@ def test_f5_case_id_c_i_over_2_assesses_a_paired_se_criterion_and_t2_prints_the_
     assert doc["comparison"]["clustering_route"] == "declared"
     se = doc["comparison"]["differences"]["op1"]["sensitivity"]["number"]
     own = doc["overall"]["op1"]["sensitivity"]
-    assert own["method"] == "cluster_bootstrap_percentile" and own["n_cases"] == 26
+    # E11 item 5: the run's own clustered sensitivity is wilson_deff (26 cases); the paired
+    # difference keeps the cluster bootstrap (stats.comparison)
+    assert own["method"] == "wilson_deff" and own["n_cases"] == 26
     assert se["method"] == "cluster_bootstrap_percentile" and se["n_cases"] == 26
     assert se["not_estimable_reason"] is None and se["n"] == 50
     assert round(se["ci_lo"], 4) == -0.2 and se["est"] == -0.08

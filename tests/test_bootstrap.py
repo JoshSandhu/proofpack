@@ -745,7 +745,9 @@ def test_a_clustered_proportion_refuses_wilson_with_a_typed_reason():
     ind = np.repeat(per_case, 4)
     plan = plan_clustering("case_id", cid)
     cell = proportion_ci(ind, cell_key="op1.sensitivity", plan=plan, cluster_ids=cid)
-    assert cell.number.method == "cluster_bootstrap_percentile"
+    # E11 item 5 (DEC-18 (a)): a clustered proportion of five cases or more is wilson_deff
+    assert cell.number.method == "wilson_deff"
+    assert cell.as_dict()["detail"]["design_effect"]["route"] == "wilson_deff"
     assert "wilson_refused_clustered" in cell.number.flags
     assert cell.analytic.not_estimable_reason == "clustered_data_analytic_ci_invalid"
     assert cell.number.n == 160 and cell.number.k == int(ind.sum())
@@ -1158,7 +1160,8 @@ def test_cluster_ids_without_a_plan_never_reach_delong_or_wilson():
 
     prop = proportion_ci(s > 0, cell_key="op1.sensitivity", cluster_ids=cid)
     assert prop.analytic_status == "refused_clustered"
-    assert prop.number.method == "cluster_bootstrap_percentile"
+    # E11 item 5 (DEC-18 (a)): five cases or more -> wilson_deff (never "wilson")
+    assert prop.number.method == "wilson_deff" and prop.route == "detected"
     assert "wilson_refused_clustered" in prop.number.flags
 
     # and a plan that positively asserts independence over clustered ids is a

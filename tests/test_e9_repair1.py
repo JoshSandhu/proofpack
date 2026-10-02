@@ -89,7 +89,7 @@ def test_t7_iid_and_clustered_carry_no_forbidden_word_and_no_josh_or_open_decisi
         assert "Josh" not in page and "open decision" not in page
         assert "Every number here comes from a committed script" not in page
     # the clustered page carries the coverage section, where "effective" was printed
-    assert "Cluster-bootstrap coverage" in render_t7.render_t7(clustered)
+    assert "Coverage of the clustered intervals" in render_t7.render_t7(clustered)
 
 
 def test_the_sample_packs_t7_carries_no_forbidden_word(builds):  # noqa: F811
@@ -123,13 +123,17 @@ def test_a_clustered_t1_and_t7_name_the_methods_their_numbers_carry(clustered):
     t10, t11 = _captions(page, "subgroup"), _captions(page, "differences")
     assert len(t10) == 3 and len(t11) == 3
     for cap in t10:
-        assert "Interval methods in this table: cluster bootstrap, percentile interval;" in cap
-        assert "Wilson" not in cap and "DeLong" not in cap
+        # E11 item 5: the proportions are wilson_deff, the AUROC the cluster bootstrap
+        assert (
+            "Interval methods in this table: cluster bootstrap, percentile interval; Wilson "
+            "score on the design-effect sample size n / DEFF;" in cap
+        )
+        assert "no continuity correction" not in cap and "DeLong" not in cap
     for cap in t11:
         assert "interval methods in this table: no interval method;" in cap
         assert "Newcombe" not in cap and "DeLong" not in cap
     f4 = re.search(r'<figure class="figure" id="F4">.*?</figure>', page, re.S).group(0)
-    assert "bar interval: cluster bootstrap, percentile interval;" in f4
+    assert "bar interval: Wilson score on the design-effect sample size n / DEFF;" in f4
     x1 = re.search(r'<p class="x1">(.*?)</p>', render_t7.render_t7(clustered)).group(1)
     assert "Newcombe" not in x1 and "DeLong" not in x1
     assert x1.endswith('in this run: no interval method (<span class="mono">none</span>, 105).')
@@ -154,9 +158,18 @@ def test_an_iid_t1_caption_lists_the_methods_of_its_cells(document):
 
 
 def test_a_decile_bin_with_a_typed_reason_is_not_plotted(clustered):
-    bin1 = clustered["calibration"]["decile_curve"][0]["observed"]["number"]
+    # E11 item 5: bin 1 (est 0.0, every row 0) is wilson_deff since build day 11 (the cases
+    # as the units), where the bootstrap refused it boundary_estimate; this is a renderer
+    # test, so the typed reason is planted on a copy of the document
+    doc = copy.deepcopy(clustered)
+    entry = doc["calibration"]["decile_curve"][0]["observed"]
+    assert entry["number"]["est"] == 0.0 and entry["number"]["method"] == "wilson_deff"
+    entry["number"].update(
+        ci_lo=None, ci_hi=None, method="none", not_estimable_reason="boundary_estimate"
+    )
+    bin1 = entry["number"]
     assert bin1["not_estimable_reason"] == "boundary_estimate" and bin1["est"] == 0.0
-    page = render_t1.render_t1(clustered)
+    page = render_t1.render_t1(doc)
     f4 = re.search(r'<figure class="figure" id="F4">.*?</figure>', page, re.S).group(0)
     assert 'data-role="decile" data-bin="1"' not in f4
     assert f4.count('data-role="decile"') == 9 and f4.count('data-role="interval"') == 9

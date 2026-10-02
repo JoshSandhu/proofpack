@@ -543,18 +543,22 @@ def clustered_cohort_with_one_wrong_negative_in_s3() -> dict[str, list[Any]]:
     return cols
 
 
+#: E11 item 5: the S3 cell (30 rows, 15 cases, 29 right) is wilson_deff since build day
+#: 11, lower bound 0.8299 where the cluster bootstrap's was 0.9; the bound moved from 0.89
+#: to 0.80 so the cell stays met and the B2 property (no attainability flag on a met row
+#: whose method is not Wilson) is still what is tested.
 CLUSTERED_CRITERIA = [
     _criterion(
         id="sp_S3",
         metric="specificity",
         scope={"attribute": "site", "level": "S3"},
-        value=0.89,
+        value=0.80,
     ),
     _criterion(
         id="acc_S3",
         metric="accuracy",
         scope={"attribute": "site", "level": "S3"},
-        value=0.89,
+        value=0.80,
     ),
 ]
 
@@ -572,23 +576,25 @@ def test_b2_the_clustered_s3_cell_is_met_with_no_attainability_flag_in_the_assem
     assert set(rows) == {"sp_S3", "acc_S3"}
     for cid in ("sp_S3", "acc_S3"):
         row = rows[cid]
-        assert (row["status"], row["compared_value"], row["n"]) == ("met", 0.9, 30), row
-        assert row["method"] == "cluster_bootstrap_percentile"
+        assert (row["status"], row["n"]) == ("met", 30), row
+        assert round(row["compared_value"], 4) == 0.8299  # E11 item 5: wilson_deff's ci_lo
+        assert row["method"] == "wilson_deff"
         assert row["attainable_at_n"] is None and row["max_lower_bound_at_n"] is None
         assert row["detail"] == {"attainability_not_computed": "method_not_wilson"}
         idx = int(re.search(r"\[(\d+)\]", row["metric_ref"]).group(1))
         num = doc["subgroups"][idx]["metrics"]["op1"][row["metric"]]["number"]
-        assert (num["ci_lo"], num["ci_hi"], num["n"], num["k"], num["n_cases"]) == (
-            0.9,
-            1.0,
+        # E11 item 5: wilson_deff on 15 two-row cases (the bootstrap printed (0.9, 1.0))
+        assert (round(num["ci_lo"], 4), num["n"], num["k"], num["n_cases"]) == (
+            0.8299,
             30,
             29,
             15,
         )
         assert num["est"] == pytest.approx(29 / 30, abs=1e-12)
-        # the figure that sat beside status met at ab729d3
+        # the figure that sat beside status met at ab729d3 (the bootstrap's 0.9 was above
+        # it; wilson_deff's 0.8299 is below it, on n_eff = n / DEFF < 30 rows - E11 item 5)
         assert max_lower_bound_at_n(30) == pytest.approx(0.8864866068260313, abs=1e-12)
-        assert num["ci_lo"] > max_lower_bound_at_n(30)
+        assert num["ci_lo"] < max_lower_bound_at_n(30)
     assert_no_met_row_is_marked_unattainable(doc["criteria_results"])
 
 

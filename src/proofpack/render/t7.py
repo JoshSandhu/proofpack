@@ -119,6 +119,14 @@ METHOD_DESCRIPTIONS: dict[str, str] = {
         "1. Used where rows are clustered; the analytic interval is then refused with the "
         "typed reason clustered_data_analytic_ci_invalid."
     ),
+    "wilson_deff": (
+        "Wilson score interval on the design-effect sample size n / DEFF for a clustered "
+        "proportion, the design effect estimated from the cases by the ratio estimator "
+        f"after Rao and Scott (1992) {UNVERIFIED_MARK}, {PENDING}; printed for a cell of at "
+        "least five cases, where its measured coverage is at or above the 0.90 bar (section "
+        "6). The Wilson interval on the rows is refused with the typed reason "
+        "clustered_data_analytic_ci_invalid."
+    ),
     "bootstrap_percentile": (
         "Stratified bootstrap over rows within outcome class, percentile interval (the Brier "
         "score, reference Brier and IPA), with the seed and B of section 1."
@@ -317,7 +325,10 @@ def t7_context(
             else None
         ),
         "calibration_conventions": _section(conv, "Calibration"),
-        "has_cluster_bootstrap": "cluster_bootstrap_percentile" in methods,
+        # E11 item 5: section 6 is printed for either clustered interval method
+        "has_cluster_bootstrap": bool(
+            {"cluster_bootstrap_percentile", "wilson_deff"} & set(methods)
+        ),
         "coverage_conventions": _section(conv, "Cluster-bootstrap coverage bar"),
         "fairness": _fairness(document),
         "conventions_sentence": CONVENTIONS_SENTENCE,

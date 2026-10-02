@@ -453,7 +453,8 @@ def test_the_clustered_overall_prevalence_is_the_pooled_positive_share():
     doc = assemble(cols, crit)
     n_pos = sum(1 for v in cols["y_true"] if v == "1")
     prevalence = doc["overall"]["op1"]["prevalence"]
-    assert prevalence["method"] == "cluster_bootstrap_percentile"
+    # E11 item 5 (DEC-18 (a)): a clustered proportion of five cases or more is wilson_deff
+    assert prevalence["method"] == "wilson_deff"
     assert prevalence["k"] == n_pos == 69 and prevalence["n"] == 200
     assert prevalence["est"] == n_pos / 200 == 0.345
     assert doc["overall"]["threshold_free"]["prevalence"] == prevalence

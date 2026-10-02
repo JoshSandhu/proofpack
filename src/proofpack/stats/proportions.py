@@ -16,6 +16,12 @@ Methods (D1 section 3.1, R2 sections 1.2 and 9):
   difference between two *independent* proportions.
 * **Newcombe paired** - the score-based interval for the difference between two
   proportions on the same cases, with the continuity-corrected correlation term.
+* **Wilson on the effective sample size** (``wilson_deff``, build day 11, DEC-18 (a)) -
+  a clustered proportion: the observed ``k / n`` with the Wilson interval on
+  ``n_eff = n / DEFF``, the design effect estimated from the cases
+  (:func:`design_effect`; the estimator **[unverified]**, :data:`DEFF_ESTIMATOR`).
+  :func:`proofpack.stats.bootstrap.proportion_ci` routes it, from the measured case count
+  at which its coverage clears the DEC-08 bar.
 * 2x2 derived metrics, PPA/NPA routing, both-way indeterminate tables, and
   PPV/NPV at a declared prevalence with a logit-scale delta interval.
 
@@ -296,6 +302,139 @@ def difference_paired(e: int, f: int, g: int, h: int, level: float = 0.95) -> Nu
         method="newcombe_paired",
         n=int(n),
     )
+
+
+# ------------------------------------------------------- clustered: the design effect
+
+#: E11 item 5 (DEC-18 (a)): what :func:`design_effect` did, a closed set carried in the
+#: cell's ``detail`` (never a silent fallback; each is a typed value in the output).
+DEFF_REASONS: tuple[str, ...] = (
+    # the ratio-estimator value, at or above 1
+    "deff_estimated",
+    # the estimate fell below 1 (cases more alike between than within); 1 is used, so
+    # the interval is never narrower than the unclustered Wilson
+    "deff_floored_at_one",
+    # every case carries one row: no within-case pair exists and the design effect of a
+    # proportion is 1 by definition (1 + (m - 1) rho at m = 1); not estimated
+    "deff_one_row_per_case",
+    # every row agrees (k = 0 or k = n) and some case has more than one row: the estimate
+    # is 0 / 0, so the cases are taken as the units (DEFF = n / n_cases, n_eff = n_cases,
+    # the design effect at within-case correlation 1 for equal case sizes)
+    "deff_boundary_cases_as_units",
+    # one case: no between-case variance exists; not estimable
+    "deff_not_estimable_single_case",
+)
+
+#: The estimator's name as the output records it. **[unverified]**: Rao JNK, Scott AJ.
+#: "A simple method for the analysis of clustered binary data." Biometrics
+#: 1992;48:577-585 - the ratio-estimator variance of a proportion over clusters and its
+#: design effect, cited from memory; the paper was not fetched in this build environment
+#: (no free copy was looked for: DEC-70 (a) approved one fetch, the Newcombe paper). The
+#: formula is stated in :func:`design_effect` and tested against a hand computation, not
+#: against the paper.
+DEFF_ESTIMATOR = "rao_scott_1992_ratio [unverified]"
+
+
+@dataclass(frozen=True)
+class DesignEffect:
+    """The design effect of one clustered proportion and the effective sample size.
+
+    ``estimate`` is the ratio-estimator value before flooring (``None`` when it was not
+    computed); ``deff`` is the value used (``None`` when not estimable);
+    ``n_eff = n / deff``."""
+
+    deff: float | None
+    n_eff: float | None
+    n: int
+    n_cases: int
+    reason: str
+    estimate: float | None = None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "deff": self.deff,
+            "n_eff": self.n_eff,
+            "n": self.n,
+            "n_cases": self.n_cases,
+            "reason": self.reason,
+            "estimate": self.estimate,
+            "estimator": DEFF_ESTIMATOR,
+        }
+
+
+def design_effect(indicator: np.ndarray, cluster_ids: np.ndarray) -> DesignEffect:
+    """The design effect of the proportion ``p = k / n`` over cases (E11 item 5).
+
+    With ``K`` cases, ``m_i`` rows and ``y_i`` successes in case ``i`` (``n = sum m_i``,
+    ``k = sum y_i``, ``p = k / n``), the ratio-estimator variance over clusters is
+
+        v = K / (K - 1) * sum_i (y_i - p m_i)^2 / n^2
+
+    and the design effect is ``DEFF = v / (p (1 - p) / n)`` - **[unverified]** as from
+    Rao and Scott (1992), see :data:`DEFF_ESTIMATOR`. ``DEFF < 1`` is floored at 1; one row
+    per case gives ``DEFF = 1`` without estimation; ``k = 0`` or ``k = n`` with a case of
+    more than one row takes the cases as the units (``DEFF = n / K``); one case is not
+    estimable. The reasons are :data:`DEFF_REASONS`."""
+    ind = np.asarray(indicator, dtype=bool)
+    ids = np.asarray(cluster_ids)
+    n = int(ind.shape[0])
+    if ids.shape[0] != n:
+        raise ValueError("cluster_ids must align row-for-row with the indicator")
+    if n == 0:
+        return DesignEffect(None, None, 0, 0, "deff_not_estimable_single_case")
+    _, inv = np.unique(ids, return_inverse=True)
+    n_cases = int(inv.max()) + 1
+    if n_cases < 2:
+        return DesignEffect(None, None, n, n_cases, "deff_not_estimable_single_case")
+    m = np.bincount(inv, minlength=n_cases).astype(np.float64)
+    if int(m.max()) == 1:
+        return DesignEffect(1.0, n / 1.0, n, n_cases, "deff_one_row_per_case")
+    k = int(ind.sum())
+    if k in (0, n):
+        deff = n / n_cases
+        return DesignEffect(deff, n / deff, n, n_cases, "deff_boundary_cases_as_units")
+    y = np.bincount(inv, weights=ind.astype(np.float64), minlength=n_cases)
+    p = k / n
+    v = n_cases / (n_cases - 1) * float(np.sum((y - p * m) ** 2)) / (n * n)
+    estimate = v / (p * (1.0 - p) / n)
+    if estimate < 1.0:
+        return DesignEffect(1.0, n / 1.0, n, n_cases, "deff_floored_at_one", estimate)
+    return DesignEffect(estimate, n / estimate, n, n_cases, "deff_estimated", estimate)
+
+
+def wilson_effective_bounds(p: float, n_eff: float, level: float = 0.95) -> tuple[float, float]:
+    """The Wilson score interval with the observed proportion ``p`` and an effective sample
+    size ``n_eff`` in place of ``n``: the arithmetic of :func:`wilson_bounds` term for term,
+    so ``n_eff = n`` and ``p = k / n`` give its bounds exactly."""
+    if n_eff <= 0:
+        raise ValueError("n_eff must be positive")
+    z = z_for(level)
+    z2 = z * z
+    denom = 2.0 * (n_eff + z2)
+    centre = 2.0 * n_eff * p + z2
+    rad = z * math.sqrt(z2 + 4.0 * n_eff * p * (1.0 - p))
+    return (_clip((centre - rad) / denom), _clip((centre + rad) / denom))
+
+
+def proportion_deff(
+    k: int, n: int, de: DesignEffect, level: float = 0.95, flags: list[str] | None = None
+) -> Number:
+    """A clustered proportion: ``k / n`` with the Wilson interval on ``n_eff = n / DEFF``
+    (method ``wilson_deff``); ``n`` and ``k`` are the rows, ``n_cases`` the cases."""
+    if de.deff is None or de.n_eff is None:
+        raise ValueError(f"no design effect to adjust by ({de.reason})")
+    lo, hi = wilson_effective_bounds(k / n, de.n_eff, level)
+    return Number(
+        est=k / n,
+        ci_lo=lo,
+        ci_hi=hi,
+        ci_level=level,
+        method="wilson_deff",
+        n=int(n),
+        k=int(k),
+        n_cases=int(de.n_cases),
+        flags=list(flags or []),
+    ).with_precision_flags()
 
 
 # ------------------------------------------------------------------------ 2x2 tables
