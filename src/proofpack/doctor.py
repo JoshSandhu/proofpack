@@ -72,9 +72,20 @@ def run_checks(*, offline: bool = False, cwd: str | Path | None = None) -> list[
             essential=False,
         )
     )
-    docx_v = _version_of("docxtpl")
+    # A-P4 (build day 10): the [docx] extra is three distributions; the row names each
+    # with its version, or which one is missing (HTML/JSON need none of them)
+    extra = [("docxtpl", "docxtpl"), ("docx", "python-docx"), ("matplotlib", "matplotlib")]
+    versions = {dist: _version_of(mod, dist) for mod, dist in extra}
+    missing = [dist for dist, v in versions.items() if v is None]
     checks.append(
-        Check("docx extra", True, docx_v or "not installed - HTML/JSON only", essential=False)
+        Check(
+            "docx extra",
+            True,
+            ", ".join(f"{d} {v}" for d, v in versions.items())
+            if not missing
+            else "not installed (" + ", ".join(missing) + " missing) - HTML/JSON only",
+            essential=False,
+        )
     )
 
     for name in (

@@ -416,6 +416,11 @@ ALLOWED: dict[str, tuple[str, ...]] = {
     "src/proofpack/render/figures.py": (
         "``Cpd`` (sensitivity, op1, sex = F, value -0.05) was drawn at x = 178.5 on the op1",
     ),
+    # A-P4's PNG drawer (merged 2 Oct 2026): two text positions in axes and figure fractions
+    "src/proofpack/render/figures_png.py": (
+        'ax.text(0.03, 0.93, spec["flag_short"], fontsize=FONT_PT, color=c["ink"])',
+        'fig.legend(loc="upper left", bbox_to_anchor=(0.02, 0.31), fontsize=7.5, frameon=False)',
+    ),
     "src/proofpack/stats/bootstrap.py": (
         "cases, the interval covered the truth at a frozen share of 0.05 / 0.10 / 0.20 in",
         "constant at 0.20 the shapes it **renders** are 0.05 and 0.10 (both at or above the",

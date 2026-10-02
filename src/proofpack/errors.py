@@ -1,7 +1,8 @@
 """Exit codes, HALT codes and the exception hierarchy (D1 section 5).
 
 Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal, 6 ``proofpack fixtures``
-with one or more rows not matched (A-P3).
+with one or more rows not matched (A-P3), 7 ``--format docx`` asked without the ``[docx]``
+extra installed (A-P4; one typed line, nothing written).
 No document is written on HALT ("never a silent number").
 """
 
@@ -18,6 +19,11 @@ EXIT_INTERNAL = 5
 #: ``not_matched`` (``proofpack.fixtures.exit_code_for``). Rows without an oracle, not built
 #: or compared by the test suite only never set it.
 EXIT_FIXTURES_NOT_MATCHED = 6
+#: ``proofpack run --format ...docx...`` (A-P4, build day 10) when docxtpl, python-docx or
+#: matplotlib cannot be found (``proofpack.render.docx.extra_available``): the CLI prints
+#: ``proofpack.render.docx.EXTRA_LINE`` and exits before any statistics run; nothing is
+#: written. ``run --format json,html`` needs none of the three.
+EXIT_DOCX_EXTRA_MISSING = 7
 
 #: HALT gate codes and their one-line meaning (D1 section 5 table).
 HALT_CODES: dict[str, str] = {

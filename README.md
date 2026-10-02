@@ -317,11 +317,12 @@ and the same bytes are `manifest.mapping_sha256` in `run.json` (DEC-27).
   `proofpack licence verify FILE` (exit 0 for `ok` / `grace`, 4 otherwise) and
   `proofpack licence install FILE` (verifies, then copies to the per-user location;
   a refused file is not installed).
-* Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal.
+* Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal, 6 `fixtures` with a
+  row not matched, 7 `--format docx` without the `[docx]` extra.
 * **Documents (build day 8, lane E).** `--format json,html` (the default) writes
   `<out>/T8.html` beside `run.json` when the licence is `ok` or in `grace`; after grace
   `run.json` is written, no document is, and the exit code is 4. `--format json` writes
-  no document; `docx` and `pdf` are refused with a typed line. `--templates T8` (the
+  no document; `pdf` is refused with a typed line. `--templates T8` (the
   default) names the document; `T1` and `T7` are accepted and answered with a typed
   "not built in E8" line. The HTML needs `jinja2` at run time (a runtime dependency of
   the wheel). `run.json` carries `claims`, `claim_rejections` and `guidance_refs`
@@ -330,6 +331,16 @@ and the same bytes are `manifest.mapping_sha256` in `run.json` (DEC-27).
   (`null` on the fairness-bound rows). On the page a declared number (threshold,
   criterion value, prevalence, fairness bound) prints with every digit `run.json`
   carries; engine estimates print by D4 section 1.2's rules.
+* **DOCX (build day 10, lane A, A-P4).** `--format json,html,docx` (or `docx` alone)
+  also writes `<out>/T1.docx`, `T7.docx`, `T8.docx` for the `--templates` asked, under the
+  same licence rule as the HTML, rendered through docxtpl from the committed templates
+  `src/proofpack/templates/T*.docx` (built by `scripts/make_docx_templates.py`, D5 section
+  3.5 named styles from `design/tokens.json`) and the same context the HTML uses; figures
+  F2-F5 are matplotlib PNGs (Agg, 300 dpi, 160 mm) from the same arrays as the SVG. It
+  needs the `[docx]` extra (`pip install "proofpack[docx]"`: docxtpl, python-docx,
+  matplotlib); without it `--format docx` exits 7 with one typed line and writes nothing,
+  and `--format json,html` needs none of the three. The container is byte-stable for one
+  `run.json` on one machine (zip mtimes and core properties are the manifest's `started`).
 * **H02 reads `y_pred` too** (repair 1 of build day 8): a `y_pred` column holding a
   non-blank value outside `classes.positive`, `classes.negative` and
   `indeterminates.values` halts H02 naming the column, before any statistic. The two

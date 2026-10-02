@@ -198,7 +198,7 @@ def test_rg3n3_a_changed_kind_is_false():
 # ------------------------------------------------------------------------------ FA-N7
 
 
-def test_fan7_ci_runs_the_oracle_check_after_pytest_unless_cancelled():
+def test_fan7_the_oracle_step_follows_pytest_and_carries_if_not_cancelled():
     doc = yaml.safe_load((REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
     steps = doc["jobs"]["test"]["steps"]
     names = [s.get("name") for s in steps]

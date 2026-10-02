@@ -351,7 +351,7 @@ def test_f17_detects_a_file_added_to_one_run(tmp_path):
 # --------------------------------------------------- FA2-R6: the ZAP job's upload step
 
 
-def test_the_zap_upload_step_runs_after_a_failed_scan():
+def test_the_zap_upload_step_carries_if_always():
     rel = yaml.safe_load((REPO / ".github" / "workflows" / "release.yml").read_text("utf-8"))
     steps = rel["jobs"]["zap-baseline"]["steps"]
     upload = next(s for s in steps if str(s.get("uses", "")).startswith("actions/upload"))

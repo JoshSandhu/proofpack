@@ -4,8 +4,9 @@ Fed ``uv.lock`` as committed; asserted: every ``[[package]]`` of the lock other 
 project appears once in ``components`` with ``name``, ``version`` and a ``purl``
 ``pkg:pypi/<name>@<version>``; the project is ``metadata.component``; two runs write the
 same bytes; the ``required`` scope is the 13 packages ``uv export --no-dev --extra stats``
-listed on 24 September 2026 less scipy (which is ``optional``); statsmodels, scikit-learn
-and pytest are ``excluded``. The CycloneDX JSON schema was not fetched: the fields are
+listed on 24 September 2026 less scipy (which is ``optional``, as are the nine packages
+the ``docx`` extra added to the lock on 25 September 2026, A-P4); statsmodels,
+scikit-learn and pytest are ``excluded``. The CycloneDX JSON schema was not fetched: the fields are
 checked here, not against it.
 """
 
@@ -44,7 +45,8 @@ def test_every_locked_package_is_present_with_a_purl(bom):
     lock = tomllib.loads((REPO / "uv.lock").read_text(encoding="utf-8"))
     locked = {p["name"]: p["version"] for p in lock["package"] if p["name"] != "proofpack"}
     comps = {c["name"]: c for c in bom["components"]}
-    assert set(comps) == set(locked) and len(bom["components"]) == len(locked) == 62
+    # 62 at 81f1102; the [docx] extra's re-lock (A-P4) added nine
+    assert set(comps) == set(locked) and len(bom["components"]) == len(locked) == 71
     for name, version in locked.items():
         c = comps[name]
         assert c["version"] == version and c["type"] == "library"
@@ -75,6 +77,18 @@ def test_the_scopes_follow_the_lock(bom):
         "typing-extensions",
     ]
     assert scope["scipy"] == "optional"
+    for extra in (
+        "docxtpl",
+        "python-docx",
+        "matplotlib",
+        "contourpy",
+        "cycler",
+        "fonttools",
+        "kiwisolver",
+        "lxml",
+        "pillow",
+    ):
+        assert scope[extra] == "optional", extra
     for dev in ("statsmodels", "scikit-learn", "pytest", "ruff", "hypothesis", "pip-audit"):
         assert scope[dev] == "excluded", dev
 

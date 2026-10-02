@@ -1,7 +1,8 @@
 """``proofpack`` command line (D1 section 7): doctor, map, run, compare, fixtures, licence.
 
 Exit codes: 0 ok, 2 warnings only, 3 HALT, 4 licence, 5 internal, 6 ``fixtures`` with a
-row not matched (A-P3).
+row not matched (A-P3), 7 ``run --format ...docx...`` without the ``[docx]`` extra (A-P4:
+one typed line before any statistics run; nothing written).
 On HALT nothing is written to ``--out``. ``run`` (build day 7, E7: :mod:`proofpack.run`)
 needs a confirmed mapping (DEC-26) and writes ``run.json`` - the assembled document -
 under ``--out``; on a licence that is expired past grace, refused or absent it still
@@ -13,7 +14,9 @@ the licence is ``ok`` or ``grace``; ``--templates`` names the documents (default
 through :func:`proofpack.run.assemble_compare` and writes ``run.json`` with D1 section
 4.2's ``comparison`` block, ``compare_ingest_report.json`` beside it, and ``T2.html`` (the
 default; ``T7`` and ``T8`` also accepted) under the same licence rule as ``run`` plus the
-``compare`` feature of the licence payload.
+``compare`` feature of the licence payload. Build day 10 (A-P4): ``--format json,html,docx``
+(or ``docx`` alone) also writes ``<id>.docx`` for each template asked, under the same
+licence rule, when the ``[docx]`` extra is installed.
 """
 
 from __future__ import annotations
@@ -86,8 +89,8 @@ def _build_parser() -> argparse.ArgumentParser:
     r.add_argument(
         "--format",
         default=None,
-        help="comma list of json, html (default json,html; HTML is written only when the "
-        "licence is ok or in grace)",
+        help="comma list of json, html, docx (default json,html; HTML and DOCX are written "
+        "only when the licence is ok or in grace; docx needs the [docx] extra)",
     )
     r.add_argument(
         "--templates",
@@ -505,7 +508,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     from proofpack.run import (
         DEFAULT_FORMAT,
         DEFAULT_TEMPLATES,
+        DOCX_FORMAT,
         assemble_run,
+        document_names,
         licence_fix,
         parse_formats,
         parse_templates,
@@ -522,6 +527,16 @@ def cmd_run(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_INTERNAL
+    if DOCX_FORMAT in formats:
+        # A-P4: the extra is checked before any statistics run, so a missing package is
+        # one typed line (exit 7) and never a traceback after run.json was written
+        from proofpack.render.docx import DocxExtraMissing, require_extra  # noqa: PLC0415
+
+        try:
+            require_extra()
+        except DocxExtraMissing as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return exc.exit_code
     outcome = assemble_run(args.input, args.criteria, mapping=args.mapping, registry=args.registry)
     target = write_run(outcome, args.out)
     documents, notes = write_documents(outcome, args.out, formats, templates)
@@ -561,23 +576,25 @@ def cmd_run(args: argparse.Namespace) -> int:
         summary += f"  {note}\n"
     if documents:
         summary += (
-            "Next step: open the documents beside run.json; --templates T1,T7,T8 writes all "
-            "three (docs: /docs/run)"
+            "Next step: open the documents beside run.json ("
+            + ", ".join(p.name for p in documents)
+            + "); --templates T1,T7,T8 writes all three (docs: /docs/run)"
         )
     elif not lic.usable:
         # E9 repair 2 (lens-2 FA-N6): under --format json the same flags write no HTML
-        # after an install, so the line names --format json,html
+        # after an install, so the line names --format json,html; A-P4: the names carry
+        # the extension of each format asked (T1.html, T1.docx, ...)
         summary += (
             "Next step: proofpack licence install FILE, then run again "
-            + ("" if "html" in formats else "with --format json,html ")
+            + ("" if ("html" in formats or DOCX_FORMAT in formats) else "with --format json,html ")
             + "for "
-            + ", ".join(f"{t}.html" for t in templates)
+            + ", ".join(document_names(formats, templates))
             + " (docs: /docs/run)"
         )
     else:
         summary += (
             "Next step: run again with --format json,html for "
-            + ", ".join(f"{t}.html" for t in templates)
+            + ", ".join(document_names(formats, templates))
             + " (docs: /docs/run)"
         )
     _emit(

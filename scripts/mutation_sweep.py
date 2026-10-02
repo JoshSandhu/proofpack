@@ -36,6 +36,7 @@ Usage::
 
     python scripts/mutation_sweep.py --marker ap2             # the A-P2 egress list (day 8 A)
     python scripts/mutation_sweep.py --marker ap3             # the A-P3 release list (day 9 A)
+    python scripts/mutation_sweep.py --marker ap4             # the A-P4 DOCX list (day 10 A)
 
 The round-7 repair of build day 4 ran this by hand as a scratch file; it found that the
 two changes that round's commit narrated most prominently were unobservable, which is
@@ -3132,6 +3133,206 @@ AP3_MUTANTS: tuple[Mutant, ...] = (
     ),
 )
 MUTANTS = MUTANTS + AP3_MUTANTS
+
+#: A-P4 (build day 10, lane A): the DOCX renderer, the [docx] extra, the PNG figures.
+#: Run with ``--marker ap4`` where the extra imports (the tests carry ``day10`` and
+#: ``ap4``). Measured at commit 4879ac5 (its 130 ap4 tests) with the three modules hidden
+#: by a ``-p`` plugin (win-amd64-cp314, 26 September 2026): the baseline passes (``29
+#: passed, 101 skipped``, so the sweep runs);
+#: ``ap4_footer_emptied_in_render`` then passes ``-m ap4`` unchanged (``29 passed, 101
+#: skipped``) and is reported SURVIVED, while ``ap4_zip_mtime_now`` and ``ap4_png_dpi_150``
+#: are reported killed by ``tests/test_sweep_ap4.py``'s pattern-count test alone (their
+#: replacement removes the pattern in the planted copy), not by a DOCX test. Under
+#: ``PROOFPACK_REQUIRE_DOCX=1`` the baseline fails and the sweep refuses to run. Lens 2
+#: re-measured at e2c98df (154 ap4 tests, 2 October 2026): the footer mutant SURVIVED, the
+#: mtime and dpi mutants were killed (``1 failed, 49 passed, 104 skipped``), and the
+#: baseline under ``PROOFPACK_REQUIRE_DOCX=1`` refused.
+DOCX_RENDER = "src/proofpack/render/docx.py"
+DOCX_GENERATOR = "scripts/make_docx_templates.py"
+FIGURES_PNG = "src/proofpack/render/figures_png.py"
+FIGURES = "src/proofpack/render/figures.py"
+T1_RENDER = "src/proofpack/render/t1.py"
+RENDER_LINE = r"^    tpl\.render\(ctx, jinja_env=_environment\(\), autoescape=True\)$"
+AP4_MUTANTS: tuple[Mutant, ...] = (
+    Mutant(
+        "ap4_t1_cell_fmt_bypassed",
+        T1_RENDER,
+        r"^        text = fmt\.number\(num, kind\)$",
+        "        text = str((num or {}).get('est'))",
+        what="a Number cell prints repr(est) instead of fmt.number on the way to both documents",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_landscape_footer_dropped",
+        DOCX_GENERATOR,
+        r'^        fp\.add_run\("\{\{ footer \}\}"\)$',
+        '        fp.add_run("" if landscape else "{{ footer }}")',
+        what="the footer part of the landscape section carries no disclaimer slot",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_footer_emptied_in_render",
+        DOCX_RENDER,
+        RENDER_LINE,
+        '    ctx["footer"] = ""\n    tpl.render(ctx, jinja_env=_environment(), autoescape=True)',
+        what="every section footer of the rendered DOCX is empty",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_watermark_slot_emptied",
+        DOCX_RENDER,
+        RENDER_LINE,
+        '    ctx["watermark"] = None\n'
+        "    tpl.render(ctx, jinja_env=_environment(), autoescape=True)",
+        what="the manifest's watermark never reaches a footer",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_style_colour_typed",
+        DOCX_GENERATOR,
+        r'^    return theme\.color\(token\)\.lstrip\("#"\)\.upper\(\)$',
+        '    return "000000"',
+        what="every style colour is a typed constant, not the token",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_png_dpi_150",
+        FIGURES_PNG,
+        r"^DPI = 300$",
+        "DPI = 150",
+        what="the PNGs are 150 dpi",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_map_off_by_one_unit",
+        FIGURES,
+        r"^        return self\.x0 \+ \(float\(v\) - self\.xmin\) / \(self\.xmax - self\.xmin\)"
+        r" \* self\.w$",
+        "        return self.x0 + 1.0 + (float(v) - self.xmin) / (self.xmax - self.xmin) * self.w",
+        what="the SVG x map is one user unit off its documented data-map",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_extra_missing_branch_raises",
+        "src/proofpack/cli.py",
+        r"^            return exc\.exit_code$",
+        "            raise",
+        what="--format docx without the extra is a traceback, not exit 7",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_parity_tolerance_widened",
+        "tests/test_ap4_figures.py",
+        r"^TOL = 1e-9$",
+        "TOL = 1e-2",
+        what="the PNG/SVG parity tolerance is 1e-2",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_extra_modules_drop_matplotlib",
+        DOCX_RENDER,
+        r'^EXTRA_MODULES: tuple\[str, \.\.\.\] = \("docx", "docxtpl", "matplotlib"\)$',
+        'EXTRA_MODULES: tuple[str, ...] = ("docx", "docxtpl")',
+        what="extra_available is true with matplotlib missing",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_zip_mtime_now",
+        DOCX_RENDER,
+        r"^            zi = zipfile\.ZipInfo\(info\.filename, date_time=date_time\)$",
+        "            zi = zipfile.ZipInfo("
+        "info.filename, date_time=_dt.datetime.now().timetuple()[:6])",
+        what="zip entry mtimes are the wall clock",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_figure_width_100mm",
+        DOCX_RENDER,
+        r"^FIGURE_WIDTH_MM = 160$",
+        "FIGURE_WIDTH_MM = 100",
+        what="the inline images are 100 mm wide",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_customer_inline_style_dropped",
+        DOCX_RENDER,
+        r"^            rt\.add\(part\.text, style=STYLE_CUSTOMER_INLINE\)$",
+        "            rt.add(part.text)",
+        what="a claim sentence's customer part loses its manufacturer style",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_f5_rows_flipped",
+        FIGURES_PNG,
+        r"^            ax\.set_ylim\(n_rows - 0\.5, -0\.5\)",
+        "            ax.set_ylim(-0.5, n_rows - 0.5)",
+        what="F5 PNG rows run bottom-up, the reverse of the SVG and the table (lens 1 FA-R4)",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_f5_value_text_two_dp",
+        FIGURES_PNG,
+        r'^                    row\["value"\],$',
+        '                    f"{row[\'est\']:.2f}" if row["drawn"] else row["value"],',
+        what="F5 PNG value texts print est to two places, not the engine's string (lens 2 FA2-B1)",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_f5_criterion_legend_raw_value",
+        FIGURES_PNG,
+        r"^                    label=f\"\{crit\['label'\]\}: \{crit\['value_text'\]\} "
+        r"\(heavy dashed\)\",$",
+        "                    label=f\"{crit['label']}: {crit['value']} (heavy dashed)\",",
+        what="F5 PNG criterion legend prints repr(value), not fmt.declared (lens 2 mutant I)",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_png_builtin_rc_dropped",
+        FIGURES_PNG,
+        r'^        with style\.context\("default"\), matplotlib\.rc_context\('
+        r'\{"text\.parse_math": False\}\):$',
+        '        with matplotlib.rc_context({"text.parse_math": False}):',
+        what="the PNG drawer runs under a matplotlibrc found at import (lens 2 FA2-S8)",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_png_mathtext_parsed",
+        FIGURES_PNG,
+        r'^        with style\.context\("default"\), matplotlib\.rc_context\('
+        r'\{"text\.parse_math": False\}\):$',
+        '        with style.context("default"):',
+        what="a $\\foo$ customer string is parsed as mathtext and png_bytes raises (FA2-N1)",
+        day=10,
+        marker="ap4",
+    ),
+    Mutant(
+        "ap4_curve_legend_two_dp",
+        FIGURES_PNG,
+        r'^        label=spec\["legend"\],$',
+        '        label=spec["legend"].replace("0.835 [0.795, 0.876]", "0.84 [0.80, 0.88]"),',
+        what="F2 PNG legend AUROC printed to two places (lens 3 RG3-B1's mutant)",
+        day=10,
+        marker="ap4",
+    ),
+)
+MUTANTS = MUTANTS + AP4_MUTANTS
 
 
 def env_for(copy: Path) -> dict[str, str]:
