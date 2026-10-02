@@ -129,7 +129,14 @@ REASON_CODES: dict[str, str] = {
     "not_like_for_like": "the comparison is unpaired, so no paired difference exists",
     # a paired criterion whose scope the comparison block carries no difference for
     "comparison_not_computed_for_scope": "the comparison carries no paired difference in scope",
+    # build day 11 (E11 item 8, E10 row 149): PPV and NPV are not compared between versions
+    # (their denominators, the predicted positives and negatives, differ between the two)
+    "metric_not_compared": "the version comparison computes no paired difference for this metric",
 }
+#: The per-operating-point metrics ``stats.comparison`` computes a paired difference for.
+COMPARED_PROPORTIONS: frozenset[str] = frozenset(
+    {"sensitivity", "specificity", "ppa", "npa", "accuracy"}
+)
 
 STATISTICS: tuple[str, ...] = ("ci_lower_bound", "ci_upper_bound", "point_estimate")
 COMPARATORS: tuple[str, ...] = (">=", ">", "<=", "<")
@@ -433,6 +440,10 @@ def _resolve_comparison(doc: dict[str, Any], metric: str, op: str | None, scope:
             return _Read(None, None, "comparison_not_computed_for_scope")
     if metric in COMPARISON_KEYS:
         return _comparison_cell(block, path, COMPARISON_KEYS[metric])
+    if metric in SUBGROUP_OP_METRICS and metric not in COMPARED_PROPORTIONS:
+        # E11 item 8 (row 149): at ad66073 a ppv criterion read
+        # comparison_not_computed_for_scope although the overall scope was compared
+        return _Read(None, None, "metric_not_compared")
     if metric in SUBGROUP_OP_METRICS and op is not None:
         per_op = block.get(op) if isinstance(block, dict) else None
         return _comparison_cell(per_op, f"{path}.{op}", metric)

@@ -172,7 +172,9 @@ def test_paired_criteria_on_auroc_brier_slope_and_a_subgroup_read_their_cells(tm
     assert all(r["status"] == "met" for r in by_id["Cstar"])
     # PPV is not a paired proportion (its denominators differ between the versions)
     assert by_id["Cppv"][0]["status"] == "not_assessable"
-    assert by_id["Cppv"][0]["reason_code"] == "comparison_not_computed_for_scope"
+    # E11 item 8 (E10 row 149): metric_not_compared; at ad66073 the false
+    # comparison_not_computed_for_scope, which this line pinned
+    assert by_id["Cppv"][0]["reason_code"] == "metric_not_compared"
 
 
 # ------------------------------------------------------------------ outside compare

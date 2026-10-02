@@ -115,6 +115,10 @@ NOT_ESTIMABLE_REASONS: frozenset[str] = frozenset(
         # the customer did not declare - refused, never transformed.
         "score_not_probability",
         "score_not_positive_class_probability",
+        # build day 11 (E11 item 8, E10 row 132): a y_pred-only table has no score column,
+        # so a score-based difference (Brier, slope) of a version comparison is this, the
+        # reason the run's own threshold-free block records
+        "no_score_column",
         # the module's own IRLS logistic fits, typed instead of inf / nan / a traceback
         "irls_not_converged",  # budget spent, a step refused, or a singular / non-finite fit
         "complete_separation",  # every fitted probability equals its label; no MLE

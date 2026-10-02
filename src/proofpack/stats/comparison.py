@@ -513,7 +513,15 @@ def _paired_calibration_cells(
 ) -> dict[str, dict[str, Any]]:
     n = new.n
     if not probability or new.probability is None or prior.probability is None:
-        reason = "score_not_probability" if new.probability is None else "not_computed_this_run"
+        # E11 item 8 (E10 row 132): a pair with no score column is no_score_column, the
+        # reason the run's own block gives; score_not_probability is a score declared as
+        # something other than a probability
+        if new.score is None:
+            reason = "no_score_column"
+        elif new.probability is None:
+            reason = "score_not_probability"
+        else:
+            reason = "not_computed_this_run"
         return {
             k: _cell(not_estimable(reason, n=n, ci_level=level), None, "not_computed")
             for k in ("brier", "slope")

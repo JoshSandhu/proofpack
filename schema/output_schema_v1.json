@@ -493,7 +493,8 @@
             "metric_not_computed_for_scope", "calibration_suppressed", "no_calibration_block",
             "level_absent", "level_is_reference", "gap_requires_fairness_attribute",
             "no_fairness_block", "requires_compare", "overall_not_computed",
-            "not_estimable_this_run", "not_like_for_like", "comparison_not_computed_for_scope"
+            "not_estimable_this_run", "not_like_for_like", "comparison_not_computed_for_scope",
+            "metric_not_compared"
           ]
         },
         "detail": { "type": "object" }
@@ -539,7 +540,7 @@
         "score_not_probability", "score_not_positive_class_probability",
         "irls_not_converged", "complete_separation", "constant_score",
         "fixed_by_outcome_stratification",
-        "unpaired_not_like_for_like"
+        "unpaired_not_like_for_like", "no_score_column"
       ]
     },
     "flag": {
