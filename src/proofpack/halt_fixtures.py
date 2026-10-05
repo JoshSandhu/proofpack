@@ -134,7 +134,7 @@ def fixture_criteria(**overrides: Any) -> dict[str, Any]:
     return out
 
 
-def _write_csv(path: Path, cols: dict[str, list[Any]]) -> Path:
+def write_csv(path: Path, cols: dict[str, list[Any]]) -> Path:
     headers = list(cols)
     n = len(cols[headers[0]])
     with path.open("w", encoding="utf-8", newline="") as fh:
@@ -145,14 +145,14 @@ def _write_csv(path: Path, cols: dict[str, list[Any]]) -> Path:
     return path
 
 
-def _write_yaml(path: Path, data: dict[str, Any]) -> Path:
+def write_yaml(path: Path, data: dict[str, Any]) -> Path:
     import yaml  # noqa: PLC0415
 
     path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     return path
 
 
-def _confirm_mapping(csv_path: Path) -> Path:
+def confirm_mapping(csv_path: Path) -> Path:
     """The computed mapping of ``csv_path`` written beside it as ``<input>.mapping.json``
     with ``decided_by: file`` (``tests/conftest.py::confirmed_mapping``)."""
     from proofpack.io.mapping import map_headers  # noqa: PLC0415
@@ -174,10 +174,10 @@ def _cohort(**kw: Any) -> dict[str, list[Any]]:
 
 
 def _run_args(d: Path, cols, crit, *, mapping: bool = True) -> list[str]:
-    table = _write_csv(d / "test.csv", cols)
-    yml = _write_yaml(d / "criteria.yaml", crit)
+    table = write_csv(d / "test.csv", cols)
+    yml = write_yaml(d / "criteria.yaml", crit)
     if mapping:
-        _confirm_mapping(table)
+        confirm_mapping(table)
     return ["run", "--input", str(table), "--criteria", str(yml)]
 
 
@@ -227,11 +227,11 @@ def _h07(d: Path) -> list[str]:
     # header-set hash mismatch: the confirmed mapping was written for the table before a
     # column was added to it
     cols = _cohort()
-    table = _write_csv(d / "test.csv", cols)
-    _confirm_mapping(table)
+    table = write_csv(d / "test.csv", cols)
+    confirm_mapping(table)
     cols["extra_column"] = [0] * len(cols["y_true"])
-    _write_csv(table, cols)
-    yml = _write_yaml(d / "criteria.yaml", fixture_criteria())
+    write_csv(table, cols)
+    yml = write_yaml(d / "criteria.yaml", fixture_criteria())
     return ["run", "--input", str(table), "--criteria", str(yml)]
 
 
@@ -254,10 +254,10 @@ def _h11(d: Path) -> list[str]:
 def _h12(d: Path) -> list[str]:
     new, prior = _cohort(), _cohort()
     prior["row_id"][0] = "not-in-new"
-    a = _write_csv(d / "new.csv", new)
-    b = _write_csv(d / "prior.csv", prior)
-    _confirm_mapping(a)
-    yml = _write_yaml(d / "criteria.yaml", fixture_criteria())
+    a = write_csv(d / "new.csv", new)
+    b = write_csv(d / "prior.csv", prior)
+    confirm_mapping(a)
+    yml = write_yaml(d / "criteria.yaml", fixture_criteria())
     return ["compare", "--input", str(a), "--prior", str(b), "--criteria", str(yml)]
 
 
