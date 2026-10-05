@@ -148,8 +148,12 @@ def test_every_compared_row_declares_the_names_its_engine_and_oracle_carry():
         if row.engine is None or row.oracle is None:
             assert row.compares == (), row.id
             continue
+        try:  # build day 12: F13 / F13b have no oracle until an R capture is committed
+            oracle = set(row.oracle(oracles)[0])
+        except fx.OracleAbsent:
+            assert row.id in ("F13", "F13b"), row.id
+            continue
         engine = set(row.engine())
-        oracle = set(row.oracle(oracles)[0])
         assert len(row.compares) == len(set(row.compares)) >= 1, row.id
         assert set(row.compares) == engine == oracle, row.id
 
@@ -318,7 +322,8 @@ def test_git_sha_is_null_for_src_proofpack_under_a_pyproject_naming_customer(
 
 @pytest.mark.parametrize("cls", ["closed_form", "iterative", "reported_rounding"])
 def test_each_tolerance_rule_lists_its_rows(cls):
-    listed = set(re.findall(r"\bF\d+[a-d]?-[a-z](?:[a-z-]*[a-z])?", fx.TOLERANCE_RULES[cls]))
+    # build day 12: the bare ids F13 and F13b (rows with a tolerance class since then) count
+    listed = set(re.findall(r"\bF\d+[a-d]?(?:-[a-z](?:[a-z-]*[a-z])?)?\b", fx.TOLERANCE_RULES[cls]))
     rows = {r.id for r in fx.register() if r.tolerance_class == cls}
     assert listed == rows
 

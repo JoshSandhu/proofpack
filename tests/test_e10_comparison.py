@@ -512,10 +512,11 @@ def test_f5_case_id_c_i_over_2_auroc_brier_slope_cells_equal_a_clustered_by_case
     )
 
 
-def test_paired_delong_has_three_callers_in_src_as_its_docstring_names():
+def test_paired_delong_callers_in_src_are_the_ones_its_docstrings_name():
     """Lens 2 FA-F1: at 667a201 ``stats/discrimination.py`` said ``paired_delong`` had one
     caller in ``src`` while ``fixtures.py`` called it twice. The literal call sites,
-    counted by grep over ``src``, and the two docstrings naming all three."""
+    counted by grep over ``src``, and the two docstrings naming all of them (four since
+    build day 12: ``fixtures.f13_engine_values``)."""
     src = REPO / "src" / "proofpack"
     calls: dict[str, int] = {}
     for path in sorted(src.rglob("*.py")):
@@ -525,9 +526,11 @@ def test_paired_delong_has_three_callers_in_src_as_its_docstring_names():
         n = len(re.findall(r"(?<![a-z])paired_delong\([a-z]", text))
         if n:
             calls[path.relative_to(src).as_posix()] = n
-    assert calls == {"fixtures.py": 2, "stats/comparison.py": 1}
+    assert calls == {"fixtures.py": 3, "stats/comparison.py": 1}
     module_doc = (src / "stats" / "discrimination.py").read_text(encoding="utf-8")
-    assert "Its callers in ``src`` are three" in module_doc
+    assert "Its callers in ``src`` are four" in module_doc
+    assert "fixtures.f13_engine_values" in module_doc
+    assert "fixtures.f13_engine_values" in paired_delong.__doc__
     assert "one caller in ``src``" not in module_doc
     assert "fixtures._f3_delong" in paired_delong.__doc__
     assert "fixtures._f5_delong_pair" in paired_delong.__doc__

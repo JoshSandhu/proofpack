@@ -13,9 +13,10 @@ tolerance. The five row statuses:
   the engine raised, or an optional dependency the comparison needs is absent: the row
   carries the typed ``reason``);
 * ``no_oracle_recorded`` - no oracle file exists for the fixture yet (F13, F13b: the R
-  captures carried to build days 11-14), or F14's Newcombe file is not read (the package
-  is not ``<root>/src/proofpack`` of a ``pyproject.toml`` naming ``proofpack``:
-  :data:`NEWCOMBE_ABSENT`); never matched;
+  captures ``fixtures/r/capture.R`` writes, absent until one is committed, and never read
+  from an installed wheel: :data:`F13_ABSENT`, :data:`F13B_ABSENT`), or F14's Newcombe file
+  is not read (the package is not ``<root>/src/proofpack`` of a ``pyproject.toml`` naming
+  ``proofpack``: :data:`NEWCOMBE_ABSENT`); never matched;
 * ``not_built`` - the engine has no function for the fixture in this version (F5, F7,
   F15, F16, F21, F3's AUPRC); never matched;
 * ``suite_only`` - a behaviour the test suite inspects (F12, F17-F20; the row names the
@@ -86,7 +87,9 @@ TOLERANCE_RULES: dict[str, str] = {
     "iterative": "absolute deviation at most 1e-6. D1 section 9 gives 1e-6 for iterative "
     "methods and lists IRLS slope/intercept and DeLong via placements; this report applies "
     "it to the rows F1-clopper-pearson, F1b-clopper-pearson, F1c-clopper-pearson, "
-    "F1d-clopper-pearson, F3-delong, F4-irls, F5-delong-pair and F6-p",
+    "F1d-clopper-pearson, F3-delong, F4-irls, F5-delong-pair and F6-p, and to F13 (pROC on "
+    "aSAH) and F13b (rms::val.prob and glm on fixtures/f4_calibration.csv) when their R "
+    "captures are present",
     "reported_rounding": "absolute deviation at most half a unit in the last printed decimal "
     "of each value, plus 1e-12. D1 section 9 gives reported rounding for bootstrap CIs; this "
     "report applies it to the rows F3-bootstrap, F9-cluster-bootstrap, F14-newcombe (a "
@@ -113,8 +116,11 @@ STATUSES = (
     "not_built",
     "suite_only",
 )
-#: The R captures D1 section 3.2 names (F13, F13b); none is committed at A-P3.
+#: The R captures D1 section 3.2 names (F13, F13b), written by ``fixtures/r/capture.R``
+#: (build day 12) and read only from a source checkout (:func:`r_captures_dir`); the F13
+#: input vectors capture.R writes beside them (:data:`R_VECTORS_FILE`).
 R_CAPTURE_FILES = ("fixtures/r/proc_asah.json", "fixtures/r/rms_val_prob_f4.json")
+R_VECTORS_FILE = "fixtures/r/asah_vectors.csv"
 R_CAPTURES_NOT_CAPTURED = "r_captures_not_captured"
 
 F2_COUNTS = (90, 10, 20, 180)
@@ -727,6 +733,331 @@ def _f14() -> dict[str, float]:
     return out
 
 
+# ------------------------------------------------------------------ the R captures
+
+
+class RCaptureInputMismatch(ValueError):
+    """An R capture is present and was computed on other inputs than the engine is given
+    (a sha256 that differs, another schema or fixture id, no ``values`` object): the row
+    is ``not_matched`` with reason ``r_capture_input_mismatch: <what differs>``."""
+
+
+@dataclass(frozen=True)
+class RCaptures:
+    """What :func:`load_r_captures` read from one directory. ``proc`` / ``valprob`` are
+    the parsed JSON documents (``None`` when the file is absent or did not parse: the
+    file is then named in ``unreadable`` with the error type); ``vectors`` the F13 input
+    columns ``y``, ``s100b`` and ``ndka`` of ``asah_vectors.csv``; ``vectors_sha256`` the
+    sha256 of that file's bytes with CRLF read as LF (build day 12: the runner writes LF
+    and the index holds LF; a Windows checkout with ``core.autocrlf`` may hold CRLF)."""
+
+    directory: Path | None
+    proc: dict[str, Any] | None = None
+    valprob: dict[str, Any] | None = None
+    vectors: dict[str, np.ndarray] | None = None
+    vectors_sha256: str | None = None
+    unreadable: tuple[tuple[str, str], ...] = ()
+
+    @property
+    def present(self) -> tuple[str, ...]:
+        """The files of :data:`R_CAPTURE_FILES` and :data:`R_VECTORS_FILE` that were read."""
+        found = (
+            (R_CAPTURE_FILES[0], self.proc is not None),
+            (R_CAPTURE_FILES[1], self.valprob is not None),
+            (R_VECTORS_FILE, self.vectors is not None),
+        )
+        return tuple(name for name, ok in found if ok)
+
+
+def lf_sha256(data: bytes) -> str:
+    """sha256 of ``data`` with every CRLF read as LF (the bytes the index holds)."""
+    import hashlib  # noqa: PLC0415
+
+    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
+
+
+def _read_asah_vectors(data: bytes) -> dict[str, np.ndarray]:
+    lines = [
+        ln for ln in data.decode("utf-8").splitlines() if ln.strip() and not ln.startswith("#")
+    ]
+    y, s100b, ndka = [], [], []
+    for r in csv.DictReader(lines):
+        y.append(int(r["y"]))
+        s100b.append(float(r["s100b"]))
+        ndka.append(float(r["ndka"]))
+    if not y or set(y) - {0, 1}:
+        raise ValueError("asah_vectors.csv: y must be 0 or 1 on at least one row")
+    return {
+        "y": np.array(y, dtype=bool),
+        "s100b": np.array(s100b, dtype=np.float64),
+        "ndka": np.array(ndka, dtype=np.float64),
+    }
+
+
+def r_captures_dir() -> Path | None:
+    """``<root>/fixtures/r`` of the proofpack source checkout the package was imported
+    from (:func:`source_checkout_root`); ``None`` for an installed wheel, which carries no
+    R capture."""
+    root = source_checkout_root()
+    return None if root is None else root / "fixtures" / "r"
+
+
+def load_r_captures(directory: Path | None = None) -> RCaptures:
+    """Read ``proc_asah.json``, ``rms_val_prob_f4.json`` and ``asah_vectors.csv`` from
+    ``directory`` (default :func:`r_captures_dir`). An absent file is left ``None``; a
+    file that does not parse is ``None`` and named in ``unreadable``."""
+    where = r_captures_dir() if directory is None else Path(directory)
+    if where is None:
+        return RCaptures(directory=None)
+    docs: dict[str, dict[str, Any] | None] = {}
+    unreadable: list[tuple[str, str]] = []
+    for rel in R_CAPTURE_FILES:
+        try:
+            doc = json.loads((where / Path(rel).name).read_text(encoding="utf-8"))
+            if not isinstance(doc, dict):
+                raise ValueError("not a JSON object")
+            docs[rel] = doc
+        except FileNotFoundError:
+            docs[rel] = None
+        except ValueError as exc:
+            docs[rel] = None
+            unreadable.append((rel, type(exc).__name__))
+    vectors = sha = None
+    try:
+        raw = (where / Path(R_VECTORS_FILE).name).read_bytes()
+        vectors, sha = _read_asah_vectors(raw), lf_sha256(raw)
+    except FileNotFoundError:
+        pass
+    except (ValueError, KeyError) as exc:
+        unreadable.append((R_VECTORS_FILE, type(exc).__name__))
+    return RCaptures(
+        directory=where,
+        proc=docs[R_CAPTURE_FILES[0]],
+        valprob=docs[R_CAPTURE_FILES[1]],
+        vectors=vectors,
+        vectors_sha256=sha,
+        unreadable=tuple(unreadable),
+    )
+
+
+#: F13's compared values, named as ``capture.R`` names them in ``proc_asah.json``'s
+#: ``values``: per score the AUROC, ``var(roc, method = "delong")``, the
+#: ``ci.auc(method = "delong")`` bounds and the case / control counts (which pin the
+#: level mapping), then ``roc.test(method = "delong", paired = TRUE)``.
+F13_NAMES = (
+    *(
+        f"{score} {k}"
+        for score in ("s100b", "ndka")
+        for k in ("auc", "var_delong", "ci_delong_lo", "ci_delong_hi", "n_cases", "n_controls")
+    ),
+    "roc.test statistic",
+    "roc.test p.value",
+    "roc.test estimate 1",
+    "roc.test estimate 2",
+)
+#: Not in the report row: pROC writes ``conf.int`` on a paired DeLong ``roc.test`` only in
+#: some versions [unverified: the version that added it was not read], and a row compares a
+#: fixed set of names. ``tests/test_day12_r_captures.py`` compares them when the capture
+#: carries them (``f13_engine_values(..., with_conf_int=True)``).
+F13_OPTIONAL_NAMES = ("roc.test conf.int lo", "roc.test conf.int hi")
+#: F13b's compared values, named as ``capture.R`` names them in
+#: ``rms_val_prob_f4.json``'s ``values``. ``val.prob Intercept`` is compared with the
+#: engine's ``intercept`` - the intercept of the joint model ``a + b logit(p)``, the
+#: model ``val.prob`` fits with ``lrm.fit(logit, y)`` [unverified: from memory of the rms
+#: source, not a fetched copy; the capture's ``glm joint`` values are the same model fitted
+#: by ``glm``, so a different definition shows as ``val.prob Intercept`` alone outside
+#: tolerance]. The engine's ``intercept_large`` (slope fixed at 1) is compared with
+#: ``glm offset (Intercept)``. Standard errors are compared with the ``epsilon 1e-14``
+#: fits only: at the default convergence they need not agree to 1e-6 (statsmodels'
+#: default fit was 9.13e-6 and 1.99e-5 from its tight fit on these rows,
+#: ``f4_expected.json``).
+F13B_NAMES = (
+    "val.prob Slope",
+    "val.prob Intercept",
+    "val.prob Brier",
+    "val.prob C (ROC)",
+    "glm joint (Intercept)",
+    "glm joint logit_p",
+    "glm offset (Intercept)",
+    "glm joint tight (Intercept)",
+    "glm joint tight logit_p",
+    "glm joint tight (Intercept) se",
+    "glm joint tight logit_p se",
+    "glm offset tight (Intercept)",
+    "glm offset tight (Intercept) se",
+)
+R_CAPTURE_SCHEMA = "proofpack-r-capture/1"
+#: The reasons F13 and F13b carry while no capture is committed (``no_oracle_recorded``).
+F13_ABSENT = (
+    "[unverified until captured] the pROC capture (fixtures/r/proc_asah.json) and its "
+    "input (fixtures/r/asah_vectors.csv) are not both committed; fixtures/r/capture.R and "
+    "the r-captures workflow (build day 12) write them"
+)
+F13B_ABSENT = (
+    "[unverified until captured] the rms::val.prob capture (fixtures/r/rms_val_prob_f4.json) "
+    "is not committed; fixtures/r/capture.R and the r-captures workflow (build day 12) "
+    "write it (f4_expected.json r_rms_val_prob: [pending])"
+)
+
+
+def f13_engine_values(
+    vectors: dict[str, np.ndarray], *, with_conf_int: bool = False
+) -> dict[str, float]:
+    """The engine on the aSAH vectors: ``auroc_number`` (its ``delong_wald`` Number is the
+    interval compared with ``ci.auc``: pROC's DeLong interval is taken to be the Wald
+    interval [unverified: pROC's source was not read; the comparison is what tests it]),
+    ``delong_variance`` and ``paired_delong`` (s100b first, as ``roc.test(roc1, roc2)``)."""
+    from proofpack.stats.discrimination import auroc_number, delong_variance, paired_delong
+
+    y = np.asarray(vectors["y"], dtype=bool)
+    out: dict[str, float] = {}
+    for score in ("s100b", "ndka"):
+        s = vectors[score]
+        r = auroc_number(s, y)
+        wald = next(
+            (
+                n
+                for n in (r.auroc, r.auroc_secondary)
+                if n is not None and n.method == "delong_wald"
+            ),
+            None,
+        )
+        if wald is None:
+            raise RuntimeError(f"{score}: auroc_number returned no delong_wald interval")
+        _, var = delong_variance(s, y)
+        out[f"{score} auc"] = float(r.auroc.est)  # type: ignore[arg-type]
+        out[f"{score} var_delong"] = var
+        out[f"{score} ci_delong_lo"] = float(wald.ci_lo)  # type: ignore[arg-type]
+        out[f"{score} ci_delong_hi"] = float(wald.ci_hi)  # type: ignore[arg-type]
+        out[f"{score} n_cases"] = float(r.n_pos)
+        out[f"{score} n_controls"] = float(r.n_neg)
+    pd = paired_delong(vectors["s100b"], vectors["ndka"], y)
+    out["roc.test statistic"] = pd.z
+    out["roc.test p.value"] = pd.p_value
+    out["roc.test estimate 1"] = float(pd.auroc_a.est)  # type: ignore[arg-type]
+    out["roc.test estimate 2"] = float(pd.auroc_b.est)  # type: ignore[arg-type]
+    if with_conf_int and pd.difference.has_ci:
+        out["roc.test conf.int lo"] = float(pd.difference.ci_lo)  # type: ignore[arg-type]
+        out["roc.test conf.int hi"] = float(pd.difference.ci_hi)  # type: ignore[arg-type]
+    return out
+
+
+def f13b_engine_values() -> dict[str, float]:
+    """The engine on the committed F4 rows: the IRLS slope and intercepts with their Wald
+    standard errors (``calibration_block``), the Brier score and the AUROC."""
+    from proofpack.stats.discrimination import auroc_mann_whitney
+
+    irls, closed = _f4_irls(), _f4_closed()
+    p, y = _f4_rows()
+    return {
+        "val.prob Slope": irls["slope"],
+        "val.prob Intercept": irls["intercept"],
+        "val.prob Brier": closed["brier"],
+        "val.prob C (ROC)": auroc_mann_whitney(p, y),
+        "glm joint (Intercept)": irls["intercept"],
+        "glm joint logit_p": irls["slope"],
+        "glm offset (Intercept)": irls["intercept_large"],
+        "glm joint tight (Intercept)": irls["intercept"],
+        "glm joint tight logit_p": irls["slope"],
+        "glm joint tight (Intercept) se": irls["intercept_se"],
+        "glm joint tight logit_p se": irls["slope_se"],
+        "glm offset tight (Intercept)": irls["intercept_large"],
+        "glm offset tight (Intercept) se": irls["intercept_large_se"],
+    }
+
+
+def _as_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _r_source(doc: dict[str, Any], file: str) -> dict[str, Any]:
+    meta = _as_dict(doc.get("meta"))
+    gh = _as_dict(meta.get("github"))
+    versions = {"R": str(meta.get("r_version_string"))}
+    versions.update({str(k): str(v) for k, v in _as_dict(meta.get("packages")).items()})
+    run = (
+        f"GitHub run {gh.get('run_id')} at {gh.get('sha')}"
+        if gh.get("run_id")
+        else "not a GitHub run"
+    )
+    return {
+        "kind": "captured_library",
+        "file": file,
+        "entry": "values",
+        "detail": f"{doc.get('what')}; {meta.get('r_version_string')}; captured "
+        f"{meta.get('run_date_utc')}; {run}; repos {meta.get('repos')}",
+        "library_versions": versions,
+        "unverified": False,
+        "marking": None,
+    }
+
+
+def _r_values(
+    doc: dict[str, Any], names: tuple[str, ...]
+) -> tuple[dict[str, Any], dict[str, float]]:
+    values = doc.get("values")
+    if not isinstance(values, dict):
+        raise RCaptureInputMismatch("the capture has no values object")
+    picked = {k: values.get(k) for k in names}
+    return picked, {k: float(TOLERANCES["iterative"]) for k in picked}  # type: ignore[arg-type]
+
+
+def _check_header(doc: dict[str, Any], fixture: str) -> None:
+    if doc.get("schema") != R_CAPTURE_SCHEMA or doc.get("fixture") != fixture:
+        raise RCaptureInputMismatch(
+            f"schema {doc.get('schema')!r} fixture {doc.get('fixture')!r}, expected "
+            f"{R_CAPTURE_SCHEMA!r} {fixture!r}"
+        )
+
+
+def f13_oracle(caps: RCaptures):
+    """``(values, tolerance, source)`` of ``proc_asah.json``; :class:`OracleAbsent` with
+    :data:`F13_ABSENT` while the capture or its vectors are absent; the capture's
+    ``input.vectors_sha256`` must equal the sha256 of the vectors file read (CRLF read as
+    LF)."""
+    bad = dict(caps.unreadable)
+    for rel in (R_CAPTURE_FILES[0], R_VECTORS_FILE):
+        if rel in bad:
+            raise OracleFileUnreadable(rel, bad[rel])
+    if caps.proc is None or caps.vectors is None:
+        missing = [
+            rel
+            for rel, doc in ((R_CAPTURE_FILES[0], caps.proc), (R_VECTORS_FILE, caps.vectors))
+            if doc is None
+        ]
+        raise OracleAbsent(f"{F13_ABSENT} (absent: {', '.join(missing)})")
+    _check_header(caps.proc, "F13")
+    recorded = _as_dict(caps.proc.get("input")).get("vectors_sha256")
+    if recorded != caps.vectors_sha256:
+        raise RCaptureInputMismatch(
+            f"asah_vectors.csv sha256 {caps.vectors_sha256} (CRLF read as LF), the capture "
+            f"recorded {recorded}"
+        )
+    values, tol = _r_values(caps.proc, F13_NAMES)
+    return values, tol, _r_source(caps.proc, R_CAPTURE_FILES[0])
+
+
+def f13b_oracle(caps: RCaptures):
+    """``(values, tolerance, source)`` of ``rms_val_prob_f4.json``; the capture's
+    ``input.sha256`` must equal the sha256 of the F4 file the engine reads (CRLF read as
+    LF); :class:`OracleAbsent` with :data:`F13B_ABSENT` while the capture is absent."""
+    bad = dict(caps.unreadable)
+    if R_CAPTURE_FILES[1] in bad:
+        raise OracleFileUnreadable(R_CAPTURE_FILES[1], bad[R_CAPTURE_FILES[1]])
+    if caps.valprob is None:
+        raise OracleAbsent(F13B_ABSENT)
+    _check_header(caps.valprob, "F13b")
+    committed = lf_sha256(resource_path("f4_calibration.csv").read_bytes())
+    recorded = _as_dict(caps.valprob.get("input")).get("sha256")
+    if recorded != committed:
+        raise RCaptureInputMismatch(
+            f"f4_calibration.csv sha256 {committed} (CRLF read as LF), the capture recorded "
+            f"{recorded}"
+        )
+    values, tol = _r_values(caps.valprob, F13B_NAMES)
+    return values, tol, _r_source(caps.valprob, R_CAPTURE_FILES[1])
+
+
 class OptionalDependencyMissing(RuntimeError):
     """A comparison needs a package the install does not have (scipy: ``proofpack[stats]``)."""
 
@@ -905,6 +1236,49 @@ def _f14_oracle(o: dict[str, Any]):
             "unverified": "[unverified" in status,
             "marking": status,
         },
+    )
+
+
+def r_capture_rows(captures: RCaptures | None = None) -> tuple[Row, Row]:
+    """The F13 and F13b rows (build day 12). Bound to ``captures`` when given (the test
+    hook: a capture written into a temporary directory and read by
+    :func:`load_r_captures`); otherwise each comparison reads :func:`load_r_captures`
+    afresh. While a capture is absent the row is ``no_oracle_recorded`` with
+    :data:`F13_ABSENT` / :data:`F13B_ABSENT`; when present it is ``matched`` or
+    ``not_matched`` under the ``iterative`` tolerance (absolute 1e-6 on every value)."""
+
+    def get() -> RCaptures:
+        return captures if captures is not None else load_r_captures()
+
+    def f13_engine() -> dict[str, float]:
+        vectors = get().vectors
+        if vectors is None:  # the oracle raises OracleAbsent first; kept for direct calls
+            raise RuntimeError("no asah_vectors.csv")
+        return f13_engine_values(vectors)
+
+    return (
+        Row(
+            "F13",
+            "F13",
+            "pROC on aSAH (outcome ~ s100b and ~ ndka, levels and direction written out): AUROC, "
+            "DeLong variance, ci.auc(method = 'delong') bounds, case and control counts, "
+            "and the paired roc.test(method = 'delong') of s100b against ndka",
+            "iterative",
+            f13_engine,
+            lambda _o: f13_oracle(get()),
+            compares=F13_NAMES,
+        ),
+        Row(
+            "F13b",
+            "F13b",
+            "rms::val.prob Slope, Intercept, Brier and C (ROC) on the committed F4 rows, and "
+            "glm(y ~ qlogis(p)) and glm(y ~ offset(qlogis(p))) coefficients (standard errors "
+            "at epsilon 1e-14)",
+            "iterative",
+            f13b_engine_values,
+            lambda _o: f13b_oracle(get()),
+            compares=F13B_NAMES,
+        ),
     )
 
 
@@ -1177,22 +1551,7 @@ def register() -> tuple[Row, ...]:
             reason="a behaviour, not a value: the test suite inspects each HALT code",
             suite_tests=("tests/test_halt_gates.py",),
         ),
-        Row(
-            "F13",
-            "F13",
-            "pROC AUROC and DeLong interval on the aSAH data",
-            status="no_oracle_recorded",
-            reason="[unverified until captured] the pROC capture (fixtures/r/proc_asah.json) "
-            "is carried to build days 11-14",
-        ),
-        Row(
-            "F13b",
-            "F13b",
-            "rms::val.prob slope and intercept on the F4 rows",
-            status="no_oracle_recorded",
-            reason="[unverified until captured] the rms::val.prob capture is carried to build "
-            "days 11-14 (f4_expected.json r_rms_val_prob: [pending])",
-        ),
+        *r_capture_rows(),
         Row(
             "F14-newcombe",
             "F14",
@@ -1347,6 +1706,9 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
     except OracleFileUnreadable as exc:
         out.update(status="not_matched", reason=f"oracle_file_unreadable: {exc}")
         return out
+    except RCaptureInputMismatch as exc:
+        out.update(status="not_matched", reason=f"r_capture_input_mismatch: {exc}")
+        return out
     except Exception as exc:  # noqa: BLE001 - reported as the row's reason
         out.update(status="not_matched", reason=f"oracle_error: {type(exc).__name__}")
         return out
@@ -1495,20 +1857,24 @@ def exit_code_for(rows: list[dict[str, Any]]) -> int:
     return EXIT_FIXTURES_NOT_MATCHED if any(r["status"] == "not_matched" for r in rows) else EXIT_OK
 
 
+#: :func:`r_captures_status` when one or more capture files are present (build day 12):
+#: the F13 / F13b rows of the report carry the comparison.
+R_CAPTURES_PRESENT = "present_compared_in_rows_f13_f13b"
+
+
 def r_captures_status() -> dict[str, Any]:
-    root = source_checkout_root()
-    present = [f for f in R_CAPTURE_FILES if root is not None and (root / f).exists()]
+    present = [f for f in R_CAPTURE_FILES if f in load_r_captures().present]
     return {
         "files": list(R_CAPTURE_FILES),
         "present": present,
-        "status": "present_not_compared" if present else R_CAPTURES_NOT_CAPTURED,
+        "status": R_CAPTURES_PRESENT if present else R_CAPTURES_NOT_CAPTURED,
         "line": (
             f"r-captures: {R_CAPTURES_NOT_CAPTURED} - no R capture is committed "
             f"({', '.join(R_CAPTURE_FILES)}); F13 and F13b stay 'no oracle recorded' "
-            "until build days 11-14 capture them"
+            "until fixtures/r/capture.R's output is committed"
             if not present
-            else "r-captures: present_not_compared - this engine version has no comparison "
-            "for them; F13 and F13b stay 'no oracle recorded'"
+            else f"r-captures: {R_CAPTURES_PRESENT} - present: {', '.join(present)}; rows F13 "
+            "and F13b of the report compare them with the engine"
         ),
     }
 

@@ -11,7 +11,6 @@ AUPRC is deferred to v1.1 (brief) - a test asserts nothing computes one.
 
 from __future__ import annotations
 
-import json
 import math
 import pathlib
 
@@ -409,43 +408,11 @@ def test_discrimination_imports_without_scipy():
     assert "import scipy" not in text
 
 
-# ------------------------------------------------------------------ F13 (pending R)
+# ------------------------------------------------------------------ F13 (R capture)
 
-F13_PATH = REPO / "fixtures" / "r" / "proc_asah.json"
-
-
-@pytest.mark.fixture
-@pytest.mark.xfail(reason="pending R capture on day 12 (pROC on aSAH); fixture not yet committed")
-def test_f13_matches_proc_on_the_asah_dataset():
-    """pROC ``roc``/``ci.auc(method='delong')``/``roc.test`` on ``aSAH``.
-
-    Day 12 runs ``rocker/r-ver`` in CI and commits ``fixtures/r/proc_asah.json`` with
-    the s100b and ndka scores, the reference outcome, the two AUCs, the DeLong CIs
-    and the paired test. This test is written against that shape now so the capture
-    has an exact target; it xfails until the file exists. Engine must match AUC and
-    the DeLong CI within 1e-6 (D1 section 3.2, v1 stage-7 acceptance).
-    """
-    with F13_PATH.open(encoding="utf-8") as fh:
-        cap = json.load(fh)
-    y = np.array(cap["outcome_poor"], dtype=bool)
-    s100b = np.array(cap["s100b"], dtype=float)
-    ndka = np.array(cap["ndka"], dtype=float)
-
-    r = auroc_number(s100b, y)
-    assert abs(r.auroc.est - cap["auc_s100b"]) < 1e-6
-    assert abs(r.se - cap["delong_se_s100b"]) < 1e-6
-    lo, hi = cap["delong_ci_s100b"]
-    w = wald_ci(r.auroc.est, r.se)
-    assert abs(w[0] - lo) < 1e-6 and abs(w[1] - hi) < 1e-6
-
-    pd = paired_delong(s100b, ndka, y)
-    assert abs(pd.z - cap["roc_test_z"]) < 1e-6
-    assert abs(pd.p_value - cap["roc_test_p"]) < 1e-6
-
-
-def test_f13_capture_is_still_outstanding():
-    """Guard: if someone commits the capture, the xfail above must be removed."""
-    assert not F13_PATH.exists(), (
-        "fixtures/r/proc_asah.json now exists - remove the xfail on "
-        "test_f13_matches_proc_on_the_asah_dataset and make it a real test"
-    )
+# Build day 12 moved F13 to tests/test_day12_r_captures.py: the xfailed test that stood
+# here read a capture shape (scores inside the JSON) that fixtures/r/capture.R does not
+# write, and its guard failed whenever a capture was committed. The comparison there reads
+# fixtures/r/proc_asah.json and fixtures/r/asah_vectors.csv through
+# proofpack.fixtures.load_r_captures and skips with fixtures.R_CAPTURES_NOT_CAPTURED while
+# they are absent.
