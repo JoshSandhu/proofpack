@@ -1,0 +1,92 @@
+name: r-captures
+
+# Build day 12 (lane E): the R captures for fixtures F13 (pROC on aSAH) and F13b
+# (rms::val.prob on the committed F4 rows), as a free GitHub Actions job on this public
+# repository. What it computes is in fixtures/r/README.md and at the top of
+# fixtures/r/capture.R.
+#
+# The image: rocker/r-ver:4.5.1, chosen over r-lib/actions/setup-r because one tag pins the
+# R version, the Ubuntu base and the package repository together, and D1 section 3.2 and the
+# plan section 9 row 12 name rocker/r-ver. A versioned rocker/r-ver tag sets CRAN to a dated
+# Posit Package Manager snapshot; the date this tag pins was not read on build day 12
+# [unverified]. The capture records getOption("repos") and the CRAN variable the image sets,
+# so the committed JSON names the snapshot it was built from, and the first step below
+# prints both.
+#
+# Actions are pinned by tag, as ci.yml pins them (ci.yml pins no action by commit sha).
+# No secrets; read-only token.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "fixtures/r/**"
+      - ".github/workflows/r-captures.yml"
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.8.17"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  capture:
+    name: Rscript fixtures/r/capture.R on rocker/r-ver:4.5.1
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    container:
+      image: rocker/r-ver:4.5.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: the R version and the package repository the image pins
+        run: |
+          Rscript -e 'cat(R.version.string, "\n"); print(getOption("repos")); cat("CRAN env:", Sys.getenv("CRAN"), "\n")'
+      - name: install pROC, rms and jsonlite from that repository
+        run: |
+          Rscript -e 'install.packages(c("pROC", "rms", "jsonlite"))'
+          Rscript -e 'for (p in c("pROC", "rms", "jsonlite")) { suppressPackageStartupMessages(library(p, character.only = TRUE)); cat(p, format(packageVersion(p)), "\n") }'
+      - name: capture
+        run: Rscript fixtures/r/capture.R
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r-captures
+          path: |
+            fixtures/r/proc_asah.json
+            fixtures/r/rms_val_prob_f4.json
+            fixtures/r/asah_vectors.csv
+          retention-days: 30
+          if-no-files-found: error
+
+  compare:
+    # The drift check against any committed capture (above 1e-12 fails), then the engine
+    # compared with this run's capture on the runner: pytest -m day12 and the fixtures
+    # report's F13 / F13b rows. Nothing is committed by this workflow.
+    name: drift check, then the engine against the fresh capture
+    needs: capture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: r-captures
+          path: fresh
+      - name: drift check against the committed capture (if any)
+        run: python3 scripts/r_capture_drift.py --committed fixtures/r --fresh fresh
+      - name: put the fresh capture where the engine's tests read it
+        run: cp fresh/proc_asah.json fresh/rms_val_prob_f4.json fresh/asah_vectors.csv fixtures/r/
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --all-groups --locked
+      - name: pytest -m day12 (the comparisons run; none may skip)
+        run: |
+          set -euo pipefail
+          uv run pytest -q -p no:cacheprovider -m day12 -rs | tee day12.txt
+          if grep -q "SKIPPED" day12.txt; then echo "a day12 comparison skipped with the capture present"; exit 1; fi
+      - name: proofpack fixtures --offline (F13 and F13b rows)
+        run: |
+          uv run proofpack fixtures --offline --out fx --r-captures
+          uv run python -c "import json; rows = {r['id']: r for r in json.load(open('fx/fixtures_report.json'))['rows']}; [print(k, rows[k]['status'], rows[k]['max_abs_deviation'], rows[k]['reason']) for k in ('F13', 'F13b')]"
