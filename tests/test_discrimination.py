@@ -413,6 +413,6 @@ def test_discrimination_imports_without_scipy():
 # Build day 12 moved F13 to tests/test_day12_r_captures.py: the xfailed test that stood
 # here read a capture shape (scores inside the JSON) that fixtures/r/capture.R does not
 # write, and its guard failed whenever a capture was committed. The comparison there reads
-# fixtures/r/proc_asah.json and fixtures/r/asah_vectors.csv through
-# proofpack.fixtures.load_r_captures and, while they are absent, skips with a reason that
-# starts with fixtures.R_CAPTURES_NOT_CAPTURED and names the absent files (E12 repair 1).
+# fixtures/r/proc_asah.json and the aSAH vectors (DEC-77: only inside the r-captures job,
+# from the file PROOFPACK_ASAH_VECTORS names) through proofpack.fixtures.load_r_captures;
+# elsewhere it skips with fixtures.R_VECTORS_NOT_COMMITTED (E12 repair 3).

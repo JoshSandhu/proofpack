@@ -11,3 +11,7 @@ pack/
 mapping.json
 proofpack.lic
 requirements.lock
+# DEC-77 (5 October 2026): pROC's aSAH rows are never committed (they live in the
+# r-captures job's temporary space only).
+*asah*vectors*
+fixtures/r/*.csv

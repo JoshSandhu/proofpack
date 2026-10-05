@@ -46,25 +46,31 @@ _TARGET = Path(os.environ["E12R1_CAPTURE_DIR"])
 _ORIGINAL = fx.load_r_captures
 
 
-def _redirect(directory=None):
+def _redirect(directory=None, **kw):
     where = fx.r_captures_dir() if directory is None else Path(directory)
     if where is not None and Path(where).resolve() == (
         Path(fx.source_checkout_root()) / "fixtures" / "r"
     ).resolve():
-        return _ORIGINAL(_TARGET)
-    return _ORIGINAL(directory)
+        return _ORIGINAL(_TARGET, **kw)
+    return _ORIGINAL(directory, **kw)
 
 
 fx.load_r_captures = _redirect
 """
 
 
-def _run_day12_module(capture_dir: Path, plugin_dir: Path) -> dict[str, str]:
+def _run_day12_module(
+    capture_dir: Path, plugin_dir: Path, vectors: Path | None = None
+) -> dict[str, str]:
     """``tests/test_day12_r_captures.py`` in a subprocess with its capture directory
-    redirected to ``capture_dir``; ``{test name: PASSED | FAILED | SKIPPED}``."""
+    redirected to ``capture_dir`` and ``PROOFPACK_ASAH_VECTORS`` set to ``vectors`` (unset
+    when ``None``); ``{test name: PASSED | FAILED | SKIPPED}``."""
     plugin_dir.mkdir(parents=True, exist_ok=True)
     (plugin_dir / "e12r1_redirect.py").write_text(REDIRECT_PLUGIN, encoding="utf-8")
     env = dict(os.environ)
+    env.pop(fx.R_VECTORS_ENV, None)
+    if vectors is not None:
+        env[fx.R_VECTORS_ENV] = str(vectors)
     env["PYTHONPATH"] = os.pathsep.join([str(plugin_dir), str(SRC)])
     env["E12R1_CAPTURE_DIR"] = str(capture_dir)
     env["PYTHONIOENCODING"] = "utf-8"
@@ -130,6 +136,7 @@ def test_fa_b1_with_the_vectors_absent_the_f13b_comparisons_run(tmp_path):
 
 def _status_on(monkeypatch, directory: Path) -> dict:
     monkeypatch.setattr(fx, "r_captures_dir", lambda: directory)
+    monkeypatch.delenv(fx.R_VECTORS_ENV, raising=False)  # DEC-77: outside the job
     return fx.r_captures_status()
 
 
@@ -148,18 +155,23 @@ def test_fa_b2_the_f13b_capture_alone_is_partial_and_names_each_row(tmp_path, mo
     assert st["status"] == "partial_see_rows_f13_f13b" == fx.R_CAPTURES_PARTIAL
     assert st["line"] == (
         "r-captures: partial_see_rows_f13_f13b - read: fixtures/r/rms_val_prob_f4.json; "
-        "unreadable: none; absent: fixtures/r/proc_asah.json, fixtures/r/asah_vectors.csv; "
-        "row F13 no_oracle_recorded, row F13b matched"
+        "unreadable: none; absent: fixtures/r/proc_asah.json, "
+        "fixtures/r/f13_engine_comparison.json; row F13 no_oracle_recorded, row F13b matched; "
+        "the aSAH vectors are read inside the r-captures job only (DEC-77)"
     )
 
 
-def test_fa_b2_both_json_without_the_vectors_is_partial(tmp_path, monkeypatch):
+def test_fa_b2_both_captures_without_the_comparison_file_is_partial(tmp_path, monkeypatch):
+    """E12 repair 3 (DEC-77): the vectors are never committed, so outside the job F13 needs
+    ``f13_engine_comparison.json`` beside ``proc_asah.json``. Renamed from
+    ``test_fa_b2_both_json_without_the_vectors_is_partial``."""
     d12.write_synthetic_capture(tmp_path / "r")
-    (tmp_path / "r" / "asah_vectors.csv").unlink()
+    (tmp_path / "r" / "f13_engine_comparison.json").unlink()
     st = _status_on(monkeypatch, tmp_path / "r")
     assert st["status"] == "partial_see_rows_f13_f13b"
     assert st["line"].endswith(
-        "absent: fixtures/r/asah_vectors.csv; row F13 no_oracle_recorded, row F13b matched"
+        "absent: fixtures/r/f13_engine_comparison.json; row F13 no_oracle_recorded, "
+        "row F13b matched; the aSAH vectors are read inside the r-captures job only (DEC-77)"
     )
 
 
@@ -174,7 +186,8 @@ def test_fa_b2_an_unreadable_capture_is_not_called_not_captured(tmp_path, monkey
     assert st["line"] == (
         "r-captures: partial_see_rows_f13_f13b - read: none; unreadable: "
         "fixtures/r/proc_asah.json; absent: fixtures/r/rms_val_prob_f4.json, "
-        "fixtures/r/asah_vectors.csv; row F13 not_matched, row F13b no_oracle_recorded"
+        "fixtures/r/f13_engine_comparison.json; row F13 not_matched, row F13b "
+        "no_oracle_recorded; the aSAH vectors are read inside the r-captures job only (DEC-77)"
     )
 
 
@@ -182,7 +195,10 @@ def test_fa_b2_all_three_present_and_all_absent(tmp_path, monkeypatch):
     d12.write_synthetic_capture(tmp_path / "r")
     st = _status_on(monkeypatch, tmp_path / "r")
     assert st["status"] == "present_compared_in_rows_f13_f13b" == fx.R_CAPTURES_PRESENT
-    assert st["line"].endswith("absent: none; row F13 matched, row F13b matched")
+    assert st["line"].endswith(
+        "absent: none; row F13 suite_only, row F13b matched; the aSAH vectors are read inside "
+        "the r-captures job only (DEC-77)"
+    )
     (tmp_path / "empty").mkdir()
     st = _status_on(monkeypatch, tmp_path / "empty")
     assert st["status"] == "r_captures_not_captured"
@@ -283,7 +299,7 @@ def test_rg_b1_the_misspelt_skip_sentence_is_gone():
     deleted; the docstring now names the two gates the skip-reason test inspects."""
     doc = d12.__doc__ or ""
     assert "cannot pass as a skip" not in doc
-    assert "It inspects those two gates only" in doc
+    assert "It inspects those three gates only" in doc  # two until E12 repair 3 (DEC-77)
 
 
 # ------------------------------------------------------------------ FA-B4 / RG-N1
@@ -354,6 +370,6 @@ def test_rg_n6_the_strings_capture_r_writes_for_non_finite_values(tmp_path, writ
     doc = json.loads(path.read_text(encoding="utf-8"))
     doc["values"]["val.prob Slope"] = written
     path.write_text(json.dumps(doc), encoding="utf-8")
-    row = fx.compare_row(fx.r_capture_rows(fx.load_r_captures(tmp_path / "r"))[1], {})
+    row = fx.compare_row(fx.r_capture_rows(fx.load_r_captures(tmp_path / "r", vectors=None))[1], {})
     assert row["status"] == "not_matched"
     assert reason in row["reason"]

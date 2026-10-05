@@ -15,13 +15,17 @@ tolerance. The five row statuses:
 * ``no_oracle_recorded`` - no oracle file exists for the fixture yet (F13, F13b: the R
   captures ``fixtures/r/capture.R`` writes, absent until one is committed:
   :data:`F13_ABSENT`, :data:`F13B_ABSENT`; never read from an installed wheel:
-  :data:`R_CAPTURES_NOT_READ`), or F14's Newcombe file
+  :data:`R_CAPTURES_NOT_READ`. F13 outside the r-captures job, once committed, is
+  ``suite_only``: the comparison as that job recorded it, :func:`f13_oracle`), or F14's
+  Newcombe file
   is not read (the package is not ``<root>/src/proofpack`` of a ``pyproject.toml`` naming
   ``proofpack``: :data:`NEWCOMBE_ABSENT`); never matched;
 * ``not_built`` - the engine has no function for the fixture in this version (F5, F7,
   F15, F16, F21, F3's AUPRC); never matched;
 * ``suite_only`` - a behaviour the test suite inspects (F12, F17-F20; the row names the
-  test file) and this command does not re-run; never matched.
+  test file) and this command does not re-run; never matched. F13 outside the r-captures
+  job, when ``proc_asah.json`` and :data:`R_COMPARISON_FILE` are committed and agree,
+  carries it too: the comparison was made inside that job (DEC-77), not by this command.
 
 Exit code (:func:`exit_code_for`): ``EXIT_OK`` (0) when every row with an oracle is
 ``matched``, :data:`proofpack.errors.EXIT_FIXTURES_NOT_MATCHED` (6) when one or more is
@@ -55,6 +59,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import os
 import subprocess
 import sys
 import time
@@ -88,9 +93,9 @@ TOLERANCE_RULES: dict[str, str] = {
     "iterative": "absolute deviation at most 1e-6. D1 section 9 gives 1e-6 for iterative "
     "methods and lists IRLS slope/intercept and DeLong via placements; this report applies "
     "it to the rows F1-clopper-pearson, F1b-clopper-pearson, F1c-clopper-pearson, "
-    "F1d-clopper-pearson, F3-delong, F4-irls, F5-delong-pair and F6-p, and to F13 (pROC on "
-    "aSAH) and F13b (rms::val.prob and glm on fixtures/f4_calibration.csv) when their R "
-    "captures are present",
+    "F1d-clopper-pearson, F3-delong, F4-irls, F5-delong-pair and F6-p, to F13 (pROC on "
+    "aSAH) inside the r-captures job, where the aSAH vectors exist (DEC-77), and to F13b "
+    "(rms::val.prob and glm on fixtures/f4_calibration.csv) when its R capture is present",
     "reported_rounding": "absolute deviation at most half a unit in the last printed decimal "
     "of each value, plus 1e-12. D1 section 9 gives reported rounding for bootstrap CIs; this "
     "report applies it to the rows F3-bootstrap, F9-cluster-bootstrap, F14-newcombe (a "
@@ -118,11 +123,23 @@ STATUSES = (
     "suite_only",
 )
 #: The R captures D1 section 3.2 names (F13, F13b), written by ``fixtures/r/capture.R``
-#: (build day 12) and read only from a source checkout (:func:`r_captures_dir`); the F13
-#: input vectors capture.R writes beside them (:data:`R_VECTORS_FILE`).
+#: (build day 12) and read only from a source checkout (:func:`r_captures_dir`).
 R_CAPTURE_FILES = ("fixtures/r/proc_asah.json", "fixtures/r/rms_val_prob_f4.json")
-R_VECTORS_FILE = "fixtures/r/asah_vectors.csv"
+#: DEC-77 (Josh, 5 October 2026): pROC's aSAH rows are never committed and never leave the
+#: GitHub runner. ``capture.R`` writes them to the file this environment variable names,
+#: in the runner's temporary space; :func:`load_r_captures` reads the vectors from that
+#: file only, never from ``fixtures/r/``.
+R_VECTORS_ENV = "PROOFPACK_ASAH_VECTORS"
+#: How the vectors file is named in ``unreadable``, ``present`` and row reasons.
+R_VECTORS_FILE = f"${R_VECTORS_ENV} (asah_vectors.csv)"
+#: What the r-captures job records of its own F13 comparison (aggregates and the vectors'
+#: sha256 only, :func:`f13_comparison_record`), committed beside ``proc_asah.json``.
+R_COMPARISON_FILE = "fixtures/r/f13_engine_comparison.json"
+R_COMPARISON_SCHEMA = "proofpack-r-f13-comparison/1"
 R_CAPTURES_NOT_CAPTURED = "r_captures_not_captured"
+#: The typed skip reason of the F13 comparisons that need the aSAH vectors, when
+#: :data:`R_VECTORS_ENV` is not set (DEC-77: everywhere outside the r-captures job).
+R_VECTORS_NOT_COMMITTED = "r_vectors_not_committed_dec77"
 
 F2_COUNTS = (90, 10, 20, 180)
 F3_Y = (1, 1, 1, 1, 1, 0, 0, 0, 0, 0)
@@ -743,29 +760,55 @@ class RCaptureInputMismatch(ValueError):
     is ``not_matched`` with reason ``r_capture_input_mismatch: <what differs>``."""
 
 
+class WithheldVectors(dict):
+    """The aSAH columns ``y``, ``s100b`` and ``ndka`` (read-only numpy arrays) whose
+    ``repr`` and ``str`` name the row count only (DEC-77, E12 repair 3): pytest's
+    assertion output prints the ``repr`` of the objects an assertion names. At
+    ``e6ad3c8``, ``assert caps.vectors is not None and caps.proc is not None`` on a
+    two-row vectors file with ``proc_asah.json`` absent printed
+    ``'ndka': array([98765.4321, 12345.6789])``.
+    ``tests/test_e12_repair3.py::test_dec77_the_vectors_repr_holds_no_value`` and
+    ``::test_dec77_a_failing_assertion_on_the_captures_prints_no_vector_value`` feed that
+    file and read none of its values in the ``repr`` or in pytest's output."""
+
+    def __repr__(self) -> str:
+        n = len(self["y"]) if "y" in self else 0
+        return f"<aSAH vectors withheld (DEC-77): {n} rows>"
+
+    __str__ = __repr__
+
+
 @dataclass(frozen=True)
 class RCaptures:
-    """What :func:`load_r_captures` read from one directory. ``proc`` / ``valprob`` are
-    the parsed JSON documents (``None`` when the file is absent or did not parse: the
-    file is then named in ``unreadable`` with the error type); ``vectors`` the F13 input
-    columns ``y``, ``s100b`` and ``ndka`` of ``asah_vectors.csv``; ``vectors_sha256`` the
-    sha256 of that file's bytes with CRLF read as LF (build day 12: the runner writes LF
-    and the index holds LF; a Windows checkout with ``core.autocrlf`` may hold CRLF)."""
+    """What :func:`load_r_captures` read. ``proc`` / ``valprob`` / ``comparison`` are the
+    parsed JSON documents of ``proc_asah.json``, ``rms_val_prob_f4.json`` and
+    :data:`R_COMPARISON_FILE` (``None`` when the file is absent or could not be read: the
+    file is then named in ``unreadable`` with the error type); ``proc_sha256`` the sha256
+    of ``proc_asah.json``'s bytes with CRLF read as LF. ``vectors_path`` is the file
+    :data:`R_VECTORS_ENV` names, ``None`` when it is not set (DEC-77: every place but the
+    r-captures job); ``vectors`` the columns read from it (:class:`WithheldVectors`) and
+    ``vectors_sha256`` the sha256 of its bytes with CRLF read as LF. When ``vectors_path``
+    is set, a file there that is missing or does not parse is named in ``unreadable``."""
 
     directory: Path | None
     proc: dict[str, Any] | None = None
     valprob: dict[str, Any] | None = None
-    vectors: dict[str, np.ndarray] | None = None
+    vectors: WithheldVectors | None = None
     vectors_sha256: str | None = None
     unreadable: tuple[tuple[str, str], ...] = ()
+    comparison: dict[str, Any] | None = None
+    proc_sha256: str | None = None
+    vectors_path: Path | None = None
 
     @property
     def present(self) -> tuple[str, ...]:
-        """The files of :data:`R_CAPTURE_FILES` and :data:`R_VECTORS_FILE` that were read."""
+        """The files of :data:`R_CAPTURE_FILES`, :data:`R_VECTORS_FILE` and
+        :data:`R_COMPARISON_FILE` that were read."""
         found = (
             (R_CAPTURE_FILES[0], self.proc is not None),
             (R_CAPTURE_FILES[1], self.valprob is not None),
             (R_VECTORS_FILE, self.vectors is not None),
+            (R_COMPARISON_FILE, self.comparison is not None),
         )
         return tuple(name for name, ok in found if ok)
 
@@ -777,22 +820,30 @@ def lf_sha256(data: bytes) -> str:
     return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
 
 
-def _read_asah_vectors(data: bytes) -> dict[str, np.ndarray]:
-    lines = [
-        ln for ln in data.decode("utf-8").splitlines() if ln.strip() and not ln.startswith("#")
-    ]
-    y, s100b, ndka = [], [], []
-    for r in csv.DictReader(lines):
-        y.append(int(r["y"]))
-        s100b.append(float(r["s100b"]))
-        ndka.append(float(r["ndka"]))
+def _read_asah_vectors(data: bytes) -> WithheldVectors:
+    """The columns of an ``asah_vectors.csv``; ``ValueError`` (with no value from the file
+    in its message) when the bytes do not parse as one."""
+    try:
+        lines = [
+            ln for ln in data.decode("utf-8").splitlines() if ln.strip() and not ln.startswith("#")
+        ]
+        y, s100b, ndka = [], [], []
+        for r in csv.DictReader(lines):
+            y.append(int(r["y"]))
+            s100b.append(float(r["s100b"]))
+            ndka.append(float(r["ndka"]))
+    except (ValueError, KeyError, TypeError, csv.Error) as exc:
+        raise ValueError(f"asah_vectors.csv does not parse ({type(exc).__name__})") from None
     if not y or set(y) - {0, 1}:
         raise ValueError("asah_vectors.csv: y must be 0 or 1 on at least one row")
-    return {
+    cols = {
         "y": np.array(y, dtype=bool),
         "s100b": np.array(s100b, dtype=np.float64),
         "ndka": np.array(ndka, dtype=np.float64),
     }
+    for a in cols.values():
+        a.setflags(write=False)
+    return WithheldVectors(cols)
 
 
 def r_captures_dir() -> Path | None:
@@ -803,41 +854,67 @@ def r_captures_dir() -> Path | None:
     return None if root is None else root / "fixtures" / "r"
 
 
-def load_r_captures(directory: Path | None = None) -> RCaptures:
-    """Read ``proc_asah.json``, ``rms_val_prob_f4.json`` and ``asah_vectors.csv`` from
-    ``directory`` (default :func:`r_captures_dir`). An absent file is left ``None``; a
-    file that does not parse is ``None`` and named in ``unreadable``."""
+#: :func:`load_r_captures`'s default for ``vectors``: read :data:`R_VECTORS_ENV`.
+FROM_ENV = "from the environment"
+
+
+def _vectors_path_from_env() -> Path | None:
+    """The path :data:`R_VECTORS_ENV` names; ``None`` when the variable is not set. An
+    empty value counts as set (it names no file, so the vectors are then unreadable): a
+    workflow step that sets the variable from an empty expression must fail, not skip."""
+    value = os.environ.get(R_VECTORS_ENV)
+    return None if value is None else Path(value)
+
+
+def load_r_captures(
+    directory: Path | None = None, *, vectors: Path | str | None = FROM_ENV
+) -> RCaptures:
+    """Read ``proc_asah.json``, ``rms_val_prob_f4.json`` and :data:`R_COMPARISON_FILE`
+    from ``directory`` (default :func:`r_captures_dir`), and the aSAH vectors from the file
+    ``vectors`` names (default: :data:`R_VECTORS_ENV`; ``None``: not read, the DEC-77
+    shape everywhere outside the r-captures job). A JSON file that is absent is left
+    ``None``; one that cannot be read or parsed is ``None`` and named in ``unreadable``.
+    The vectors file, when one is named, is named in ``unreadable`` when it is missing as
+    well (``FileNotFoundError``): there its absence is a failure, not a skip."""
     where = r_captures_dir() if directory is None else Path(directory)
     if where is None:
         return RCaptures(directory=None)
+    vectors_path = _vectors_path_from_env() if vectors == FROM_ENV else vectors
+    vectors_path = None if vectors_path is None else Path(vectors_path)
     docs: dict[str, dict[str, Any] | None] = {}
     unreadable: list[tuple[str, str]] = []
-    for rel in R_CAPTURE_FILES:
+    proc_sha = None
+    for rel in (*R_CAPTURE_FILES, R_COMPARISON_FILE):
         try:
-            doc = json.loads((where / Path(rel).name).read_text(encoding="utf-8"))
+            raw_json = (where / Path(rel).name).read_bytes()
+            doc = json.loads(raw_json.decode("utf-8"))
             if not isinstance(doc, dict):
                 raise ValueError("not a JSON object")
             docs[rel] = doc
+            if rel == R_CAPTURE_FILES[0]:
+                proc_sha = lf_sha256(raw_json)
         except FileNotFoundError:
             docs[rel] = None
-        except ValueError as exc:
+        except (ValueError, OSError) as exc:
             docs[rel] = None
             unreadable.append((rel, type(exc).__name__))
-    vectors = sha = None
-    try:
-        raw = (where / Path(R_VECTORS_FILE).name).read_bytes()
-        vectors, sha = _read_asah_vectors(raw), lf_sha256(raw)
-    except FileNotFoundError:
-        pass
-    except (ValueError, KeyError) as exc:
-        unreadable.append((R_VECTORS_FILE, type(exc).__name__))
+    cols = sha = None
+    if vectors_path is not None:
+        try:
+            raw = vectors_path.read_bytes()
+            cols, sha = _read_asah_vectors(raw), lf_sha256(raw)
+        except (ValueError, OSError) as exc:
+            unreadable.append((R_VECTORS_FILE, type(exc).__name__))
     return RCaptures(
         directory=where,
         proc=docs[R_CAPTURE_FILES[0]],
         valprob=docs[R_CAPTURE_FILES[1]],
-        vectors=vectors,
+        vectors=cols,
         vectors_sha256=sha,
         unreadable=tuple(unreadable),
+        comparison=docs[R_COMPARISON_FILE],
+        proc_sha256=proc_sha,
+        vectors_path=vectors_path,
     )
 
 
@@ -890,9 +967,11 @@ F13B_NAMES = (
 R_CAPTURE_SCHEMA = "proofpack-r-capture/1"
 #: The reasons F13 and F13b carry while no capture is committed (``no_oracle_recorded``).
 F13_ABSENT = (
-    "[unverified until captured] the pROC capture (fixtures/r/proc_asah.json) and its "
-    "input (fixtures/r/asah_vectors.csv) are not both committed; fixtures/r/capture.R and "
-    "the r-captures workflow (build day 12) write them"
+    "[unverified until captured] the pROC capture (fixtures/r/proc_asah.json) and the "
+    "engine comparison the r-captures job records beside it "
+    "(fixtures/r/f13_engine_comparison.json) are not both committed; the aSAH vectors are "
+    "never committed (DEC-77), so F13 is compared inside that job only "
+    "(fixtures/r/capture.R, .github/workflows/r-captures.yml; build day 12)"
 )
 F13B_ABSENT = (
     "[unverified until captured] the rms::val.prob capture (fixtures/r/rms_val_prob_f4.json) "
@@ -1020,25 +1099,171 @@ def _check_header(doc: dict[str, Any], fixture: str) -> None:
         )
 
 
+class ComparedInRunner(Exception):  # noqa: N818 - a row outcome, not an error
+    """F13 outside the r-captures job (DEC-77): the row as the job's recorded comparison
+    (:data:`R_COMPARISON_FILE`) gives it, read by :func:`f13_recorded_outcome`.
+    :func:`compare_row` writes ``status``, ``reason`` and ``max_abs_deviation`` into the
+    row as they are and returns it; this command compares no value itself."""
+
+    def __init__(self, status: str, reason: str, max_abs_deviation: float | None) -> None:
+        self.status = status
+        self.reason = reason
+        self.max_abs_deviation = max_abs_deviation
+        super().__init__(reason)
+
+
+#: The files F13's row names as where it was compared, when it is ``suite_only``.
+F13_RUNNER_SUITE = (".github/workflows/r-captures.yml", "tests/test_day12_r_captures.py")
+
+
+def _json_number(value: Any) -> float | None:
+    """``value`` as a float when it is a finite JSON number (an ``int`` or ``float``, not a
+    ``bool`` and not a string); ``None`` otherwise."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    out = float(value)
+    return out if math.isfinite(out) else None
+
+
+def _is_hex(value: Any, length: int) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == length
+        and all(c in "0123456789abcdef" for c in value)
+    )
+
+
+def f13_recorded_outcome(caps: RCaptures) -> ComparedInRunner:
+    """F13 from ``proc_asah.json`` and :data:`R_COMPARISON_FILE` when the vectors are not
+    read here (DEC-77). The comparison file must name the schema
+    :data:`R_COMPARISON_SCHEMA` and fixture ``F13``; its ``proc_asah_sha256`` must equal the
+    sha256 of the committed ``proc_asah.json`` (CRLF read as LF), its ``vectors_sha256`` and
+    ``vectors_rows`` the ones ``proc_asah.json``'s ``input`` records, its
+    ``github_run_id`` the run id in ``proc_asah.json``'s ``meta.github``, and its
+    ``engine_sha`` must be 40 hex characters; otherwise :class:`RCaptureInputMismatch`. Each
+    name of :data:`F13_NAMES` must carry ``engine`` and ``r`` as finite JSON numbers (a string is
+    refused), ``r`` equal to
+    ``proc_asah.json``'s value and ``tolerance`` equal to the ``iterative`` 1e-6; the
+    deviation is recomputed here as ``abs(engine - r)`` (the file's ``abs_deviation`` and
+    ``within`` are not read). Outcome: ``not_matched`` when a name fails those checks or
+    lies outside 1e-6, ``suite_only`` otherwise, with a reason naming the run, the engine
+    commit, the maximum deviation and that a local re-check needs R; when the engine commit
+    is not this checkout's HEAD (:func:`git_sha`) the reason says so."""
+    proc, cmp_doc = caps.proc, caps.comparison
+    assert proc is not None and cmp_doc is not None
+    if cmp_doc.get("schema") != R_COMPARISON_SCHEMA or cmp_doc.get("fixture") != "F13":
+        raise RCaptureInputMismatch(
+            f"{R_COMPARISON_FILE} schema {cmp_doc.get('schema')!r} fixture "
+            f"{cmp_doc.get('fixture')!r}, expected {R_COMPARISON_SCHEMA!r} 'F13'"
+        )
+    p_input = _as_dict(proc.get("input"))
+    p_run = _as_dict(_as_dict(proc.get("meta")).get("github")).get("run_id")
+    checks = (
+        ("proc_asah_sha256", cmp_doc.get("proc_asah_sha256"), caps.proc_sha256),
+        ("vectors_sha256", cmp_doc.get("vectors_sha256"), p_input.get("vectors_sha256")),
+        ("vectors_rows", cmp_doc.get("vectors_rows"), p_input.get("n_rows")),
+        ("github_run_id", cmp_doc.get("github_run_id"), p_run),
+    )
+    for key, recorded, expected in checks:
+        if recorded is None or isinstance(recorded, bool) or str(recorded) != str(expected):
+            raise RCaptureInputMismatch(
+                f"{R_COMPARISON_FILE} {key} {recorded!r}, proc_asah.json gives {expected!r}"
+            )
+    engine_sha = cmp_doc.get("engine_sha")
+    if not _is_hex(engine_sha, 40) or not _is_hex(caps.proc_sha256, 64):
+        raise RCaptureInputMismatch(f"{R_COMPARISON_FILE} engine_sha {engine_sha!r}")
+    values = _as_dict(cmp_doc.get("values"))
+    proc_values = _as_dict(proc.get("values"))
+    tol = float(TOLERANCES["iterative"])  # type: ignore[arg-type]
+    problems: list[str] = []
+    outside: list[str] = []
+    worst = 0.0
+    for name in F13_NAMES:
+        rec = _as_dict(values.get(name))
+        e, r = _json_number(rec.get("engine")), _json_number(rec.get("r"))
+        if e is None or r is None:
+            problems.append(f"no engine and R numbers: {name}")
+            continue
+        if r != _json_number(proc_values.get(name)):
+            problems.append(f"R value not proc_asah.json's: {name}")
+            continue
+        if _json_number(rec.get("tolerance")) != tol:
+            problems.append(f"tolerance not {tol:g}: {name}")
+            continue
+        dev = abs(e - r)
+        worst = max(worst, dev)
+        if not dev <= tol:
+            outside.append(name)
+    run = f"GitHub run {cmp_doc.get('github_run_id')}"
+    if problems or outside:
+        parts = problems + (["outside tolerance: " + ", ".join(outside)] if outside else [])
+        return ComparedInRunner(
+            "not_matched",
+            f"r_capture_recorded_not_matched: {R_COMPARISON_FILE} ({run}, engine commit "
+            f"{engine_sha}): " + "; ".join(parts),
+            worst if not problems else None,
+        )
+    head, head_source = git_sha()
+    if head is None:
+        where = f"this checkout's HEAD was not read ({head_source})"
+    elif head == engine_sha:
+        where = "the engine commit is this checkout's HEAD"
+    else:
+        where = (
+            f"the engine commit is not this checkout's HEAD ({head}); this command did not "
+            "run that comparison on this checkout's engine"
+        )
+    return ComparedInRunner(
+        "suite_only",
+        f"compared inside the r-captures job, not by this command: {run} recorded "
+        f"{len(F13_NAMES)} values of the engine at commit {engine_sha} against pROC "
+        f"(proc_asah.json), max abs deviation {worst!r}, each within 1e-6 as recomputed "
+        f"here from the recorded engine and R numbers; {where}. The aSAH vectors are never "
+        "committed (DEC-77), so a local re-check needs R: the r-captures job "
+        "(fixtures/r/README.md)",
+        worst,
+    )
+
+
 def f13_oracle(caps: RCaptures):
-    """``(values, tolerance, source)`` of ``proc_asah.json``; :class:`OracleAbsent` with
-    :data:`F13_ABSENT` while the capture or its vectors are absent; the capture's
-    ``input.vectors_sha256`` must equal the sha256 of the vectors file read (CRLF read as
-    LF). From an installed package (``caps.directory`` ``None``) :class:`OracleAbsent`
-    with :data:`R_CAPTURES_NOT_READ`."""
+    """``(values, tolerance, source)`` of ``proc_asah.json`` compared with the engine on
+    the vectors :data:`R_VECTORS_ENV` names (the r-captures job's shape). From an installed
+    package (``caps.directory`` ``None``) :class:`OracleAbsent` with
+    :data:`R_CAPTURES_NOT_READ`.
+
+    With ``caps.vectors_path`` set: an unreadable or missing vectors file, or an unreadable
+    ``proc_asah.json``, is :class:`OracleFileUnreadable`; an absent ``proc_asah.json`` is
+    :class:`OracleFileMissing` (both rows ``not_matched``); the capture's
+    ``input.vectors_sha256`` must equal the sha256 of the vectors read (CRLF read as LF).
+
+    With ``caps.vectors_path`` ``None`` (DEC-77: everywhere else): an unreadable
+    ``proc_asah.json`` or :data:`R_COMPARISON_FILE` is :class:`OracleFileUnreadable`;
+    while either is absent :class:`OracleAbsent` with :data:`F13_ABSENT` and the absent
+    files; when both are read, :class:`ComparedInRunner` from
+    :func:`f13_recorded_outcome`."""
     if caps.directory is None:
         raise OracleAbsent(R_CAPTURES_NOT_READ)
     bad = dict(caps.unreadable)
+    if caps.vectors_path is None:
+        for rel in (R_CAPTURE_FILES[0], R_COMPARISON_FILE):
+            if rel in bad:
+                raise OracleFileUnreadable(rel, bad[rel])
+        missing = [
+            rel
+            for rel, doc in ((R_CAPTURE_FILES[0], caps.proc), (R_COMPARISON_FILE, caps.comparison))
+            if doc is None
+        ]
+        if missing:
+            raise OracleAbsent(f"{F13_ABSENT} (absent: {', '.join(missing)})")
+        _check_header(caps.proc, "F13")  # type: ignore[arg-type]
+        raise f13_recorded_outcome(caps)
     for rel in (R_CAPTURE_FILES[0], R_VECTORS_FILE):
         if rel in bad:
             raise OracleFileUnreadable(rel, bad[rel])
-    if caps.proc is None or caps.vectors is None:
-        missing = [
-            rel
-            for rel, doc in ((R_CAPTURE_FILES[0], caps.proc), (R_VECTORS_FILE, caps.vectors))
-            if doc is None
-        ]
-        raise OracleAbsent(f"{F13_ABSENT} (absent: {', '.join(missing)})")
+    if caps.proc is None:
+        raise OracleFileMissing(R_CAPTURE_FILES[0])
+    if caps.vectors is None:  # the loader names a vectors file it could not read
+        raise OracleFileUnreadable(R_VECTORS_FILE, "not read")
     _check_header(caps.proc, "F13")
     recorded = _as_dict(caps.proc.get("input")).get("vectors_sha256")
     if recorded != caps.vectors_sha256:
@@ -1072,6 +1297,52 @@ def f13b_oracle(caps: RCaptures):
         )
     values, tol = _r_values(caps.valprob, F13B_NAMES)
     return values, tol, _r_source(caps.valprob, R_CAPTURE_FILES[1])
+
+
+def f13_comparison_record(
+    caps: RCaptures, *, engine_sha: str, run_id: str | None, run_attempt: str | None = None
+) -> dict[str, Any]:
+    """What the r-captures job writes to :data:`R_COMPARISON_FILE` (DEC-77): the F13 report
+    row computed on ``caps`` in the job's shape (``caps.vectors_path`` set; ``ValueError``
+    otherwise), as the engine commit, the run, the sha256 of ``proc_asah.json`` and of the
+    vectors with their row count, the row's status and maximum deviation, and per compared
+    name the engine value, the R value, the absolute deviation, the tolerance and whether it
+    is within: aggregates and two sha256 values.
+    ``tests/test_e12_repair3.py::test_dec77_the_record_holds_no_vector_line`` feeds the
+    synthetic 80-row vectors and finds none of their 81 lines (header included) in the
+    JSON text."""
+    if caps.vectors_path is None:
+        raise ValueError(f"{R_VECTORS_ENV} is not set: the vectors are not read here")
+    row = compare_row(r_capture_rows(caps)[0], {})
+    n_rows = len(caps.vectors["y"]) if caps.vectors is not None else None
+    return {
+        "schema": R_COMPARISON_SCHEMA,
+        "fixture": "F13",
+        "what": "the engine's F13 values on the aSAH vectors (read inside the r-captures job "
+        "from the runner's temporary space, never committed or uploaded: DEC-77) compared "
+        "with proc_asah.json; aggregates and the vectors' sha256 only",
+        "engine_sha": engine_sha,
+        "engine_version": __version__,
+        "github_run_id": run_id,
+        "github_run_attempt": run_attempt,
+        "proc_asah_sha256": caps.proc_sha256,
+        "vectors_sha256": caps.vectors_sha256,
+        "vectors_rows": n_rows,
+        "tolerance_class": "iterative",
+        "status": row["status"],
+        "reason": row["reason"],
+        "max_abs_deviation": row["max_abs_deviation"],
+        "values": {
+            v["name"]: {
+                "engine": v["engine"],
+                "r": v["oracle"],
+                "abs_deviation": v["abs_deviation"],
+                "tolerance": v["tolerance"],
+                "within": v["within"],
+            }
+            for v in row["values"]
+        },
+    }
 
 
 class OptionalDependencyMissing(RuntimeError):
@@ -1261,7 +1532,9 @@ def r_capture_rows(captures: RCaptures | None = None) -> tuple[Row, Row]:
     :func:`load_r_captures`); otherwise each comparison reads :func:`load_r_captures`
     afresh. While a capture is absent the row is ``no_oracle_recorded`` with
     :data:`F13_ABSENT` / :data:`F13B_ABSENT`; when present it is ``matched`` or
-    ``not_matched`` under the ``iterative`` tolerance (absolute 1e-6 on every value)."""
+    ``not_matched`` under the ``iterative`` tolerance (absolute 1e-6 on every value). F13
+    is compared with the engine only where :data:`R_VECTORS_ENV` names the vectors (the
+    r-captures job); elsewhere :func:`f13_oracle` reads the job's recorded comparison."""
 
     def get() -> RCaptures:
         return captures if captures is not None else load_r_captures()
@@ -1725,6 +1998,14 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
     except RCaptureInputMismatch as exc:
         out.update(status="not_matched", reason=f"r_capture_input_mismatch: {exc}")
         return out
+    except ComparedInRunner as exc:
+        out.update(
+            status=exc.status,
+            reason=exc.reason,
+            max_abs_deviation=exc.max_abs_deviation,
+            suite_tests=list(F13_RUNNER_SUITE),
+        )
+        return out
     except Exception as exc:  # noqa: BLE001 - reported as the row's reason
         out.update(status="not_matched", reason=f"oracle_error: {type(exc).__name__}")
         return out
@@ -1886,7 +2167,11 @@ R_CAPTURES_PARTIAL = "partial_see_rows_f13_f13b"
 
 
 def _deviations_read(row: dict[str, Any]) -> int:
-    """How many of ``row["values"]`` carry a numeric ``abs_deviation``."""
+    """How many of ``row["values"]`` carry a numeric ``abs_deviation``; for F13 read from
+    the r-captures job's recorded comparison (``suite_only``, DEC-77), the names that
+    comparison recorded when its ``max_abs_deviation`` is a number."""
+    if row["status"] == "suite_only" and row["max_abs_deviation"] is not None:
+        return len(F13_NAMES)
     return sum(1 for v in row["values"] if v["abs_deviation"] is not None)
 
 
@@ -1895,10 +2180,13 @@ def r_captures_status(caps: RCaptures | None = None) -> dict[str, Any]:
     gives on ``caps`` (default :func:`load_r_captures`), not from which files exist (E12
     repair 1, lens 1 FA-B2). ``status``: :data:`R_CAPTURES_NOT_CAPTURED` when both rows are
     ``no_oracle_recorded``; :data:`R_CAPTURES_PRESENT` when each row holds one or more
-    values with a numeric ``abs_deviation``; :data:`R_CAPTURES_PARTIAL` otherwise. The line
-    names the files read, the files unreadable, the files absent and each row's status; the
-    inputs the tests feed are in ``tests/test_e12_repair1.py`` (``test_fa_b2_*``) and
-    ``tests/test_e12_repair2.py`` (``test_fa_b4_*``)."""
+    values with a numeric ``abs_deviation`` (F13 read from the job's recorded comparison:
+    ``suite_only`` with a numeric ``max_abs_deviation``); :data:`R_CAPTURES_PARTIAL`
+    otherwise. The line names the files read, the files unreadable, the files absent and
+    each row's status; outside the r-captures job (:data:`R_VECTORS_ENV` not set) the
+    vectors are not counted absent and the line says where they are read. The inputs the
+    tests feed are in ``tests/test_e12_repair1.py`` (``test_fa_b2_*``),
+    ``tests/test_e12_repair2.py`` (``test_fa_b4_*``) and ``tests/test_e12_repair3.py``."""
     caps = load_r_captures() if caps is None else caps
     rows = [compare_row(r, {}) for r in r_capture_rows(caps)]
     status = (
@@ -1908,10 +2196,13 @@ def r_captures_status(caps: RCaptures | None = None) -> dict[str, Any]:
         if all(_deviations_read(r) > 0 for r in rows)
         else R_CAPTURES_PARTIAL
     )
-    every = (*R_CAPTURE_FILES, R_VECTORS_FILE)
+    local = caps.vectors_path is None
+    every = (*R_CAPTURE_FILES, R_COMPARISON_FILE) if local else (*R_CAPTURE_FILES, R_VECTORS_FILE)
     unreadable = [f for f, _ in caps.unreadable]
     absent = [f for f in every if f not in caps.present and f not in unreadable]
     row_text = ", ".join(f"row {r['id']} {r['status']}" for r in rows)
+    if local:
+        row_text += "; the aSAH vectors are read inside the r-captures job only (DEC-77)"
     if caps.directory is None:
         line = (
             f"r-captures: {status} - an installed package reads no R capture (fixtures/r/ is "

@@ -1,36 +1,52 @@
 """Build day 12 (5 October 2026), lane E: F13 and F13b - the engine against the R captures.
 
-``fixtures/r/capture.R`` (run by ``.github/workflows/r-captures.yml``) writes
-``fixtures/r/proc_asah.json``, ``fixtures/r/rms_val_prob_f4.json`` and the F13 input
-``fixtures/r/asah_vectors.csv``. None of the three is committed on build day 12.
+``fixtures/r/capture.R``, run by ``.github/workflows/r-captures.yml``, writes
+``proc_asah.json`` and ``rms_val_prob_f4.json`` and, under DEC-77 (Josh, 5 October 2026),
+the aSAH vectors to the file ``PROOFPACK_ASAH_VECTORS`` names in the runner's temporary
+space: they are never committed and never leave the runner. In the same job
+``scripts/r_f13_compare.py`` writes ``fixtures/r/f13_engine_comparison.json`` (the
+engine's F13 values beside pROC's: aggregates and the vectors' sha256). None of these
+files is committed on build day 12.
 
-**The comparisons** (the first eight tests) each pass through one of two gates (E12
-repair 1, lens 1 FA-B1 / RG-N3: the build's single gate skipped all seven comparisons
-unless all three files were read, so a committed F13b capture without the vectors file
-compared nothing). :func:`_f13_or_skip` reads ``fixtures/r/`` and skips with
-:func:`f13_skip_reason` when ``proc_asah.json`` or ``asah_vectors.csv`` was not read and
-neither is unreadable; :func:`_f13b_or_skip` skips with :data:`F13B_SKIP` when
-``rms_val_prob_f4.json`` was not read and is not unreadable. Otherwise the test compares
-the engine with the files, each value with the tolerance written beside it in
-:data:`F13_TOL` / :data:`F13B_TOL`.
+**The comparisons** pass through three gates (E12 repair 1 split one gate in two; E12
+repair 3 added the DEC-77 shape):
+
+* :func:`_f13_or_skip`, for the three F13 comparisons that need the vectors: skips with
+  :func:`f13_vectors_skip_reason` (``r_vectors_not_committed_dec77``) when
+  ``PROOFPACK_ASAH_VECTORS`` is not set, and otherwise returns without skipping;
+* :func:`_f13_recorded_or_skip`, for the comparison as the job recorded it: skips with
+  :func:`f13_skip_reason` when ``proc_asah.json`` or ``f13_engine_comparison.json`` was
+  not read and neither is unreadable;
+* :func:`_f13b_or_skip`: skips with :data:`F13B_SKIP` when ``rms_val_prob_f4.json`` was not
+  read and is not unreadable.
+
+Otherwise the test compares the engine with the files, each value with the tolerance
+written beside it in :data:`F13_TOL` / :data:`F13B_TOL`.
 ``tests/test_e12_repair1.py::test_fa_b1_with_the_vectors_absent_the_f13b_comparisons_run``
-runs this module with the F13b capture present, the vectors absent and ``val.prob Slope``
-moved by 1e-3, and reads three F13b comparisons ``FAILED``.
+runs this module with the F13b capture present, ``PROOFPACK_ASAH_VECTORS`` unset and
+``val.prob Slope`` moved by 1e-3, and reads three F13b comparisons ``FAILED``.
 
-**The skip reasons.** :func:`test_the_skip_reasons_are_the_typed_strings` asserts the
-strings the two gates skip with, on an empty directory and on a capture without its
-vectors file, and that neither gate skips when a file it needs is unreadable (E12 repair
-2). It inspects those two gates only, not any other skip in this module; the
-r-captures workflow's ``compare`` job runs ``grep -q "SKIPPED"`` on the output of
-``pytest -m day12 -rs`` and its step exits 1 when the word is there (the step's two shell
-lines were run in Git Bash in E12 repair 1 on an output holding a ``SKIPPED`` line: exit
-1; the workflow itself has not run).
+**The skip reasons.** :func:`test_the_skip_reasons_are_the_typed_strings` feeds: an empty
+directory; the synthetic capture less ``f13_engine_comparison.json``; then, one at a time,
+``proc_asah.json``, ``f13_engine_comparison.json`` and ``rms_val_prob_f4.json`` written
+as ``{"values": ``; and ``PROOFPACK_ASAH_VECTORS`` unset, set to the synthetic vectors
+with the line ``81,Good,2,0.5,9.5`` appended, set to a path that does not exist, and set
+to the empty string. It asserts each skip string, and that the gate returns rather than
+skips for each of those unreadable or missing files (the vectors cases through
+:func:`_no_skip`). It inspects those three gates only, not any other skip in this module;
+the r-captures workflow runs ``grep -q "SKIPPED"`` on the output of ``pytest -m day12 -rs``
+and its step exits 1 when the word is there (the step's two shell lines were run in Git
+Bash in E12 repair 1 on an output holding a ``SKIPPED`` line: exit 1; the workflow itself
+has not run). ``tests/test_e12_repair3.py`` plants mutants of the three gates and of the
+loader and reads the comparisons fail on each.
 
 **The structure tests** write a synthetic capture into ``tmp_path`` in the shape
 ``capture.R`` writes (the same keys, the comment line and column order of the CSV, numbers
-written with 17 significant digits) and run it through the same loader
-(``fixtures.load_r_captures``), the same comparison (:func:`_compare`) and the same report
-rows (``fixtures.r_capture_rows``), so the comparison code runs today. The synthetic F13
+written with 17 significant digits; the vectors beside the JSON files there, read through
+the ``vectors=`` argument of ``fixtures.load_r_captures`` as the job reads them through
+``PROOFPACK_ASAH_VECTORS``) and run it through the same loader, the same comparison
+(:func:`_compare`) and the same report rows (``fixtures.r_capture_rows``), so the
+comparison code runs today. The synthetic F13
 values are computed here from DeLong 1988's placement definition by direct O(m n) sums,
 not by the engine's Sun and Xu midrank code; the synthetic F13b values are the statsmodels
 ``fit(tol=1e-10)`` and scikit-learn figures already recorded in
@@ -54,6 +70,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
 import subprocess
 import sys
@@ -100,40 +117,60 @@ F13B_TOL: dict[str, tuple[float, float | None]] = {name: (1e-6, None) for name i
 # ------------------------------------------------------------------ loading
 
 
-F13_NEEDS = (fx.R_CAPTURE_FILES[0], fx.R_VECTORS_FILE)
+#: What :func:`_f13_recorded_or_skip` needs read (outside the r-captures job, DEC-77).
+F13_RECORDED_NEEDS = (fx.R_CAPTURE_FILES[0], fx.R_COMPARISON_FILE)
 F13B_NEEDS = (fx.R_CAPTURE_FILES[1],)
 #: The skip reason of :func:`_f13b_or_skip`.
 F13B_SKIP = f"{fx.R_CAPTURES_NOT_CAPTURED}: F13b (absent: {fx.R_CAPTURE_FILES[1]})"
 
 
+def f13_vectors_skip_reason() -> str:
+    """The skip reason of :func:`_f13_or_skip` (DEC-77)."""
+    return (
+        f"{fx.R_VECTORS_NOT_COMMITTED}: F13 needs the aSAH vectors, which exist only inside "
+        f"the r-captures job ({fx.R_VECTORS_ENV} is not set)"
+    )
+
+
 def f13_skip_reason(absent: list[str]) -> str:
-    """The skip reason of :func:`_f13_or_skip`, naming the files not read."""
-    return f"{fx.R_CAPTURES_NOT_CAPTURED}: F13 (absent: {', '.join(absent)})"
+    """The skip reason of :func:`_f13_recorded_or_skip`, naming the files not read."""
+    return f"{fx.R_CAPTURES_NOT_CAPTURED}: F13 recorded (absent: {', '.join(absent)})"
 
 
 def _gate(directory: Path, needs: tuple[str, ...]) -> tuple[fx.RCaptures, list[str]]:
-    """The captures in ``directory`` and the files of ``needs`` neither read nor
-    unreadable (an unreadable file does not skip: the comparison then fails on it)."""
-    caps = fx.load_r_captures(directory)
+    """The captures in ``directory`` (vectors not read) and the files of ``needs`` neither
+    read nor unreadable (an unreadable file does not skip: the comparison then fails)."""
+    caps = fx.load_r_captures(directory, vectors=None)
     bad = {f for f, _ in caps.unreadable}
     if bad & set(needs):
         return caps, []
     return caps, [f for f in needs if f not in caps.present]
 
 
-def _f13_or_skip(directory: Path = COMMITTED) -> fx.RCaptures:
-    """Skip with :func:`f13_skip_reason` unless ``proc_asah.json`` and ``asah_vectors.csv``
-    were both read (or one of them is unreadable)."""
-    caps, absent = _gate(directory, F13_NEEDS)
+def _f13_or_skip(directory: Path | None = None) -> fx.RCaptures:
+    """Skip with :func:`f13_vectors_skip_reason` when ``PROOFPACK_ASAH_VECTORS`` is not set
+    (DEC-77: everywhere outside the r-captures job). When it is set, even to the empty
+    string, read the captures and the vectors it names and return them without skipping:
+    a missing or unreadable vectors file or ``proc_asah.json`` then fails the comparison."""
+    if fx.R_VECTORS_ENV not in os.environ:
+        pytest.skip(f13_vectors_skip_reason())
+    return fx.load_r_captures(directory or COMMITTED)
+
+
+def _f13_recorded_or_skip(directory: Path | None = None) -> fx.RCaptures:
+    """Skip with :func:`f13_skip_reason` unless ``proc_asah.json`` and
+    ``f13_engine_comparison.json`` were both read (or one of them is unreadable); the
+    captures returned are read with the vectors not read (the DEC-77 shape)."""
+    caps, absent = _gate(directory or COMMITTED, F13_RECORDED_NEEDS)
     if absent:
         pytest.skip(f13_skip_reason(absent))
     return caps
 
 
-def _f13b_or_skip(directory: Path = COMMITTED) -> fx.RCaptures:
+def _f13b_or_skip(directory: Path | None = None) -> fx.RCaptures:
     """Skip with :data:`F13B_SKIP` unless ``rms_val_prob_f4.json`` was read (or is
     unreadable). F13b needs no vectors file."""
-    caps, absent = _gate(directory, F13B_NEEDS)
+    caps, absent = _gate(directory or COMMITTED, F13B_NEEDS)
     if absent:
         pytest.skip(F13B_SKIP)
     return caps
@@ -240,6 +277,18 @@ def test_the_fixtures_report_row_f13b_is_matched():
     assert row["status"] == "matched", row["reason"]
 
 
+def test_f13_outside_the_job_the_row_reads_the_recorded_comparison_as_suite_only():
+    """``proc_asah.json`` and ``f13_engine_comparison.json`` read with the vectors not read
+    (DEC-77): the F13 row is ``suite_only`` (every check of
+    ``fixtures.f13_recorded_outcome`` passed), its maximum deviation is at most 1e-6, and
+    its reason says a local re-check needs R."""
+    caps = _f13_recorded_or_skip()
+    row = fx.compare_row(fx.r_capture_rows(caps)[0], {})
+    assert row["status"] == "suite_only", row["reason"]
+    assert row["max_abs_deviation"] is not None and row["max_abs_deviation"] <= 1e-6
+    assert "a local re-check needs R" in row["reason"]
+
+
 def test_f4_expected_r_rms_val_prob_is_pending_until_a_capture_is_committed():
     """``f4_expected.json`` says ``[pending]`` while no F4 capture is committed (tracked by
     git). When one is committed the orchestrator replaces the entry with the capture's
@@ -273,50 +322,84 @@ def _no_skip(gate, directory: Path) -> fx.RCaptures:
         pytest.fail(f"the gate skipped where a file it needs is unreadable: {exc}")
 
 
-def test_the_skip_reasons_are_the_typed_strings(tmp_path):
-    """Empty directory: F13 skips naming both files, F13b naming its capture. The synthetic
-    capture less ``asah_vectors.csv``: F13 skips naming the vectors file, F13b does not
-    skip. Then ``proc_asah.json`` = ``{"values": `` (vectors still absent): :func:`_gate`
-    returns no absent file for F13, and ``_f13_or_skip`` returns; then
-    ``rms_val_prob_f4.json`` = ``{"values": ``: the same for F13b. Those four calls are
-    asserted directly or through :func:`_no_skip`, so a gate that skips there fails this
-    test (E12 repair 2, lens 2 FA-B1 / RG-N1;
-    ``tests/test_e12_repair2.py::test_fa_b1_each_lens_mutant_of_gate_fails_the_skip_reason_test``
-    plants the two mutants and reads this test fail on each)."""
+def test_the_skip_reasons_are_the_typed_strings(tmp_path, monkeypatch):
+    """The inputs, in order (the module docstring lists them too). ``PROOFPACK_ASAH_VECTORS``
+    unset: on an empty directory F13 skips with the DEC-77 reason, the recorded comparison
+    naming ``proc_asah.json`` and ``f13_engine_comparison.json``, F13b naming its capture;
+    on the synthetic capture less ``f13_engine_comparison.json`` the recorded comparison
+    skips naming that file and F13b returns. Then ``proc_asah.json`` and
+    ``f13_engine_comparison.json`` (each alone) and ``rms_val_prob_f4.json`` written as
+    ``{"values": ``: :func:`_gate` returns no absent file and the gate returns through
+    :func:`_no_skip`. Then ``PROOFPACK_ASAH_VECTORS`` set to the synthetic vectors with
+    ``81,Good,2,0.5,9.5`` appended (y = 2: ``ValueError``), to a path that does not exist
+    (``FileNotFoundError``) and to the empty string: ``_f13_or_skip`` returns through
+    :func:`_no_skip` with the vectors named in ``unreadable``. A gate that skips at any of
+    those calls fails this test (E12 repair 2, lens 2 FA-B1 / RG-N1; E12 repair 3, lens 3
+    FA-B1: ``tests/test_e12_repair3.py`` plants the gate mutants and reads this test
+    fail)."""
     assert fx.R_CAPTURES_NOT_CAPTURED == "r_captures_not_captured"
+    assert fx.R_VECTORS_NOT_COMMITTED == "r_vectors_not_committed_dec77"
+    monkeypatch.delenv(fx.R_VECTORS_ENV, raising=False)
     with pytest.raises(pytest.skip.Exception) as info:
         _f13_or_skip(tmp_path)
     assert str(info.value) == (
-        "r_captures_not_captured: F13 (absent: fixtures/r/proc_asah.json, "
-        "fixtures/r/asah_vectors.csv)"
+        "r_vectors_not_committed_dec77: F13 needs the aSAH vectors, which exist only inside "
+        "the r-captures job (PROOFPACK_ASAH_VECTORS is not set)"
+    )
+    with pytest.raises(pytest.skip.Exception) as info:
+        _f13_recorded_or_skip(tmp_path)
+    assert str(info.value) == (
+        "r_captures_not_captured: F13 recorded (absent: fixtures/r/proc_asah.json, "
+        "fixtures/r/f13_engine_comparison.json)"
     )
     with pytest.raises(pytest.skip.Exception) as info:
         _f13b_or_skip(tmp_path)
     assert (
         str(info.value) == "r_captures_not_captured: F13b (absent: fixtures/r/rms_val_prob_f4.json)"
     )
-    write_synthetic_capture(tmp_path / "r")
-    (tmp_path / "r" / "asah_vectors.csv").unlink()
+    cap = tmp_path / "r"
+    write_synthetic_capture(cap)
+    saved = {n: (cap / n).read_bytes() for n in ("proc_asah.json", "f13_engine_comparison.json")}
+    (cap / "f13_engine_comparison.json").unlink()
     with pytest.raises(pytest.skip.Exception) as info:
-        _f13_or_skip(tmp_path / "r")
-    assert str(info.value) == "r_captures_not_captured: F13 (absent: fixtures/r/asah_vectors.csv)"
-    assert _f13b_or_skip(tmp_path / "r").valprob is not None
-    (tmp_path / "r" / "proc_asah.json").write_text('{"values": ', encoding="utf-8")
-    assert _gate(tmp_path / "r", F13_NEEDS)[1] == []
-    assert _no_skip(_f13_or_skip, tmp_path / "r").unreadable == (
-        ("fixtures/r/proc_asah.json", "JSONDecodeError"),
+        _f13_recorded_or_skip(cap)
+    assert str(info.value) == (
+        "r_captures_not_captured: F13 recorded (absent: fixtures/r/f13_engine_comparison.json)"
     )
-    (tmp_path / "r" / "rms_val_prob_f4.json").write_text('{"values": ', encoding="utf-8")
-    assert _gate(tmp_path / "r", F13B_NEEDS)[1] == []
-    caps = _no_skip(_f13b_or_skip, tmp_path / "r")
+    assert _f13b_or_skip(cap).valprob is not None
+    for name in ("proc_asah.json", "f13_engine_comparison.json"):
+        for n, data in saved.items():
+            (cap / n).write_bytes(data)
+        (cap / name).write_text('{"values": ', encoding="utf-8")
+        assert _gate(cap, F13_RECORDED_NEEDS)[1] == []
+        assert _no_skip(_f13_recorded_or_skip, cap).unreadable == (
+            (f"fixtures/r/{name}", "JSONDecodeError"),
+        )
+    (cap / "rms_val_prob_f4.json").write_text('{"values": ', encoding="utf-8")
+    assert _gate(cap, F13B_NEEDS)[1] == []
+    caps = _no_skip(_f13b_or_skip, cap)
     assert caps.valprob is None
     assert ("fixtures/r/rms_val_prob_f4.json", "JSONDecodeError") in caps.unreadable
+    corrupt = tmp_path / "corrupt.csv"
+    corrupt.write_bytes((cap / "asah_vectors.csv").read_bytes() + b"81,Good,2,0.5,9.5\n")
+    for value, error in (
+        (str(corrupt), "ValueError"),
+        (str(tmp_path / "no-such-dir" / "asah_vectors.csv"), "FileNotFoundError"),
+        ("", None),
+    ):
+        monkeypatch.setenv(fx.R_VECTORS_ENV, value)
+        got = _no_skip(_f13_or_skip, cap)
+        assert got.vectors is None
+        names = dict(got.unreadable)
+        assert fx.R_VECTORS_FILE in names, value
+        if error is not None:
+            assert names[fx.R_VECTORS_FILE] == error
 
 
 def test_absent_captures_leave_f13_and_f13b_no_oracle_recorded_with_the_unverified_reason(
     tmp_path,
 ):
-    caps = fx.load_r_captures(tmp_path)
+    caps = fx.load_r_captures(tmp_path, vectors=None)
     assert caps.present == () and caps.unreadable == ()
     f13, f13b = (fx.compare_row(r, {}) for r in fx.r_capture_rows(caps))
     assert f13["status"] == f13b["status"] == "no_oracle_recorded"
@@ -424,8 +507,19 @@ def _meta() -> dict:
         "packages": {"pROC": "0", "rms": "0", "jsonlite": "0"},
         "repos": {"CRAN": "synthetic"},
         "run_date_utc": "2026-10-05T00:00:00Z",
-        "github": {"run_id": None, "sha": None},
+        "github": {"run_id": SYNTHETIC_RUN_ID, "sha": SYNTHETIC_ENGINE_SHA},
     }
+
+
+#: The run id and engine commit the synthetic capture and its comparison record name.
+SYNTHETIC_RUN_ID = "20261005"
+SYNTHETIC_ENGINE_SHA = "e" * 40
+
+
+def _load(directory: Path) -> fx.RCaptures:
+    """The synthetic capture in ``directory`` read the r-captures job's way: the vectors
+    from ``directory/asah_vectors.csv`` as the job reads them from ``PROOFPACK_ASAH_VECTORS``."""
+    return fx.load_r_captures(directory, vectors=directory / "asah_vectors.csv")
 
 
 def _r_json(doc: dict) -> str:
@@ -460,7 +554,7 @@ def write_synthetic_capture(directory: Path) -> dict[str, np.ndarray]:
             "cases": "Poor",
             "direction": "<",
             "y_mapping": {"Good": 0, "Poor": 1},
-            "vectors_file": "fixtures/r/asah_vectors.csv",
+            "vectors_file": "$PROOFPACK_ASAH_VECTORS in the r-captures job",
             "vectors_sha256": hashlib.sha256(csv_bytes).hexdigest(),
             "sha256_method": "hashlib",
         },
@@ -486,6 +580,12 @@ def write_synthetic_capture(directory: Path) -> dict[str, np.ndarray]:
     }
     (directory / "proc_asah.json").write_text(_r_json(proc), encoding="utf-8")
     (directory / "rms_val_prob_f4.json").write_text(_r_json(valprob), encoding="utf-8")
+    record = fx.f13_comparison_record(
+        _load(directory), engine_sha=SYNTHETIC_ENGINE_SHA, run_id=SYNTHETIC_RUN_ID
+    )
+    (directory / "f13_engine_comparison.json").write_text(
+        json.dumps(record, indent=2) + "\n", encoding="utf-8"
+    )
     return vectors
 
 
@@ -495,16 +595,20 @@ def synthetic(tmp_path) -> Path:
     return tmp_path / "r"
 
 
-def test_structure_the_loader_reads_the_three_files_in_the_shape_capture_r_writes(synthetic):
-    caps = fx.load_r_captures(synthetic)
-    assert caps.present == (*fx.R_CAPTURE_FILES, fx.R_VECTORS_FILE)
+def test_structure_the_loader_reads_the_four_files_in_the_shape_capture_r_writes(
+    synthetic, monkeypatch
+):
+    caps = _load(synthetic)
+    assert caps.present == (*fx.R_CAPTURE_FILES, fx.R_VECTORS_FILE, fx.R_COMPARISON_FILE)
     assert caps.unreadable == ()
     assert caps.vectors is not None and len(caps.vectors["y"]) == 80
+    monkeypatch.setenv(fx.R_VECTORS_ENV, str(synthetic / "asah_vectors.csv"))
     assert _f13_or_skip(synthetic) is not None and _f13b_or_skip(synthetic) is not None
+    assert _f13_recorded_or_skip(synthetic).vectors is None
 
 
 def test_structure_the_engine_equals_the_definition_delong_on_the_synthetic_vectors(synthetic):
-    caps = fx.load_r_captures(synthetic)
+    caps = _load(synthetic)
     rows = _f13_rows(caps)
     assert [r[0] for r in rows] == [n for n in F13_TOL if n not in fx.F13_OPTIONAL_NAMES]
     assert _failures(rows) == []
@@ -515,12 +619,12 @@ def test_structure_the_engine_equals_the_definition_delong_on_the_synthetic_vect
 def test_structure_the_engine_equals_the_recorded_f4_oracles_through_the_f13b_comparison(
     synthetic,
 ):
-    caps = fx.load_r_captures(synthetic)
+    caps = _load(synthetic)
     assert _failures(_f13b_rows(caps)) == []
 
 
 def test_structure_the_report_rows_are_matched_and_fit_the_schema(synthetic):
-    caps = fx.load_r_captures(synthetic)
+    caps = _load(synthetic)
     rep = fx.run_fixtures(rows=fx.r_capture_rows(caps), doctor=False)
     fx.validate_report(rep)
     rows = {r["id"]: r for r in rep["rows"]}
@@ -544,7 +648,7 @@ def test_structure_a_value_moved_by_2e_6_is_not_matched_and_exits_6(synthetic):
         doc["values"]["s100b var_delong"] += 2e-6
 
     _edit(synthetic / "proc_asah.json", move)
-    caps = fx.load_r_captures(synthetic)
+    caps = _load(synthetic)
     assert [r[0] for r in _failures(_f13_rows(caps))] == ["s100b var_delong"]
     rep = fx.run_fixtures(rows=fx.r_capture_rows(caps), doctor=False)
     row = next(r for r in rep["rows"] if r["id"] == "F13")
@@ -562,13 +666,13 @@ def test_structure_a_relative_variance_error_below_1e_6_absolute_still_fails(syn
         doc["values"]["ndka var_delong"] += 5e-7
 
     _edit(synthetic / "proc_asah.json", move)
-    caps = fx.load_r_captures(synthetic)
+    caps = _load(synthetic)
     assert [r[0] for r in _failures(_f13_rows(caps))] == ["ndka var_delong"]
 
 
 def test_structure_a_missing_value_is_not_matched(synthetic):
     _edit(synthetic / "rms_val_prob_f4.json", lambda d: d["values"].pop("val.prob Slope"))
-    caps = fx.load_r_captures(synthetic)
+    caps = _load(synthetic)
     assert [r[0] for r in _failures(_f13b_rows(caps))] == ["val.prob Slope"]
     row = fx.compare_row(fx.r_capture_rows(caps)[1], {})
     assert row["status"] == "not_matched"
@@ -577,7 +681,7 @@ def test_structure_a_missing_value_is_not_matched(synthetic):
 
 def test_structure_a_different_f4_sha256_is_an_input_mismatch(synthetic):
     _edit(synthetic / "rms_val_prob_f4.json", lambda d: d["input"].update(sha256="0" * 64))
-    row = fx.compare_row(fx.r_capture_rows(fx.load_r_captures(synthetic))[1], {})
+    row = fx.compare_row(fx.r_capture_rows(_load(synthetic))[1], {})
     assert row["status"] == "not_matched"
     assert row["reason"].startswith("r_capture_input_mismatch: f4_calibration.csv sha256 ")
 
@@ -585,44 +689,49 @@ def test_structure_a_different_f4_sha256_is_an_input_mismatch(synthetic):
 def test_structure_edited_vectors_are_an_input_mismatch(synthetic):
     path = synthetic / "asah_vectors.csv"
     path.write_bytes(path.read_bytes() + b"81,Good,0,0.5,9.5\n")
-    row = fx.compare_row(fx.r_capture_rows(fx.load_r_captures(synthetic))[0], {})
+    row = fx.compare_row(fx.r_capture_rows(_load(synthetic))[0], {})
     assert row["status"] == "not_matched"
     assert row["reason"].startswith("r_capture_input_mismatch: asah_vectors.csv sha256 ")
 
 
 def test_structure_crlf_vectors_read_as_the_same_bytes(synthetic):
     path = synthetic / "asah_vectors.csv"
-    lf = fx.load_r_captures(synthetic).vectors_sha256
+    lf = _load(synthetic).vectors_sha256
     path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
-    caps = fx.load_r_captures(synthetic)
+    caps = _load(synthetic)
     assert caps.vectors_sha256 == lf
     assert fx.compare_row(fx.r_capture_rows(caps)[0], {})["status"] == "matched"
 
 
-def test_structure_a_capture_without_its_vectors_stays_no_oracle_recorded(synthetic):
+def test_structure_in_the_job_shape_a_missing_vectors_file_is_not_matched(synthetic):
+    """The vectors named but deleted (the r-captures job's shape, DEC-77): row F13
+    ``not_matched`` with ``oracle_file_unreadable: $PROOFPACK_ASAH_VECTORS
+    (asah_vectors.csv) (FileNotFoundError)``; F13b still ``matched``. At ``e6ad3c8`` a
+    capture without its vectors read ``no_oracle_recorded``."""
     (synthetic / "asah_vectors.csv").unlink()
-    caps = fx.load_r_captures(synthetic)
+    caps = _load(synthetic)
     row = fx.compare_row(fx.r_capture_rows(caps)[0], {})
-    assert row["status"] == "no_oracle_recorded"
-    assert row["reason"] == f"{fx.F13_ABSENT} (absent: {fx.R_VECTORS_FILE})"
+    assert row["status"] == "not_matched"
+    assert row["reason"] == f"oracle_file_unreadable: {fx.R_VECTORS_FILE} (FileNotFoundError)"
     assert fx.compare_row(fx.r_capture_rows(caps)[1], {})["status"] == "matched"
 
 
 def test_structure_an_unreadable_capture_is_not_matched(synthetic):
     (synthetic / "proc_asah.json").write_text('{"values": ', encoding="utf-8")
-    row = fx.compare_row(fx.r_capture_rows(fx.load_r_captures(synthetic))[0], {})
+    row = fx.compare_row(fx.r_capture_rows(_load(synthetic))[0], {})
     assert row["status"] == "not_matched"
     assert row["reason"] == "oracle_file_unreadable: fixtures/r/proc_asah.json (JSONDecodeError)"
 
 
 def test_structure_a_capture_of_another_fixture_is_an_input_mismatch(synthetic):
     _edit(synthetic / "proc_asah.json", lambda d: d.update(fixture="F13b"))
-    row = fx.compare_row(fx.r_capture_rows(fx.load_r_captures(synthetic))[0], {})
+    row = fx.compare_row(fx.r_capture_rows(_load(synthetic))[0], {})
     assert row["reason"].startswith("r_capture_input_mismatch: schema ")
 
 
 def test_structure_r_captures_status_names_the_present_files(synthetic, monkeypatch):
     monkeypatch.setattr(fx, "r_captures_dir", lambda: synthetic)
+    monkeypatch.delenv(fx.R_VECTORS_ENV, raising=False)
     status = fx.r_captures_status()
     assert status["status"] == fx.R_CAPTURES_PRESENT
     assert status["present"] == list(fx.R_CAPTURE_FILES)
@@ -678,19 +787,27 @@ def test_drift_fails_above_1e_12(tmp_path, synthetic, delta, rc):
 
 def test_drift_a_committed_file_the_fresh_run_did_not_write_fails(tmp_path, synthetic):
     write_synthetic_capture(tmp_path / "fresh")
-    (tmp_path / "fresh" / "asah_vectors.csv").unlink()
+    (tmp_path / "fresh" / "rms_val_prob_f4.json").unlink()
     proc = _drift(synthetic, tmp_path / "fresh")
     assert proc.returncode == 1
-    assert "asah_vectors.csv: committed, and the fresh run did not write it" in proc.stdout
+    assert "rms_val_prob_f4.json: committed, and the fresh run did not write it" in proc.stdout
 
 
-def test_drift_changed_vectors_fail_and_crlf_does_not(tmp_path, synthetic):
+def test_drift_a_changed_vectors_sha256_fails_and_the_vectors_file_is_not_read(tmp_path, synthetic):
+    """DEC-77: the drift check reads no vectors file. A different vectors file in the fresh
+    directory alone exits 0; ``proc_asah.json``'s ``input.vectors_sha256`` changed exits 1
+    naming that key."""
     write_synthetic_capture(tmp_path / "fresh")
     path = tmp_path / "fresh" / "asah_vectors.csv"
-    path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+    path.write_bytes(path.read_bytes() + b"81,Good,0,0.5,9.5\n")
     assert _drift(synthetic, tmp_path / "fresh").returncode == 0
-    path.write_bytes(path.read_bytes() + b"81,Good,0,0.5,9.5\r\n")
-    assert _drift(synthetic, tmp_path / "fresh").returncode == 1
+    _edit(
+        tmp_path / "fresh" / "proc_asah.json",
+        lambda d: d["input"].update(vectors_sha256="0" * 64),
+    )
+    proc = _drift(synthetic, tmp_path / "fresh")
+    assert proc.returncode == 1
+    assert "proc_asah.json.input.vectors_sha256" in proc.stdout
 
 
 def test_drift_a_new_key_is_a_difference(tmp_path, synthetic):
@@ -726,7 +843,11 @@ def capture_r_package_names(text: str) -> set[str]:
 def test_capture_r_names_the_three_files_and_its_patterns_find_only_listed_names():
     """What it inspects (E12 repair 1, lens 1 RG-B2; renamed in E12 repair 2, lens 2 FA-B3
     / RG-B2, whose lines passed a name that said "calls only listed packages and
-    commands"). Each of the three file names appears quoted in the text; ``library()``
+    commands"). ``"proc_asah.json"`` and ``"rms_val_prob_f4.json"`` appear quoted in the
+    text, the vectors file is named by ``Sys.getenv("PROOFPACK_ASAH_VECTORS"`` and the text
+    holds the ``stop(`` call for that variable unset and the one for a path inside the
+    checkout (DEC-77, E12 repair 3), and ``asah_vectors.csv`` appears in no
+    ``file.path(OUT_DIR`` call; ``library()``
     names exactly pROC, rms and jsonlite; the package names found by
     :data:`CAPTURE_R_PACKAGE_PATTERNS` (``library`` / ``require``, the ``*Namespace``
     calls, ``package =``, ``pkg::`` and ``pkg:::``) are within :data:`CAPTURE_R_PACKAGES`;
@@ -741,8 +862,12 @@ def test_capture_r_names_the_three_files_and_its_patterns_find_only_listed_names
     ``tests/test_e12_repair1.py::test_rg_b2_the_lens_probe_lines_fail_the_capture_r_check``
     appends lens 1's three lines and reads it fail."""
     text = (COMMITTED / "capture.R").read_text(encoding="utf-8")
-    for rel in (*fx.R_CAPTURE_FILES, fx.R_VECTORS_FILE):
+    for rel in fx.R_CAPTURE_FILES:
         assert f'"{Path(rel).name}"' in text, rel
+    assert f'Sys.getenv("{fx.R_VECTORS_ENV}"' in text
+    assert 'stop("PROOFPACK_ASAH_VECTORS is not set' in text
+    assert 'stop("PROOFPACK_ASAH_VECTORS lies inside the checkout' in text
+    assert not re.search(r"file\.path\(OUT_DIR[^)]*asah_vectors", text)
     libs = set(re.findall(r"library\((\w+)\)", text))
     assert libs == {"pROC", "rms", "jsonlite"}
     found = capture_r_package_names(text)
@@ -774,8 +899,8 @@ def test_the_workflow_declares_read_permissions_uses_match_pinned_uses_no_run_ma
     is ``read`` or ``none``; the substring ``secrets.`` absent from the text; every
     ``uses`` matches :data:`PINNED_USES` (``v<N>`` or a commit sha; a tag can be moved by
     its owner, so it is a pin by name only); no step's ``run`` matches :data:`GIT_WRITE`;
-    the container tag; the upload step's name, retention and three paths; the capture and
-    drift steps. Not matched: ``git`` with an option before its subcommand
+    the container tag; the upload step's name, retention and path ``upload/``; the capture
+    and drift steps. Not matched: ``git`` with an option before its subcommand
     (``git -C . push``, ``git -c user.name=x commit -am c``), a secret named as
     ``secrets['GITHUB_TOKEN']``, a ``uses`` of an action that commits
     (``stefanzweifel/git-auto-commit-action@v5``).
@@ -800,13 +925,9 @@ def test_the_workflow_declares_read_permissions_uses_match_pinned_uses_no_run_ma
     upload = next(s for s in cap["steps"] if str(s.get("uses", "")).startswith("actions/upload"))
     assert upload["with"]["name"] == "r-captures"
     assert upload["with"]["retention-days"] == 30
-    assert set(upload["with"]["path"].split()) == {
-        *fx.R_CAPTURE_FILES,
-        fx.R_VECTORS_FILE,
-    }
+    assert upload["with"]["path"] == "upload/"
     assert any("Rscript fixtures/r/capture.R" in str(s.get("run", "")) for s in cap["steps"])
-    steps = doc["jobs"]["compare"]["steps"]
-    assert any("scripts/r_capture_drift.py" in str(s.get("run", "")) for s in steps)
+    assert any("scripts/r_capture_drift.py" in str(s.get("run", "")) for s in cap["steps"])
     for name, job in doc["jobs"].items():
         perms = job.get("permissions", {})
         assert isinstance(perms, dict), (name, perms)
@@ -815,3 +936,57 @@ def test_the_workflow_declares_read_permissions_uses_match_pinned_uses_no_run_ma
             if "uses" in s:
                 assert PINNED_USES.match(s["uses"]), s["uses"]
             assert not GIT_WRITE.search(str(s.get("run", ""))), (name, s.get("run"))
+
+
+#: The actions the DEC-77 workflow test accepts (``owner/repo`` before the ``@``).
+DEC77_ALLOWED_ACTIONS = {"actions/checkout", "astral-sh/setup-uv", "actions/upload-artifact"}
+#: The three files the artefact ``r-captures`` holds (DEC-77).
+DEC77_UPLOADED = ("proc_asah.json", "rms_val_prob_f4.json", "f13_engine_comparison.json")
+
+
+def test_dec77_the_workflow_is_one_job_with_listed_actions_no_uv_cache_and_a_guarded_upload():
+    """What it inspects in ``.github/workflows/r-captures.yml`` for DEC-77 (E12 repair 3):
+    one job, ``capture``, with no ``needs``; every ``uses`` names an action in
+    :data:`DEC77_ALLOWED_ACTIONS` (no artefact download, no cache action, no committing
+    action); setup-uv's ``enable-cache`` is ``false``; exactly one upload step, path
+    ``upload/``, after a step whose ``run`` copies exactly :data:`DEC77_UPLOADED` into
+    ``upload/`` and then runs ``scripts/r_upload_guard.py upload``, which comes after the
+    step running ``scripts/r_f13_compare.py``, which comes after the capture step; the
+    only steps whose ``run`` names ``PROOFPACK_ASAH_VECTORS``, ``asah_vectors`` or
+    ``dec77`` are the one that writes the variable to ``$GITHUB_ENV`` (``mkdir`` and
+    ``echo`` lines only) - so no step passes the vectors file to another command by
+    name; and no ``run`` names ``GITHUB_STEP_SUMMARY``. It does not inspect what the
+    scripts the steps call print; ``tests/test_e12_repair3.py`` runs those scripts."""
+    import yaml
+
+    text = (REPO / ".github" / "workflows" / "r-captures.yml").read_text(encoding="utf-8")
+    doc = yaml.safe_load(text)
+    assert list(doc["jobs"]) == ["capture"]
+    job = doc["jobs"]["capture"]
+    assert "needs" not in job
+    steps = job["steps"]
+    for s in steps:
+        if "uses" in s:
+            assert s["uses"].split("@")[0] in DEC77_ALLOWED_ACTIONS, s["uses"]
+    (uv,) = [s for s in steps if str(s.get("uses", "")).startswith("astral-sh/setup-uv@")]
+    assert uv["with"]["enable-cache"] is False
+    runs = [str(s.get("run", "")) for s in steps]
+    uploads = [i for i, s in enumerate(steps) if str(s.get("uses", "")).startswith("actions/upl")]
+    assert len(uploads) == 1 and steps[uploads[0]]["with"]["path"] == "upload/"
+    (guard,) = [i for i, r in enumerate(runs) if "scripts/r_upload_guard.py upload" in r]
+    (compare,) = [i for i, r in enumerate(runs) if "scripts/r_f13_compare.py" in r]
+    (capture,) = [i for i, r in enumerate(runs) if "Rscript fixtures/r/capture.R" in r]
+    assert capture < compare < guard < uploads[0]
+    copies = [ln.split() for ln in runs[guard].splitlines() if ln.strip().startswith("cp ")]
+    assert len(copies) == 1 and copies[0][-1] == "upload/"
+    assert sorted(Path(p).name for p in copies[0][1:-1]) == sorted(DEC77_UPLOADED)
+    named = [
+        i
+        for i, r in enumerate(runs)
+        if re.search(r"PROOFPACK_ASAH_VECTORS|asah_vectors|dec77", r, re.IGNORECASE)
+    ]
+    assert len(named) == 1, named
+    lines = [ln.strip() for ln in runs[named[0]].splitlines() if ln.strip()]
+    assert all(ln.split()[0] in {"set", "mkdir", "echo"} for ln in lines), lines
+    assert any(ln.endswith('>> "$GITHUB_ENV"') and "PROOFPACK_ASAH_VECTORS=" in ln for ln in lines)
+    assert not any("GITHUB_STEP_SUMMARY" in r for r in runs)

@@ -2,9 +2,15 @@
 #
 # Build day 12 (lane E, 5 October 2026). Run from the repository root:
 #
-#     Rscript fixtures/r/capture.R
+#     PROOFPACK_ASAH_VECTORS=/tmp/dec77/asah_vectors.csv Rscript fixtures/r/capture.R
 #
-# It writes three files into fixtures/r/:
+# DEC-77 (Josh, 5 October 2026): pROC's aSAH rows are never committed and never leave the
+# GitHub runner. The script stops unless the environment variable PROOFPACK_ASAH_VECTORS
+# names a file outside the working directory (the r-captures job points it at the
+# runner's temporary space); write_lf() writes the vectors to that file only, and the
+# cat() lines at the end print file names, the row count and four summary values. The two
+# JSON files go into PROOFPACK_R_OUT when that is set (the job sets it to the runner's
+# temporary space too), else into fixtures/r/:
 #
 #   proc_asah.json        F13: pROC on its own aSAH data - for outcome ~ s100b and
 #                         outcome ~ ndka the AUROC, var(roc, method = "delong") and the
@@ -15,16 +21,18 @@
 #                         name val.prob gives it, and beside it
 #                         glm(y ~ qlogis(p), binomial) and glm(y ~ offset(qlogis(p)), binomial)
 #                         at R's default glm.control() and at epsilon 1e-14.
-#   asah_vectors.csv      the input vectors the F13 numbers were computed on, in pROC's row
-#                         order: the outcome label, y (1 = "Poor", the cases; 0 = "Good",
-#                         the controls), s100b and ndka.
+#   $PROOFPACK_ASAH_VECTORS  the input vectors the F13 numbers were computed on, in pROC's
+#                         row order: the row name, the outcome label, y (1 = "Poor", the
+#                         cases; 0 = "Good", the controls), s100b and ndka. Read by
+#                         scripts/r_f13_compare.py in the same job; never committed or
+#                         uploaded (DEC-77).
 #
 # Every number is written with 17 significant digits (sprintf("%.17g")), which reads back
 # to the same double. Provenance in each JSON's "meta": R.version.string, sessionInfo() as
 # text, the versions of pROC, rms and jsonlite, getOption("repos") (the CRAN snapshot the
 # packages came from), the run date in UTC, and the GitHub run id, sha and repository when
-# those environment variables are set. The sha256 of the bytes read (F4) and written
-# (asah_vectors.csv) is in each JSON's "input".
+# those environment variables are set. The sha256 of the bytes read (F4) and of the vectors
+# file written, with the vectors' row count, is in each JSON's "input"; no vector value is.
 #
 # Direction and levels are written explicitly, never left to pROC's auto-detection:
 # levels = c("Good", "Poor") (controls, cases) and direction = "<" (a higher score is
@@ -40,13 +48,26 @@ suppressPackageStartupMessages({
 
 options(warn = 1)
 
-OUT_DIR <- file.path("fixtures", "r")
+OUT_DIR <- Sys.getenv("PROOFPACK_R_OUT", unset = file.path("fixtures", "r"))
 F4_PATH <- file.path("fixtures", "f4_calibration.csv")
 SCHEMA <- "proofpack-r-capture/1"
 if (!file.exists(F4_PATH)) {
   stop("run from the repository root: ", F4_PATH, " not found")
 }
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
+
+# DEC-77: the vectors file must be named, and must lie outside the working directory (the
+# checkout), so that no git command and no upload of the checkout can reach it.
+VECTORS_PATH <- Sys.getenv("PROOFPACK_ASAH_VECTORS", unset = "")
+if (identical(VECTORS_PATH, "")) {
+  stop("PROOFPACK_ASAH_VECTORS is not set: it must name a file outside the checkout (DEC-77)")
+}
+dir.create(dirname(VECTORS_PATH), showWarnings = FALSE, recursive = TRUE)
+vectors_dir <- normalizePath(dirname(VECTORS_PATH), winslash = "/", mustWork = TRUE)
+work_dir <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+if (identical(vectors_dir, work_dir) || startsWith(vectors_dir, paste0(work_dir, "/"))) {
+  stop("PROOFPACK_ASAH_VECTORS lies inside the checkout; DEC-77 keeps the vectors outside it")
+}
 
 # ------------------------------------------------------------------ helpers
 
@@ -193,7 +214,7 @@ if (!is.null(rt$conf.int)) {
   paired[["roc.test conf.int hi"]] <- as.numeric(rt$conf.int[2])
 }
 
-vectors_path <- file.path(OUT_DIR, "asah_vectors.csv")
+vectors_path <- VECTORS_PATH
 write_lf(
   c(
     paste0(
@@ -228,7 +249,7 @@ proc_doc <- list(
     cases = "Poor",
     direction = DIRECTION,
     y_mapping = list(Good = 0L, Poor = 1L),
-    vectors_file = "fixtures/r/asah_vectors.csv",
+    vectors_file = "$PROOFPACK_ASAH_VECTORS in the r-captures job (DEC-77: never committed or uploaded)",
     vectors_sha256 = vectors_sha$value,
     sha256_method = vectors_sha$method
   ),
@@ -308,8 +329,9 @@ valprob_doc <- list(
 )
 write_lf(to_json(valprob_doc), file.path(OUT_DIR, "rms_val_prob_f4.json"))
 
-cat("wrote", file.path(OUT_DIR, c("proc_asah.json", "rms_val_prob_f4.json", "asah_vectors.csv")),
-  sep = "\n"
+cat("wrote", file.path(OUT_DIR, c("proc_asah.json", "rms_val_prob_f4.json")), sep = "\n")
+cat("wrote the aSAH vectors (", nrow(asah), " rows) to PROOFPACK_ASAH_VECTORS; not printed (DEC-77)\n",
+  sep = ""
 )
 cat("s100b auc", sprintf("%.17g", proc_doc$values[["s100b auc"]]), "\n")
 cat("roc.test statistic", sprintf("%.17g", paired[["roc.test statistic"]]), "\n")

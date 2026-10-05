@@ -1,6 +1,6 @@
 """The drift check of the r-captures workflow (build day 12, lane E).
 
-    python3 scripts/r_capture_drift.py --committed fixtures/r --fresh fresh
+    python scripts/r_capture_drift.py --committed fixtures/r --fresh "$PROOFPACK_R_OUT"
 
 Compares the files ``fixtures/r/capture.R`` has just written (``--fresh``) with the ones
 committed in the repository (``--committed``):
@@ -9,8 +9,10 @@ committed in the repository (``--committed``):
   session, the run date, the GitHub run), recursively. Two numbers differ when
   ``abs(a - b) > 1e-12`` (absolute; ``--tol`` changes it); any other value (a string, a
   boolean, null, a key present on one side only, a list of another length) differs when
-  it is not equal.
-* ``asah_vectors.csv``: the bytes, with CRLF read as LF.
+  it is not equal. ``proc_asah.json``'s ``input`` carries the sha256 and row count of the
+  aSAH vectors, so a change in the vectors shows there; the vectors themselves are never
+  committed (DEC-77) and are not compared here. ``f13_engine_comparison.json`` is the
+  engine's output, not R's, and is not compared either.
 
 A file that is not committed is not compared (the first run has nothing to compare
 with); a committed file that the fresh run did not write is a difference. Exit 0 when
@@ -28,7 +30,6 @@ from pathlib import Path
 from typing import Any
 
 JSON_FILES = ("proc_asah.json", "rms_val_prob_f4.json")
-CSV_FILES = ("asah_vectors.csv",)
 TOL = 1e-12
 #: The top-level key that is provenance, not a captured value.
 META = "meta"
@@ -69,7 +70,7 @@ def compare(committed: Path, fresh: Path, tol: float = TOL) -> tuple[list[str], 
     """``(lines, differences)``: a line per file, and every difference found."""
     lines: list[str] = []
     diffs: list[str] = []
-    for name in JSON_FILES + CSV_FILES:
+    for name in JSON_FILES:
         c, f = committed / name, fresh / name
         if not c.exists():
             lines.append(f"{name}: not committed - not compared")
@@ -78,15 +79,11 @@ def compare(committed: Path, fresh: Path, tol: float = TOL) -> tuple[list[str], 
             diffs.append(f"{name}: committed, and the fresh run did not write it")
             lines.append(f"{name}: MISSING from the fresh run")
             continue
-        if name in CSV_FILES:
-            same = c.read_bytes().replace(b"\r\n", b"\n") == f.read_bytes().replace(b"\r\n", b"\n")
-            found = [] if same else [f"{name}: bytes differ (CRLF read as LF)"]
-        else:
-            a = json.loads(c.read_text(encoding="utf-8"))
-            b = json.loads(f.read_text(encoding="utf-8"))
-            a = {k: v for k, v in a.items() if k != META} if isinstance(a, dict) else a
-            b = {k: v for k, v in b.items() if k != META} if isinstance(b, dict) else b
-            found = diff_values(a, b, name, tol)
+        a = json.loads(c.read_text(encoding="utf-8"))
+        b = json.loads(f.read_text(encoding="utf-8"))
+        a = {k: v for k, v in a.items() if k != META} if isinstance(a, dict) else a
+        b = {k: v for k, v in b.items() if k != META} if isinstance(b, dict) else b
+        found = diff_values(a, b, name, tol)
         diffs += found
         lines.append(f"{name}: {'identical within ' + str(tol) if not found else 'DIFFERS'}")
     return lines, diffs

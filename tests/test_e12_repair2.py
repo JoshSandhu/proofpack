@@ -63,31 +63,34 @@ def _day12_source() -> str:
 
 
 @pytest.mark.parametrize("mutant", sorted(GATE_MUTANTS))
-def test_fa_b1_each_lens_mutant_of_gate_fails_the_skip_reason_test(tmp_path, mutant):
+def test_fa_b1_each_lens_mutant_of_gate_fails_the_skip_reason_test(tmp_path, monkeypatch, mutant):
     """Lens 2 FA-B1 / RG-N1: with either mutant of ``_gate`` the skip-reason test must read
     ``failed``. At ``6928511`` it read ``skipped`` (the lens: ``1 skipped in 0.43s``)."""
     old, new = GATE_MUTANTS[mutant]
     source = _day12_source()
     assert source.count(old) == 1, mutant
     module = _day12_module(source.replace(old, new))
-    assert _outcome(module["test_the_skip_reasons_are_the_typed_strings"], tmp_path) == "failed"
+    skip_test = module["test_the_skip_reasons_are_the_typed_strings"]
+    assert _outcome(skip_test, tmp_path, monkeypatch) == "failed"
 
 
-def test_fa_b1_control_the_unmutated_module_passes_the_skip_reason_test(tmp_path):
+def test_fa_b1_control_the_unmutated_module_passes_the_skip_reason_test(tmp_path, monkeypatch):
     module = _day12_module(_day12_source())
-    assert _outcome(module["test_the_skip_reasons_are_the_typed_strings"], tmp_path) == "passed"
+    skip_test = module["test_the_skip_reasons_are_the_typed_strings"]
+    assert _outcome(skip_test, tmp_path, monkeypatch) == "passed"
 
 
 def test_fa_b1_an_unreadable_capture_fails_the_comparisons_it_feeds(tmp_path):
     """The synthetic capture with ``proc_asah.json`` and ``rms_val_prob_f4.json`` each
-    written as ``{"values": `` and ``asah_vectors.csv`` present: the day-12 module, run
-    in a subprocess with its capture directory redirected there, reads every one of the
-    eight comparisons ``FAILED``, none ``SKIPPED``."""
+    written as ``{"values": `` and ``PROOFPACK_ASAH_VECTORS`` naming the synthetic vectors
+    (the r-captures job's shape, E12 repair 3): the day-12 module, run in a subprocess with
+    its capture directory redirected there, reads every one of the nine comparisons
+    ``FAILED``, none ``SKIPPED``."""
     cap = tmp_path / "r"
     d12.write_synthetic_capture(cap)
     for name in ("proc_asah.json", "rms_val_prob_f4.json"):
         (cap / name).write_text('{"values": ', encoding="utf-8")
-    out = r1._run_day12_module(cap, tmp_path / "plugin")
+    out = r1._run_day12_module(cap, tmp_path / "plugin", vectors=cap / "asah_vectors.csv")
     comparisons = [
         "test_f13_engine_auroc_delong_variance_interval_and_paired_test_equal_proc_on_asah",
         "test_f13b_engine_slope_and_joint_intercept_equal_val_prob_slope_and_intercept",
@@ -97,6 +100,7 @@ def test_fa_b1_an_unreadable_capture_fails_the_comparisons_it_feeds(tmp_path):
         "test_f13_capture_recorded_the_sha256_of_the_vectors_it_wrote",
         "test_the_fixtures_report_row_f13_is_matched",
         "test_the_fixtures_report_row_f13b_is_matched",
+        "test_f13_outside_the_job_the_row_reads_the_recorded_comparison_as_suite_only",
     ]
     assert {n: out.get(n) for n in comparisons} == dict.fromkeys(comparisons, "FAILED")
 
@@ -218,7 +222,7 @@ def test_fa_b3_the_capture_r_test_name_says_what_it_inspects():
 
 
 def _status(directory: Path) -> dict:
-    return fx.r_captures_status(fx.load_r_captures(directory))
+    return fx.r_captures_status(fx.load_r_captures(directory, vectors=None))
 
 
 def _set_values(path: Path, values: dict) -> None:
@@ -234,13 +238,16 @@ def test_fa_b4_a_capture_whose_values_are_empty_is_partial(tmp_path):
     (``n_values_compared`` 13 counted the names tried)."""
     d12.write_synthetic_capture(tmp_path / "r")
     _set_values(tmp_path / "r" / "rms_val_prob_f4.json", {})
-    caps = fx.load_r_captures(tmp_path / "r")
+    caps = fx.load_r_captures(tmp_path / "r", vectors=None)
     row = fx.compare_row(fx.r_capture_rows(caps)[1], {})
     assert (row["status"], row["n_values_compared"]) == ("not_matched", len(fx.F13B_NAMES))
     assert [v["abs_deviation"] for v in row["values"]] == [None] * len(fx.F13B_NAMES)
     st = _status(tmp_path / "r")
     assert st["status"] == fx.R_CAPTURES_PARTIAL
-    assert st["line"].endswith("absent: none; row F13 matched, row F13b not_matched")
+    assert st["line"].endswith(
+        "absent: none; row F13 suite_only, row F13b not_matched; the aSAH vectors are read "
+        "inside the r-captures job only (DEC-77)"
+    )
 
 
 def test_fa_b4_proc_values_all_nan_strings_is_partial(tmp_path):
@@ -265,7 +272,10 @@ def test_fa_b4_control_one_value_read_in_each_row_is_present(tmp_path):
     _set_values(path, {"val.prob Slope": slope})
     st = _status(tmp_path / "r")
     assert st["status"] == fx.R_CAPTURES_PRESENT
-    assert st["line"].endswith("row F13 matched, row F13b not_matched")
+    assert st["line"].endswith(
+        "row F13 suite_only, row F13b not_matched; the aSAH vectors are read inside the "
+        "r-captures job only (DEC-77)"
+    )
 
 
 def test_fa_b4_the_status_docstring_names_the_deviation_rule():

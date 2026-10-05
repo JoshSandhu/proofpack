@@ -5,13 +5,28 @@ name: r-captures
 # repository. What it computes is in fixtures/r/README.md and at the top of
 # fixtures/r/capture.R.
 #
+# DEC-77 (Josh, 5 October 2026): pROC's aSAH rows are never committed and never leave the
+# runner. So this is ONE job: R writes the vectors to the runner's temporary space
+# ($RUNNER_TEMP/dec77, named by PROOFPACK_ASAH_VECTORS), the engine is installed in the
+# same job and compares itself with pROC there (scripts/r_f13_compare.py), and the
+# artefact holds three JSON files built from upload/ only (proc_asah.json,
+# rms_val_prob_f4.json, f13_engine_comparison.json); scripts/r_upload_guard.py inspects
+# upload/ first. Only the step that sets PROOFPACK_ASAH_VECTORS names the vectors file;
+# setup-uv's cache is off; there is no second job.
+# tests/test_day12_r_captures.py::test_dec77_the_workflow_is_one_job_with_listed_actions_no_uv_cache_and_a_guarded_upload
+# inspects those three things.
+#
 # The image: rocker/r-ver:4.5.1, chosen over r-lib/actions/setup-r because one tag pins the
 # R version, the Ubuntu base and the package repository together, and D1 section 3.2 and the
 # plan section 9 row 12 name rocker/r-ver. A versioned rocker/r-ver tag sets CRAN to a dated
 # Posit Package Manager snapshot; the date this tag pins was not read on build day 12
 # [unverified]. The capture records getOption("repos") and the CRAN variable the image sets,
-# so the committed JSON names the snapshot it was built from, and the first step below
-# prints both.
+# so the committed JSON names the snapshot it was built from, and a step below prints both.
+# The engine is installed into the same container the way ci.yml installs it (setup-uv,
+# uv python install, uv sync --locked), so the Python side comes from uv.lock; git is
+# installed first so that actions/checkout makes a git checkout (the day-12 tests call
+# git ls-files). Whether setup-uv and uv's Python run inside this image is [unverified]:
+# the job has not run.
 #
 # Actions are pinned by tag, as ci.yml pins them (ci.yml pins no action by commit sha).
 # No secrets; read-only token.
@@ -32,13 +47,22 @@ env:
 
 jobs:
   capture:
-    name: Rscript fixtures/r/capture.R on rocker/r-ver:4.5.1
+    name: capture.R and the engine comparison in one job (DEC-77) on rocker/r-ver:4.5.1
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
     container:
       image: rocker/r-ver:4.5.1
     steps:
+      - name: git, so that the checkout is a git checkout
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
       - uses: actions/checkout@v4
+      - name: the runner's temporary space for the vectors and the fresh capture (DEC-77)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dec77" "$RUNNER_TEMP/r-out"
+          echo "PROOFPACK_ASAH_VECTORS=$RUNNER_TEMP/dec77/asah_vectors.csv" >> "$GITHUB_ENV"
+          echo "PROOFPACK_R_OUT=$RUNNER_TEMP/r-out" >> "$GITHUB_ENV"
       - name: the R version and the package repository the image pins
         run: |
           Rscript -e 'cat(R.version.string, "\n"); print(getOption("repos")); cat("CRAN env:", Sys.getenv("CRAN"), "\n")'
@@ -48,45 +72,38 @@ jobs:
           Rscript -e 'for (p in c("pROC", "rms", "jsonlite")) { suppressPackageStartupMessages(library(p, character.only = TRUE)); cat(p, format(packageVersion(p)), "\n") }'
       - name: capture
         run: Rscript fixtures/r/capture.R
-      - uses: actions/upload-artifact@v4
-        with:
-          name: r-captures
-          path: |
-            fixtures/r/proc_asah.json
-            fixtures/r/rms_val_prob_f4.json
-            fixtures/r/asah_vectors.csv
-          retention-days: 30
-          if-no-files-found: error
-
-  compare:
-    # The drift check against any committed capture (above 1e-12 fails), then the engine
-    # compared with this run's capture on the runner: pytest -m day12 and the fixtures
-    # report's F13 / F13b rows. Nothing is committed by this workflow.
-    name: drift check, then the engine against the fresh capture
-    needs: capture
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: r-captures
-          path: fresh
-      - name: drift check against the committed capture (if any)
-        run: python3 scripts/r_capture_drift.py --committed fixtures/r --fresh fresh
-      - name: put the fresh capture where the engine's tests read it
-        run: cp fresh/proc_asah.json fresh/rms_val_prob_f4.json fresh/asah_vectors.csv fixtures/r/
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: true
+          enable-cache: false
       - run: uv python install ${{ env.PYTHON_VERSION }}
       - run: uv sync --all-groups --locked
+      - name: drift check against the committed capture (if any)
+        run: uv run python scripts/r_capture_drift.py --committed fixtures/r --fresh "$PROOFPACK_R_OUT"
+      - name: put the fresh capture where the engine's tests read it
+        run: cp "$PROOFPACK_R_OUT/proc_asah.json" "$PROOFPACK_R_OUT/rms_val_prob_f4.json" fixtures/r/
+      - name: the F13 comparison, here where the vectors are (writes f13_engine_comparison.json)
+        run: uv run python scripts/r_f13_compare.py --captures fixtures/r --out fixtures/r/f13_engine_comparison.json
       - name: pytest -m day12 (the comparisons run; none may skip)
+        shell: bash
         run: |
           set -euo pipefail
-          uv run pytest -q -p no:cacheprovider -m day12 -rs | tee day12.txt
-          if grep -q "SKIPPED" day12.txt; then echo "a day12 comparison skipped with the capture present"; exit 1; fi
+          uv run pytest -q -p no:cacheprovider -m day12 -rs | tee "$RUNNER_TEMP/day12.txt"
+          if grep -q "SKIPPED" "$RUNNER_TEMP/day12.txt"; then echo "a day12 comparison skipped with the capture present"; exit 1; fi
       - name: proofpack fixtures --offline (F13 and F13b rows)
         run: |
-          uv run proofpack fixtures --offline --out fx --r-captures
-          uv run python -c "import json; rows = {r['id']: r for r in json.load(open('fx/fixtures_report.json'))['rows']}; [print(k, rows[k]['status'], rows[k]['max_abs_deviation'], rows[k]['reason']) for k in ('F13', 'F13b')]"
+          uv run proofpack fixtures --offline --out "$RUNNER_TEMP/fx" --r-captures
+          uv run python -c "import json, sys; rows = {r['id']: r for r in json.load(open(sys.argv[1]))['rows']}; [print(k, rows[k]['status'], rows[k]['max_abs_deviation'], rows[k]['reason']) for k in ('F13', 'F13b')]" "$RUNNER_TEMP/fx/fixtures_report.json"
+      - name: the upload directory holds the three JSON files only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir upload
+          cp fixtures/r/proc_asah.json fixtures/r/rms_val_prob_f4.json fixtures/r/f13_engine_comparison.json upload/
+          uv run python scripts/r_upload_guard.py upload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r-captures
+          path: upload/
+          retention-days: 30
+          if-no-files-found: error
