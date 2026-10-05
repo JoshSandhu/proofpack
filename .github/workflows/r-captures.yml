@@ -55,7 +55,7 @@ jobs:
     steps:
       - name: git, so that the checkout is a git checkout
         run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: the runner's temporary space for the vectors and the fresh capture (DEC-77)
         shell: bash
         run: |
