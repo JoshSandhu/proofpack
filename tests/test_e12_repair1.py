@@ -1,9 +1,12 @@
 """E12 repair 1 (Monday 5 October 2026): regression tests for the findings of the two cold
 lenses on ``2328e86`` (``handoffs/2026-10-05_E_e12_lens1_fresh-attack.md`` and
 ``handoffs/2026-10-05_E_e12_lens1_regression.md``). Each test names the finding it pins
-and the literal inputs it feeds. Every test here was run against ``2328e86`` in a detached
-worktree (``PYTHONPATH=<worktree>/src``) and failed there; the first failing line of each
-is in the repair note.
+and the literal inputs it feeds. The file was run against ``2328e86`` in a detached
+worktree (``PYTHONPATH=<worktree>/src``): 18 failed and 2 passed there. The 2 that passed
+are the controls ``test_fa_b3_control_the_committed_workflow_copied_passes`` and
+``test_rg_b2_control_the_committed_capture_r_copied_passes``, which pass at both commits
+(E12 repair 2, lens 2 FA-B5). The first failing line of each of the 18 is in the repair
+note.
 """
 
 from __future__ import annotations

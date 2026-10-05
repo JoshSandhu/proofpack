@@ -47,10 +47,16 @@ already committed (a difference above 1e-12 fails: `scripts/r_capture_drift.py`)
 copies them into `fixtures/r/` on the runner and runs `pytest -m day12 -rs` (the step exits
 1 when that output holds the word `SKIPPED`) and `proofpack fixtures --offline` (rows F13
 and F13b). The workflow file declares `permissions: contents: read` at the top level and
-no job-level permission other than `read` or `none`, names no secret, and has no step
-whose `run` calls `git push`, `git commit` or `gh`; that is what
-`tests/test_day12_r_captures.py::test_the_workflow_declares_read_permissions_tag_pinned_actions_and_no_git_write_step`
-inspects. Neither job has run yet.
+no job-level permissions.
+`tests/test_day12_r_captures.py::test_the_workflow_declares_read_permissions_uses_match_pinned_uses_no_run_matches_git_write`
+inspects the declared permissions (top level exactly `contents: read`; each job's absent
+or all `read` or `none`), the substring `secrets.`, every `uses` against `PINNED_USES` and
+every `run` against the regular expression `GIT_WRITE`
+(`\bgit\s+(push|commit|tag|merge|rebase|reset)\b|\bgh\s+\w`). Lens 2 of E12 planted
+`git -C . push`, `git -c user.name=x commit -am c`, `secrets['GITHUB_TOKEN']` and a step
+`uses: stefanzweifel/git-auto-commit-action@v5`, and the test passed on each
+(`tests/test_e12_repair2.py::test_fa_b2_lens_2_workflow_mutants_pass_this_check`).
+Neither job has run yet.
 
 ## Committing a capture (the orchestrator, not the workflow)
 

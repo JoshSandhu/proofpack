@@ -1873,30 +1873,39 @@ def exit_code_for(rows: list[dict[str, Any]]) -> int:
     return EXIT_FIXTURES_NOT_MATCHED if any(r["status"] == "not_matched" for r in rows) else EXIT_OK
 
 
-#: :func:`r_captures_status` when rows F13 and F13b each compared one or more values
-#: (``n_values_compared`` above 0; build day 12, rule restated by E12 repair 1).
+#: :func:`r_captures_status` when rows F13 and F13b each hold one or more values whose
+#: ``abs_deviation`` is a number (an engine value and an oracle value both read; E12
+#: repair 2, lens 2 FA-B4: repair 1 counted ``n_values_compared``, the names tried, so a
+#: capture with ``values`` ``{}`` read as present).
 R_CAPTURES_PRESENT = "present_compared_in_rows_f13_f13b"
 #: :func:`r_captures_status` in every other case: the two rows are not both
-#: ``no_oracle_recorded`` and did not both compare values (for example one row compared
-#: values and the other did not, or a file was unreadable; E12 repair 1, lens 1 FA-B2).
+#: ``no_oracle_recorded`` and do not both hold a value with a numeric ``abs_deviation``
+#: (inputs fed in ``tests/test_e12_repair1.py::test_fa_b2_*`` and
+#: ``tests/test_e12_repair2.py::test_fa_b4_*``).
 R_CAPTURES_PARTIAL = "partial_see_rows_f13_f13b"
+
+
+def _deviations_read(row: dict[str, Any]) -> int:
+    """How many of ``row["values"]`` carry a numeric ``abs_deviation``."""
+    return sum(1 for v in row["values"] if v["abs_deviation"] is not None)
 
 
 def r_captures_status(caps: RCaptures | None = None) -> dict[str, Any]:
     """The ``--r-captures`` line, derived from the two report rows :func:`r_capture_rows`
     gives on ``caps`` (default :func:`load_r_captures`), not from which files exist (E12
     repair 1, lens 1 FA-B2). ``status``: :data:`R_CAPTURES_NOT_CAPTURED` when both rows are
-    ``no_oracle_recorded``; :data:`R_CAPTURES_PRESENT` when both compared one or more
-    values; :data:`R_CAPTURES_PARTIAL` otherwise. The line names the files read, the files
-    unreadable, the files absent and each row's status; the inputs the tests feed are in
-    ``tests/test_e12_repair1.py`` (``test_fa_b2_*``)."""
+    ``no_oracle_recorded``; :data:`R_CAPTURES_PRESENT` when each row holds one or more
+    values with a numeric ``abs_deviation``; :data:`R_CAPTURES_PARTIAL` otherwise. The line
+    names the files read, the files unreadable, the files absent and each row's status; the
+    inputs the tests feed are in ``tests/test_e12_repair1.py`` (``test_fa_b2_*``) and
+    ``tests/test_e12_repair2.py`` (``test_fa_b4_*``)."""
     caps = load_r_captures() if caps is None else caps
     rows = [compare_row(r, {}) for r in r_capture_rows(caps)]
     status = (
         R_CAPTURES_NOT_CAPTURED
         if all(r["status"] == "no_oracle_recorded" for r in rows)
         else R_CAPTURES_PRESENT
-        if all(r["n_values_compared"] > 0 for r in rows)
+        if all(_deviations_read(r) > 0 for r in rows)
         else R_CAPTURES_PARTIAL
     )
     every = (*R_CAPTURE_FILES, R_VECTORS_FILE)

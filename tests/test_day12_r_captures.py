@@ -19,7 +19,8 @@ moved by 1e-3, and reads three F13b comparisons ``FAILED``.
 
 **The skip reasons.** :func:`test_the_skip_reasons_are_the_typed_strings` asserts the
 strings the two gates skip with, on an empty directory and on a capture without its
-vectors file. It inspects those two gates only, not any other skip in this module; the
+vectors file, and that neither gate skips when a file it needs is unreadable (E12 repair
+2). It inspects those two gates only, not any other skip in this module; the
 r-captures workflow's ``compare`` job runs ``grep -q "SKIPPED"`` on the output of
 ``pytest -m day12 -rs`` and its step exits 1 when the word is there (the step's two shell
 lines were run in Git Bash in E12 repair 1 on an output holding a ``SKIPPED`` line: exit
@@ -263,10 +264,25 @@ def test_f4_expected_r_rms_val_prob_is_pending_until_a_capture_is_committed():
 # ------------------------------------------------------------------ the skip reason
 
 
+def _no_skip(gate, directory: Path) -> fx.RCaptures:
+    """``gate(directory)``; a skip raised by the gate fails the calling test (E12 repair 2,
+    lens 2 FA-B1: a ``pytest.skip`` raised inside a test reads as that test skipped)."""
+    try:
+        return gate(directory)
+    except pytest.skip.Exception as exc:
+        pytest.fail(f"the gate skipped where a file it needs is unreadable: {exc}")
+
+
 def test_the_skip_reasons_are_the_typed_strings(tmp_path):
     """Empty directory: F13 skips naming both files, F13b naming its capture. The synthetic
     capture less ``asah_vectors.csv``: F13 skips naming the vectors file, F13b does not
-    skip. With ``proc_asah.json`` unreadable and the vectors absent F13 does not skip."""
+    skip. Then ``proc_asah.json`` = ``{"values": `` (vectors still absent): :func:`_gate`
+    returns no absent file for F13, and ``_f13_or_skip`` returns; then
+    ``rms_val_prob_f4.json`` = ``{"values": ``: the same for F13b. Those four calls are
+    asserted directly or through :func:`_no_skip`, so a gate that skips there fails this
+    test (E12 repair 2, lens 2 FA-B1 / RG-N1;
+    ``tests/test_e12_repair2.py::test_fa_b1_each_lens_mutant_of_gate_fails_the_skip_reason_test``
+    plants the two mutants and reads this test fail on each)."""
     assert fx.R_CAPTURES_NOT_CAPTURED == "r_captures_not_captured"
     with pytest.raises(pytest.skip.Exception) as info:
         _f13_or_skip(tmp_path)
@@ -286,9 +302,15 @@ def test_the_skip_reasons_are_the_typed_strings(tmp_path):
     assert str(info.value) == "r_captures_not_captured: F13 (absent: fixtures/r/asah_vectors.csv)"
     assert _f13b_or_skip(tmp_path / "r").valprob is not None
     (tmp_path / "r" / "proc_asah.json").write_text('{"values": ', encoding="utf-8")
-    assert _f13_or_skip(tmp_path / "r").unreadable == (
+    assert _gate(tmp_path / "r", F13_NEEDS)[1] == []
+    assert _no_skip(_f13_or_skip, tmp_path / "r").unreadable == (
         ("fixtures/r/proc_asah.json", "JSONDecodeError"),
     )
+    (tmp_path / "r" / "rms_val_prob_f4.json").write_text('{"values": ', encoding="utf-8")
+    assert _gate(tmp_path / "r", F13B_NEEDS)[1] == []
+    caps = _no_skip(_f13b_or_skip, tmp_path / "r")
+    assert caps.valprob is None
+    assert ("fixtures/r/rms_val_prob_f4.json", "JSONDecodeError") in caps.unreadable
 
 
 def test_absent_captures_leave_f13_and_f13b_no_oracle_recorded_with_the_unverified_reason(
@@ -701,17 +723,23 @@ def capture_r_package_names(text: str) -> set[str]:
     return {m for pat in CAPTURE_R_PACKAGE_PATTERNS for m in re.findall(pat, text)}
 
 
-def test_capture_r_writes_fixtures_py_paths_and_calls_only_listed_packages_and_commands():
-    """What it inspects (E12 repair 1, lens 1 RG-B2: the build's name said "four packages
-    only" while it read ``library()`` and ``pkg::`` alone). ``library()`` names exactly
-    pROC, rms and jsonlite; the package names found by :data:`CAPTURE_R_PACKAGE_PATTERNS`
-    (``library`` / ``require``, the ``*Namespace`` calls, ``package =``, ``pkg::`` and
-    ``pkg:::``) are within :data:`CAPTURE_R_PACKAGES`; the calls matched by
-    :data:`CAPTURE_R_COMMAND_CALL` are exactly one, ``system2("sha256sum", ...)``. R can
-    reach a package or a command in ways these patterns do not match (``do.call``, a
-    string built at run time, ``eval(parse())``); they are not inspected.
+def test_capture_r_names_the_three_files_and_its_patterns_find_only_listed_names():
+    """What it inspects (E12 repair 1, lens 1 RG-B2; renamed in E12 repair 2, lens 2 FA-B3
+    / RG-B2, whose lines passed a name that said "calls only listed packages and
+    commands"). Each of the three file names appears quoted in the text; ``library()``
+    names exactly pROC, rms and jsonlite; the package names found by
+    :data:`CAPTURE_R_PACKAGE_PATTERNS` (``library`` / ``require``, the ``*Namespace``
+    calls, ``package =``, ``pkg::`` and ``pkg:::``) are within :data:`CAPTURE_R_PACKAGES`;
+    the calls matched by :data:`CAPTURE_R_COMMAND_CALL` are exactly one,
+    ``system2("sha256sum", ...)``. Lines that run a command or fetch a URL and that these
+    patterns do not match: ``sh <- system2; sh("curl", "https://example.invalid")``,
+    ``source("https://...")``, ``readLines("https://...")``,
+    ``jsonlite::fromJSON("https://...")``, ``get("system")("curl ...")``,
+    ``do.call("system2", ...)`` and ``eval(parse(text = paste0("sys", "tem(...)")))``.
+    ``tests/test_e12_repair2.py::test_fa_b3_lens_2_capture_r_lines_pass_this_check`` appends
+    each of those seven lines and reads this test pass;
     ``tests/test_e12_repair1.py::test_rg_b2_the_lens_probe_lines_fail_the_capture_r_check``
-    appends the lens's three lines and reads this test fail."""
+    appends lens 1's three lines and reads it fail."""
     text = (COMMITTED / "capture.R").read_text(encoding="utf-8")
     for rel in (*fx.R_CAPTURE_FILES, fx.R_VECTORS_FILE):
         assert f'"{Path(rel).name}"' in text, rel
@@ -738,18 +766,25 @@ PINNED_USES = re.compile(r"^[\w.-]+/[\w./-]+@(v\d+(\.\d+)*|[0-9a-f]{40})$")
 GIT_WRITE = re.compile(r"\bgit\s+(push|commit|tag|merge|rebase|reset)\b|\bgh\s+\w")
 
 
-def test_the_workflow_declares_read_permissions_tag_pinned_actions_and_no_git_write_step():
+def test_the_workflow_declares_read_permissions_uses_match_pinned_uses_no_run_matches_git_write():
     """What it inspects in ``.github/workflows/r-captures.yml`` (E12 repair 1, lens 1
-    FA-B3: the build's name said "read only" and "pinned" while it read the top-level
-    ``permissions``, the text ``secrets.`` and an ``@`` in each ``uses``). The triggers;
-    the top-level ``permissions`` equal ``{contents: read}``; every job's ``permissions``
-    absent or a mapping whose every value is ``read`` or ``none``; no ``secrets.``; every
-    ``uses`` matches :data:`PINNED_USES` (a version tag or a commit sha; a tag can be moved
-    by its owner, so it is a pin by name only); no step's ``run`` matches
-    :data:`GIT_WRITE`; the container tag; the upload step's name, retention and three
-    paths; the capture and drift steps.
+    FA-B3; renamed in E12 repair 2, lens 2 FA-B2 / RG-B1, whose workflows passed a name
+    that said "no git write step"). The triggers; the top-level ``permissions`` equal
+    ``{contents: read}``; every job's ``permissions`` absent or a mapping whose every value
+    is ``read`` or ``none``; the substring ``secrets.`` absent from the text; every
+    ``uses`` matches :data:`PINNED_USES` (``v<N>`` or a commit sha; a tag can be moved by
+    its owner, so it is a pin by name only); no step's ``run`` matches :data:`GIT_WRITE`;
+    the container tag; the upload step's name, retention and three paths; the capture and
+    drift steps. Not matched: ``git`` with an option before its subcommand
+    (``git -C . push``, ``git -c user.name=x commit -am c``), a secret named as
+    ``secrets['GITHUB_TOKEN']``, a ``uses`` of an action that commits
+    (``stefanzweifel/git-auto-commit-action@v5``).
+    ``tests/test_e12_repair2.py::test_fa_b2_lens_2_workflow_mutants_pass_this_check``
+    plants each of those four and reads this test pass;
     ``tests/test_e12_repair1.py::test_fa_b3_each_lens_workflow_mutant_fails_the_workflow_test``
-    plants the lens's W1-W3 and reads this test fail on each."""
+    and ``tests/test_e12_repair2.py::test_fa_b2_permission_mutants_fail_this_check`` plant
+    W1-W3, ``permissions: read-all`` at job level and ``id-token: write`` at the top level
+    and read this test fail on each."""
     import yaml
 
     path = REPO / ".github" / "workflows" / "r-captures.yml"
