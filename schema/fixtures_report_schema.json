@@ -85,6 +85,42 @@
     "duration_s": {"type": ["number", "null"], "minimum": 0}
   },
   "$defs": {
+    "evidence": {
+      "description": "Build day 13 (E13): what a behaviour row measured in this command's own run (measured_by_this_command, or null) and the artefacts it cites. An artefact this command did not see (a CI job's run, a test this command does not run) carries seen_by_this_command false; its run id is not known to this command and is not recorded.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["measured_by_this_command", "artefacts"],
+      "properties": {
+        "measured_by_this_command": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["what", "total", "ok", "failures"],
+          "properties": {
+            "what": {"type": "string", "minLength": 1},
+            "total": {"type": "integer", "minimum": 0},
+            "ok": {"type": "integer", "minimum": 0},
+            "failures": {"type": "array", "items": {"type": "string"}},
+            "items": {"type": "array", "items": {"type": "object"}}
+          }
+        },
+        "artefacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "name", "where", "engine_commit", "seen_by_this_command", "note"],
+            "properties": {
+              "kind": {"enum": ["ci_job", "committed_file", "test"]},
+              "name": {"type": "string", "minLength": 1},
+              "where": {"type": "string", "minLength": 1},
+              "engine_commit": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+              "seen_by_this_command": {"type": "boolean"},
+              "note": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
     "row": {
       "type": "object",
       "additionalProperties": false,
@@ -155,7 +191,8 @@
           }
         },
         "reason": {"type": ["string", "null"]},
-        "suite_tests": {"type": "array", "items": {"type": "string"}}
+        "suite_tests": {"type": "array", "items": {"type": "string"}},
+        "evidence": {"$ref": "#/$defs/evidence"}
       },
       "allOf": [
         {

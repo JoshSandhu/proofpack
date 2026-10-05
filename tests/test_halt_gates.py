@@ -122,14 +122,20 @@ def test_gate_fires_via_api(code):
 
 
 @pytest.mark.parametrize("code", sorted(SCENARIOS))
-def test_gate_exits_3_and_writes_nothing(code, tmp_path: Path):
+def test_gate_exits_3_and_writes_nothing(code, tmp_path: Path, capsys):
+    # E13 (build day 13): until 5154468 this test wrote no confirmed mapping and read only
+    # the exit code, so since DEC-26 H01-H06 and H11 exited 3 on "HALT H07: run proofpack
+    # map first" and passed. Every scenario but H07's now gets the mapping proofpack map
+    # writes, and the printed code is read (tests/test_f12_halt_cli.py runs the same gates
+    # through a child process).
     cols, crit, extra, _ = SCENARIOS[code]()
     csv_path = write_csv(tmp_path / "test.csv", cols)
     yml = write_yaml(tmp_path / "criteria.yaml", crit)
+    if code != "H07":
+        confirmed_mapping(csv_path)
     out = tmp_path / "pack"
     rc = main(
         [
-            "--quiet",
             "run",
             "--input",
             str(csv_path),
@@ -137,11 +143,14 @@ def test_gate_exits_3_and_writes_nothing(code, tmp_path: Path):
             str(yml),
             "--out",
             str(out),
+            "--offline",
             *extra,
         ]
     )
+    err = capsys.readouterr().err
     assert rc == EXIT_HALT
-    assert not out.exists() or not any(out.iterdir())
+    assert err.splitlines()[0].startswith(f"HALT {code}: "), err
+    assert not out.exists()
 
 
 def test_h10_is_flag_only(tmp_path: Path):

@@ -23,7 +23,12 @@ tolerance. The five row statuses:
 * ``not_built`` - the engine has no function for the fixture in this version (F5, F7,
   F15, F16, F21, F3's AUPRC); never matched;
 * ``suite_only`` - a behaviour the test suite inspects (F12, F17-F20; the row names the
-  test file) and this command does not re-run; never matched. F13 outside the r-captures
+  test file) and this command does not re-run; never matched. Since build day 13 F12 is
+  also run by this command (:func:`f12_behaviour`: every HALT fixture of
+  :mod:`proofpack.halt_fixtures` through ``proofpack.cli.main`` with ``--offline``): the row
+  stays ``suite_only`` with the run's counts in ``reason`` and ``evidence`` when every
+  fixture exits 3 with its own code and changes no file, and is ``not_matched`` (exit 6)
+  when one does not. F13 outside the r-captures
   job, when ``proc_asah.json`` and :data:`R_COMPARISON_FILE` are committed and agree,
   carries it too: the comparison was made inside that job (DEC-77), not by this command.
 
@@ -1384,6 +1389,14 @@ class Row:
     reason: str | None = None
     suite_tests: tuple[str, ...] = ()
     compares: tuple[str, ...] = ()
+    #: Build day 13 (E13): a behaviour this command measures itself (F12): returns the
+    #: row's ``status``, ``reason`` and ``evidence``. ``suite_only`` when every case
+    #: behaved, ``not_matched`` (exit 6) when one did not; never ``matched``, which is kept
+    #: for value comparisons with an oracle.
+    behaviour: Callable[[], dict[str, Any]] | None = None
+    #: Build day 13 (E13): the artefacts a row cites (a CI job, a committed file), written
+    #: as the row's ``evidence`` (schema ``$defs/evidence``).
+    evidence: Callable[[], dict[str, Any]] | None = None
 
 
 def _captured(key: str, cls: str) -> Callable:
@@ -1578,6 +1591,72 @@ def r_capture_rows(captures: RCaptures | None = None) -> tuple[Row, Row]:
             compares=F13B_NAMES,
         ),
     )
+
+
+def f12_behaviour(results: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Row F12's ``status``, ``reason`` and ``evidence`` from a run of every HALT fixture
+    (:func:`proofpack.halt_fixtures.run_all`, in process, ``--offline``); ``results`` is the
+    test hook. The counts are the run's, not typed here."""
+    from proofpack import halt_fixtures as hf  # noqa: PLC0415
+
+    results = hf.run_all() if results is None else results
+    good = [r for r in results if r["ok"]]
+    bad = [r for r in results if not r["ok"]]
+    codes = ", ".join(r["code"] for r in results)
+    reason = (
+        f"this command ran {len(results)} HALT fixtures ({codes}) through proofpack.cli.main "
+        f"with --offline: {len(good)} of {len(results)} exited 3, printed their own code and "
+        "changed no file"
+    )
+    if bad:
+        reason += "; not so: " + "; ".join(
+            f"{r['code']} exit {r['exit_code']}, printed {r['printed_code'] or 'no HALT line'}"
+            f", --out {'present' if r['out_exists'] else 'absent'}, files changed "
+            f"{len(r['files_changed'])}"
+            for r in bad
+        )
+    reason += (
+        "; "
+        + "; ".join(f"{c} has no HALT fixture ({why})" for c, why in hf.NO_FIXTURE.items())
+        + f"; {', '.join(hf.OTHER_EXIT_3_CODES)} also exit 3 and have no fixture in this row"
+        + "; the child-process run is tests/test_f12_halt_cli.py"
+    )
+    return {
+        "status": "not_matched" if bad or not results else "suite_only",
+        "reason": reason,
+        "evidence": {
+            "measured_by_this_command": {
+                "what": "HALT fixtures run through proofpack.cli.main with --offline",
+                "total": len(results),
+                "ok": len(good),
+                "failures": [r["id"] for r in bad],
+                "items": [
+                    {
+                        "id": r["id"],
+                        "code": r["code"],
+                        "command": r["command"],
+                        "exit_code": r["exit_code"],
+                        "printed_code": r["printed_code"],
+                        "out_exists": r["out_exists"],
+                        "files_changed": len(r["files_changed"]),
+                        "ok": r["ok"],
+                    }
+                    for r in results
+                ],
+            },
+            "artefacts": [
+                {
+                    "kind": "test",
+                    "name": "tests/test_f12_halt_cli.py",
+                    "where": "the engine test suite (pytest -m day13); a child process per fixture",
+                    "engine_commit": None,
+                    "seen_by_this_command": False,
+                    "note": "the same fixtures through python -m proofpack.cli; this command "
+                    "does not run the test suite",
+                }
+            ],
+        },
+    }
 
 
 def register() -> tuple[Row, ...]:
@@ -1844,10 +1923,12 @@ def register() -> tuple[Row, ...]:
         Row(
             "F12",
             "F12",
-            "HALT codes H01-H11 and exit 3 on the malformed inputs",
+            "the HALT fixtures of proofpack.halt_fixtures run through proofpack run or "
+            "compare with --offline: exit 3, the fixture's own code on the first stderr "
+            "line, no file written",
             status="suite_only",
-            reason="a behaviour, not a value: the test suite inspects each HALT code",
-            suite_tests=("tests/test_halt_gates.py",),
+            suite_tests=("tests/test_f12_halt_cli.py", "tests/test_halt_gates.py"),
+            behaviour=lambda: f12_behaviour(),
         ),
         *r_capture_rows(),
         Row(
@@ -1991,6 +2072,11 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
         "reason": row.reason,
         "suite_tests": list(row.suite_tests),
     }
+    if row.evidence is not None:
+        out["evidence"] = row.evidence()
+    if row.behaviour is not None:
+        out.update(row.behaviour())
+        return out
     if row.engine is None or row.oracle is None:
         return out
     try:
