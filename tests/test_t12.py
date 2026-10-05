@@ -20,7 +20,8 @@
 * the ``[unverified`` markings of the Newcombe table and the CSA sentence are on the page
   inside ``.unverified``, and so are F13's and F13b's in the absent state (fixture
   ``no_r_capture``); with run 37332685741's capture committed F13 and F13b carry none, and
-  :func:`masked_report` masks F13's clause naming this checkout's HEAD;
+  :func:`masked_report` masks the 40-hex sha of this checkout's HEAD in F13's reason, and
+  nothing else of it;
 * ``fixtures --html`` writes ``T12.html`` under the session's ephemeral-key licence and
   not without one (``PROOFPACK_HOME`` pointed at an empty directory), exit 0 both times.
 """
@@ -52,9 +53,15 @@ FORBIDDEN = (
     | {"validated", "compliant", "certified", "qualified"}
 )
 DRAFT_LABEL = "draft guidance (January 2025), not for implementation"
-#: The clause of F13's ``suite_only`` reason that says whether the engine commit the
-#: r-captures job ran is this checkout's HEAD; :func:`masked_report` masks it.
-F13_HEAD_CLAUSE = re.compile(r"(recorded engine and R numbers; ).*?(\. The aSAH vectors )")
+#: The one token of F13's ``suite_only`` reason that moves with every commit: the 40-hex
+#: sha of this checkout's HEAD in "the engine commit is not this checkout's HEAD (<sha>)".
+#: :func:`masked_report` masks that sha only, so every other word of the reason, the
+#: sentence "this command did not run that comparison on this checkout's engine" included,
+#: is compared with the golden (capture repair B1: a mask over the whole clause hid a
+#: planted "F13 is verified and matched at this checkout").
+F13_HEAD_SHA = re.compile(r"(the engine commit is not this checkout's HEAD \()[0-9a-f]{40}(\))")
+#: What the golden carries in place of that sha.
+F13_HEAD_SHA_MASK = "[masked: this checkout's HEAD sha]"
 
 
 def masked_report(report: dict) -> dict:
@@ -73,9 +80,10 @@ def masked_report(report: dict) -> dict:
     for row in r["rows"]:
         if row["id"] == "F13" and row["status"] == "suite_only":
             # the capture commit: F13's recorded-comparison reason names this checkout's
-            # HEAD (fixtures.f13_recorded_outcome), which moves with every commit
-            row["reason"] = F13_HEAD_CLAUSE.sub(
-                r"\1[masked: this checkout's HEAD]\2", row["reason"]
+            # HEAD's sha (fixtures.f13_recorded_outcome), which moves with every commit;
+            # the sha only, never the words around it
+            row["reason"] = F13_HEAD_SHA.sub(
+                lambda m: m.group(1) + F13_HEAD_SHA_MASK + m.group(2), row["reason"]
             )
         if row["max_abs_deviation"] is not None:
             row["max_abs_deviation"] = 0.0
@@ -234,6 +242,34 @@ def test_unverified_markings_survive_to_the_page(page):
     assert not any(s.startswith("[unverified until captured]") for s in spans)
     assert "[unverified against the primary PDF]" in spans
     assert t12.CSA_UNVERIFIED in spans
+
+
+def test_capture_repair_b1_the_committed_f13_reason_says_this_command_did_not_run_it(report):
+    """Capture repair B1 (cold lens on 78bd085): with run 37332685741's capture committed,
+    F13's reason, word for word, with this checkout's HEAD read by ``git rev-parse HEAD``
+    (never the engine commit 9d285d9 the job ran). The lens's plant ("... run that
+    comparison here; F13 is verified and matched at this checkout") fails here and in the
+    golden."""
+    head, _ = fx.git_sha()
+    assert head is not None and len(head) == 40
+    engine = "9d285d986fedd6f6e43fb2c6bfd1497307adbfa1"
+    assert head != engine
+    f13 = next(r for r in report["rows"] if r["id"] == "F13")
+    assert f13["status"] == "suite_only" and f13["matched"] is False
+    assert f13["reason"] == (
+        "compared inside the r-captures job, not by this command: GitHub run 37332685741 "
+        f"recorded 16 values of the engine at commit {engine} against pROC "
+        "(proc_asah.json), max abs deviation 2.7755575615628914e-17, each within 1e-6 as "
+        "recomputed here from the recorded engine and R numbers; the engine commit is not "
+        f"this checkout's HEAD ({head}); this command did not run that comparison on this "
+        "checkout's engine. The aSAH vectors are never committed (DEC-77), so a local "
+        "re-check needs R: the r-captures job (fixtures/r/README.md)"
+    )
+    for word in ("matched", "verified", "validated"):
+        assert word not in f13["reason"].lower(), word
+    masked = next(r for r in masked_report(report)["rows"] if r["id"] == "F13")
+    assert masked["reason"] == f13["reason"].replace(head, F13_HEAD_SHA_MASK)
+    assert masked["reason"].count(F13_HEAD_SHA_MASK) == 1
 
 
 def test_the_required_sentences_are_on_the_page(page):

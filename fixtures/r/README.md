@@ -132,8 +132,10 @@ is pinned by tag, not by digest). No `.gitattributes` entry protects these files
 loaders hash them with CRLF read as LF (`fixtures.lf_sha256`), as they do the other
 fixtures. `tests/test_capture_commit.py` reads them as git tracks them and requires that
 `fixtures/r/` tracks exactly these three JSON files beside `README.md` and `capture.R`, that
-they name the same run and engine commit, and that `fixtures/f4_expected.json`
-`r_rms_val_prob` equals the provenance and figures of `rms_val_prob_f4.json`.
+they name the same run and engine commit, that `fixtures/f4_expected.json`
+`r_rms_val_prob` equals the provenance and figures of `rms_val_prob_f4.json`, and that each
+tracked file, and its working-tree copy with CRLF read as LF, has the size and sha256 in the
+table above (capture repair B3; the test holds the same three values).
 
 What `proofpack fixtures --offline` reads from them outside the job: row F13b `matched`,
 13 values compared with the engine on this machine under the `iterative` tolerance
@@ -166,19 +168,24 @@ that replaces it, the same steps; the tests that name run 37332685741 change wit
    checkout's HEAD (it is not, once the JSON files are committed on top of the commit the
    job ran). The three F13 comparisons that need the vectors skip with
    `r_vectors_not_committed_dec77`.
-5. The full suite. With the first capture copied in and the test files of `9d285d9`
-   unchanged, 11 tests failed (measured 5 October 2026; lens 5 of E12 measured the same
-   11, its FA-N5; lens 1's figure of 8 was short): `test_ap3_repair2.py` (2),
+5. The full suite. With the first capture copied in but not staged and the test files of
+   `9d285d9` unchanged, 11 tests failed (measured 5 October 2026; lens 5 of E12 measured
+   the same 11, its FA-N5; lens 1's figure of 8 was short). Staged as step 2 says, 12 failed
+   (the capture lens measured `12 failed, 2176 passed, 4 skipped`): the 11 below and
+   `tests/test_day12_r_captures.py::test_f4_expected_r_rms_val_prob_is_pending_until_a_capture_is_committed`,
+   which fails by design while the file is tracked and step 3 is not done. The 11: `test_ap3_repair2.py` (2),
    `test_ap3_repair3.py` (1), `test_fixtures_cmd.py` (6) and `test_t12.py` (2: the golden
    and the F13 / F13b `[unverified until captured]` spans). Two of them,
    `test_ap3_repair2.py::test_every_compared_row_declares_the_names_its_engine_and_oracle_carry`
    and `test_ap3_repair3.py::test_the_check_classes_are_the_fixtures_rows_classes`, raised
    `ComparedInRunner`, which `row.oracle` raises for F13 outside the job and which, in
-   `src/`, only `compare_row` calls and catches. With step 3 done as well, 12
-   (`test_calibration.py::test_f4_fixture_rows_and_recorded_values_match_r2_section_9`
-   asserted `[pending]`). Each was changed in the capture commit; the tests of the absent
+   `src/`, only `compare_row` calls and catches. With step 3 done as well, still 12: the
+   `[pending]` test passes and
+   `test_calibration.py::test_f4_fixture_rows_and_recorded_values_match_r2_section_9`
+   (which asserted `[pending]`) fails. Each was changed in the capture commit; the tests of the absent
    state now build it themselves (the fixture `no_r_capture` in `tests/conftest.py`), and
-   the golden masks F13's clause naming this checkout's HEAD. For a later capture,
+   the golden masks the 40-hex sha of this checkout's HEAD in F13's reason, and nothing
+   else of it. For a later capture,
    regenerate the golden with `PROOFPACK_REGEN_GOLDEN=1 python -m pytest tests/test_t12.py
    -k golden` and read its diff. Commit, naming the run id in the message.
 

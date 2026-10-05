@@ -10,7 +10,10 @@ What each test feeds and asserts:
   ``proc_asah.json`` (CRLF read as LF);
 * ``fixtures/f4_expected.json`` ``r_rms_val_prob`` equals, field by field, the provenance
   and figures of the committed ``rms_val_prob_f4.json`` (they were copied there by script,
-  never typed), and its ``file_sha256`` is that file's sha256 (CRLF read as LF).
+  never typed), and its ``file_sha256`` is that file's sha256 (CRLF read as LF);
+* (capture repair B3) each of the three tracked files has the size and sha256 of the
+  artefact as downloaded, which ``fixtures/r/README.md`` records for all three, and so does
+  its working-tree copy with CRLF read as LF (outside the r-captures job).
 
 The JSON files are read as git tracks them (``git show :<path>``, the index), not from the
 working tree: the r-captures job runs ``pytest -m day12`` after copying a fresh capture (a
@@ -21,7 +24,10 @@ committed capture.
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import json
+import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -79,6 +85,55 @@ def test_the_three_committed_files_name_run_37332685741_and_one_engine_commit():
     assert cmp_doc["github_run_id"] == RUN_ID and cmp_doc["engine_sha"] == ENGINE_SHA
     assert cmp_doc["status"] == "matched"
     assert cmp_doc["proc_asah_sha256"] == fx.lf_sha256(_tracked_bytes(THE_THREE[0]))
+
+
+#: The sha256 and size of each file of run 37332685741's artefact ``r-captures``, measured on
+#: the two downloads (handoffs/2026-10-05_E_capture_commit.md, "The artefact bytes"; the
+#: cold lens's fresh third download gave the same). fixtures/r/README.md records the same
+#: table; a later capture changes both, and this test with them.
+ARTEFACT = {
+    "proc_asah.json": (4471, "01cf2f7bd8c57e7dfbc568ed6867b864701ceb8cf8827db68d7ee3d1e31d9a96"),
+    "rms_val_prob_f4.json": (
+        5401,
+        "44a3866fdccd67eb76532705d9b03eda7c26f2a32ff5d7124a5a6c156c79be27",
+    ),
+    "f13_engine_comparison.json": (
+        3517,
+        "a36b7f54454c68e5e1478cbe4c19651a43f3f954fc1d7b25150f10a06921307f",
+    ),
+}
+README_ROW = re.compile(r"^\| `([a-z0-9_]+\.json)` \| ([0-9,]+) \| `([0-9a-f]{64})` \|$", re.M)
+
+
+def _in_the_r_captures_job() -> bool:
+    """True inside the r-captures workflow, whose steps copy a fresh capture over the
+    working tree before ``pytest -m day12`` (and whose day-12 step fails on any skip)."""
+    return os.environ.get("GITHUB_WORKFLOW") == "r-captures"
+
+
+def test_capture_repair_b3_the_three_files_are_the_artefact_bytes_the_readme_records():
+    """Capture repair B3 (cold lens on 78bd085): the README's table records all three files,
+    with the size and sha256 :data:`ARTEFACT` holds; the tracked blob (``git show :<path>``)
+    of each has that size and that sha256, raw and with CRLF read as LF (the blob holds no
+    CR); and the working-tree copy, CRLF read as LF, has that sha256 too (except inside the
+    r-captures job, which overwrites the working tree with its fresh capture). Each of the
+    lens's eight staged edits of f13_engine_comparison.json (two one-ulp engine values,
+    ``within``, ``abs_deviation``, the top-level maximum, ``engine_version``,
+    ``tolerance_class``, ``reason``) changes the blob's sha256 and fails here."""
+    readme = _tracked_bytes("README.md").decode("utf-8").replace("\r\n", "\n")
+    recorded = {
+        name: (int(size.replace(",", "")), sha) for name, size, sha in README_ROW.findall(readme)
+    }
+    assert recorded == ARTEFACT
+    for name, (size, sha) in ARTEFACT.items():
+        blob = _tracked_bytes(name)
+        assert b"\r" not in blob, name
+        assert len(blob) == size, name
+        assert hashlib.sha256(blob).hexdigest() == sha, name
+        assert fx.lf_sha256(blob) == sha, name
+        if not _in_the_r_captures_job():
+            work = (REPO / "fixtures" / "r" / name).read_bytes()
+            assert fx.lf_sha256(work) == sha, f"{name} (working tree)"
 
 
 def test_f4_expected_r_rms_val_prob_is_copied_from_the_committed_capture():

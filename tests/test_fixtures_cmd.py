@@ -11,7 +11,9 @@ What each test feeds and asserts:
   command exit 6; moved by +5e-10 it stays matched;
 * a row built with no oracle (status ``no_oracle_recorded``, ``not_built``, ``suite_only``)
   has ``matched`` false and is not counted in ``summary.matched``, and a report claiming
-  such a row matched fails the schema;
+  such a row matched fails the schema; in the absent state (fixture ``no_r_capture``) every
+  such row, F13 and F13b included, also has ``n_values_compared`` 0 and
+  ``max_abs_deviation`` None (capture repair B2);
 * ``clopper_pearson_bounds`` returning ``None`` for an interior count (scipy absent) makes
   four rows not matched with reason ``optional_dependency_missing: scipy``: F1-clopper-pearson,
   F1-register, F1b-clopper-pearson and F1b-register (F1 and F1b are the two interior
@@ -219,6 +221,38 @@ def test_without_an_r_capture_f13_and_f13b_have_no_oracle_recorded(no_r_capture)
     assert f13["reason"].startswith(fx.F13_ABSENT)
     f13b = next(r for r in rep["rows"] if r["id"] == "F13b")
     assert f13b["reason"].startswith(fx.F13B_ABSENT)
+
+
+def test_capture_repair_b2_without_an_r_capture_rows_without_an_oracle_carry_no_deviation(
+    no_r_capture,
+):
+    """Capture repair B2 (cold lens on 78bd085): the absent-state checks of 9d285d9's
+    ``test_rows_without_an_oracle_are_never_counted_as_matched``, carried over unchanged,
+    run in the absent state the fixture ``no_r_capture`` builds: every row whose status is
+    ``no_oracle_recorded``, ``no_independent_oracle``, ``not_built`` or ``suite_only`` has
+    ``matched`` False, ``oracle_source`` None, ``n_values_compared`` 0 and
+    ``max_abs_deviation`` None, and the summary's matched count is the rows' count. Rows
+    F13 and F13b, named: ``no_oracle_recorded`` with those four fields and ``values`` [].
+    The lens's plant (``max_abs_deviation`` 0.0 for F13 and F13b in ``compare_row``'s
+    ``OracleAbsent`` branch) fails it."""
+    rep = fx.run_fixtures(doctor=False)
+    for r in rep["rows"]:
+        if r["status"] in (
+            "no_oracle_recorded",
+            "no_independent_oracle",
+            "not_built",
+            "suite_only",
+        ):
+            assert r["matched"] is False and r["oracle_source"] is None, r["id"]
+            assert r["n_values_compared"] == 0 and r["max_abs_deviation"] is None, r["id"]
+    assert rep["summary"]["matched"] == sum(1 for r in rep["rows"] if r["matched"])
+    rows = {r["id"]: r for r in rep["rows"]}
+    for rid in ("F13", "F13b"):
+        r = rows[rid]
+        assert r["status"] == "no_oracle_recorded", rid
+        assert r["matched"] is False and r["oracle_source"] is None, rid
+        assert r["n_values_compared"] == 0 and r["values"] == [], rid
+        assert r["max_abs_deviation"] is None, rid
 
 
 def test_the_statuses_of_the_register_rows_are_the_ones_named(report):

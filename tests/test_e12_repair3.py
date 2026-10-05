@@ -281,6 +281,36 @@ def test_dec77_outside_the_job_f13_is_suite_only_and_names_the_run_and_the_engin
     assert st["status"] == fx.R_CAPTURES_PRESENT
 
 
+#: The not-HEAD branch's sentence (``fixtures.f13_recorded_outcome``), word for word.
+F13_NOT_RUN_HERE = "this command did not run that comparison on this checkout's engine"
+
+
+def test_capture_repair_b1_not_head_says_this_command_did_not_run_the_comparison(
+    tmp_path, monkeypatch
+):
+    """Capture repair B1 (cold lens on 78bd085): HEAD ``f`` x 40, engine commit ``e`` x 40.
+    The clause after "numbers; " is exactly "the engine commit is not this checkout's HEAD
+    (fff...); this command did not run that comparison on this checkout's engine", followed
+    by ". The aSAH vectors "; the reason holds neither "matched" nor "verified". The lens's
+    plant ("run that comparison here; F13 is verified and matched at this checkout")
+    fails each of the three assertions."""
+    cap = _capture(tmp_path, monkeypatch)
+    monkeypatch.setattr(fx, "git_sha", lambda: ("f" * 40, "test"))
+    row = _row13(cap)
+    assert row["status"] == "suite_only" and row["matched"] is False
+    reason = row["reason"]
+    clause = (
+        "recorded engine and R numbers; the engine commit is not this checkout's HEAD ("
+        + "f" * 40
+        + "); "
+        + F13_NOT_RUN_HERE
+        + ". The aSAH vectors are never committed (DEC-77)"
+    )
+    assert clause in reason
+    for word in ("matched", "verified"):
+        assert word not in reason.lower(), word
+
+
 def _edit_record(cap: Path, fn) -> None:
     path = cap / "f13_engine_comparison.json"
     doc = json.loads(path.read_text(encoding="utf-8"))
