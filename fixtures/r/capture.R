@@ -66,7 +66,11 @@ json_string <- function(s) {
 }
 
 # A double as JSON with 17 significant digits; a value that is not finite is written as
-# a JSON string ("NaN", "NA", "Inf", "-Inf") so that it can never read as a number.
+# a JSON string ("NaN", "NA", "Inf", "-Inf"). What reads it: the report row
+# (proofpack.fixtures._number) passes a string to float() and refuses a result that is not
+# finite ("NaN" -> "oracle value not finite (nan)"; "NA" -> "not a number (str)"); the
+# pytest comparison (tests/test_day12_r_captures.py, _compare) refuses any string.
+# Measured in E12 repair 1: the test_rg_n6_ tests of tests/test_e12_repair1.py.
 json_number <- function(x) {
   x <- as.double(x)
   if (is.nan(x)) return(json_string("NaN"))

@@ -13,8 +13,9 @@ tolerance. The five row statuses:
   the engine raised, or an optional dependency the comparison needs is absent: the row
   carries the typed ``reason``);
 * ``no_oracle_recorded`` - no oracle file exists for the fixture yet (F13, F13b: the R
-  captures ``fixtures/r/capture.R`` writes, absent until one is committed, and never read
-  from an installed wheel: :data:`F13_ABSENT`, :data:`F13B_ABSENT`), or F14's Newcombe file
+  captures ``fixtures/r/capture.R`` writes, absent until one is committed:
+  :data:`F13_ABSENT`, :data:`F13B_ABSENT`; never read from an installed wheel:
+  :data:`R_CAPTURES_NOT_READ`), or F14's Newcombe file
   is not read (the package is not ``<root>/src/proofpack`` of a ``pyproject.toml`` naming
   ``proofpack``: :data:`NEWCOMBE_ABSENT`); never matched;
 * ``not_built`` - the engine has no function for the fixture in this version (F5, F7,
@@ -898,6 +899,15 @@ F13B_ABSENT = (
     "is not committed; fixtures/r/capture.R and the r-captures workflow (build day 12) "
     "write it (f4_expected.json r_rms_val_prob: [pending])"
 )
+#: The reason F13 and F13b carry when the package is not a source checkout (an installed
+#: wheel): :func:`r_captures_dir` is ``None`` and nothing under ``fixtures/r`` is read, so
+#: whether a capture is committed is not known here (E12 repair 1, lens 1 FA-N8:
+#: ``tests/test_e12_repair1.py::test_fa_n8_an_installed_package_says_it_read_no_capture``).
+R_CAPTURES_NOT_READ = (
+    "[unverified until captured] an installed package reads no R capture: fixtures/r/ is "
+    "read only when the package is <root>/src/proofpack and <root>/pyproject.toml names "
+    "proofpack"
+)
 
 
 def f13_engine_values(
@@ -1014,7 +1024,10 @@ def f13_oracle(caps: RCaptures):
     """``(values, tolerance, source)`` of ``proc_asah.json``; :class:`OracleAbsent` with
     :data:`F13_ABSENT` while the capture or its vectors are absent; the capture's
     ``input.vectors_sha256`` must equal the sha256 of the vectors file read (CRLF read as
-    LF)."""
+    LF). From an installed package (``caps.directory`` ``None``) :class:`OracleAbsent`
+    with :data:`R_CAPTURES_NOT_READ`."""
+    if caps.directory is None:
+        raise OracleAbsent(R_CAPTURES_NOT_READ)
     bad = dict(caps.unreadable)
     for rel in (R_CAPTURE_FILES[0], R_VECTORS_FILE):
         if rel in bad:
@@ -1040,7 +1053,10 @@ def f13_oracle(caps: RCaptures):
 def f13b_oracle(caps: RCaptures):
     """``(values, tolerance, source)`` of ``rms_val_prob_f4.json``; the capture's
     ``input.sha256`` must equal the sha256 of the F4 file the engine reads (CRLF read as
-    LF); :class:`OracleAbsent` with :data:`F13B_ABSENT` while the capture is absent."""
+    LF); :class:`OracleAbsent` with :data:`F13B_ABSENT` while the capture is absent, and
+    with :data:`R_CAPTURES_NOT_READ` from an installed package."""
+    if caps.directory is None:
+        raise OracleAbsent(R_CAPTURES_NOT_READ)
     bad = dict(caps.unreadable)
     if R_CAPTURE_FILES[1] in bad:
         raise OracleFileUnreadable(R_CAPTURE_FILES[1], bad[R_CAPTURE_FILES[1]])
@@ -1857,25 +1873,60 @@ def exit_code_for(rows: list[dict[str, Any]]) -> int:
     return EXIT_FIXTURES_NOT_MATCHED if any(r["status"] == "not_matched" for r in rows) else EXIT_OK
 
 
-#: :func:`r_captures_status` when one or more capture files are present (build day 12):
-#: the F13 / F13b rows of the report carry the comparison.
+#: :func:`r_captures_status` when rows F13 and F13b each compared one or more values
+#: (``n_values_compared`` above 0; build day 12, rule restated by E12 repair 1).
 R_CAPTURES_PRESENT = "present_compared_in_rows_f13_f13b"
+#: :func:`r_captures_status` in every other case: the two rows are not both
+#: ``no_oracle_recorded`` and did not both compare values (for example one row compared
+#: values and the other did not, or a file was unreadable; E12 repair 1, lens 1 FA-B2).
+R_CAPTURES_PARTIAL = "partial_see_rows_f13_f13b"
 
 
-def r_captures_status() -> dict[str, Any]:
-    present = [f for f in R_CAPTURE_FILES if f in load_r_captures().present]
-    return {
-        "files": list(R_CAPTURE_FILES),
-        "present": present,
-        "status": R_CAPTURES_PRESENT if present else R_CAPTURES_NOT_CAPTURED,
-        "line": (
+def r_captures_status(caps: RCaptures | None = None) -> dict[str, Any]:
+    """The ``--r-captures`` line, derived from the two report rows :func:`r_capture_rows`
+    gives on ``caps`` (default :func:`load_r_captures`), not from which files exist (E12
+    repair 1, lens 1 FA-B2). ``status``: :data:`R_CAPTURES_NOT_CAPTURED` when both rows are
+    ``no_oracle_recorded``; :data:`R_CAPTURES_PRESENT` when both compared one or more
+    values; :data:`R_CAPTURES_PARTIAL` otherwise. The line names the files read, the files
+    unreadable, the files absent and each row's status; the inputs the tests feed are in
+    ``tests/test_e12_repair1.py`` (``test_fa_b2_*``)."""
+    caps = load_r_captures() if caps is None else caps
+    rows = [compare_row(r, {}) for r in r_capture_rows(caps)]
+    status = (
+        R_CAPTURES_NOT_CAPTURED
+        if all(r["status"] == "no_oracle_recorded" for r in rows)
+        else R_CAPTURES_PRESENT
+        if all(r["n_values_compared"] > 0 for r in rows)
+        else R_CAPTURES_PARTIAL
+    )
+    every = (*R_CAPTURE_FILES, R_VECTORS_FILE)
+    unreadable = [f for f, _ in caps.unreadable]
+    absent = [f for f in every if f not in caps.present and f not in unreadable]
+    row_text = ", ".join(f"row {r['id']} {r['status']}" for r in rows)
+    if caps.directory is None:
+        line = (
+            f"r-captures: {status} - an installed package reads no R capture (fixtures/r/ is "
+            f"read from a proofpack source checkout only); {row_text}"
+        )
+    elif status == R_CAPTURES_NOT_CAPTURED and not caps.present and not unreadable:
+        line = (
             f"r-captures: {R_CAPTURES_NOT_CAPTURED} - no R capture is committed "
             f"({', '.join(R_CAPTURE_FILES)}); F13 and F13b stay 'no oracle recorded' "
             "until fixtures/r/capture.R's output is committed"
-            if not present
-            else f"r-captures: {R_CAPTURES_PRESENT} - present: {', '.join(present)}; rows F13 "
-            "and F13b of the report compare them with the engine"
-        ),
+        )
+    else:
+        line = (
+            f"r-captures: {status} - read: {', '.join(caps.present) or 'none'}; unreadable: "
+            f"{', '.join(unreadable) or 'none'}; absent: {', '.join(absent) or 'none'}; "
+            f"{row_text}"
+        )
+    return {
+        "files": list(R_CAPTURE_FILES),
+        "present": [f for f in R_CAPTURE_FILES if f in caps.present],
+        "unreadable": unreadable,
+        "rows": {r["id"]: r["status"] for r in rows},
+        "status": status,
+        "line": line,
     }
 
 

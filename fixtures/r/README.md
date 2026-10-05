@@ -44,9 +44,13 @@ Job `capture` runs in the container `rocker/r-ver:4.5.1`, installs pROC, rms and
 from the repository the image is set to, runs the script and uploads the three files as
 the artefact `r-captures` (kept 30 days). Job `compare` checks them against any capture
 already committed (a difference above 1e-12 fails: `scripts/r_capture_drift.py`), then
-copies them into `fixtures/r/` on the runner and runs `pytest -m day12` (no comparison may
-skip) and `proofpack fixtures --offline` (rows F13 and F13b). The workflow has read-only
-permissions, uses no secret and commits nothing.
+copies them into `fixtures/r/` on the runner and runs `pytest -m day12 -rs` (the step exits
+1 when that output holds the word `SKIPPED`) and `proofpack fixtures --offline` (rows F13
+and F13b). The workflow file declares `permissions: contents: read` at the top level and
+no job-level permission other than `read` or `none`, names no secret, and has no step
+whose `run` calls `git push`, `git commit` or `gh`; that is what
+`tests/test_day12_r_captures.py::test_the_workflow_declares_read_permissions_tag_pinned_actions_and_no_git_write_step`
+inspects. Neither job has run yet.
 
 ## Committing a capture (the orchestrator, not the workflow)
 
@@ -56,7 +60,10 @@ permissions, uses no secret and commits nothing.
 3. Replace `r_rms_val_prob` in `fixtures/f4_expected.json` (now `[pending]`) with the
    capture's figures and its run id; `tests/test_day12_r_captures.py` then requires that.
 4. Run `python -m pytest -m day12` and `proofpack fixtures --offline`; F13 and F13b should
-   read `matched`. Commit, naming the run id in the message.
+   read `matched`. Then run the full suite: with a capture present, lens 1 of E12 measured
+   8 tests outside `day12` that assert the absent state failing (its FA-N5: T12 golden,
+   fixtures counts and statuses, the not-captured line); they change in the same commit.
+   Commit, naming the run id in the message.
 
 ## Where the aSAH data comes from
 
@@ -73,4 +80,6 @@ copy of pROC's `aSAH` data may sit in it is a question for Josh. Until he answer
 commit only the R aggregates and the vectors' sha256 (already inside `proc_asah.json`), and
 let the workflow's `compare` job run the engine comparison on the runner, where the vectors
 exist. Without the vectors file in the tree, F13 stays `no oracle recorded` locally with
-the reason naming the absent file.
+the reason naming the absent file, and its three pytest comparisons skip naming it; the
+five F13b comparisons run on `rms_val_prob_f4.json` alone (E12 repair 1:
+`tests/test_e12_repair1.py::test_fa_b1_with_the_vectors_absent_the_f13b_comparisons_run`).

@@ -414,5 +414,5 @@ def test_discrimination_imports_without_scipy():
 # here read a capture shape (scores inside the JSON) that fixtures/r/capture.R does not
 # write, and its guard failed whenever a capture was committed. The comparison there reads
 # fixtures/r/proc_asah.json and fixtures/r/asah_vectors.csv through
-# proofpack.fixtures.load_r_captures and skips with fixtures.R_CAPTURES_NOT_CAPTURED while
-# they are absent.
+# proofpack.fixtures.load_r_captures and, while they are absent, skips with a reason that
+# starts with fixtures.R_CAPTURES_NOT_CAPTURED and names the absent files (E12 repair 1).

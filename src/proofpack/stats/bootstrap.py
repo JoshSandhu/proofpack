@@ -368,24 +368,31 @@ def clustered_number(number: Number, n_cases: int | None) -> Number:
     """DEC-75 (b) and (c) on one Number of a clustered cell (E11 repair 3).
 
     What the code inspects, in this order (build day 12 rewrote this list after the cold
-    lens 4 of 2 October 2026, its N5, found the earlier wording false):
+    lens 4 of 2 October 2026, its N5, found the earlier wording false; E12 repair 1 added
+    step 2 and corrected step 5's counts after the E12 lenses' FA-B4 / RG-N1):
 
     1. a suppressed Number is returned unchanged;
-    2. any :data:`CLUSTERED_COVERAGE_FLAG` already present is removed, and when none of
+    2. ``n_cases`` ``None`` raises ``ValueError`` ("a clustered Number needs the case count
+       of its cell");
+    3. any :data:`CLUSTERED_COVERAGE_FLAG` already present is removed, and when none of
        ``Number.PRECISION_TIERS`` is among the flags the case-count tier
        ``precision_flags(n_cases)`` is appended - before the interval is looked at, so on
        every branch below, the refusal included (an AUROC cell's
        :func:`auroc_precision_flags` tier, already present, is kept);
-    3. a Number with no interval is returned with those flags: it keeps its own typed
+    4. a Number with no interval is returned with those flags: it keeps its own typed
        reason and gets no ``ᵈ``;
-    4. a Number with an interval and ``n_cases`` below :data:`MIN_CLUSTERED_CASES`: the
-       interval is refused - the same estimate and counts, the flags of step 2 less
-       ``imprecise`` (it describes an interval no longer printed), method ``none`` and the
-       typed reason :data:`FEWER_THAN_FIVE_CASES`. A refused Number that carried no tier
-       therefore leaves with one: ``flags=[]`` at four cases leaves with
+    5. a Number with an interval and ``n_cases`` below :data:`MIN_CLUSTERED_CASES`: the
+       interval is refused - the same estimate, ``n`` and ``k``; ``Number.n_cases`` is the
+       input's own when it has one and the argument ``n_cases`` when it has none
+       (``tests/test_e12_repair1.py::test_fa_b4_the_refusal_fills_n_cases_only_when_absent``:
+       Wilson 0.5 [0.3, 0.7], n 40, k 20, ``n_cases`` ``None``, argument 4 -> ``n_cases``
+       4; the same with ``n_cases`` 3 -> 3); the flags of step 3 less ``imprecise`` (it
+       describes an interval no longer printed), method ``none`` and the typed reason
+       :data:`FEWER_THAN_FIVE_CASES`. A refused Number that carried no tier therefore
+       leaves with one: ``flags=[]`` at four cases leaves with
        ``['not_evaluable_shown_for_transparency']``
        (``tests/test_day12_carried.py::test_n5_refused_number_without_a_tier_gains_one``);
-    5. otherwise the Number keeps its interval and gets :data:`CLUSTERED_COVERAGE_FLAG`
+    6. otherwise the Number keeps its interval and gets :data:`CLUSTERED_COVERAGE_FLAG`
        after every other flag (printed ``ᵈ``).
 
     ``Number`` is frozen: a new Number is built (``dataclasses.replace``), so the

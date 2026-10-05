@@ -4,14 +4,26 @@
 ``fixtures/r/proc_asah.json``, ``fixtures/r/rms_val_prob_f4.json`` and the F13 input
 ``fixtures/r/asah_vectors.csv``. None of the three is committed on build day 12.
 
-**When the captures are present** (committed, or copied in by the workflow's ``compare``
-job) the tests marked *comparison* compare the engine with them, each value with the
-tolerance written beside it in :data:`F13_TOL` / :data:`F13B_TOL`.
+**The comparisons** (the first eight tests) each pass through one of two gates (E12
+repair 1, lens 1 FA-B1 / RG-N3: the build's single gate skipped all seven comparisons
+unless all three files were read, so a committed F13b capture without the vectors file
+compared nothing). :func:`_f13_or_skip` reads ``fixtures/r/`` and skips with
+:func:`f13_skip_reason` when ``proc_asah.json`` or ``asah_vectors.csv`` was not read and
+neither is unreadable; :func:`_f13b_or_skip` skips with :data:`F13B_SKIP` when
+``rms_val_prob_f4.json`` was not read and is not unreadable. Otherwise the test compares
+the engine with the files, each value with the tolerance written beside it in
+:data:`F13_TOL` / :data:`F13B_TOL`.
+``tests/test_e12_repair1.py::test_fa_b1_with_the_vectors_absent_the_f13b_comparisons_run``
+runs this module with the F13b capture present, the vectors absent and ``val.prob Slope``
+moved by 1e-3, and reads three F13b comparisons ``FAILED``.
 
-**When they are absent** every comparison skips with the reason
-``proofpack.fixtures.R_CAPTURES_NOT_CAPTURED`` exactly, and
-:func:`test_the_skip_reason_is_the_typed_constant` asserts that string, so a misspelt
-reason cannot pass as a skip.
+**The skip reasons.** :func:`test_the_skip_reasons_are_the_typed_strings` asserts the
+strings the two gates skip with, on an empty directory and on a capture without its
+vectors file. It inspects those two gates only, not any other skip in this module; the
+r-captures workflow's ``compare`` job runs ``grep -q "SKIPPED"`` on the output of
+``pytest -m day12 -rs`` and its step exits 1 when the word is there (the step's two shell
+lines were run in Git Bash in E12 repair 1 on an output holding a ``SKIPPED`` line: exit
+1; the workflow itself has not run).
 
 **The structure tests** write a synthetic capture into ``tmp_path`` in the shape
 ``capture.R`` writes (the same keys, the comment line and column order of the CSV, numbers
@@ -87,12 +99,42 @@ F13B_TOL: dict[str, tuple[float, float | None]] = {name: (1e-6, None) for name i
 # ------------------------------------------------------------------ loading
 
 
-def _captures_or_skip(directory: Path = COMMITTED) -> fx.RCaptures:
-    """The captures in ``directory``; skip with :data:`fx.R_CAPTURES_NOT_CAPTURED` unless
-    both JSON files and the vectors file are there."""
+F13_NEEDS = (fx.R_CAPTURE_FILES[0], fx.R_VECTORS_FILE)
+F13B_NEEDS = (fx.R_CAPTURE_FILES[1],)
+#: The skip reason of :func:`_f13b_or_skip`.
+F13B_SKIP = f"{fx.R_CAPTURES_NOT_CAPTURED}: F13b (absent: {fx.R_CAPTURE_FILES[1]})"
+
+
+def f13_skip_reason(absent: list[str]) -> str:
+    """The skip reason of :func:`_f13_or_skip`, naming the files not read."""
+    return f"{fx.R_CAPTURES_NOT_CAPTURED}: F13 (absent: {', '.join(absent)})"
+
+
+def _gate(directory: Path, needs: tuple[str, ...]) -> tuple[fx.RCaptures, list[str]]:
+    """The captures in ``directory`` and the files of ``needs`` neither read nor
+    unreadable (an unreadable file does not skip: the comparison then fails on it)."""
     caps = fx.load_r_captures(directory)
-    if len(caps.present) < 3 and not caps.unreadable:
-        pytest.skip(fx.R_CAPTURES_NOT_CAPTURED)
+    bad = {f for f, _ in caps.unreadable}
+    if bad & set(needs):
+        return caps, []
+    return caps, [f for f in needs if f not in caps.present]
+
+
+def _f13_or_skip(directory: Path = COMMITTED) -> fx.RCaptures:
+    """Skip with :func:`f13_skip_reason` unless ``proc_asah.json`` and ``asah_vectors.csv``
+    were both read (or one of them is unreadable)."""
+    caps, absent = _gate(directory, F13_NEEDS)
+    if absent:
+        pytest.skip(f13_skip_reason(absent))
+    return caps
+
+
+def _f13b_or_skip(directory: Path = COMMITTED) -> fx.RCaptures:
+    """Skip with :data:`F13B_SKIP` unless ``rms_val_prob_f4.json`` was read (or is
+    unreadable). F13b needs no vectors file."""
+    caps, absent = _gate(directory, F13B_NEEDS)
+    if absent:
+        pytest.skip(F13B_SKIP)
     return caps
 
 
@@ -143,49 +185,58 @@ def _failures(rows: list[tuple]) -> list[tuple]:
 
 
 def test_f13_engine_auroc_delong_variance_interval_and_paired_test_equal_proc_on_asah():
-    caps = _captures_or_skip()
+    caps = _f13_or_skip()
     rows = _f13_rows(caps)
     assert len(rows) >= len(fx.F13_NAMES)
     assert _failures(rows) == []
 
 
 def test_f13b_engine_slope_and_joint_intercept_equal_val_prob_slope_and_intercept():
-    caps = _captures_or_skip()
+    caps = _f13b_or_skip()
     rows = _f13b_rows(caps, ("val.prob Slope", "val.prob Intercept"))
     assert _failures(rows) == []
 
 
 def test_f13b_engine_intercept_in_the_large_equals_the_glm_offset_intercept():
-    caps = _captures_or_skip()
+    caps = _f13b_or_skip()
     rows = _f13b_rows(caps, ("glm offset (Intercept)", "glm offset tight (Intercept)"))
     assert _failures(rows) == []
 
 
 def test_f13b_every_compared_value_equals_the_capture():
-    caps = _captures_or_skip()
+    caps = _f13b_or_skip()
     assert _failures(_f13b_rows(caps)) == []
 
 
 def test_f13b_capture_recorded_the_sha256_of_the_committed_f4_bytes_read_as_lf():
-    caps = _captures_or_skip()
+    caps = _f13b_or_skip()
     assert caps.valprob is not None
     committed = (REPO / "fixtures" / "f4_calibration.csv").read_bytes().replace(b"\r\n", b"\n")
     assert caps.valprob["input"]["sha256"] == hashlib.sha256(committed).hexdigest()
 
 
 def test_f13_capture_recorded_the_sha256_of_the_vectors_it_wrote():
-    caps = _captures_or_skip()
+    caps = _f13_or_skip()
     assert caps.proc is not None
     assert caps.proc["input"]["vectors_sha256"] == caps.vectors_sha256
 
 
-def test_the_fixtures_report_rows_f13_and_f13b_are_matched():
-    _captures_or_skip()
+def _report_row(rid: str) -> dict:
     rep = fx.run_fixtures(doctor=False)
     fx.validate_report(rep)
-    rows = {r["id"]: r for r in rep["rows"]}
-    for rid in ("F13", "F13b"):
-        assert rows[rid]["status"] == "matched", rows[rid]["reason"]
+    return next(r for r in rep["rows"] if r["id"] == rid)
+
+
+def test_the_fixtures_report_row_f13_is_matched():
+    _f13_or_skip()
+    row = _report_row("F13")
+    assert row["status"] == "matched", row["reason"]
+
+
+def test_the_fixtures_report_row_f13b_is_matched():
+    _f13b_or_skip()
+    row = _report_row("F13b")
+    assert row["status"] == "matched", row["reason"]
 
 
 def test_f4_expected_r_rms_val_prob_is_pending_until_a_capture_is_committed():
@@ -212,11 +263,32 @@ def test_f4_expected_r_rms_val_prob_is_pending_until_a_capture_is_committed():
 # ------------------------------------------------------------------ the skip reason
 
 
-def test_the_skip_reason_is_the_typed_constant(tmp_path):
+def test_the_skip_reasons_are_the_typed_strings(tmp_path):
+    """Empty directory: F13 skips naming both files, F13b naming its capture. The synthetic
+    capture less ``asah_vectors.csv``: F13 skips naming the vectors file, F13b does not
+    skip. With ``proc_asah.json`` unreadable and the vectors absent F13 does not skip."""
     assert fx.R_CAPTURES_NOT_CAPTURED == "r_captures_not_captured"
     with pytest.raises(pytest.skip.Exception) as info:
-        _captures_or_skip(tmp_path)
-    assert str(info.value) == "r_captures_not_captured"
+        _f13_or_skip(tmp_path)
+    assert str(info.value) == (
+        "r_captures_not_captured: F13 (absent: fixtures/r/proc_asah.json, "
+        "fixtures/r/asah_vectors.csv)"
+    )
+    with pytest.raises(pytest.skip.Exception) as info:
+        _f13b_or_skip(tmp_path)
+    assert (
+        str(info.value) == "r_captures_not_captured: F13b (absent: fixtures/r/rms_val_prob_f4.json)"
+    )
+    write_synthetic_capture(tmp_path / "r")
+    (tmp_path / "r" / "asah_vectors.csv").unlink()
+    with pytest.raises(pytest.skip.Exception) as info:
+        _f13_or_skip(tmp_path / "r")
+    assert str(info.value) == "r_captures_not_captured: F13 (absent: fixtures/r/asah_vectors.csv)"
+    assert _f13b_or_skip(tmp_path / "r").valprob is not None
+    (tmp_path / "r" / "proc_asah.json").write_text('{"values": ', encoding="utf-8")
+    assert _f13_or_skip(tmp_path / "r").unreadable == (
+        ("fixtures/r/proc_asah.json", "JSONDecodeError"),
+    )
 
 
 def test_absent_captures_leave_f13_and_f13b_no_oracle_recorded_with_the_unverified_reason(
@@ -406,7 +478,7 @@ def test_structure_the_loader_reads_the_three_files_in_the_shape_capture_r_write
     assert caps.present == (*fx.R_CAPTURE_FILES, fx.R_VECTORS_FILE)
     assert caps.unreadable == ()
     assert caps.vectors is not None and len(caps.vectors["y"]) == 80
-    assert _captures_or_skip(synthetic) is not None
+    assert _f13_or_skip(synthetic) is not None and _f13b_or_skip(synthetic) is not None
 
 
 def test_structure_the_engine_equals_the_definition_delong_on_the_synthetic_vectors(synthetic):
@@ -609,21 +681,75 @@ def test_drift_a_new_key_is_a_difference(tmp_path, synthetic):
 # ------------------------------------------------------------------ the R script and the job
 
 
-def test_capture_r_writes_the_paths_fixtures_py_names_and_uses_four_packages_only():
+#: Package names :func:`capture_r_package_names` may find in ``capture.R``.
+CAPTURE_R_PACKAGES = {"pROC", "rms", "jsonlite", "stats", "utils", "tools"}
+#: The patterns :func:`capture_r_package_names` searches with (E12 repair 1, RG-B2).
+CAPTURE_R_PACKAGE_PATTERNS = (
+    r"\b(?:library|require)\(\s*[\"']?([\w.]+)",
+    r"\b(?:requireNamespace|loadNamespace|asNamespace|getNamespace|attachNamespace)"
+    r"\(\s*[\"']([\w.]+)",
+    r"\bpackage\s*=\s*[\"']([\w.]+)",
+    r"\b([\w.]+):::?",
+)
+#: Calls that run a command, fetch a URL or install a package (searched for by the
+#: capture.R test below).
+CAPTURE_R_COMMAND_CALL = r"\b(system2|system|shell|pipe|download\.file|url|install\.packages)\s*\("
+
+
+def capture_r_package_names(text: str) -> set[str]:
+    """Every package name the patterns of :data:`CAPTURE_R_PACKAGE_PATTERNS` find."""
+    return {m for pat in CAPTURE_R_PACKAGE_PATTERNS for m in re.findall(pat, text)}
+
+
+def test_capture_r_writes_fixtures_py_paths_and_calls_only_listed_packages_and_commands():
+    """What it inspects (E12 repair 1, lens 1 RG-B2: the build's name said "four packages
+    only" while it read ``library()`` and ``pkg::`` alone). ``library()`` names exactly
+    pROC, rms and jsonlite; the package names found by :data:`CAPTURE_R_PACKAGE_PATTERNS`
+    (``library`` / ``require``, the ``*Namespace`` calls, ``package =``, ``pkg::`` and
+    ``pkg:::``) are within :data:`CAPTURE_R_PACKAGES`; the calls matched by
+    :data:`CAPTURE_R_COMMAND_CALL` are exactly one, ``system2("sha256sum", ...)``. R can
+    reach a package or a command in ways these patterns do not match (``do.call``, a
+    string built at run time, ``eval(parse())``); they are not inspected.
+    ``tests/test_e12_repair1.py::test_rg_b2_the_lens_probe_lines_fail_the_capture_r_check``
+    appends the lens's three lines and reads this test fail."""
     text = (COMMITTED / "capture.R").read_text(encoding="utf-8")
     for rel in (*fx.R_CAPTURE_FILES, fx.R_VECTORS_FILE):
         assert f'"{Path(rel).name}"' in text, rel
     libs = set(re.findall(r"library\((\w+)\)", text))
     assert libs == {"pROC", "rms", "jsonlite"}
-    called = set(re.findall(r"\b(\w+)::", text))
-    assert called <= {"pROC", "rms", "jsonlite", "stats", "utils", "tools"}, called
+    found = capture_r_package_names(text)
+    assert found <= CAPTURE_R_PACKAGES, found - CAPTURE_R_PACKAGES
+    commands = [
+        (m.group(1), text[m.end() : m.end() + 12])
+        for m in re.finditer(CAPTURE_R_COMMAND_CALL, text)
+    ]
+    assert commands == [("system2", '"sha256sum",')], commands
     assert "direction = DIRECTION" in text and 'LEVELS <- c("Good", "Poor")' in text
     assert 'method = "delong"' in text and "paired = TRUE" in text
     assert "pl = FALSE" in text and 'sprintf("%.17g", x)' in text
     assert f'SCHEMA <- "{fx.R_CAPTURE_SCHEMA}"' in text
 
 
-def test_the_workflow_is_read_only_pinned_and_uploads_the_three_files():
+#: An action reference the workflow test accepts: ``owner/repo[/path]@v<N>[.<N>...]`` or
+#: ``@`` and a 40-hex commit sha.
+PINNED_USES = re.compile(r"^[\w.-]+/[\w./-]+@(v\d+(\.\d+)*|[0-9a-f]{40})$")
+#: A ``run`` line the workflow test refuses: a git command that writes to a repository,
+#: or the GitHub CLI.
+GIT_WRITE = re.compile(r"\bgit\s+(push|commit|tag|merge|rebase|reset)\b|\bgh\s+\w")
+
+
+def test_the_workflow_declares_read_permissions_tag_pinned_actions_and_no_git_write_step():
+    """What it inspects in ``.github/workflows/r-captures.yml`` (E12 repair 1, lens 1
+    FA-B3: the build's name said "read only" and "pinned" while it read the top-level
+    ``permissions``, the text ``secrets.`` and an ``@`` in each ``uses``). The triggers;
+    the top-level ``permissions`` equal ``{contents: read}``; every job's ``permissions``
+    absent or a mapping whose every value is ``read`` or ``none``; no ``secrets.``; every
+    ``uses`` matches :data:`PINNED_USES` (a version tag or a commit sha; a tag can be moved
+    by its owner, so it is a pin by name only); no step's ``run`` matches
+    :data:`GIT_WRITE`; the container tag; the upload step's name, retention and three
+    paths; the capture and drift steps.
+    ``tests/test_e12_repair1.py::test_fa_b3_each_lens_workflow_mutant_fails_the_workflow_test``
+    plants the lens's W1-W3 and reads this test fail on each."""
     import yaml
 
     path = REPO / ".github" / "workflows" / "r-captures.yml"
@@ -646,7 +772,11 @@ def test_the_workflow_is_read_only_pinned_and_uploads_the_three_files():
     assert any("Rscript fixtures/r/capture.R" in str(s.get("run", "")) for s in cap["steps"])
     steps = doc["jobs"]["compare"]["steps"]
     assert any("scripts/r_capture_drift.py" in str(s.get("run", "")) for s in steps)
-    for job in doc["jobs"].values():
+    for name, job in doc["jobs"].items():
+        perms = job.get("permissions", {})
+        assert isinstance(perms, dict), (name, perms)
+        assert set(perms.values()) <= {"read", "none"}, (name, perms)
         for s in job["steps"]:
             if "uses" in s:
-                assert "@" in s["uses"], s["uses"]
+                assert PINNED_USES.match(s["uses"]), s["uses"]
+            assert not GIT_WRITE.search(str(s.get("run", ""))), (name, s.get("run"))
