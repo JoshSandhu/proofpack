@@ -5,9 +5,12 @@
 #     PROOFPACK_ASAH_VECTORS=/tmp/dec77/asah_vectors.csv Rscript fixtures/r/capture.R
 #
 # DEC-77 (Josh, 5 October 2026): pROC's aSAH rows are never committed and never leave the
-# GitHub runner. The script stops unless the environment variable PROOFPACK_ASAH_VECTORS
-# names a file outside the working directory (the r-captures job points it at the
-# runner's temporary space); write_lf() writes the vectors to that file only, and the
+# GitHub runner. The script is written to stop when the environment variable
+# PROOFPACK_ASAH_VECTORS is unset, or when the directory of the file it names, normalised,
+# is the working directory or lies under it; it does not resolve a symbolic link at the file
+# itself (the check and its limits are described above the check below; not run here: no R).
+# The r-captures job points it at the runner's temporary space; write_lf() writes the vectors
+# to that file only, and the
 # cat() lines at the end print file names, the row count and four summary values. The two
 # JSON files go into PROOFPACK_R_OUT when that is set (the job sets it to the runner's
 # temporary space too), else into fixtures/r/:

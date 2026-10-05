@@ -14,8 +14,10 @@ directory it is given, recursively, and exits 1 when:
   lines that are not blank and do not start with ``#``) as a substring.
 
 Exit 0 otherwise; 2 when the directory does not exist. What it prints (E12 repair 4,
-lens 4 FA-B3): the three names above, those of the three it did not find, the error type of
-a file it could not read, and counts. A problem with an entry whose relative path is not one
+lens 4 FA-B3; repair 5, lens 5 FA-B3): the directory argument it was given (in the last
+line, and in the line it prints when that is not a directory), the three names above, those
+of the three it did not find, the error type of a file it could not read, and counts.
+A problem with an entry whose relative path is not one
 of the three is printed with the words "an entry not among the three names" in place of the
 path. At ``614edd2`` the guard printed every entry's path, so an entry named with a data line
 of the vectors put that line on stdout (lens 4, measured). The test
