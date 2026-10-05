@@ -101,7 +101,7 @@ jobs:
           mkdir upload
           cp fixtures/r/proc_asah.json fixtures/r/rms_val_prob_f4.json fixtures/r/f13_engine_comparison.json upload/
           uv run python scripts/r_upload_guard.py upload
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: r-captures
           path: upload/
