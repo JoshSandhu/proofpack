@@ -367,15 +367,26 @@ FEWER_THAN_FIVE_CASES = "fewer_than_five_cases"
 def clustered_number(number: Number, n_cases: int | None) -> Number:
     """DEC-75 (b) and (c) on one Number of a clustered cell (E11 repair 3).
 
-    * ``n_cases`` below :data:`MIN_CLUSTERED_CASES` and an interval: the interval is
-      refused - a Number with the same estimate, counts and flags (``imprecise`` dropped,
-      it describes an interval no longer printed), method ``none`` and the typed reason
-      :data:`FEWER_THAN_FIVE_CASES`;
-    * otherwise the case-count tier of :func:`precision_flags` is added when the Number
-      carries no tier yet (an AUROC cell's :func:`auroc_precision_flags` tier is kept), and
-      a Number with an interval gets :data:`CLUSTERED_COVERAGE_FLAG` after every other
-      flag (printed ``ᵈ``);
-    * a Number with no interval keeps its own typed reason and gets no ``ᵈ``.
+    What the code inspects, in this order (build day 12 rewrote this list after the cold
+    lens 4 of 2 October 2026, its N5, found the earlier wording false):
+
+    1. a suppressed Number is returned unchanged;
+    2. any :data:`CLUSTERED_COVERAGE_FLAG` already present is removed, and when none of
+       ``Number.PRECISION_TIERS`` is among the flags the case-count tier
+       ``precision_flags(n_cases)`` is appended - before the interval is looked at, so on
+       every branch below, the refusal included (an AUROC cell's
+       :func:`auroc_precision_flags` tier, already present, is kept);
+    3. a Number with no interval is returned with those flags: it keeps its own typed
+       reason and gets no ``ᵈ``;
+    4. a Number with an interval and ``n_cases`` below :data:`MIN_CLUSTERED_CASES`: the
+       interval is refused - the same estimate and counts, the flags of step 2 less
+       ``imprecise`` (it describes an interval no longer printed), method ``none`` and the
+       typed reason :data:`FEWER_THAN_FIVE_CASES`. A refused Number that carried no tier
+       therefore leaves with one: ``flags=[]`` at four cases leaves with
+       ``['not_evaluable_shown_for_transparency']``
+       (``tests/test_day12_carried.py::test_n5_refused_number_without_a_tier_gains_one``);
+    5. otherwise the Number keeps its interval and gets :data:`CLUSTERED_COVERAGE_FLAG`
+       after every other flag (printed ``ᵈ``).
 
     ``Number`` is frozen: a new Number is built (``dataclasses.replace``), so the
     constructor's checks run on it.

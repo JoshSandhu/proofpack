@@ -1,8 +1,11 @@
 """E11 repair 3 (2 October 2026): DEC-75 (a)-(d) and the cold lens 3 findings on ``3302d59``.
 
-Each test below except the two control tests was run against ``45e6761`` (the handoff
-commit over ``3302d59``; the same ``src``) in a detached worktree and failed there on an
-assertion; the first failing line of each is in the repair-3 note. The names of the new
+This file collects 20 tests (17 functions, one parametrised four ways). Each of them
+except the one control test, ``test_control_an_unclustered_compare_keeps_the_mcnemar_p_value``,
+was run against ``45e6761`` (the handoff commit over ``3302d59``; the same ``src``) in a
+detached worktree and failed there: ``19 failed, 1 passed``, the pass that control test
+(the repair-3 note's figure, re-measured by the cold lens 4 of 2 October 2026, its N4). The
+first failing line of each is in the repair-3 note. The names of the new
 constants are spelled here, not imported at module level, so that this file imports at
 ``45e6761``.
 
