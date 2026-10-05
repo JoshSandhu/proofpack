@@ -225,3 +225,78 @@ The site's `src/data/engine-register/fixtures_report.81f1102.json` has F13b `no_
 1. Should the r-captures workflow add the `safe.directory` step pre-emptively, or wait for item 1's run to show the failure?
 2. Should `test_f4_expected_r_rms_val_prob_is_pending_until_a_capture_is_committed` fail rather than read a failed `git ls-files` as "not tracked"?
 3. Should a later capture replace this one (new run id) or be refused while the drift check reads 0 differences? Today the tests name run 37332685741, so a replacement changes them.
+
+## Repair after the cold lens (Monday 5 October 2026, appended; nothing above is rewritten)
+
+The cold lens on `78bd085` (`handoffs/2026-10-05_E_capture_lens_cold.md`) reported FAIL with three blockers. All three are test defects: no `src` line changed. The repair is commit `2af59dc` on `main` (parent `8eed328`). It is not pushed.
+
+### Corrections to this note
+
+- **"No assertion was deleted" (in "The tests changed, and why") is false.** At `9d285d9`, `test_fixtures_cmd.py::test_rows_without_an_oracle_are_never_counted_as_matched` applied four checks to F13 and F13b in the absent state: `matched` False, `oracle_source` None, `n_values_compared` 0 and `max_abs_deviation` None. After `97a2ee4` that test ran only in the committed state, and no absent-state test asserted `max_abs_deviation` None for either row. The `n_values_compared`/`oracle_source` checks were also missing for F13b. B2 below restores them.
+- **The expected-failure count is 12, not 11, when the procedure is followed.** The README's step 2 says to `git add` before any test. With the files staged and the test files of `9d285d9` unchanged, the lens measured `12 failed, 2176 passed, 4 skipped`. The twelfth is `test_day12_r_captures.py::test_f4_expected_r_rms_val_prob_is_pending_until_a_capture_is_committed`. With step 3 done as well, that test passes and `test_calibration`'s fails, so the count is still 12. The README's step 5 now says this.
+- **`eef15b9`'s message says "three day-12 tests". The log of gate run 37341132663 shows four:** the three `test_capture_commit.py` tests and `test_f4_expected_..._pending_...`. The message is not amended; this line is the record.
+
+### B1. The T12 golden's F13 mask hid a planted "verified and matched"
+
+- **Change.** `tests/test_t12.py` `F13_HEAD_SHA` now masks only the 40-hex sha in "the engine commit is not this checkout's HEAD (<sha>)", replacing it with `[masked: this checkout's HEAD sha]`. The old `F13_HEAD_CLAUSE` masked the whole clause after "numbers; ". The golden was regenerated; its diff is one line, the F13 row, which now carries "...not this checkout's HEAD ([masked: ...]); this command did not run that comparison on this checkout's engine".
+- **New tests.**
+  - `tests/test_t12.py::test_capture_repair_b1_the_committed_f13_reason_says_this_command_did_not_run_it` checks the committed F13 reason word for word, with HEAD read by `git rev-parse HEAD`, and that it holds no `matched`, `verified` or `validated`.
+  - `tests/test_e12_repair3.py::test_capture_repair_b1_not_head_says_this_command_did_not_run_the_comparison` uses the synthetic capture with HEAD set to `f` x 40. It checks the exact clause from "recorded engine and R numbers; " to ". The aSAH vectors are never committed (DEC-77)", and that the reason holds neither `matched` nor `verified`.
+- **Plant.** This is the lens's literal plant: `"run that comparison on this checkout's engine"` became `"run that comparison here; F13 is verified and matched at this checkout"` in `src/proofpack/fixtures.py`. It was run in a detached worktree at `8eed328` with this repair's four test files and golden copied in, and `PYTHONPATH=<worktree>/src` proved by `proofpack.__file__`.
+  - With the plant: `3 failed, 75 passed` over `test_t12.py`, `test_capture_commit.py`, `test_fixtures_cmd.py` and `test_e12_repair3.py`. The three are `test_golden_t12_matches_the_committed_render` and the two tests above.
+  - Without it: `78 passed`.
+  - At `8eed328` with its own tests, the lens measured the full suite green on this plant.
+
+### B2. The absent-state row checks were deleted
+
+- **Change.** `tests/test_fixtures_cmd.py::test_capture_repair_b2_without_an_r_capture_rows_without_an_oracle_carry_no_deviation` runs under the fixture `no_r_capture`. It carries over `9d285d9`'s loop unchanged: every `no_oracle_recorded`, `no_independent_oracle`, `not_built` or `suite_only` row has `matched` False, `oracle_source` None, `n_values_compared` 0 and `max_abs_deviation` None, and the summary's matched count equals the rows' count. It then names F13 and F13b: each is `no_oracle_recorded`, with those four fields and `values` [].
+- The planted-rows half of the old test (`fx.Row("F13", ... no_oracle_recorded)` and the schema refusal) still runs unchanged in `test_rows_without_an_oracle_are_never_counted_as_matched`.
+- **Plant.** This is the lens's literal plant: `if row.id in ("F13", "F13b"): out.update(max_abs_deviation=0.0)` after `compare_row`'s `OracleAbsent` update. It was run at `8eed328` with the new tests.
+  - With the plant: `1 failed, 111 passed, 3 skipped` over the four files and `test_day12_r_captures.py`. The failure is the new B2 test.
+  - Without it: passed (78 over the four files).
+
+### B3. `f13_engine_comparison.json` was not pinned
+
+- **Change.** `tests/test_capture_commit.py::test_capture_repair_b3_the_three_files_are_the_artefact_bytes_the_readme_records` reads `fixtures/r/README.md` from the index. It requires the README's table to hold exactly the three files with the size and sha256 that `ARTEFACT` holds (the measured download: 4,471 / `01cf2f7b...`, 5,401 / `44a3866f...`, 3,517 / `a36b7f54...`). Then, for each file:
+  - the tracked blob (`git show :fixtures/r/<name>`) holds no CR;
+  - the blob has that size;
+  - the blob has that sha256, raw and with CRLF read as LF;
+  - the working-tree copy has that sha256 with CRLF read as LF.
+
+  The working-tree check is not made when `GITHUB_WORKFLOW` is `r-captures`. That job copies a fresh capture over the working tree before `pytest -m day12`, and its step fails on any `SKIPPED`, so the check is left out there rather than skipped. With `GITHUB_WORKFLOW=r-captures` and a working-tree-only edit, the test passes (`4 passed`); this is what the job needs. It also means anyone who sets that variable locally turns the working-tree half off. The index half always runs.
+- **Plants.** These are the lens's eight edits, each written into `fixtures/r/f13_engine_comparison.json` and `git add`-ed at `8eed328` with the new test file. Each one gave `1 failed, 3 passed` over `test_capture_commit.py`, the failure being the B3 test:
+  1. `s100b var_delong` engine +1 ulp;
+  2. `ndka var_delong` engine +1 ulp;
+  3. `ndka auc` `within` false;
+  4. `ndka auc` `abs_deviation` 0.5;
+  5. top-level `max_abs_deviation` 0.5;
+  6. `engine_version` `9.9.9`;
+  7. `tolerance_class` `closed_form`;
+  8. `reason` `"outside tolerance: ndka auc"`.
+
+  A ninth case, plant 1 in the working tree only (not staged), also failed, on the working-tree assertion. The lens's plant 1, staged, against `8eed328`'s own `test_capture_commit.py`: `3 passed`.
+- The README also says that the test pins the table.
+
+### Suite at `2af59dc` (tree clean; both shells import `C:\Users\joshs\GPS\ProofPack\proofpack\src\proofpack\__init__.py`)
+
+Environment as above (`PROOFPACK_REQUIRE_DOCX=1`, `PYTHONIOENCODING=utf-8`, `PROOFPACK_TR39_FULL` set, `PROOFPACK_ASAH_VECTORS` and `PYTHONPATH` unset). Scripts: `scratchpad/caprepair/suite.sh` and `suite.ps1`.
+
+| Command | Git Bash | PowerShell 5.1 |
+|---|---|---|
+| full suite `-rfs` | `2199 passed, 4 skipped in 252.99s`, exit 0 | `2199 passed, 4 skipped in 247.44s`, exit 0 |
+| skips | `[3] r_vectors_not_committed_dec77`, `[1] test_doctor_cli.py:57` | the same |
+| `--collect-only` | `2203 tests collected` | `2203 tests collected` |
+| `-m day12` | `196 passed, 3 skipped, 2004 deselected`, exit 0 | the same, exit 0 |
+| `-m day11` | `144 passed, 2059 deselected`, exit 0 | the same, exit 0 |
+| `-m day10` | `262 passed, 1941 deselected`, exit 0 | the same, exit 0 |
+| `python -m ruff check .` / `format --check .` | `All checks passed!` / `321 files already formatted` | the same |
+| `doctor --offline` | exit 0, 17 `[ok` lines | the same |
+| `fixtures --offline --r-captures` | exit 0; `rows 46: matched 35, not matched 0, no oracle recorded 0, no independent oracle 0, not built 5, compared by the test suite only 6`; F13 `suite_only` 2.7755575615628914e-17, F13b `matched` 13 values, 2.1908198588604932e-09; `unverified` 36 times | the same lines and figures, `unverified` 36 times |
+
+There are 4 tests more than at `97a2ee4` (2195 to 2199): two for B1, one for B2 and one for B3.
+
+### Sentences refused
+
+- "The capture is now tamper-proof." The B3 test pins the bytes against a value written in this repository. Anyone who edits the JSON, the README table and the test together passes it. What it stops is a silent edit to one of them.
+- "B2 was a code defect." No `src` line changed. The engine never emitted the planted 0.0. What was missing was the test that would refuse it.
+- "The r-captures job is unaffected." That is my reasoning, not a run. The new B3 test leaves out its working-tree half when `GITHUB_WORKFLOW` is `r-captures`, and its index half reads only committed bytes. The B1 tests are not `day12` (`test_t12.py`), or they use the synthetic capture (`test_e12_repair3.py`). The B2 test builds its own absent state. None of this has run in the container. The next push's r-captures run is the first measurement. **[unverified]**
