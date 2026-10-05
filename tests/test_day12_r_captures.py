@@ -296,15 +296,17 @@ def test_f4_expected_r_rms_val_prob_is_pending_until_a_capture_is_committed():
     holds; the r-captures workflow's ``capture`` job copies in a capture git does not
     track."""
     exp = json.loads((REPO / "fixtures" / "f4_expected.json").read_text(encoding="utf-8"))
-    try:
-        tracked = subprocess.run(
-            ["git", "-C", str(REPO), "ls-files", "fixtures/r/rms_val_prob_f4.json"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        ).stdout.strip()
-    except (OSError, subprocess.SubprocessError):
-        tracked = ""
+    proc = subprocess.run(
+        ["git", "-C", str(REPO), "ls-files", "fixtures/r/rms_val_prob_f4.json"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    # A git that refuses the checkout is a failure, never "not tracked" (gate run 37341132663:
+    # git in the rocker container answered 'detected dubious ownership' and this test read the
+    # empty stdout as an untracked capture).
+    assert proc.returncode == 0, proc.stderr
+    tracked = proc.stdout.strip()
     if tracked:
         assert exp["r_rms_val_prob"]["status"] != "[pending]"
     else:

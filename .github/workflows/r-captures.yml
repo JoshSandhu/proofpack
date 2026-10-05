@@ -61,6 +61,11 @@ jobs:
       - name: git, so that the checkout is a git checkout
         run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
       - uses: actions/checkout@v4
+      # The container runs as root while the workspace belongs to the runner user, so git
+      # refuses it ('detected dubious ownership'; gate run 37341132663 on 5 Oct 2026, three
+      # day-12 tests failed). Trust this one directory only.
+      - name: git trusts the checkout directory (safe.directory)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: the runner's temporary space for the vectors and the fresh capture (DEC-77)
         shell: bash
         run: |
