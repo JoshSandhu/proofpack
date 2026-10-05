@@ -165,7 +165,15 @@ def test_f4_fixture_rows_and_recorded_values_match_r2_section_9():
     )
     assert exp["hand"]["ece_equal_width_10"]["value"] == pytest.approx(quoted["ece_10"], abs=5e-5)
     assert exp["hand"]["ece_equal_mass_10"]["value"] == pytest.approx(quoted["ece_10"], abs=5e-5)
-    assert exp["r_rms_val_prob"]["status"] == "[pending]"
+    # the capture commit: [pending] until run 37332685741's rms::val.prob capture was
+    # committed; its figures (copied by script, tests/test_capture_commit.py) against R2's
+    r_cap = exp["r_rms_val_prob"]
+    assert r_cap["status"] == "captured" and r_cap["github_run_id"] == "37332685741"
+    r_vals = r_cap["values_from_the_capture"]
+    assert r_vals["val.prob Brier"] == pytest.approx(quoted["brier"], abs=5e-5)
+    assert r_vals["val.prob Slope"] == pytest.approx(quoted["slope"], abs=5e-5)
+    assert r_vals["val.prob Intercept"] == pytest.approx(quoted["intercept"], abs=5e-5)
+    assert r_vals["glm offset (Intercept)"] == pytest.approx(quoted["intercept_large"], abs=5e-5)
     first = (REPO / "fixtures" / "f4_calibration.csv").read_text(encoding="utf-8").splitlines()[0]
     assert first.startswith("#") and "no seed" in first and "R2 section 9" in first
 

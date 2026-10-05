@@ -17,8 +17,10 @@
   footer's "qualified statistician" and "no regulator has endorsed this tool");
 * every FDA AI-DSF anchor on the page carries "draft guidance (January 2025), not for
   implementation" in its label and its guidance-table row carries ``class="draft"``;
-* the ``[unverified`` markings of F13, F13b, the Newcombe table and the CSA sentence are on
-  the page inside ``.unverified``;
+* the ``[unverified`` markings of the Newcombe table and the CSA sentence are on the page
+  inside ``.unverified``, and so are F13's and F13b's in the absent state (fixture
+  ``no_r_capture``); with run 37332685741's capture committed F13 and F13b carry none, and
+  :func:`masked_report` masks F13's clause naming this checkout's HEAD;
 * ``fixtures --html`` writes ``T12.html`` under the session's ephemeral-key licence and
   not without one (``PROOFPACK_HOME`` pointed at an empty directory), exit 0 both times.
 """
@@ -50,6 +52,9 @@ FORBIDDEN = (
     | {"validated", "compliant", "certified", "qualified"}
 )
 DRAFT_LABEL = "draft guidance (January 2025), not for implementation"
+#: The clause of F13's ``suite_only`` reason that says whether the engine commit the
+#: r-captures job ran is this checkout's HEAD; :func:`masked_report` masks it.
+F13_HEAD_CLAUSE = re.compile(r"(recorded engine and R numbers; ).*?(\. The aSAH vectors )")
 
 
 def masked_report(report: dict) -> dict:
@@ -66,6 +71,12 @@ def masked_report(report: dict) -> dict:
         duration_s=None,
     )
     for row in r["rows"]:
+        if row["id"] == "F13" and row["status"] == "suite_only":
+            # the capture commit: F13's recorded-comparison reason names this checkout's
+            # HEAD (fixtures.f13_recorded_outcome), which moves with every commit
+            row["reason"] = F13_HEAD_CLAUSE.sub(
+                r"\1[masked: this checkout's HEAD]\2", row["reason"]
+            )
         if row["max_abs_deviation"] is not None:
             row["max_abs_deviation"] = 0.0
         for v in row["values"]:
@@ -203,10 +214,24 @@ def test_every_fda_draft_anchor_is_labelled_on_the_page(page):
     assert notes and all(DRAFT_LABEL in n for n in notes)
 
 
-def test_unverified_markings_survive_to_the_page(page):
-    spans = [html.unescape(x) for x in re.findall(r'<span class="unverified">([^<]*)</span>', page)]
+def _unverified_spans(page: str) -> list[str]:
+    return [html.unescape(x) for x in re.findall(r'<span class="unverified">([^<]*)</span>', page)]
+
+
+def test_unverified_markings_survive_to_the_page_without_an_r_capture(no_r_capture):
+    """The absent state (no R capture committed): F13's and F13b's markings survive."""
+    spans = _unverified_spans(t12.render_t12(fx.run_fixtures(doctor=False)))
     assert any(s.startswith("[unverified until captured] the pROC capture") for s in spans)
     assert any(s.startswith("[unverified until captured] the rms::val.prob") for s in spans)
+    assert "[unverified against the primary PDF]" in spans
+    assert t12.CSA_UNVERIFIED in spans
+
+
+def test_unverified_markings_survive_to_the_page(page):
+    spans = _unverified_spans(page)
+    # the capture commit (run 37332685741): F13 and F13b carry no [unverified until
+    # captured] marking; the absent state is the test above
+    assert not any(s.startswith("[unverified until captured]") for s in spans)
     assert "[unverified against the primary PDF]" in spans
     assert t12.CSA_UNVERIFIED in spans
 

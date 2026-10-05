@@ -1,0 +1,95 @@
+{
+  "schema": "proofpack-r-capture/1",
+  "fixture": "F13b",
+  "what": "rms::val.prob(p, y, pl = FALSE) on fixtures/f4_calibration.csv; glm(y ~ qlogis(p), binomial) (joint: intercept and slope) and glm(y ~ offset(qlogis(p)), binomial) (offset: calibration-in-the-large) at glm.control() and at epsilon 1e-14",
+  "input": {
+    "file": "fixtures/f4_calibration.csv",
+    "bytes": 381,
+    "sha256": "0b353b93081838bdbfb8f131eaf28c00127de42f7401724a9693ec6f8abc825d",
+    "sha256_method": "tools::sha256sum",
+    "n_rows": 20,
+    "events": 12
+  },
+  "values": {
+    "val.prob Dxy": 0.70833333333333337,
+    "val.prob C (ROC)": 0.85416666666666674,
+    "val.prob R2": 0.44686295530073955,
+    "val.prob D": 0.35130849792273333,
+    "val.prob D:Chi-sq": 8.0261699584546662,
+    "val.prob D:p": 0.0046106233264305851,
+    "val.prob U": -0.059099004941045231,
+    "val.prob U:Chi-sq": 0.8180199011790954,
+    "val.prob U:p": 0.66430762203684846,
+    "val.prob Q": 0.41040750286377858,
+    "val.prob Brier": 0.15875500000000001,
+    "val.prob Intercept": 0.49977163424518406,
+    "val.prob Slope": 1.194512479643566,
+    "val.prob Emax": 0.23428914899395115,
+    "val.prob E90": 0.1984774726262841,
+    "val.prob Eavg": 0.098558563361424739,
+    "val.prob S:z": -0.19553959966113102,
+    "val.prob S:p": 0.84497053991148308,
+    "glm joint (Intercept)": 0.49977163348157905,
+    "glm joint (Intercept) se": 0.59504649899698436,
+    "glm joint logit_p": 1.1945124778153178,
+    "glm joint logit_p se": 0.56172589930455363,
+    "glm joint deviance": 18.076276820736492,
+    "glm joint tight (Intercept)": 0.49977163424518523,
+    "glm joint tight (Intercept) se": 0.59505562599607364,
+    "glm joint tight logit_p": 1.1945124796435687,
+    "glm joint tight logit_p se": 0.56174581395155398,
+    "glm joint tight deviance": 18.076276820736492,
+    "glm offset (Intercept)": 0.45623046546120938,
+    "glm offset (Intercept) se": 0.55368662366773624,
+    "glm offset deviance": 18.207926202461742,
+    "glm offset tight (Intercept)": 0.45623046546120938,
+    "glm offset tight (Intercept) se": 0.55368662366773624,
+    "glm offset tight deviance": 18.207926202461742
+  },
+  "fits": {
+    "glm joint": {
+      "iterations": 5,
+      "converged": true,
+      "epsilon": 1e-08
+    },
+    "glm joint tight": {
+      "iterations": 6,
+      "converged": true,
+      "epsilon": 1e-14
+    },
+    "glm offset": {
+      "iterations": 4,
+      "converged": true,
+      "epsilon": 1e-08
+    },
+    "glm offset tight": {
+      "iterations": 4,
+      "converged": true,
+      "epsilon": 1e-14
+    }
+  },
+  "meta": {
+    "script": "fixtures/r/capture.R",
+    "r_version_string": "R version 4.5.1 (2025-06-13)",
+    "r_platform": "x86_64-pc-linux-gnu",
+    "session_info": "R version 4.5.1 (2025-06-13)\nPlatform: x86_64-pc-linux-gnu\nRunning under: Ubuntu 24.04.3 LTS\n\nMatrix products: default\nBLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 \nLAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0\n\nlocale:\n [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              \n [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    \n [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   \n [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 \n [9] LC_ADDRESS=C               LC_TELEPHONE=C            \n[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       \n\ntime zone: Etc/UTC\ntzcode source: system (glibc)\n\nattached base packages:\n[1] stats     graphics  grDevices utils     datasets  methods   base     \n\nother attached packages:\n[1] jsonlite_2.0.0 rms_8.1-0      Hmisc_5.2-4    pROC_1.19.0.1 \n\nloaded via a namespace (and not attached):\n [1] sandwich_3.1-1     stringi_1.8.7      lattice_0.22-7     digest_0.6.37     \n [5] magrittr_2.0.4     evaluate_1.0.5     grid_4.5.1         RColorBrewer_1.1-3\n [9] mvtnorm_1.3-3      fastmap_1.2.0      Matrix_1.7-3       nnet_7.3-20       \n[13] backports_1.5.0    Formula_1.2-5      survival_3.8-3     multcomp_1.4-29   \n[17] gridExtra_2.3      scales_1.4.0       TH.data_1.1-4      codetools_0.2-20  \n[21] cli_3.6.5          rlang_1.1.6        splines_4.5.1      base64enc_0.1-3   \n[25] tools_4.5.1        SparseM_1.84-2     MatrixModels_0.5-4 checkmate_2.3.3   \n[29] htmlTable_2.4.3    colorspace_2.1-2   ggplot2_4.0.0      vctrs_0.6.5       \n[33] R6_2.6.1           rpart_4.1.24       zoo_1.8-14         lifecycle_1.0.4   \n[37] polspline_1.1.25   stringr_1.5.2      htmlwidgets_1.6.4  MASS_7.3-65       \n[41] foreign_0.8-90     cluster_2.1.8.1    gtable_0.3.6       data.table_1.17.8 \n[45] glue_1.8.0         Rcpp_1.1.0         xfun_0.53          rstudioapi_0.17.1 \n[49] knitr_1.50         farver_2.1.2       htmltools_0.5.8.1  nlme_3.1-168      \n[53] rmarkdown_2.30     compiler_4.5.1     quantreg_6.1       S7_0.2.0          ",
+    "packages": {
+      "pROC": "1.19.0.1",
+      "rms": "8.1.0",
+      "jsonlite": "2.0.0"
+    },
+    "repos": {
+      "CRAN": "https://p3m.dev/cran/__linux__/noble/2025-10-30"
+    },
+    "cran_env": "https://p3m.dev/cran/__linux__/noble/2025-10-30",
+    "run_date_utc": "2026-10-05T15:26:18Z",
+    "github": {
+      "run_id": "37332685741",
+      "run_attempt": "1",
+      "sha": "9d285d986fedd6f6e43fb2c6bfd1497307adbfa1",
+      "ref": "refs/heads/ci/9d285d9",
+      "repository": "JoshSandhu/proofpack",
+      "workflow": "r-captures"
+    }
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "schema": "proofpack-r-f13-comparison/1",
+  "fixture": "F13",
+  "what": "the engine's F13 values on the aSAH vectors (read inside the r-captures job from the runner's temporary space, never committed or uploaded: DEC-77) compared with proc_asah.json; aggregates and the vectors' sha256 only",
+  "engine_sha": "9d285d986fedd6f6e43fb2c6bfd1497307adbfa1",
+  "engine_version": "0.1.0.dev1",
+  "github_run_id": "37332685741",
+  "github_run_attempt": "1",
+  "proc_asah_sha256": "01cf2f7bd8c57e7dfbc568ed6867b864701ceb8cf8827db68d7ee3d1e31d9a96",
+  "vectors_sha256": "846b46e6b6aced86417a8e7a2e8c151815422402751866d13367d3a776ff6651",
+  "vectors_rows": 113,
+  "tolerance_class": "iterative",
+  "status": "matched",
+  "reason": null,
+  "max_abs_deviation": 2.7755575615628914e-17,
+  "values": {
+    "ndka auc": {
+      "engine": 0.6119579945799458,
+      "r": 0.6119579945799458,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "ndka ci_delong_hi": {
+      "engine": 0.722670989888189,
+      "r": 0.722670989888189,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "ndka ci_delong_lo": {
+      "engine": 0.5012449992717026,
+      "r": 0.5012449992717026,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "ndka n_cases": {
+      "engine": 41.0,
+      "r": 41.0,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "ndka n_controls": {
+      "engine": 72.0,
+      "r": 72.0,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "ndka var_delong": {
+      "engine": 0.003190810549391302,
+      "r": 0.003190810549391302,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "roc.test estimate 1": {
+      "engine": 0.7313685636856369,
+      "r": 0.7313685636856369,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "roc.test estimate 2": {
+      "engine": 0.6119579945799458,
+      "r": 0.6119579945799458,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "roc.test p.value": {
+      "engine": 0.1642951752230545,
+      "r": 0.16429517522305448,
+      "abs_deviation": 2.7755575615628914e-17,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "roc.test statistic": {
+      "engine": 1.390770025735577,
+      "r": 1.390770025735577,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "s100b auc": {
+      "engine": 0.7313685636856369,
+      "r": 0.7313685636856369,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "s100b ci_delong_hi": {
+      "engine": 0.8326189156096511,
+      "r": 0.8326189156096511,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "s100b ci_delong_lo": {
+      "engine": 0.6301182117616226,
+      "r": 0.6301182117616226,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "s100b n_cases": {
+      "engine": 41.0,
+      "r": 41.0,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "s100b n_controls": {
+      "engine": 72.0,
+      "r": 72.0,
+      "abs_deviation": 0.0,
+      "tolerance": 1e-06,
+      "within": true
+    },
+    "s100b var_delong": {
+      "engine": 0.0026686824571724383,
+      "r": 0.002668682457172438,
+      "abs_deviation": 4.336808689942018e-19,
+      "tolerance": 1e-06,
+      "within": true
+    }
+  }
+}

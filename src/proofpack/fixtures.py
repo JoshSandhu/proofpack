@@ -939,7 +939,9 @@ F13_NAMES = (
 #: Not in the report row: pROC writes ``conf.int`` on a paired DeLong ``roc.test`` only in
 #: some versions [unverified: the version that added it was not read], and a row compares a
 #: fixed set of names. ``tests/test_day12_r_captures.py`` compares them when the capture
-#: carries them (``f13_engine_values(..., with_conf_int=True)``).
+#: carries them (``f13_engine_values(..., with_conf_int=True)``). The committed capture
+#: (GitHub run 37332685741, pROC 1.19.0.1) carries them; that run's ``pytest -m day12``
+#: step reported no skip.
 F13_OPTIONAL_NAMES = ("roc.test conf.int lo", "roc.test conf.int hi")
 #: F13b's compared values, named as ``capture.R`` names them in
 #: ``rms_val_prob_f4.json``'s ``values``. ``val.prob Intercept`` is compared with the
@@ -947,8 +949,11 @@ F13_OPTIONAL_NAMES = ("roc.test conf.int lo", "roc.test conf.int hi")
 #: model ``val.prob`` fits with ``lrm.fit(logit, y)`` [unverified: from memory of the rms
 #: source, not a fetched copy; the capture's ``glm joint`` values are the same model fitted
 #: by ``glm``, so a different definition shows as ``val.prob Intercept`` alone outside
-#: tolerance]. The engine's ``intercept_large`` (slope fixed at 1) is compared with
-#: ``glm offset (Intercept)``. Standard errors are compared with the ``epsilon 1e-14``
+#: tolerance]. In the committed capture (GitHub run 37332685741, rms 8.1.0) ``val.prob
+#: Intercept`` is 1.2e-15 from ``glm joint tight (Intercept)`` and 0.044 from ``glm offset
+#: (Intercept)`` on the F4 rows; the rms source is still not read. The engine's
+#: ``intercept_large`` (slope fixed at 1) is compared with ``glm offset (Intercept)``.
+#: Standard errors are compared with the ``epsilon 1e-14``
 #: fits only: at the default convergence they need not agree to 1e-6 (statsmodels'
 #: default fit was 9.13e-6 and 1.99e-5 from its tight fit on these rows,
 #: ``f4_expected.json``).
@@ -979,7 +984,7 @@ F13_ABSENT = (
 F13B_ABSENT = (
     "[unverified until captured] the rms::val.prob capture (fixtures/r/rms_val_prob_f4.json) "
     "is not committed; fixtures/r/capture.R and the r-captures workflow (build day 12) "
-    "write it (f4_expected.json r_rms_val_prob: [pending])"
+    "write it"
 )
 #: The reason F13 and F13b carry when the package is not a source checkout (an installed
 #: wheel): :func:`r_captures_dir` is ``None`` and nothing under ``fixtures/r`` is read, so
@@ -997,7 +1002,8 @@ def f13_engine_values(
 ) -> dict[str, float]:
     """The engine on the aSAH vectors: ``auroc_number`` (its ``delong_wald`` Number is the
     interval compared with ``ci.auc``: pROC's DeLong interval is taken to be the Wald
-    interval [unverified: pROC's source was not read; the comparison is what tests it]),
+    interval [unverified: pROC's source was not read; the comparison is what tests it: GitHub
+    run 37332685741 recorded both scores' bounds 0.0 from ``ci.auc``'s on aSAH]),
     ``delong_variance`` and ``paired_delong`` (s100b first, as ``roc.test(roc1, roc2)``)."""
     from proofpack.stats.discrimination import auroc_number, delong_variance, paired_delong
 

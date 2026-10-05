@@ -19,14 +19,19 @@ name: r-captures
 # The image: rocker/r-ver:4.5.1, chosen over r-lib/actions/setup-r because one tag pins the
 # R version, the Ubuntu base and the package repository together, and D1 section 3.2 and the
 # plan section 9 row 12 name rocker/r-ver. A versioned rocker/r-ver tag sets CRAN to a dated
-# Posit Package Manager snapshot; the date this tag pins was not read on build day 12
-# [unverified]. The capture records getOption("repos") and the CRAN variable the image sets,
-# so the committed JSON names the snapshot it was built from, and a step below prints both.
+# Posit Package Manager snapshot. In GitHub run 37332685741 (5 October 2026) the step below
+# printed CRAN=https://p3m.dev/cran/__linux__/noble/2025-10-30 and the committed capture's
+# meta.repos records the same; whether the tag always resolves to that snapshot is
+# [unverified] (it is pinned by tag, not by digest). The capture records getOption("repos")
+# and the CRAN variable the image sets, so the committed JSON names the snapshot it was
+# built from, and a step below prints both.
 # The engine is installed into the same container the way ci.yml installs it (setup-uv,
 # uv python install, uv sync --locked), so the Python side comes from uv.lock; git is
 # installed first so that actions/checkout makes a git checkout (the day-12 tests call
-# git ls-files). Whether setup-uv and uv's Python run inside this image is [unverified]:
-# the job has not run.
+# git ls-files). setup-uv, uv's Python 3.12 and uv sync ran inside this image in run
+# 37332685741, which was green. Whether git commands run by later steps succeed in the
+# container is [unverified]: the one day-12 test that called git before the capture commit
+# read a failure as "not tracked".
 #
 # Actions are pinned by tag, as ci.yml pins them (ci.yml pins no action by commit sha).
 # No secrets; read-only token.

@@ -144,6 +144,7 @@ def test_an_engine_value_off_by_1e_6_with_its_oracle_value_deleted_is_not_matche
 
 def test_every_compared_row_declares_the_names_its_engine_and_oracle_carry():
     oracles = fx.load_oracles()
+    compared = []
     for row in fx.register():
         if row.engine is None or row.oracle is None:
             assert row.compares == (), row.id
@@ -153,9 +154,19 @@ def test_every_compared_row_declares_the_names_its_engine_and_oracle_carry():
         except fx.OracleAbsent:
             assert row.id in ("F13", "F13b"), row.id
             continue
+        except fx.ComparedInRunner as outcome:
+            # the capture commit (run 37332685741): outside the r-captures job F13's oracle
+            # is the job's recorded comparison, and this command compares no F13 value
+            # (DEC-77); lens 5 FA-N5 found this exception uncaught here
+            assert row.id == "F13" and outcome.status == "suite_only", (row.id, outcome.reason)
+            assert set(row.compares) == set(fx.F13_NAMES)
+            continue
         engine = set(row.engine())
         assert len(row.compares) == len(set(row.compares)) >= 1, row.id
         assert set(row.compares) == engine == oracle, row.id
+        compared.append(row.id)
+    # with run 37332685741's capture committed, F13b's names are compared here as well
+    assert "F13b" in compared
 
 
 def test_f14_labels_in_the_file_are_the_cases_the_engine_computes():
@@ -235,7 +246,9 @@ def test_a_truncated_oracle_file_is_not_matched_and_the_report_is_written(tmp_pa
     fx.validate_report(doc)
     # 29 since E10: the three F5 rows that read oracles_v1.json join the not-matched set
     # E11 item 4: F5-newcombe-paired reads newcombe1998_paired.json, not oracles_v1.json
-    assert doc["summary"]["matched"] == 5 and doc["summary"]["not_matched"] == 29
+    # the capture commit (run 37332685741): F13b reads fixtures/r/rms_val_prob_f4.json, not
+    # oracles_v1.json, and is matched, so 6 (5 while no capture is committed)
+    assert doc["summary"]["matched"] == 6 and doc["summary"]["not_matched"] == 29
     assert set(_not_matched(doc).values()) == {
         "oracle_file_unreadable: oracles_v1.json (JSONDecodeError)"
     }

@@ -83,7 +83,33 @@
     }
   },
   "r_rms_val_prob": {
-    "status": "[pending]",
-    "note": "F13b: rms::val.prob capture on these rows is the day-9 R job (D1 section 3.1). Intercept, slope, Brier and the O:E from that capture are to be compared against the values above; nothing here has been checked against R yet."
+    "status": "captured",
+    "file": "fixtures/r/rms_val_prob_f4.json",
+    "file_sha256": "44a3866fdccd67eb76532705d9b03eda7c26f2a32ff5d7124a5a6c156c79be27",
+    "github_run_id": "37332685741",
+    "github_run_attempt": "1",
+    "github_workflow": "r-captures",
+    "engine_commit_of_the_run": "9d285d986fedd6f6e43fb2c6bfd1497307adbfa1",
+    "run_date_utc": "2026-10-05T15:26:18Z",
+    "r_version_string": "R version 4.5.1 (2025-06-13)",
+    "r_platform": "x86_64-pc-linux-gnu",
+    "packages": {
+      "pROC": "1.19.0.1",
+      "rms": "8.1.0",
+      "jsonlite": "2.0.0"
+    },
+    "repos": {
+      "CRAN": "https://p3m.dev/cran/__linux__/noble/2025-10-30"
+    },
+    "input_sha256": "0b353b93081838bdbfb8f131eaf28c00127de42f7401724a9693ec6f8abc825d",
+    "values_from_the_capture": {
+      "val.prob Intercept": 0.49977163424518406,
+      "val.prob Slope": 1.194512479643566,
+      "val.prob Brier": 0.158755,
+      "val.prob C (ROC)": 0.8541666666666667,
+      "glm offset (Intercept)": 0.4562304654612094,
+      "glm offset tight (Intercept)": 0.4562304654612094
+    },
+    "note": "F13b. Copied by script from the capture file named above (run 37332685741); tests/test_capture_commit.py requires these figures and the provenance to equal that file's. rms::val.prob returned no O:E in this capture (its names are the capture's 'val.prob' values), so the hand O:E above has no R value. The engine is compared with the capture by 'proofpack fixtures' row F13b (13 values, iterative tolerance, absolute 1e-6)."
   }
 }

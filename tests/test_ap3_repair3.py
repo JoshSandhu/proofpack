@@ -204,6 +204,11 @@ def test_the_check_classes_are_the_fixtures_rows_classes():
             values, tol, source = row.oracle(oracles)
         except fx.OracleAbsent:
             continue
+        except fx.ComparedInRunner:
+            # F13 outside the r-captures job once run 37332685741's capture is committed: no
+            # oracle value is read here (lens 5 FA-N5 found this exception uncaught)
+            assert row.id == "F13", row.id
+            continue
         if not source["entry"].startswith("captured."):
             continue
         entry = source["entry"][len("captured.") :]

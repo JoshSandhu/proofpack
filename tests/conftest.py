@@ -294,3 +294,26 @@ def _no_network(monkeypatch):
     if _telemetry is not None:
         monkeypatch.setattr(_telemetry, "urllib_transport", _refusing_transport)
     yield
+
+
+# The absent R-capture state (the capture commit, 5 October 2026). Since run 37332685741's
+# three JSON files are committed in fixtures/r/, a test of what the report says while no
+# capture is committed builds that state itself: fixtures/r/ is read from a temporary copy
+# of the committed directory that holds README.md and capture.R but none of the JSON files,
+# and PROOFPACK_ASAH_VECTORS is unset (the DEC-77 shape outside the r-captures job).
+
+
+@pytest.fixture
+def no_r_capture(tmp_path: Path, monkeypatch) -> Path:
+    from proofpack import fixtures as fx
+
+    committed = fx.r_captures_dir()
+    assert committed is not None, "the absent state is built from a source checkout"
+    absent = tmp_path / "fixtures_r_without_the_capture"
+    absent.mkdir()
+    for name in ("README.md", "capture.R"):
+        (absent / name).write_bytes((committed / name).read_bytes())
+    monkeypatch.setattr(fx, "r_captures_dir", lambda: absent)
+    monkeypatch.delenv(fx.R_VECTORS_ENV, raising=False)
+    assert fx.load_r_captures().present == ()
+    return absent

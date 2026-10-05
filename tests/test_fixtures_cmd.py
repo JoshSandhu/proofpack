@@ -16,7 +16,9 @@ What each test feeds and asserts:
   four rows not matched with reason ``optional_dependency_missing: scipy``: F1-clopper-pearson,
   F1-register, F1b-clopper-pearson and F1b-register (F1 and F1b are the two interior
   cases);
-* ``--r-captures`` prints the typed ``r_captures_not_captured`` line.
+* ``--r-captures`` prints the typed ``r_captures_not_captured`` line in the absent state
+  (fixture ``no_r_capture``) and the ``present_compared_in_rows_f13_f13b`` line with run
+  37332685741's capture committed.
 
 The socket test for this command is in ``tests/test_offline.py``
 (``test_fixtures_offline_opens_no_socket``).
@@ -61,6 +63,39 @@ def _planted(key: str, value: str, delta: float) -> dict:
     return oracles
 
 
+#: The summary with no R capture committed (measured before the capture commit, and since
+#: then in the absent state the ``no_r_capture`` fixture builds): F13 and F13b
+#: ``no_oracle_recorded``.
+SUMMARY_WITHOUT_THE_CAPTURE = {
+    "rows": 46,
+    "matched": 34,
+    "not_matched": 0,
+    "no_oracle_recorded": 2,
+    "no_independent_oracle": 0,
+    "not_built": 5,
+    "suite_only": 5,
+}
+#: The summary with run 37332685741's capture committed (5 October 2026): F13b matched
+#: (+1 matched), F13 ``suite_only`` from the job's recorded comparison (+1 suite only).
+SUMMARY_WITH_THE_CAPTURE = {
+    **SUMMARY_WITHOUT_THE_CAPTURE,
+    "matched": 35,
+    "no_oracle_recorded": 0,
+    "suite_only": 6,
+}
+
+
+def test_without_an_r_capture_the_counts_are_the_absent_states(
+    tmp_path: Path, capsys, no_r_capture
+):
+    rc, doc = _cli(tmp_path)
+    printed = capsys.readouterr().out
+    assert rc == EXIT_OK, printed
+    jsonschema.validate(doc, load_json_schema("fixtures_report_schema.json"))
+    assert doc["summary"] == SUMMARY_WITHOUT_THE_CAPTURE
+    assert "rows 46: matched 34, not matched 0" in printed
+
+
 def test_the_report_validates_against_its_schema_and_carries_the_measured_counts(
     tmp_path: Path, capsys
 ):
@@ -69,15 +104,8 @@ def test_the_report_validates_against_its_schema_and_carries_the_measured_counts
     assert rc == EXIT_OK, printed
     jsonschema.validate(doc, load_json_schema("fixtures_report_schema.json"))
     # E10: F5's one not_built row became four (two captured, one register, one frozen)
-    assert doc["summary"] == {
-        "rows": 46,
-        "matched": 34,
-        "not_matched": 0,
-        "no_oracle_recorded": 2,
-        "no_independent_oracle": 0,
-        "not_built": 5,
-        "suite_only": 5,
-    }
+    # the capture commit: F13b matched and F13 suite_only (run 37332685741)
+    assert doc["summary"] == SUMMARY_WITH_THE_CAPTURE
     assert doc["exit_code"] == 0 and doc["offline"] is True
     assert doc["tolerance_policy"]["closed_form"] == 1e-9
     assert doc["tolerance_policy"]["iterative"] == 1e-6
@@ -88,7 +116,8 @@ def test_the_report_validates_against_its_schema_and_carries_the_measured_counts
         assert f"F{n}" in fixtures, n
     assert {"F1b", "F1c", "F1d", "F13b"} <= fixtures
     # E11 item 4: F5-newcombe-paired is compared with Newcombe 1998 Table III (34 matched)
-    assert "rows 46: matched 34, not matched 0" in printed
+    # the capture commit: F13b (35 matched)
+    assert "rows 46: matched 35, not matched 0" in printed
     # every matched row compared at least one value, each within its own tolerance
     for r in doc["rows"]:
         if r["status"] == "matched":
@@ -121,8 +150,8 @@ def test_a_planted_oracle_off_by_2e_9_on_a_closed_form_cell_is_not_matched_and_e
     assert 1.9e-9 < row["max_abs_deviation"] < 2.1e-9
     assert row["reason"] == "outside tolerance: wilson_lo"
     assert rep["exit_code"] == EXIT_FIXTURES_NOT_MATCHED == 6
-    # E10: +3; E11: +1 (F5-newcombe-paired)
-    assert rep["summary"]["not_matched"] == 1 and rep["summary"]["matched"] == 33
+    # E10: +3; E11: +1 (F5-newcombe-paired); the capture commit: +1 (F13b)
+    assert rep["summary"]["not_matched"] == 1 and rep["summary"]["matched"] == 34
     fx.validate_report(rep)
     # the command: the same planted file through main exits 6 and names the row
     monkeypatch.setattr(fx, "load_oracles", lambda: planted)
@@ -138,6 +167,12 @@ def test_a_planted_oracle_off_by_5e_10_on_the_same_cell_stays_matched():
     assert rep["exit_code"] == 0
 
 
+def _recorded_f13(r: dict) -> bool:
+    """Row F13 read from the r-captures job's recorded comparison (DEC-77): ``suite_only``
+    and, by design, carrying the largest deviation that run recorded (E12 repair 4)."""
+    return r["id"] == "F13" and r["status"] == "suite_only"
+
+
 def test_rows_without_an_oracle_are_never_counted_as_matched(report):
     for r in report["rows"]:
         if r["status"] in (
@@ -147,7 +182,11 @@ def test_rows_without_an_oracle_are_never_counted_as_matched(report):
             "suite_only",
         ):
             assert r["matched"] is False and r["oracle_source"] is None
-            assert r["n_values_compared"] == 0 and r["max_abs_deviation"] is None
+            assert r["n_values_compared"] == 0 and r["values"] == []
+            if _recorded_f13(r):
+                assert 0.0 <= r["max_abs_deviation"] <= 1e-6
+            else:
+                assert r["max_abs_deviation"] is None, r["id"]
     assert report["summary"]["matched"] == sum(1 for r in report["rows"] if r["matched"])
     only = (
         fx.Row("F13", "F13", "planted", status="no_oracle_recorded", reason="none"),
@@ -164,9 +203,30 @@ def test_rows_without_an_oracle_are_never_counted_as_matched(report):
         fx.validate_report(bad)
 
 
+def test_without_an_r_capture_f13_and_f13b_have_no_oracle_recorded(no_r_capture):
+    rep = fx.run_fixtures(doctor=False)
+    status = {r["id"]: r["status"] for r in rep["rows"]}
+    assert [k for k, v in status.items() if v == "no_oracle_recorded"] == ["F13", "F13b"]
+    assert sorted(k for k, v in status.items() if v == "suite_only") == [
+        "F12",
+        "F17",
+        "F18",
+        "F19",
+        "F20",
+    ]
+    f13 = next(r for r in rep["rows"] if r["id"] == "F13")
+    assert f13["reason"].startswith("[unverified until captured]")
+    assert f13["reason"].startswith(fx.F13_ABSENT)
+    f13b = next(r for r in rep["rows"] if r["id"] == "F13b")
+    assert f13b["reason"].startswith(fx.F13B_ABSENT)
+
+
 def test_the_statuses_of_the_register_rows_are_the_ones_named(report):
     status = {r["id"]: r["status"] for r in report["rows"]}
-    assert [k for k, v in status.items() if v == "no_oracle_recorded"] == ["F13", "F13b"]
+    # the capture commit (run 37332685741): no row is left without an oracle; the absent
+    # state is test_without_an_r_capture_f13_and_f13b_have_no_oracle_recorded
+    assert [k for k, v in status.items() if v == "no_oracle_recorded"] == []
+    assert status["F13b"] == "matched"
     assert sorted(k for k, v in status.items() if v == "not_built") == [
         "F15",
         "F16",
@@ -179,13 +239,17 @@ def test_the_statuses_of_the_register_rows_are_the_ones_named(report):
     assert status["F5-newcombe-paired"] == "matched"
     assert sorted(k for k, v in status.items() if v == "suite_only") == [
         "F12",
+        "F13",
         "F17",
         "F18",
         "F19",
         "F20",
     ]
     f13 = next(r for r in report["rows"] if r["id"] == "F13")
-    assert f13["reason"].startswith("[unverified until captured]")
+    assert f13["reason"].startswith(
+        "compared inside the r-captures job, not by this command: GitHub run 37332685741 "
+    )
+    assert "[unverified" not in f13["reason"]
     f14 = next(r for r in report["rows"] if r["id"] == "F14-newcombe")
     assert f14["oracle_source"]["unverified"] is True
     assert f14["oracle_source"]["marking"] == "[unverified against the primary PDF]"
@@ -224,12 +288,27 @@ def test_an_engine_error_is_a_not_matched_row_and_not_a_traceback(monkeypatch):
     assert rep["exit_code"] == 6
 
 
-def test_r_captures_prints_the_typed_not_captured_line(tmp_path: Path, capsys):
+def test_r_captures_prints_the_typed_not_captured_line(tmp_path: Path, capsys, no_r_capture):
     rc, _ = _cli(tmp_path, "--r-captures")
     out = capsys.readouterr().out
     assert rc == 0
     assert "r-captures: r_captures_not_captured - no R capture is committed" in out
     assert fx.r_captures_status()["status"] == fx.R_CAPTURES_NOT_CAPTURED
+
+
+def test_r_captures_prints_the_committed_capture_line(tmp_path: Path, capsys, monkeypatch):
+    """Run 37332685741's capture committed, ``PROOFPACK_ASAH_VECTORS`` unset."""
+    monkeypatch.delenv(fx.R_VECTORS_ENV, raising=False)
+    rc, _ = _cli(tmp_path, "--r-captures")
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert (
+        "r-captures: present_compared_in_rows_f13_f13b - read: fixtures/r/proc_asah.json, "
+        "fixtures/r/rms_val_prob_f4.json, fixtures/r/f13_engine_comparison.json; unreadable: "
+        "none; absent: none; row F13 suite_only, row F13b matched; the aSAH vectors are read "
+        "inside the r-captures job only (DEC-77)"
+    ) in out
+    assert fx.r_captures_status()["status"] == fx.R_CAPTURES_PRESENT
 
 
 def test_capture_check_exits_0_on_the_committed_oracles():
@@ -258,5 +337,6 @@ def test_without_the_newcombe_file_f14_has_no_oracle_recorded_and_the_exit_is_0(
     f14 = next(r for r in rep["rows"] if r["id"] == "F14-newcombe")
     assert f14["status"] == "no_oracle_recorded" and f14["matched"] is False
     assert f14["reason"] == fx.NEWCOMBE_ABSENT and f14["oracle_source"] is None
-    assert rep["summary"]["matched"] == 33 and rep["exit_code"] == 0  # E10: 3 F5 rows; E11: +1
+    # E10: 3 F5 rows; E11: +1; the capture commit: +1 (F13b)
+    assert rep["summary"]["matched"] == 34 and rep["exit_code"] == 0
     fx.validate_report(rep)
