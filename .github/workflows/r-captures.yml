@@ -72,7 +72,7 @@ jobs:
           Rscript -e 'for (p in c("pROC", "rms", "jsonlite")) { suppressPackageStartupMessages(library(p, character.only = TRUE)); cat(p, format(packageVersion(p)), "\n") }'
       - name: capture
         run: Rscript fixtures/r/capture.R
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
