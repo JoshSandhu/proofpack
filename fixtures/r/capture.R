@@ -56,8 +56,13 @@ if (!file.exists(F4_PATH)) {
 }
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
-# DEC-77: the vectors file must be named, and must lie outside the working directory (the
-# checkout), so that no git command and no upload of the checkout can reach it.
+# DEC-77: the vectors file must be named. What the check below inspects: the path's
+# directory, normalised by normalizePath(dirname(...)); the script stops when that is the
+# working directory (getwd(), the checkout in the job) or lies under it. It does not resolve
+# a symbolic link at the file itself, and it does not stop git: lens 4 committed a file
+# outside a repository with `git --work-tree=<that directory> add`. The job writes the
+# vectors to $RUNNER_TEMP/dec77/; no run line of .github/workflows/r-captures.yml calls
+# `git add` or `git commit`. Not run here (no R).
 VECTORS_PATH <- Sys.getenv("PROOFPACK_ASAH_VECTORS", unset = "")
 if (identical(VECTORS_PATH, "")) {
   stop("PROOFPACK_ASAH_VECTORS is not set: it must name a file outside the checkout (DEC-77)")

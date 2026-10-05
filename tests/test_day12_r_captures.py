@@ -293,7 +293,8 @@ def test_f4_expected_r_rms_val_prob_is_pending_until_a_capture_is_committed():
     """``f4_expected.json`` says ``[pending]`` while no F4 capture is committed (tracked by
     git). When one is committed the orchestrator replaces the entry with the capture's
     figures; this test then asks for that. It never skips, so the workflow's no-skip rule
-    holds; the workflow's compare job copies in a capture git does not track."""
+    holds; the r-captures workflow's ``capture`` job copies in a capture git does not
+    track."""
     exp = json.loads((REPO / "fixtures" / "f4_expected.json").read_text(encoding="utf-8"))
     try:
         tracked = subprocess.run(

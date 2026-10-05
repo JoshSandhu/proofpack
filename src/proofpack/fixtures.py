@@ -127,8 +127,11 @@ STATUSES = (
 R_CAPTURE_FILES = ("fixtures/r/proc_asah.json", "fixtures/r/rms_val_prob_f4.json")
 #: DEC-77 (Josh, 5 October 2026): pROC's aSAH rows are never committed and never leave the
 #: GitHub runner. ``capture.R`` writes them to the file this environment variable names,
-#: in the runner's temporary space; :func:`load_r_captures` reads the vectors from that
-#: file only, never from ``fixtures/r/``.
+#: in the runner's temporary space. :func:`load_r_captures` reads the vectors from the path
+#: this variable names, whatever it is: nothing in Python refuses a path inside the checkout
+#: (``tests/test_e12_repair4.py::test_fa_b4_the_loader_reads_vectors_named_inside_fixtures_r``
+#: names ``<capture dir>/asah_vectors.csv`` and reads its 80 rows). ``.gitignore`` lists
+#: ``fixtures/r/*.csv`` and ``*asah*vectors*``.
 R_VECTORS_ENV = "PROOFPACK_ASAH_VECTORS"
 #: How the vectors file is named in ``unreadable``, ``present`` and row reasons.
 R_VECTORS_FILE = f"${R_VECTORS_ENV} (asah_vectors.csv)"

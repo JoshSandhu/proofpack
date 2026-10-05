@@ -25,7 +25,10 @@ uploaded: the aSAH vectors (`asah_vectors.csv` in the job's `$RUNNER_TEMP/dec77/
 
 Run from the repository root with
 `PROOFPACK_ASAH_VECTORS=<a file outside the checkout> Rscript fixtures/r/capture.R`; it stops
-when that variable is unset or names a file inside the working directory. It uses base R
+when that variable is unset, or when the path's directory (`normalizePath(dirname(...))`) is
+the working directory or lies under it. That check reads the directory only: it does not
+resolve a symbolic link at the file itself, and it has not run (no R on the build machine).
+The Python side reads whatever path the variable names. It uses base R
 (with `stats`, `utils` and `tools`), `pROC`, `rms` and `jsonlite`, and nothing else. The two
 JSON files go to `PROOFPACK_R_OUT` when set, else here.
 
