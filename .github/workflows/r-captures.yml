@@ -48,7 +48,7 @@ env:
 jobs:
   capture:
     name: capture.R and the engine comparison in one job (DEC-77) on rocker/r-ver:4.5.1
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 50
     container:
       image: rocker/r-ver:4.5.1

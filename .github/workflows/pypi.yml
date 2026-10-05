@@ -21,7 +21,7 @@ env:
 jobs:
   build:
     name: wheel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -40,7 +40,7 @@ jobs:
   publish:
     name: publish to pypi.org (trusted publishing)
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: pypi
     permissions:
       id-token: write

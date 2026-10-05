@@ -24,7 +24,7 @@ env:
 jobs:
   build:
     name: wheel, fixtures report, SBOM, sample run, T12
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -64,7 +64,7 @@ jobs:
   image:
     name: GHCR image (linux/amd64), smoke, Trivy
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
@@ -113,7 +113,7 @@ jobs:
   testpypi:
     name: publish to TestPyPI (trusted publishing)
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: testpypi
     permissions:
       id-token: write
@@ -129,7 +129,7 @@ jobs:
   install-from-testpypi:
     name: clean venv, pip install from TestPyPI, proofpack run --offline
     needs: testpypi
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -164,7 +164,7 @@ jobs:
   github-release:
     name: GitHub release with the assets
     needs: [build, image, install-from-testpypi]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -183,7 +183,7 @@ jobs:
 
   zap-baseline:
     name: ZAP baseline (passive) against the live site
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
