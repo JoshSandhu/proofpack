@@ -58,7 +58,8 @@ STATUS_TEXT: dict[str, str] = {
 #: every ``suite_only`` row printed one text saying the test suite alone compared it,
 #: including the four this command measures itself (in the lens's run a drift planted in
 #: ``fixtures/f16_parity_native.json`` made ``proofpack fixtures --offline`` exit 6 with no
-#: pytest involved); ``tests/test_t12.py::test_the_suite_only_status_cell_names_who_checked_the_row``.
+#: pytest involved);
+#: ``tests/test_t12.py::test_the_suite_only_status_cell_names_who_checked_the_row``.
 SUITE_ONLY_MEASURED_TEXT = "checked by this command, against no independent oracle"
 
 
