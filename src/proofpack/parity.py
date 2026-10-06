@@ -100,9 +100,8 @@ def _leaf_label(path: tuple[str, ...], parent: Mapping[str, Any], value: Any) ->
     if isinstance(value, (str, bool, int)) or value is None:
         return "exact", "exact"
     method = str(parent.get("method") or "").lower()
-    if "bootstrap" in path or (
-        path and path[-1] in ("ci_lo", "ci_hi") and ("bootstrap" in method or "percentile" in method)
-    ):
+    resampled = "bootstrap" in method or "percentile" in method
+    if "bootstrap" in path or (path and path[-1] in ("ci_lo", "ci_hi") and resampled):
         return "bootstrap", "reported_rounding"  # D1 section 9: bootstrap to reported rounding
     if any(("slope" in p or "intercept" in p) for p in path):
         return "irls", "iterative"  # IRLS slope / intercept
@@ -295,7 +294,8 @@ def compare_entry(native: Mapping[str, Any], other: Mapping[str, Any]) -> tuple[
     if len(a) != len(b):
         return False, None
     if tol == "bootstrap":
-        dev = max((abs(_js_round4(x) - _js_round4(y)) for x, y in zip(a, b, strict=True)), default=0.0)
+        pairs = zip(a, b, strict=True)
+        dev = max((abs(_js_round4(x) - _js_round4(y)) for x, y in pairs), default=0.0)
         return dev == 0.0, dev
     dev = max((abs(x - y) for x, y in zip(a, b, strict=True)), default=0.0)
     return dev <= TOLERANCE[tol], dev
