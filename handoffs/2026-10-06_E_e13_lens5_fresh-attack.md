@@ -1,4 +1,4 @@
-**Verdict: PASS. Zero blockers. Repair 4 closes L4-B1 (every repeated-key shape I tried, including keys spelt with `\u` escapes, now makes the file unreadable, F13 or F13b `not_matched`, exit 6) and L4-B2 (the 9 / 8 / 2 split re-derived independently). One false count sentence survives outside the repair's scope, in the E13 handoff (N1 below); the brief's blocker list does not cover handoff prose, so it is recorded, not graded.**
+**Verdict: PASS. Zero blockers. Repair 4 closes L4-B1 (every repeated-key shape I tried, including keys spelt with `\u` escapes, now makes the file unreadable, F13 or F13b `not_matched`, exit 6) and L4-B2 (the 9 / 8 / 2 split re-derived independently); every commit-message figure reproduces in both shells. Outside the brief's F13 / F13b blocker definition: the same repeated-key class is open in `oracles_v1.json` (N0: exit 0 with a planted `wilson_lo` 0.9 never compared), and the E13 handoff still says "two or three" (N1).**
 
 # E13 lens 5 - fresh attack - on `38e7ffc` (E13 repair 4; Tuesday 6 October 2026)
 
@@ -74,10 +74,27 @@ No. Read: `f13_recorded_outcome`'s docstring (lists the checks: schema, fixture,
 
 ## Attack 4: the commit message's figures and claims
 
-PENDING (being measured).
+| | Git Bash (`tip`) | PowerShell (`ps`) | commit message |
+|---|---|---|---|
+| full suite | 2314 passed, 4 skipped in 389.70 s | 2314 passed, 4 skipped in 394.96 s | 2314 / 4 |
+| skips | `[3] test_day12_r_captures.py:156` r_vectors_not_committed_dec77; `[1] test_doctor_cli.py:57` | the same | |
+| `-m day13` | 114 passed, 2204 deselected | 114 passed, 2204 deselected | 114 |
+| `-m day12` | 196 passed, 3 skipped | 196 passed, 3 skipped | 196/3 |
+| `-m day11` | 144 passed | 144 passed | 144 |
+| `-m day10` | 262 passed, 2056 deselected | 262 passed, 2056 deselected | 262 |
+| ruff check / format --check | "All checks passed!" / "342 files already formatted" | the same | clean |
+| doctor / fixtures --offline | exit 0 / exit 0 (`rows 46: matched 35, not matched 0, ... suite only ... 7`) | exit 0 / exit 0 | exit 0 / 0 |
+
+- **"5 of 6 fail at 8bb63e4 (the sixth checks the committed files have no repeated key)"**: `tests/test_e13_repair4.py` copied into `base` (`8bb63e4`): **5 failed, 1 passed**; the passing one is `test_e13r4_the_committed_capture_files_have_no_repeated_key`. Holds. The two `b1` tests and the two parameters fail on behaviour (at `8bb63e4` the planted file is read without complaint), `b2` on the sentence.
+- "the lens's bad "s100b auc" pair placed before the real one left F13 suite_only and exit 0 at b672c32; it is now not_matched and exit 6": the "now" half measured (Attack 1, row 2); the "at b672c32" half is lens 4's measurement, and the same plant at `8bb63e4` (the same `fixtures.py`) fails `test_e13r4_b1_*`.
+- "9 values equal two entries, 8 three and 2 four": re-derived (Attack 2).
+- "test_e13r3_b1_* pins that split": the `Counter` assertion is there; see N7.
+- No tolerance changed and no assertion deleted: `git diff --stat 38e7ffc~1 38e7ffc` is "4 files changed, 121 insertions(+), 5 deletions(-)"; the 5 removed lines are the replaced `json.loads` line, one `load_r_captures` docstring line, the `parity.py` sentence line and the two lines of the lookup docstring.
+- Gate run **37484768313** (`ci/38e7ffc-1791299263-1999`, head `38e7ffc`), read after it finished: **completed success, 7 of 7**. `pytest + ruff` job 112341861838: "2181 passed, 137 skipped in 350.32s" (2181 + 137 = 2318 = local 2314 + 4); day12 "196 passed, 3 skipped". I read it; I did not run the gate.
 
 ## Non-blocking (record and carry)
 
+- **N0. The same repeated-key class is open in the other oracle files (outside the repair and outside this brief's F13 / F13b blocker definition).** `load_oracles` (`fixtures.py:360`) reads `oracles_v1.json`, `f4_expected.json` and the Newcombe tables with plain `json.loads`, and `fixtures.py:1756` reads `f16_parity_native.json` the same way. Repro in `mut` (reverted after): in `fixtures/oracles_v1.json`, insert `"wilson_lo": 0.9,` on the line before the first `"wilson_lo": 0.2552885198782742`; `python -m proofpack.cli fixtures --offline --out <dir>` gives **exit 0**, `rows 46: matched 35, not matched 0, ...`, and `F1-wilson` `matched` with `oracle` 0.2552885198782742; the 0.9 in the file's bytes is never compared. No shipped sentence claims these files refuse a repeated key (the new docstrings say "an R capture file"), so no sentence is false; but it is L4-B1's shape on the F1-F8 oracle rows. Suggest using `_refuse_duplicate_keys` in `load_oracles` and the F16 read in the next E repair, with a plant test per file.
 - **N1. A false count sentence in the E13 handoff.** `handoffs/2026-10-05_E13.md:123`, in "Open blockers (lens 3 fresh attack, at `ec989ed`)": "19 of the 67 values equal two or three fresh entries". Two of the 19 equal four (Attack 2). Lens 4 named the code, test docstring and commit message copies; repair 4 fixed the first two and its own commit message is right, but the handoff Josh reads still carries the old figure. Not in the brief's blocker list (code, docstring, test name, commit message), so not graded a blocker. Fix: say it in the repair-4 / closing handoff ("the E13 handoff's 'two or three' is wrong: 9 equal two, 8 three, 2 four"); do not rewrite the dated note.
 - **N2. Two parse shapes escape as an internal error (exit 5), not a row.** A 401-digit integer for an F13b R value: `_number` catches `TypeError` and `ValueError` but not `OverflowError` (`float(10**400)`), and the compare loop in `compare_row` is outside a `try`, so `proofpack fixtures` prints "internal error: OverflowError: int too large to convert to float", exit 5, and writes no report. A comparison file nested 100000 deep: `RecursionError` is neither `ValueError` nor `OSError`, so it escapes `load_r_captures`; the report is written with F13 and F13b both `not_matched` (`oracle_error: RecursionError`) and then the `--r-captures` line raises, exit 5. Both are the same at `8bb63e4` (pre-existing), both fail closed (non-zero, no `matched`). Suggest catching `OverflowError` in `_number` and `RecursionError` in `load_r_captures`.
 - **N3. An F13b R value written as a JSON string is accepted.** `_number` uses `float(value)`, so `"1.194512479643566"` compares as the number (F13b matched, exit 0). Pre-existing, value-preserving (nothing dropped), but `f13_recorded_outcome` refuses strings for F13 and `f13b_oracle` does not; `float` also accepts `"1_194.5"` and surrounding whitespace.
@@ -96,4 +113,4 @@ PENDING (being measured).
 
 ## Could not check
 
-- PENDING.
+- The r-captures job itself was not run (it needs R and the vectors, DEC-77). Its shape was exercised in-process with a stand-in vectors file, as far as the unreadable-`proc_asah.json` branch, which comes before the vectors are read.
