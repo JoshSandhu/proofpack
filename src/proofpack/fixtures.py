@@ -342,10 +342,12 @@ def load_oracles() -> dict[str, Any]:
     """The committed oracle files, keyed by the file name each row cites. A file that is
     absent is left out of the mapping (F14's Newcombe table: :data:`NEWCOMBE_ABSENT`; the
     others: :class:`OracleFileMissing` when a row looks it up); a file that raises
-    ``ValueError`` when parsed is named in ``unreadable``. The Newcombe table is read from
-    ``<root>/fixtures/newcombe_table2.json`` only when :func:`source_checkout_root` returns
-    ``<root>`` (lens FA2-R2: a wheel installed with ``pip --target X/src`` read
-    ``X/fixtures/newcombe_table2.json``)."""
+    ``ValueError`` when parsed - a repeated key in any object included
+    (:class:`DuplicateJSONKeyError`; E13 lens 5 N0: a planted ``"wilson_lo": 0.9`` before
+    the real one left F1-wilson ``matched``) - is named in ``unreadable``. The Newcombe
+    table is read from ``<root>/fixtures/newcombe_table2.json`` only when
+    :func:`source_checkout_root` returns ``<root>`` (lens FA2-R2: a wheel installed with
+    ``pip --target X/src`` read ``X/fixtures/newcombe_table2.json``)."""
     out = Oracles()
     paths: dict[str, Callable[[], Path]] = {
         "oracles_v1.json": lambda: resource_path("oracles_v1.json"),
@@ -357,7 +359,9 @@ def load_oracles() -> dict[str, Any]:
         paths[NEWCOMBE_FILE] = lambda: root / "fixtures" / NEWCOMBE_FILE
     for name, where in paths.items():
         try:
-            out[name] = json.loads(where().read_text(encoding="utf-8"))
+            out[name] = json.loads(
+                where().read_text(encoding="utf-8"), object_pairs_hook=_refuse_duplicate_keys
+            )
         except FileNotFoundError:
             continue
         except ValueError as exc:  # JSONDecodeError, UnicodeDecodeError
@@ -883,7 +887,8 @@ def _vectors_path_from_env() -> Path | None:
 
 
 class DuplicateJSONKeyError(ValueError):
-    """A JSON object in an R capture file names one key twice. ``json.loads`` keeps the
+    """A JSON object in an R capture file, an oracle file (:func:`load_oracles`) or the
+    committed F16 parity file names one key twice. ``json.loads`` keeps the
     last copy and drops the first without a word, so a bad pair placed before the real one
     was never read (E13 repair 4, lens 4 FA-B1: a repeated ``"s100b auc"`` with engine 0.1
     and R 0.9 before the real pair left F13 ``suite_only`` and the command exited 0)."""
@@ -1753,7 +1758,10 @@ def f16_behaviour(
                 "evidence": {"measured_by_this_command": None, "artefacts": [test]},
             }
         try:
-            committed = json.loads((root / parity.COMMITTED_FILE).read_text(encoding="utf-8"))
+            committed = json.loads(
+                (root / parity.COMMITTED_FILE).read_text(encoding="utf-8"),
+                object_pairs_hook=_refuse_duplicate_keys,
+            )
         except (OSError, ValueError) as exc:
             return {
                 "status": "not_matched",
