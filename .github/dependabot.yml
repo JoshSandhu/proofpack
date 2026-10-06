@@ -11,6 +11,16 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # The oracle capture (fixtures/oracles_v1.json) records numpy, scipy, scikit-learn and
+    # statsmodels in library_versions. PR #7 (scikit-learn 1.9.0 to 1.9.1) failed
+    # test_capture_check_exits_0_on_the_committed_oracles on 5 Oct 2026; the other three
+    # were not measured and are held for the same reason. Move any of them only together
+    # with a fresh oracle capture.
+    ignore:
+      - dependency-name: "numpy"
+      - dependency-name: "scipy"
+      - dependency-name: "scikit-learn"
+      - dependency-name: "statsmodels"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

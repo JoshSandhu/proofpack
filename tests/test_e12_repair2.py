@@ -111,7 +111,7 @@ WORKFLOW_TEST = (
     "test_the_workflow_declares_read_permissions_uses_match_pinned_uses_no_run_matches_git_write"
 )
 CAPTURE_RUN = "        run: Rscript fixtures/r/capture.R\n"
-UPLOAD_USES = "      - uses: actions/upload-artifact@v4\n"
+UPLOAD_USES = "      - uses: actions/upload-artifact@v7\n"
 
 #: Lens 2's workflows that the workflow test does not match (FA-B2 W8-W11, RG-B1 M1-M3).
 LENS2_WORKFLOWS_NOT_MATCHED = {

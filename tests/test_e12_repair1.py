@@ -223,7 +223,7 @@ W_MUTANTS = {
         "  capture:\n    permissions:\n      contents: write\n",
     ),
     "W1b job-level write-all": ("  capture:\n", "  capture:\n    permissions: write-all\n"),
-    "W2 checkout@main": ("actions/checkout@v4", "actions/checkout@main"),
+    "W2 checkout@main": ("actions/checkout@v7", "actions/checkout@main"),
     "W3 commit and push": (
         "run: Rscript fixtures/r/capture.R\n",
         "run: Rscript fixtures/r/capture.R && git add fixtures/r && git commit -m c && git push\n",

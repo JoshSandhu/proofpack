@@ -16,8 +16,8 @@ jobs:
     name: pytest + ruff
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -91,8 +91,8 @@ jobs:
     env:
       PROOFPACK_REQUIRE_DOCX: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -128,8 +128,8 @@ jobs:
     name: proofpack run inside unshare -rn (no network)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -169,8 +169,8 @@ jobs:
     name: Docker image smoke (linux/amd64, no push)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv python install ${{ env.PYTHON_VERSION }}
@@ -210,8 +210,8 @@ jobs:
     name: pip-audit
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv python install ${{ env.PYTHON_VERSION }}
@@ -229,8 +229,8 @@ jobs:
     name: wheel artefact
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv python install ${{ env.PYTHON_VERSION }}
@@ -246,7 +246,7 @@ jobs:
               assert "_schema" in str(p), p
           print("packaged resources ok")
           EOF
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: proofpack-wheel-${{ github.sha }}
           path: dist/*.whl
@@ -256,8 +256,8 @@ jobs:
     name: import proofpack (scipy uninstalled)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv python install ${{ env.PYTHON_VERSION }}

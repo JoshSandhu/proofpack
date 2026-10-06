@@ -60,7 +60,7 @@ jobs:
     steps:
       - name: git, so that the checkout is a git checkout
         run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The container runs as root while the workspace belongs to the runner user, so git
       # refuses it ('detected dubious ownership'; gate run 37341132663 on 5 Oct 2026, three
       # day-12 tests failed). Trust this one directory only.
@@ -82,7 +82,7 @@ jobs:
           Rscript -e 'for (p in c("pROC", "rms", "jsonlite")) { suppressPackageStartupMessages(library(p, character.only = TRUE)); cat(p, format(packageVersion(p)), "\n") }'
       - name: capture
         run: Rscript fixtures/r/capture.R
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
@@ -111,7 +111,7 @@ jobs:
           mkdir upload
           cp fixtures/r/proc_asah.json fixtures/r/rms_val_prob_f4.json fixtures/r/f13_engine_comparison.json upload/
           uv run python scripts/r_upload_guard.py upload
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: r-captures
           path: upload/
