@@ -165,24 +165,52 @@ def test_f19_small_cell_values_with_their_counts_nulled_are_caught(tmp_path: Pat
 
 
 def test_f19_a_send_that_bypasses_the_recorder_is_counted_and_refused(tmp_path: Path, monkeypatch):
-    """Planted: the telemetry send ignores the transport it is given and calls the real
-    urllib transport. The socket guard refuses the connection and counts it; nothing is
-    recorded. The real transport is restored for this test only (conftest replaces it
-    with a refusing one) and the URL is under ``.invalid`` (RFC 6761: never resolves)."""
-    from conftest import REAL_TRANSPORT
+    """Planted: the telemetry send ignores the transport it is given and opens a socket
+    itself (a name lookup, then a connection, to a ``.invalid`` host: RFC 6761, never
+    resolves). The socket guard refuses both and counts them; nothing is recorded.
+
+    Gate repair (run 37453449607, job offline-namespace, at fdc2a25): the first version of
+    this plant went through the real urllib transport restored from ``conftest``; it
+    passed on win-amd64-cp314 and in the CI job ``pytest + ruff``, and failed inside
+    ``unshare -rn`` with ``socket_calls`` 0 - the urllib path never reached a patched
+    socket function there. Why was not diagnosed [unverified]; the plant now opens the
+    socket itself, so it measures the guard and nothing else."""
+    import socket
+
     from proofpack.egress import telemetry
 
-    real_send = telemetry.send
-
     def bypass(payload, url=telemetry.TELEMETRY_URL, transport=None, *, timeout=1.0):
-        return real_send(payload, url="http://f19-plant.invalid/", transport=None, timeout=1.0)
+        for attempt in (
+            lambda: socket.getaddrinfo("f19-plant.invalid", 80),
+            lambda: socket.create_connection(("f19-plant.invalid", 80), timeout=1.0),
+        ):
+            try:
+                attempt()
+            except OSError:
+                pass
+        return telemetry.SendResult(False, None, "transport_error")
 
-    monkeypatch.setattr(telemetry, "urllib_transport", REAL_TRANSPORT)
     monkeypatch.setattr(telemetry, "send", bypass)
     r = f19.run_cohort("planted", f19.synthetic_cohort(), tmp_path / "w")
-    assert r["socket_calls"] >= 1 and r["telemetry_sends"] == 0
+    assert r["socket_calls"] == 2 and r["telemetry_sends"] == 0
     assert "planted: socket_calls" in f19.check(r)
     assert "planted: telemetry_sends" in f19.check(r)
+
+
+def test_f19_the_socket_guard_refuses_counts_and_restores():
+    import socket
+
+    before = (socket.socket, socket.getaddrinfo, socket.create_connection)
+    with f19._no_sockets() as calls:
+        for name, call in (
+            ("socket", lambda: socket.socket()),
+            ("getaddrinfo", lambda: socket.getaddrinfo("f19-plant.invalid", 80)),
+            ("create_connection", lambda: socket.create_connection(("f19-plant.invalid", 80))),
+        ):
+            with pytest.raises(OSError, match=f"socket.{name} refused"):
+                call()
+    assert calls == ["socket", "getaddrinfo", "create_connection"]
+    assert (socket.socket, socket.getaddrinfo, socket.create_connection) == before
 
 
 def test_f19_a_site_name_that_bypasses_pseudonymisation_is_caught(tmp_path: Path, monkeypatch):
