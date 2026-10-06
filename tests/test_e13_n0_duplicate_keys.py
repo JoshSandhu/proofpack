@@ -156,4 +156,60 @@ def test_e13n0_b1_a_register_entry_written_as_a_list_is_not_matched(tmp_path, mo
     report = fx.run_fixtures(doctor=False)
     row = _row(report, "F2-register")
     assert row["status"] == "not_matched", row["reason"]
-    assert "register.F2 is a JSON list, not an object" in row["reason"]
+    assert "oracle_entry_malformed: register.F2 is a JSON array, not an object" in row["reason"]
+
+
+# --------------------------------------------- N0 lens 2: B1 near-copies, B2 reason words
+
+
+@pytest.mark.parametrize(
+    "plant",
+    [
+        {"method10": {"lower ": 0.9, "upper ": 0.9}},
+        {"method10": {"Lower": 0.9, "Upper": 0.9}},
+        {"method10": {}, "method10 ": {"lower": 0.9, "upper": 0.9}},
+    ],
+    ids=["trailing_space_sides", "capitalised_sides", "second_method10_key"],
+)
+def test_e13n0_r2_b1_a_paired_row_with_unknown_fields_is_not_matched(tmp_path, monkeypatch, plant):
+    """A second ``e 36 f 12 g 2 h 0`` row placed first whose sides or method key are spelt
+    otherwise: at ad028a6 ``_paired_rows`` skipped it, 0.9 was never compared, and
+    F5-newcombe-paired stayed matched (exit 0)."""
+
+    def edit(doc):
+        base = {k: doc["rows"][0][k] for k in ("e", "f", "g", "h")}
+        doc["rows"].insert(0, {**base, **plant})
+
+    _redirect_doc(monkeypatch, tmp_path, fx.NEWCOMBE_PAIRED_FILE, edit)
+    row = _row(fx.run_fixtures(doctor=False), "F5-newcombe-paired")
+    assert row["status"] == "not_matched", row["reason"]
+    assert row["reason"].startswith("oracle_entry_malformed: newcombe1998_paired.json rows[0]")
+
+
+@pytest.mark.parametrize(
+    "value,json_type",
+    [([["wilson_lo", 0.25], ["wilson_hi", 0.36]], "array"), (None, "null"), ("x", "string")],
+    ids=["distinct_pairs", "null", "string"],
+)
+def test_e13n0_r2_b2_a_non_object_entry_names_its_json_type_and_is_not_called_ambiguous(
+    tmp_path, monkeypatch, value, json_type
+):
+    def edit(doc):
+        doc["captured"]["F1-wilson"]["values"] = value
+
+    _redirect_doc(monkeypatch, tmp_path, "oracles_v1.json", edit)
+    row = _row(fx.run_fixtures(doctor=False), "F1-wilson")
+    assert row["status"] == "not_matched"
+    assert row["reason"] == (
+        f"oracle_entry_malformed: captured.F1-wilson.values is a JSON {json_type}, not an object"
+    )
+    assert "ambiguous" not in row["reason"]
+
+
+def test_e13n0_r2_b2_a_repeated_entry_says_repeated(tmp_path, monkeypatch):
+    def edit(doc):
+        doc["rows"].insert(0, dict(doc["rows"][0], method10={"lower": 0.9, "upper": 0.9}))
+
+    _redirect_doc(monkeypatch, tmp_path, fx.NEWCOMBE_PAIRED_FILE, edit)
+    row = _row(fx.run_fixtures(doctor=False), "F5-newcombe-paired")
+    assert row["reason"].startswith("oracle_entry_repeated: newcombe1998_paired.json rows: ")

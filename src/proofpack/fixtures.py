@@ -413,25 +413,49 @@ def _register(oracles: dict[str, Any], key: str) -> tuple[dict[str, float], dict
     return values, tol
 
 
+class OracleEntryMalformed(ValueError):
+    """An oracle entry whose shape the row cannot read without guessing: an entry that must
+    be a JSON object and is not, or a field the reader does not know (E13 N0 lens 2 B1/B2).
+    The row is ``not_matched`` with reason ``oracle_entry_malformed: ...``."""
+
+
+class OracleEntryRepeated(ValueError):
+    """One oracle name built twice from a list of entries (E13 N0 lens B1). The row is
+    ``not_matched`` with reason ``oracle_entry_repeated: ...``."""
+
+
+#: JSON's names for the Python types ``json.loads`` returns.
+_JSON_TYPE = {
+    dict: "object",
+    list: "array",
+    str: "string",
+    int: "number",
+    float: "number",
+    bool: "boolean",
+    type(None): "null",
+}
+
+
 def _object_entry(value: Any, where: str) -> dict[str, Any]:
     """An oracle entry that must be a JSON object, returned as is: a list of pairs passed to
     ``dict()`` keeps the last of two equal names and drops the first without a word (E13 N0
     lens B1: F1-wilson's ``values`` written as ``[["wilson_lo", 0.9], ...,
     ["wilson_lo", 0.255...]]`` stayed ``matched``). Anything else raises
-    :class:`DuplicateJSONKeyError` (the row is ``not_matched``)."""
+    :class:`OracleEntryMalformed` naming the JSON type found (the row is ``not_matched``)."""
     if not isinstance(value, dict):
-        raise DuplicateJSONKeyError(f"{where} is a JSON {type(value).__name__}, not an object")
+        found = _JSON_TYPE.get(type(value), type(value).__name__)
+        raise OracleEntryMalformed(f"{where} is a JSON {found}, not an object")
     return value
 
 
 def _unique(pairs: list[tuple[str, Any]], where: str) -> dict[str, Any]:
     """``dict(pairs)`` that refuses a name built twice from a list of entries (E13 N0 lens
     B1: a second Newcombe row or example with the same cells, placed first, was dropped
-    and the row stayed ``matched``)."""
+    and the row stayed ``matched``): :class:`OracleEntryRepeated`."""
     out: dict[str, Any] = {}
     for key, value in pairs:
         if key in out:
-            raise DuplicateJSONKeyError(f"{where}: {key!r} appears twice")
+            raise OracleEntryRepeated(f"{where}: {key!r} appears twice")
         out[key] = value
     return out
 
@@ -733,13 +757,29 @@ def _f11() -> dict[str, float]:
     return out
 
 
+_PAIRED_ROW_KEYS = frozenset({"e", "f", "g", "h", "method10"})
+_PAIRED_SIDES = frozenset({"lower", "upper"})
+
+
 def _paired_rows(doc: dict[str, Any]) -> list[tuple[str, float]]:
+    """``(name, value)`` for every printed side of every Table III row. A row with a field
+    other than ``e``, ``f``, ``g``, ``h`` and ``method10``, or a ``method10`` with a side
+    other than ``lower`` and ``upper`` or with none, raises :class:`OracleEntryMalformed`
+    (E13 N0 lens 2 B1: a second row whose sides were spelt ``"lower "`` was skipped, never
+    compared, and the row stayed ``matched``)."""
     out = []
-    for row in doc["rows"]:
+    for i, row in enumerate(doc["rows"]):
+        where = f"{NEWCOMBE_PAIRED_FILE} rows[{i}]"
+        row = _object_entry(row, where)
+        if set(row) != _PAIRED_ROW_KEYS:
+            raise OracleEntryMalformed(f"{where} fields {sorted(row)}")
+        sides = _object_entry(row["method10"], f"{where}.method10")
+        if not sides or not set(sides) <= _PAIRED_SIDES:
+            raise OracleEntryMalformed(f"{where}.method10 sides {sorted(sides)}")
         cells = f"e {row['e']} f {row['f']} g {row['g']} h {row['h']}"
         for side in ("lower", "upper"):
-            if side in row["method10"]:
-                out.append((f"{cells} method10 {side}", float(row["method10"][side])))
+            if side in sides:
+                out.append((f"{cells} method10 {side}", float(sides[side])))
     return out
 
 
@@ -2421,8 +2461,11 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
     except RCaptureInputMismatch as exc:
         out.update(status="not_matched", reason=f"r_capture_input_mismatch: {exc}")
         return out
-    except DuplicateJSONKeyError as exc:
-        out.update(status="not_matched", reason=f"oracle_entry_ambiguous: {exc}")
+    except OracleEntryRepeated as exc:
+        out.update(status="not_matched", reason=f"oracle_entry_repeated: {exc}")
+        return out
+    except OracleEntryMalformed as exc:
+        out.update(status="not_matched", reason=f"oracle_entry_malformed: {exc}")
         return out
     except ComparedInRunner as exc:
         out.update(
