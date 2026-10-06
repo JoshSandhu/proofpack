@@ -165,7 +165,7 @@ jobs:
         run: |
           set -euo pipefail
           NS="$(cat namespace.txt)"
-          $NS .venv/bin/python -m pytest -q -p no:cacheprovider -m day13 tests/test_f19_egress_bytes.py | tee f19_pytest.txt
+          $NS .venv/bin/python -m pytest -q -p no:cacheprovider tests/test_f19_egress_bytes.py | tee f19_pytest.txt
       - name: upload the F19 namespace logs
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

@@ -49,11 +49,14 @@ def test_f19_the_small_cells_are_the_two_planted_sites_and_every_one_of_their_ce
         {"attribute": "site", "level": f19.ST_MARYS, "n": 7, "events": 2},
     ]
     assert r["small_cells"] == 14 and r["small_cells_unsuppressed"] == 0
-    # site names, the free-text column and the small rows' interval bounds were searched
-    assert r["needles"] == 33
+    assert r["structural_violations"] == [] and r["small_value_hits"] == []
+    # the small rows' own Numbers hold floats found nowhere else in run.json; they were
+    # searched among the parsed payload numbers and (the long ones) in the bytes
+    assert r["small_only_values"] >= 50 and r["needles"] > 7
     assert r["sites"] == 5 and r["sites_pseudonymised"] is True
+    assert r["socket_calls"] == 0 and r["aggregates_error"] is None
     syn = results["synthetic"]
-    assert syn["small_rows"] == [] and syn["sites"] == 3 and syn["needles"] == 3
+    assert syn["small_rows"] == [] and syn["sites"] == 3 and syn["socket_calls"] == 0
 
 
 def test_f19_the_site_names_are_not_in_any_egress_byte_in_any_form(results):
@@ -110,29 +113,76 @@ def test_the_scanner_is_case_insensitive_for_long_needles_and_not_for_short_ones
     assert scan.find({"p": b'"S1"'}, {"n": "S1"})
 
 
-def test_f19_a_suppression_that_lets_small_cells_through_is_caught(tmp_path: Path, monkeypatch):
-    """Remove k-suppression from the Number projection: the small rows' cells carry
-    values and their Wilson bounds reach the aggregates bytes."""
+def _projection_without_suppression(number, thresholds, *, row_suppressed=False):
+    if number is None:
+        return suppress.suppressed_number()
+    return {
+        "est": number.get("est"),
+        "ci_lo": number.get("ci_lo"),
+        "ci_hi": number.get("ci_hi"),
+        "method": number.get("method"),
+        "n": number.get("n"),
+        "k": number.get("k") if isinstance(number.get("k"), int) else None,
+        "suppressed": False,
+    }
 
-    def never(number, thresholds, *, row_suppressed=False):
-        if number is None:
-            return suppress.suppressed_number()
-        return {
-            "est": number.get("est"),
-            "ci_lo": number.get("ci_lo"),
-            "ci_hi": number.get("ci_hi"),
-            "method": number.get("method"),
-            "n": number.get("n"),
-            "k": number.get("k") if isinstance(number.get("k"), int) else None,
-            "suppressed": False,
-        }
 
-    monkeypatch.setattr(suppress, "project_number", never)
+def test_f19_k_suppression_removed_is_refused_by_the_schema_floor(tmp_path: Path, monkeypatch):
+    """Planted: k-suppression removed from the Number projection. The aggregates document
+    then carries n 9 and n 7; ``egress_schema.json``'s ``minimum: 10`` on ``n`` refuses it,
+    build_aggregates raises (nothing is built, so nothing could be sent) and F19 fails."""
+    monkeypatch.setattr(suppress, "project_number", _projection_without_suppression)
     r = f19.run_cohort("planted", f19.small_cell_cohort(), tmp_path / "w")
-    assert r["small_cells_unsuppressed"] == 14
-    assert any(h["needle"].startswith("small row site=St Mary's") for h in r["hits"])
-    assert "planted: small_cells_unsuppressed" in f19.check(r)
-    assert "planted: hits" in f19.check(r)
+    assert "less than the minimum of 10" in r["aggregates_error"]
+    assert "planted: aggregates_error" in f19.check(r)
+    assert "planted: aggregates_valid" in f19.check(r)
+
+
+def test_f19_small_cell_values_with_their_counts_nulled_are_caught(tmp_path: Path, monkeypatch):
+    """Planted: suppression that nulls ``n`` and ``k`` but keeps the estimate and the
+    interval, so the schema floor on ``n`` is not reached. F19 finds the small rows'
+    cells unsuppressed, their values among the payload numbers and in the bytes."""
+    real = suppress.project_number
+
+    def leaky(number, thresholds, *, row_suppressed=False):
+        out = real(number, thresholds, row_suppressed=row_suppressed)
+        if out["suppressed"] and number is not None:
+            # the schema refuses a value beside suppressed: true, so the plant also says
+            # suppressed: false, with n and k null
+            out = dict(out, est=number.get("est"), ci_lo=number.get("ci_lo"))
+            out.update(ci_hi=number.get("ci_hi"), method=number.get("method"), suppressed=False)
+        return out
+
+    monkeypatch.setattr(suppress, "project_number", leaky)
+    r = f19.run_cohort("planted", f19.small_cell_cohort(), tmp_path / "w")
+    assert r["aggregates_error"] is None and r["aggregates_valid"] is True
+    assert r["small_cells_unsuppressed"] > 0
+    assert r["structural_violations"] and r["small_value_hits"]
+    assert any(h["needle"].startswith("small-only value ") for h in r["hits"])
+    failed = f19.check(r)
+    for name in ("small_cells_unsuppressed", "structural_violations", "small_value_hits", "hits"):
+        assert f"planted: {name}" in failed
+
+
+def test_f19_a_send_that_bypasses_the_recorder_is_counted_and_refused(tmp_path: Path, monkeypatch):
+    """Planted: the telemetry send ignores the transport it is given and calls the real
+    urllib transport. The socket guard refuses the connection and counts it; nothing is
+    recorded. The real transport is restored for this test only (conftest replaces it
+    with a refusing one) and the URL is under ``.invalid`` (RFC 6761: never resolves)."""
+    from conftest import REAL_TRANSPORT
+    from proofpack.egress import telemetry
+
+    real_send = telemetry.send
+
+    def bypass(payload, url=telemetry.TELEMETRY_URL, transport=None, *, timeout=1.0):
+        return real_send(payload, url="http://f19-plant.invalid/", transport=None, timeout=1.0)
+
+    monkeypatch.setattr(telemetry, "urllib_transport", REAL_TRANSPORT)
+    monkeypatch.setattr(telemetry, "send", bypass)
+    r = f19.run_cohort("planted", f19.synthetic_cohort(), tmp_path / "w")
+    assert r["socket_calls"] >= 1 and r["telemetry_sends"] == 0
+    assert "planted: socket_calls" in f19.check(r)
+    assert "planted: telemetry_sends" in f19.check(r)
 
 
 def test_f19_a_site_name_that_bypasses_pseudonymisation_is_caught(tmp_path: Path, monkeypatch):
@@ -185,9 +235,10 @@ def test_f19_the_namespace_job_runs_this_file_and_uploads_the_named_artefact():
     runs = "\n".join(str(s.get("run", "")) for s in steps)
     assert "unshare -rn" in runs
     assert (
-        "$NS .venv/bin/python -m pytest -q -p no:cacheprovider -m day13 "
-        "tests/test_f19_egress_bytes.py" in runs
+        "$NS .venv/bin/python -m pytest -q -p no:cacheprovider tests/test_f19_egress_bytes.py"
+        in runs
     )
+    assert f19.CI_TEST_FILE == "tests/test_f19_egress_bytes.py"
     uploads = [s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact@")]
     assert len(uploads) == 1
     assert uploads[0]["with"]["name"] == f19.CI_ARTEFACT == "f19-offline-namespace"

@@ -25,7 +25,6 @@ import base64
 import binascii
 import json
 import re
-import urllib.parse
 from collections.abc import Iterator, Mapping
 from typing import Any
 
@@ -36,6 +35,8 @@ _B64_RUN = re.compile(rb"[A-Za-z0-9+/_-]{8,}={0,2}")
 
 def encoded_forms(needle: str) -> dict[str, bytes]:
     """The byte strings ``needle`` could appear as inside a payload."""
+    import urllib.parse  # noqa: PLC0415 - kept off module level (tests/test_telemetry.py)
+
     raw = needle.encode("utf-8")
     forms = {
         "utf8": raw,
@@ -93,6 +94,8 @@ def _b64_decoded(data: bytes) -> str:
 
 def decoded_views(data: bytes) -> dict[str, str]:
     """The four text views of ``data`` the module docstring lists."""
+    import urllib.parse  # noqa: PLC0415 - kept off module level (tests/test_telemetry.py)
+
     text = data.decode("utf-8", errors="replace")
     views = {"text": text, "percent_decoded": urllib.parse.unquote_plus(text)}
     try:
