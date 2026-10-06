@@ -10,6 +10,7 @@ file unreadable and every row citing it ``not_matched``.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -84,3 +85,75 @@ def test_e13n0_a_repeated_key_in_the_committed_parity_file_is_not_matched(tmp_pa
 def test_e13n0_the_committed_oracle_and_parity_files_have_no_repeated_key():
     assert fx.load_oracles().unreadable == {}
     assert fx.f16_behaviour()["status"] != "not_matched"
+
+
+# --------------------------------------------- N0 lens B1: repeated entries inside a list
+
+
+def _redirect_doc(monkeypatch, tmp_path, name: str, edit) -> None:
+    doc = json.loads(fx.resource_path(name).read_text(encoding="utf-8"))
+    edit(doc)
+    path = tmp_path / name
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    _redirect(monkeypatch, name, path)
+
+
+def _row(report: dict, rid: str) -> dict:
+    return next(r for r in report["rows"] if r["id"] == rid)
+
+
+def test_e13n0_b1_a_repeated_paired_row_placed_first_is_not_matched(tmp_path, monkeypatch):
+    """A second ``e 36 f 12 g 2 h 0`` row with 0.9/0.9 placed first in ``rows``: at
+    36bfb2b ``dict()`` kept the real row and F5-newcombe-paired stayed matched, exit 0."""
+
+    def edit(doc):
+        bad = dict(doc["rows"][0], method10={"lower": 0.9, "upper": 0.9})
+        doc["rows"].insert(0, bad)
+
+    _redirect_doc(monkeypatch, tmp_path, fx.NEWCOMBE_PAIRED_FILE, edit)
+    row = _row(fx.run_fixtures(doctor=False), "F5-newcombe-paired")
+    assert row["status"] == "not_matched", row["reason"]
+    assert "appears twice" in row["reason"]
+
+
+def test_e13n0_b1_a_repeated_newcombe_example_placed_first_is_not_matched(tmp_path, monkeypatch):
+    root = fx.source_checkout_root()
+    assert root is not None
+    doc = json.loads((root / "fixtures" / fx.NEWCOMBE_FILE).read_text(encoding="utf-8"))
+    bad = dict(doc["examples"][0])
+    for m in ("method10", "method11"):
+        bad[m] = {"lower": 0.9, "upper": 0.9}
+    doc["examples"].insert(0, bad)
+    (tmp_path / "fixtures").mkdir()
+    (tmp_path / "fixtures" / fx.NEWCOMBE_FILE).write_text(json.dumps(doc), encoding="utf-8")
+    monkeypatch.setattr(fx, "source_checkout_root", lambda: tmp_path)
+    row = _row(fx.run_fixtures(doctor=False), "F14-newcombe")
+    assert row["status"] == "not_matched", row["reason"]
+    assert "appears twice" in row["reason"]
+
+
+def test_e13n0_b1_values_written_as_a_list_of_pairs_is_not_matched(tmp_path, monkeypatch):
+    """F1-wilson's ``values`` as ``[["wilson_lo", 0.9], ..., ["wilson_lo", <real>]]``: at
+    36bfb2b ``dict()`` kept the last pair and F1-wilson stayed matched."""
+
+    def edit(doc):
+        real = doc["captured"]["F1-wilson"]["values"]
+        doc["captured"]["F1-wilson"]["values"] = [["wilson_lo", 0.9]] + [
+            [k, v] for k, v in real.items()
+        ]
+
+    _redirect_doc(monkeypatch, tmp_path, "oracles_v1.json", edit)
+    row = _row(fx.run_fixtures(doctor=False), "F1-wilson")
+    assert row["status"] == "not_matched", row["reason"]
+    assert "not an object" in row["reason"]
+
+
+def test_e13n0_b1_a_register_entry_written_as_a_list_is_not_matched(tmp_path, monkeypatch):
+    def edit(doc):
+        doc["register"]["F2"] = [[k, v] for k, v in doc["register"]["F2"].items()]
+
+    _redirect_doc(monkeypatch, tmp_path, "oracles_v1.json", edit)
+    report = fx.run_fixtures(doctor=False)
+    row = _row(report, "F2-register")
+    assert row["status"] == "not_matched", row["reason"]
+    assert "register.F2 is a JSON list, not an object" in row["reason"]

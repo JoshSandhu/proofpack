@@ -401,7 +401,7 @@ def _f4_rows() -> tuple[np.ndarray, np.ndarray]:
 def _register(oracles: dict[str, Any], key: str) -> tuple[dict[str, float], dict[str, float]]:
     """A register entry and the per-value tolerance its printed decimals give."""
     doc = oracles["oracles_v1.json"]
-    values = doc["register"][key]
+    values = _object_entry(doc["register"][key], f"register.{key}")
     dec = doc["register_decimals"][key]
     if key == "F3_bootstrap":  # a bootstrap interval: D1 section 9's reported rounding
         tol = {
@@ -411,6 +411,29 @@ def _register(oracles: dict[str, Any], key: str) -> tuple[dict[str, float], dict
     else:
         tol = {k: float(TOLERANCES["register"]) for k in values}  # type: ignore[arg-type]
     return values, tol
+
+
+def _object_entry(value: Any, where: str) -> dict[str, Any]:
+    """An oracle entry that must be a JSON object, returned as is: a list of pairs passed to
+    ``dict()`` keeps the last of two equal names and drops the first without a word (E13 N0
+    lens B1: F1-wilson's ``values`` written as ``[["wilson_lo", 0.9], ...,
+    ["wilson_lo", 0.255...]]`` stayed ``matched``). Anything else raises
+    :class:`DuplicateJSONKeyError` (the row is ``not_matched``)."""
+    if not isinstance(value, dict):
+        raise DuplicateJSONKeyError(f"{where} is a JSON {type(value).__name__}, not an object")
+    return value
+
+
+def _unique(pairs: list[tuple[str, Any]], where: str) -> dict[str, Any]:
+    """``dict(pairs)`` that refuses a name built twice from a list of entries (E13 N0 lens
+    B1: a second Newcombe row or example with the same cells, placed first, was dropped
+    and the row stayed ``matched``)."""
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise DuplicateJSONKeyError(f"{where}: {key!r} appears twice")
+        out[key] = value
+    return out
 
 
 # ------------------------------------------------------------------- engine values
@@ -737,7 +760,7 @@ def _f5_newcombe_paired() -> dict[str, float]:
 
 def _f5_newcombe_paired_oracle(o: dict[str, Any]):
     doc = o[NEWCOMBE_PAIRED_FILE]
-    values = dict(_paired_rows(doc))
+    values = _unique(_paired_rows(doc), f"{NEWCOMBE_PAIRED_FILE} rows")
     excluded = "; ".join(
         f"e {x['e']} f {x['f']} g {x['g']} h {x['h']} {x['value']} not compared: printed "
         f"{x['printed']}, method 8 of the same row printed {x['printed_method8_same_row']}"
@@ -1442,7 +1465,7 @@ def _captured(key: str, cls: str) -> Callable:
         doc = o["oracles_v1.json"]
         entry = doc["captured"][key]
         tol = TOLERANCES[cls]
-        values = dict(entry["values"])
+        values = _object_entry(entry["values"], f"captured.{key}.values")
         return (
             values,
             {k: float(tol) for k in values},  # type: ignore[arg-type]
@@ -1565,11 +1588,12 @@ def _f14_oracle(o: dict[str, Any]):
     if NEWCOMBE_FILE not in o and NEWCOMBE_FILE not in getattr(o, "unreadable", {}):
         raise OracleAbsent(NEWCOMBE_ABSENT)
     doc = o[NEWCOMBE_FILE]
-    values = {}
+    pairs = []
     for ex in doc["examples"]:
         for method in ("method10", "method11"):
-            values[f"{ex['label']} {method} lower"] = ex[method]["lower"]
-            values[f"{ex['label']} {method} upper"] = ex[method]["upper"]
+            pairs.append((f"{ex['label']} {method} lower", ex[method]["lower"]))
+            pairs.append((f"{ex['label']} {method} upper", ex[method]["upper"]))
+    values = _unique(pairs, f"{NEWCOMBE_FILE} examples")
     status = doc["provenance"]["status"]
     return (
         values,
@@ -2396,6 +2420,9 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
         return out
     except RCaptureInputMismatch as exc:
         out.update(status="not_matched", reason=f"r_capture_input_mismatch: {exc}")
+        return out
+    except DuplicateJSONKeyError as exc:
+        out.update(status="not_matched", reason=f"oracle_entry_ambiguous: {exc}")
         return out
     except ComparedInRunner as exc:
         out.update(
