@@ -85,10 +85,12 @@ def _register_entries() -> dict[str, dict[str, Any]]:
         try:
             got = row.engine()
         except fx.OptionalDependencyMissing as exc:
-            block[f"{row.id}"] = _absent(f"optional_dependency_missing: {exc.package}")
+            reason = f"optional_dependency_missing: {exc.package}"
+            block.update({f"{row.id}.{name}": _absent(reason) for name in row.compares})
             continue
         except Exception as exc:  # noqa: BLE001 - recorded as the entry's reason
-            block[f"{row.id}"] = _absent(f"engine_error: {type(exc).__name__}")
+            reason = f"engine_error: {type(exc).__name__}"
+            block.update({f"{row.id}.{name}": _absent(reason) for name in row.compares})
             continue
         for name in sorted(got):
             block[f"{row.id}.{name}"] = _entry(got[name], label, row.tolerance_class)
