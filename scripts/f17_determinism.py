@@ -3,6 +3,16 @@
     python scripts/f17_determinism.py --out DIR [--n 5000]
     python scripts/f17_determinism.py --out DIR --n 400 --inputs-only   # the inputs alone
     python scripts/f17_determinism.py --out DIR --compare               # E10: compare twice
+    python scripts/f17_determinism.py --out DIR --compare-dirs RUN1 RUN2 \
+        [--require-reference-platform] [--where TEXT]                   # E13: two runs made
+                                                                        # elsewhere, compared
+
+Since build day 13 the mask and the comparison live in ``proofpack.f17`` (the fixtures
+command and the reference-image job use the same code); this script keeps the inputs,
+the subprocess runs and the command line. ``--compare-dirs`` is what the CI job
+docker-smoke runs inside the image on the two ``run.json`` directories its two
+``docker run --network none`` runs wrote; with ``--require-reference-platform`` it exits 1
+unless both manifests record ``linux-x86_64-cp312``.
 
 What it does:
 
@@ -37,11 +47,9 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import importlib.util
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -50,18 +58,15 @@ from typing import Any
 
 import yaml
 
+from proofpack import f17 as _f17
+
 HERE = Path(__file__).resolve().parent
 SEED = 20240101
 MAPPING_TIMESTAMP = "2026-09-24T00:00:00Z"
 #: The manifest keys whose values differ between two runs of one input (manifest.py's
-#: VOLATILE_KEYS); nothing else is masked.
-MASKED_KEYS = ("run_id", "started", "duration_s")
-MASK = "<masked>"
-_VALUE = {
-    "run_id": rb'"run_id": "[0-9a-f-]{36}"',
-    "started": rb'"started": "[0-9T:\-]+Z"',
-    "duration_s": rb'"duration_s": [0-9.eE+\-]+',
-}
+#: VOLATILE_KEYS); nothing else is masked. Defined in ``proofpack.f17`` since build day 13.
+MASKED_KEYS = _f17.MASKED_KEYS
+MASK = _f17.MASK
 
 
 def _sample_criteria() -> dict[str, Any]:
@@ -160,65 +165,23 @@ def run_once(
 
 
 def mask(data: bytes, keys: tuple[str, ...] = MASKED_KEYS) -> bytes:
-    """Replace each key's value with ``"<masked>"``; each key must occur exactly once."""
-    for key in keys:
-        data, n = re.subn(_VALUE[key], f'"{key}": "{MASK}"'.encode(), data)
-        if n != 1:
-            raise ValueError(f"{key} occurs {n} times; expected exactly once")
-    return data
+    """Replace each key's value with ``"<masked>"``; each key must occur exactly once
+    (``proofpack.f17.mask``)."""
+    return _f17.mask(data, keys)
 
 
 def masked_manifest_sha256(run_json: bytes) -> str:
-    from proofpack.manifest import canonical_json
-
-    manifest = dict(json.loads(run_json.decode("utf-8"))["manifest"])
-    for key in MASKED_KEYS:
-        manifest[key] = MASK
-    return hashlib.sha256(canonical_json(manifest)).hexdigest()
+    return _f17.masked_manifest_sha256(run_json)
 
 
 def file_names(run_dir: Path) -> list[str]:
     """The paths of the files under ``run_dir``, relative, with ``/``, sorted."""
-    return sorted(p.relative_to(run_dir).as_posix() for p in run_dir.rglob("*") if p.is_file())
+    return _f17.file_names(run_dir)
 
 
-def compare(run1: Path, run2: Path) -> dict[str, Any]:
-    from proofpack.egress.build import manifest_sha256
-    from proofpack.manifest import platform_tag
-
-    a, b = (p / "run.json" for p in (run1, run2))
-    ra, rb = a.read_bytes(), b.read_bytes()
-    checks = {
-        "run_json_masked": [hashlib.sha256(mask(x)).hexdigest() for x in (ra, rb)],
-        "manifest_masked": [masked_manifest_sha256(x) for x in (ra, rb)],
-        "pseudonyms_json_masked": [
-            hashlib.sha256(mask((p / "pseudonyms.json").read_bytes(), ("run_id",))).hexdigest()
-            for p in (run1, run2)
-        ],
-        "ingest_report_json": [
-            hashlib.sha256((p / "ingest_report.json").read_bytes()).hexdigest()
-            for p in (run1, run2)
-        ],
-        "file_names": [
-            hashlib.sha256("\n".join(names).encode("utf-8")).hexdigest()
-            for names in (file_names(run1), file_names(run2))
-        ],
-    }
-    manifests = [json.loads(x.decode("utf-8"))["manifest"] for x in (ra, rb)]
-    return {
-        "fixture": "F17",
-        "platform": platform_tag(),
-        "reference_platform": manifests[0]["reference_platform"],
-        "masked_keys": list(MASKED_KEYS),
-        "hashed_set": sorted(checks),
-        "checks": {k: {"sha256": v, "equal": v[0] == v[1]} for k, v in checks.items()},
-        "identical": all(v[0] == v[1] for v in checks.values()),
-        "raw_bytes_equal": ra == rb,
-        "egress_manifest_sha256_unmasked": [manifest_sha256(m) for m in manifests],
-        "ledger_count": [m["ledger_count"] for m in manifests],
-        "run_json_bytes": [len(ra), len(rb)],
-        "file_names": [file_names(run1), file_names(run2)],
-    }
+def compare(run1: Path, run2: Path, where: str | None = None) -> dict[str, Any]:
+    """``proofpack.f17.compare`` (moved there at build day 13)."""
+    return _f17.compare(run1, run2, where=where)
 
 
 def run_f17(out: Path, n: int = 5000, *, compare_mode: bool = False) -> dict[str, Any]:
@@ -243,8 +206,24 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="E10: run proofpack compare (against the synthetic prior) twice instead of run",
     )
+    ap.add_argument(
+        "--compare-dirs",
+        nargs=2,
+        metavar=("RUN1", "RUN2"),
+        help="E13: compare two run directories made elsewhere (the reference-image job's "
+        "two docker runs) and write f17_result.json to --out",
+    )
+    ap.add_argument(
+        "--require-reference-platform",
+        action="store_true",
+        help="E13: with --compare-dirs, exit 1 unless both run.json manifests record the "
+        "reference platform",
+    )
+    ap.add_argument("--where", default=None, help="E13: where the two runs were made")
     args = ap.parse_args(argv)
     out = Path(args.out) if args.out else Path(tempfile.mkdtemp(prefix="proofpack-f17-"))
+    if args.compare_dirs:
+        return _compare_dirs(args, out)
     if args.inputs_only:
         for p in write_inputs(out, args.n):
             print(f"written: {p}")
@@ -260,6 +239,34 @@ def main(argv: list[str] | None = None) -> int:
         f"{'yes' if result['identical'] else 'no'}; written: {out / 'f17_result.json'}"
     )
     return 0 if result["identical"] else 1
+
+
+def _compare_dirs(args: argparse.Namespace, out: Path) -> int:
+    """E13: the reference-image comparison. Exit 0 only when every hash is equal (and, with
+    --require-reference-platform, both manifests record the reference platform); 1
+    otherwise, including a masked key that occurs other than exactly once."""
+    run1, run2 = (Path(p) for p in args.compare_dirs)
+    try:
+        result = compare(run1, run2, where=args.where)
+    except ValueError as exc:
+        print(f"F17 compare-dirs: refused: {exc}")
+        return 1
+    result["command"] = "compare-dirs"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "f17_result.json").write_text(json.dumps(result, indent=1) + "\n", encoding="utf-8")
+    for name, check in result["checks"].items():
+        print(f"{name}: {'equal' if check['equal'] else 'DIFFERENT'} {check['sha256'][0][:16]}")
+    ok = result["identical"] and (
+        result["both_runs_on_reference_platform"] or not args.require_reference_platform
+    )
+    print(
+        f"F17 (compare-dirs) {run1} vs {run2}; run platforms {result['run_platforms']}; "
+        f"both on the reference platform: "
+        f"{'yes' if result['both_runs_on_reference_platform'] else 'no'}; identical under the "
+        f"mask {list(MASKED_KEYS)}: {'yes' if result['identical'] else 'no'}; "
+        f"written: {out / 'f17_result.json'}"
+    )
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

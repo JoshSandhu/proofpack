@@ -131,9 +131,11 @@ def test_the_counts_of_engine_lines_are_the_ones_written():
         for n, d in (("ci", ci), ("release", rel))
     }
     # ci: doctor in the CI venv, doctor + fixtures + run in the image, doctor in the
-    # scipy-free venv, run with --format json,html,docx in the docx-extra job (A-P4);
-    # release: fixtures, doctor + fixtures in the image, doctor + fixtures + run from TestPyPI
-    assert count == {"ci": 6, "release": 6}
+    # scipy-free venv, run with --format json,html,docx in the docx-extra job (A-P4), and
+    # (E13, build day 13) the F17 reference-image run in docker-smoke, one line run twice by
+    # its loop; release: fixtures, doctor + fixtures in the image, doctor + fixtures + run
+    # from TestPyPI
+    assert count == {"ci": 7, "release": 6}
 
 
 def test_a_planted_line_without_offline_is_caught():
