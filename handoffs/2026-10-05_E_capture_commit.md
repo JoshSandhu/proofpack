@@ -300,3 +300,16 @@ There are 4 tests more than at `97a2ee4` (2195 to 2199): two for B1, one for B2 
 - "The capture is now tamper-proof." The B3 test pins the bytes against a value written in this repository. Anyone who edits the JSON, the README table and the test together passes it. What it stops is a silent edit to one of them.
 - "B2 was a code defect." No `src` line changed. The engine never emitted the planted 0.0. What was missing was the test that would refuse it.
 - "The r-captures job is unaffected." That is my reasoning, not a run. The new B3 test leaves out its working-tree half when `GITHUB_WORKFLOW` is `r-captures`, and its index half reads only committed bytes. The B1 tests are not `day12` (`test_t12.py`), or they use the synthetic capture (`test_e12_repair3.py`). The B2 test builds its own absent state. None of this has run in the container. The next push's r-captures run is the first measurement. **[unverified]**
+
+## Repair 2 after the second cold lens (orchestrator, Tue 6 Oct 2026)
+
+Lens 2 (`handoffs/2026-10-06_E_capture_lens2_cold.md`, `c93608f`) was FAIL with one blocker: B1, the absent-state F13 and F13b reasons lost their word-for-word pin when the T12 golden moved to the committed state (deleted, not moved). `tests/test_capture_lens2_repair.py` (marker day12) writes both reasons out literally and checks them in the report rows and on the absent-state T12 page, and runs `test_t12.forbidden_hits` over that page.
+
+| plant (working-tree edit of `src/proofpack/fixtures.py`) | `tests/test_capture_lens2_repair.py` |
+|---|---|
+| none | 3 passed |
+| N-F13B-ABSENT ("is committed and F13b is verified and matched") | 2 failed, 1 passed |
+| N-F13-ABSENT ("are committed and F13 is matched") | 2 failed, 1 passed |
+| N-F13B-ABSENT-cert ("the engine is certified and validated by") | 3 failed |
+
+`-m day12`: 199 passed, 3 skipped (was 196/3). Ruff clean on the new file. The repair adds a test only; no file under `src/` changed, so no statistical gate moved and no third lens was run (DEC-12 (i) applies to a repair that touches a gate). The lens's four non-blocking items are carried as it graded them.
