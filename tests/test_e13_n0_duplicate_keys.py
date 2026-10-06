@@ -213,3 +213,22 @@ def test_e13n0_r2_b2_a_repeated_entry_says_repeated(tmp_path, monkeypatch):
     _redirect_doc(monkeypatch, tmp_path, fx.NEWCOMBE_PAIRED_FILE, edit)
     row = _row(fx.run_fixtures(doctor=False), "F5-newcombe-paired")
     assert row["reason"].startswith("oracle_entry_repeated: newcombe1998_paired.json rows: ")
+
+
+@pytest.mark.parametrize(
+    "value,json_type", [({"a": 1}, "object"), ("rows", "string")], ids=["object", "string"]
+)
+def test_e13n0_r3_b1_rows_that_is_not_an_array_is_named_as_such(
+    tmp_path, monkeypatch, value, json_type
+):
+    """At edf3ddf the reason named ``rows[0]``, which does not exist (lens 3 B1)."""
+
+    def edit(doc):
+        doc["rows"] = value
+
+    _redirect_doc(monkeypatch, tmp_path, fx.NEWCOMBE_PAIRED_FILE, edit)
+    row = _row(fx.run_fixtures(doctor=False), "F5-newcombe-paired")
+    assert row["status"] == "not_matched"
+    assert row["reason"] == (
+        f"oracle_entry_malformed: newcombe1998_paired.json rows is a JSON {json_type}, not an array"
+    )

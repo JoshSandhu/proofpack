@@ -767,8 +767,12 @@ def _paired_rows(doc: dict[str, Any]) -> list[tuple[str, float]]:
     other than ``lower`` and ``upper`` or with none, raises :class:`OracleEntryMalformed`
     (E13 N0 lens 2 B1: a second row whose sides were spelt ``"lower "`` was skipped, never
     compared, and the row stayed ``matched``)."""
+    rows = doc["rows"]
+    if not isinstance(rows, list):  # E13 N0 lens 3 B1: an object or string named rows[0]
+        found = _JSON_TYPE.get(type(rows), type(rows).__name__)
+        raise OracleEntryMalformed(f"{NEWCOMBE_PAIRED_FILE} rows is a JSON {found}, not an array")
     out = []
-    for i, row in enumerate(doc["rows"]):
+    for i, row in enumerate(rows):
         where = f"{NEWCOMBE_PAIRED_FILE} rows[{i}]"
         row = _object_entry(row, where)
         if set(row) != _PAIRED_ROW_KEYS:
