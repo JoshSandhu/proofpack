@@ -117,7 +117,15 @@ FALSE_AT_941C8E4 = (
 )
 
 
-@pytest.mark.parametrize("path,sentence", FALSE_AT_941C8E4)
+#: (file, a sentence an E13 lens 2 note found false at bcb1dac); each must be absent.
+FALSE_AT_BCB1DAC = (
+    ("src/proofpack/parity.py", "file's values of the same fixture, by exact equality"),
+    ("src/proofpack/parity.py", "test_every_register_class_value_is_in_the_file"),
+    ("tests/test_f16_parity_native.py", "def test_every_register_class_value_is_in_the_file"),
+)
+
+
+@pytest.mark.parametrize("path,sentence", FALSE_AT_941C8E4 + FALSE_AT_BCB1DAC)
 def test_the_sentences_the_e13_lenses_found_false_are_gone(path, sentence):
     text = (REPO / path).read_text(encoding="utf-8")
     assert sentence not in text, (path, sentence)
@@ -197,3 +205,65 @@ def test_the_cli_writes_the_four_rows_into_fixtures_report_json(tmp_path, capsys
     for rid in ROWS:
         assert _row(doc, rid)["status"] == "suite_only"
         assert _row(doc, rid)["evidence"]["artefacts"]
+
+
+def _f13_row_from(directory: Path) -> dict:
+    caps = fx.load_r_captures(directory, vectors=None)
+    rep = fx.run_fixtures(rows=fx.r_capture_rows(caps), doctor=False)
+    return {"row": _row(rep, "F13"), "exit_code": rep["exit_code"]}
+
+
+def test_the_f13_status_cell_follows_a_drift_planted_in_the_recorded_comparison(tmp_path, report):
+    """E13 repair 2, lens 2 FA-B2. The committed ``fixtures/r`` copied to ``tmp_path``,
+    read with the vectors not read (DEC-77): F13 is ``suite_only`` with a numeric
+    ``max_abs_deviation`` and its T12 status cell reads
+    :data:`t12.SUITE_ONLY_RECORDED_TEXT`. The lens's plant, ``values["ndka auc"].engine``
+    raised by 1e-3 in ``f13_engine_comparison.json``: F13 ``not_matched`` naming ``ndka
+    auc``, exit 6, and the cell reads "not matched". At bcb1dac the unplanted cell read
+    "checked by the test suite or a CI job, not by this command"."""
+    from proofpack.render import t12
+
+    cap = tmp_path / "r"
+    cap.mkdir()
+    for name in ("proc_asah.json", "rms_val_prob_f4.json", Path(fx.R_COMPARISON_FILE).name):
+        (cap / name).write_bytes((REPO / "fixtures" / "r" / name).read_bytes())
+    clean = _f13_row_from(cap)
+    assert clean["row"]["status"] == "suite_only" and clean["exit_code"] == 0
+    assert clean["row"]["max_abs_deviation"] is not None
+    assert "not by this command" not in t12.status_text(clean["row"])
+    assert t12.status_text(clean["row"]) == (
+        "compared inside a CI job; deviations recomputed by this command from the recorded values"
+    )
+    record = cap / Path(fx.R_COMPARISON_FILE).name
+    doc = json.loads(record.read_text(encoding="utf-8"))
+    doc["values"]["ndka auc"]["engine"] += 1e-3
+    record.write_text(json.dumps(doc), encoding="utf-8")
+    planted = _f13_row_from(cap)
+    assert planted["row"]["status"] == "not_matched" and planted["exit_code"] == 6
+    assert "outside tolerance: ndka auc" in planted["row"]["reason"]
+    rep = copy.deepcopy(report)
+    rep["rows"] = [planted["row"] if r["id"] == "F13" else r for r in rep["rows"]]
+    page = t12.render_t12(rep)
+    cell = re.search(r'<tr data-row="F13">.*?data-status="([a-z_]+)">([^<]*)</td>', page)
+    assert cell is not None and cell.groups() == ("not_matched", "not matched")
+
+
+def test_a_not_matched_row_prints_not_matched_whatever_its_evidence(report):
+    """E13 repair 2 (lens 2 FA-N1, mutant M13: the measured text for any row with
+    ``measured_by_this_command``, whatever its status, survived 112 tests). F16 (measured
+    by this command) and F13 (a recorded comparison, when ``suite_only`` here) each set to
+    ``not_matched`` print "not matched"; F16 set to ``no_oracle_recorded`` prints "no
+    oracle recorded"."""
+    from proofpack.render import t12
+
+    f16 = copy.deepcopy(_row(report, "F16"))
+    assert f16["evidence"]["measured_by_this_command"] is not None
+    assert t12.status_text(f16) == t12.SUITE_ONLY_MEASURED_TEXT
+    f16["status"] = "not_matched"
+    assert t12.status_text(f16) == "not matched"
+    f16["status"] = "no_oracle_recorded"
+    assert t12.status_text(f16) == "no oracle recorded"
+    f13 = copy.deepcopy(_row(report, "F13"))
+    f13["max_abs_deviation"] = 0.0
+    f13["status"] = "not_matched"
+    assert t12.status_text(f13) == "not matched"

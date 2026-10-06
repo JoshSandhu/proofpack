@@ -35,7 +35,7 @@
 <header class="page-header">{{ header_engine }}</header>
 <h2 id="t12-s3">3. Assurance evidence: the fixture register (fixtures_report.json)</h2>
 {{ margin_note(anchor.evidence) }}
-<p>Every row of the report is printed, whatever its status. A row reads "matched" only when every compared value lies within the row's tolerance; "not matched", "no oracle recorded", "not built in this version", "checked by this command, against no independent oracle" and "checked by the test suite or a CI job, not by this command" are printed as they stand.</p>
+<p>Every row of the report is printed, whatever its status. A row reads "matched" only when every compared value lies within the row's tolerance; "not matched", "no oracle recorded", "not built in this version", "checked by this command, against no independent oracle", "compared inside a CI job; deviations recomputed by this command from the recorded values" and "checked by the test suite or a CI job, not by this command" are printed as they stand.</p>
 <table class="environment">
 <caption>Where the report was generated</caption>
 <tbody>

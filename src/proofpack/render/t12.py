@@ -61,15 +61,35 @@ STATUS_TEXT: dict[str, str] = {
 #: pytest involved);
 #: ``tests/test_t12.py::test_the_suite_only_status_cell_names_who_checked_the_row``.
 SUITE_ONLY_MEASURED_TEXT = "checked by this command, against no independent oracle"
+#: The status cell of a ``suite_only`` row with no ``evidence.measured_by_this_command``
+#: and a numeric ``max_abs_deviation``: F13 read from the r-captures job's recorded
+#: comparison (``fixtures.f13_recorded_outcome``, DEC-77). E13 repair 2, lens 2 FA-B2: at
+#: bcb1dac F13 printed "checked by the test suite or a CI job, not by this command"; in the
+#: lens's run ``values["ndka auc"].engine`` raised by 1e-3 in
+#: ``fixtures/r/f13_engine_comparison.json`` made ``proofpack fixtures --offline`` exit 6
+#: with F13 ``not_matched``, no pytest involved;
+#: ``tests/test_t12.py::test_the_suite_only_status_cell_names_who_checked_the_row`` and
+#: ``tests/test_e13_report_rows.py::``
+#: ``test_the_f13_status_cell_follows_a_drift_planted_in_the_recorded_comparison``.
+SUITE_ONLY_RECORDED_TEXT = (
+    "compared inside a CI job; deviations recomputed by this command from the recorded values"
+)
 
 
 def status_text(row: dict[str, Any]) -> str:
-    """The words of one row's status cell (:data:`STATUS_TEXT`, or
-    :data:`SUITE_ONLY_MEASURED_TEXT` for a ``suite_only`` row this command measured)."""
-    measured = (row.get("evidence") or {}).get("measured_by_this_command")
-    if row["status"] == "suite_only" and measured is not None:
+    """The words of one row's status cell: :data:`STATUS_TEXT`, except for a ``suite_only``
+    row this command measured (:data:`SUITE_ONLY_MEASURED_TEXT`) or whose recorded
+    comparison's deviations it recomputed (:data:`SUITE_ONLY_RECORDED_TEXT`). Any other
+    status prints its :data:`STATUS_TEXT` whatever the evidence
+    (``tests/test_e13_report_rows.py::``
+    ``test_a_not_matched_row_prints_not_matched_whatever_its_evidence``)."""
+    if row["status"] != "suite_only":
+        return STATUS_TEXT[row["status"]]
+    if (row.get("evidence") or {}).get("measured_by_this_command") is not None:
         return SUITE_ONLY_MEASURED_TEXT
-    return STATUS_TEXT[row["status"]]
+    if row.get("max_abs_deviation") is not None:
+        return SUITE_ONLY_RECORDED_TEXT
+    return STATUS_TEXT["suite_only"]
 
 
 INTENDED_USE_SLOT = (

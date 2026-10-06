@@ -87,29 +87,62 @@ def _numbers(v) -> list[float]:
     return []
 
 
-def test_every_register_class_value_is_in_the_file(committed, fresh):
-    """E13 repair 1, lens FA-B1: ``_register_entries`` skips the rows whose tolerance class
-    is ``register`` (F1, F1b, F1c, F1d, F2, F3, F4, F5, F6 and F8 ``-register``). Each of
-    their values, computed now, must equal (exactly) the value of an entry of a fresh
-    ``parity.compute()`` for the same fixture, and that entry's key must be in the committed
-    file (whose values ``compare`` holds to the fresh run under the labelled tolerances).
-    At 941c8e4 F5-register's ``accuracy_diff`` (-0.08) was in no entry.
-
-    Gate repair (run 37463363415, at a894fee): the first version looked the values up in
-    the committed file, written on win-amd64-cp314, by exact equality; on the Linux runner
-    ``F3-register.paired_p`` computed 0.05934643879192011 against the file's
-    0.0593464387919201 and the test failed."""
-    seen = 0
+def _register_class_lookup(committed: dict, fresh: dict) -> tuple[int, list]:
+    """``(values looked up, misses)``: each value of a ``register``-class row with an
+    engine function (F1, F1b, F1c, F1d, F2, F3, F4, F5, F6 and F8 ``-register``), computed
+    now, looked up among the values of ``fresh`` for the same fixture by exact equality; a
+    miss is a value no entry of ``fresh`` holds, or whose entries' keys are all absent from
+    ``committed``. No value of ``committed`` is read."""
+    seen, misses = 0, []
     for row in fx.register():
         if row.engine is None or row.tolerance_class != "register":
             continue
         block = fresh["fixtures"][row.fixture]
         for name, value in row.engine().items():
-            keys = [k for k, e in block.items() if float(value) in _numbers(e.get("value"))]
-            assert keys, (row.id, name, value)
-            assert any(k in committed["fixtures"][row.fixture] for k in keys), (row.id, name)
             seen += 1
+            keys = [k for k, e in block.items() if float(value) in _numbers(e.get("value"))]
+            if not any(k in committed["fixtures"][row.fixture] for k in keys):
+                misses.append((row.id, name, value, keys))
+    return seen, misses
+
+
+def test_every_register_class_value_has_its_key_in_the_file(committed, fresh):
+    """E13 repair 1, lens FA-B1: ``_register_entries`` skips the rows whose tolerance class
+    is ``register``. Each of their 67 values, computed now, must equal (exactly) the value
+    of an entry of a fresh ``parity.compute()`` for the same fixture, and that entry's key
+    must be in the committed file. At 941c8e4 F5-register's ``accuracy_diff`` (-0.08) was in
+    no entry.
+
+    Gate repair (run 37463363415, at a894fee): the first version looked the values up in
+    the committed file, written on win-amd64-cp314, by exact equality; on the Linux runner
+    ``F3-register.paired_p`` computed 0.05934643879192011 against the file's
+    0.0593464387919201 and the test failed. E13 repair 2 (lens 2 FA-B1 / RG-B1): renamed
+    from ``test_every_register_class_value_is_in_the_file``; the lookup reads the file's
+    keys, not its values (the next test)."""
+    seen, misses = _register_class_lookup(committed, fresh)
+    assert misses == []
     assert seen == 67
+
+
+def test_the_register_class_lookup_reads_keys_not_values_of_the_file(committed, fresh):
+    """The limit the parity module docstring names (E13 repair 2, lens 2 FA-B1 / RG-B1).
+    The committed ``F3-delong.paired_p`` is moved by +5e-10, as the lens planted it: the
+    lookup still finds no miss and ``compare`` still passes it (the entry is ``irls``,
+    1e-6), although
+    the planted file no longer holds ``F3-register``'s ``paired_p`` exactly. Deleting the
+    key is a miss."""
+    planted = copy.deepcopy(committed)
+    entry = planted["fixtures"]["F3"]["F3-delong.paired_p"]
+    assert entry["tol"] == "irls"
+    entry["value"] += 5e-10
+    exact = {x for e in planted["fixtures"]["F3"].values() for x in _numbers(e.get("value"))}
+    register_p = next(r for r in fx.register() if r.id == "F3-register").engine()["paired_p"]
+    assert float(register_p) not in exact
+    assert _register_class_lookup(planted, fresh) == (67, [])
+    assert parity.compare(planted, fresh)["failures"] == []
+    del planted["fixtures"]["F3"]["F3-delong.paired_p"]
+    seen, misses = _register_class_lookup(planted, fresh)
+    assert seen == 67 and [m[:2] for m in misses] == [("F3-register", "paired_p")]
 
 
 def test_f5_accuracy_difference_is_in_the_file_with_its_interval(committed):

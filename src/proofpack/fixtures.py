@@ -33,8 +33,12 @@ tolerance. The five row statuses:
   :func:`f19_behaviour`) a measurement of this command's own, with the same two outcomes;
   each row's ``evidence`` names the CI artefact it cannot see as ``seen_by_this_command:
   false``. F13 outside the r-captures
-  job, when ``proc_asah.json`` and :data:`R_COMPARISON_FILE` are committed and agree,
-  carries it too: the comparison was made inside that job (DEC-77), not by this command.
+  job, when ``proc_asah.json`` and :data:`R_COMPARISON_FILE` are committed and agree, is
+  ``suite_only`` too: the engine was compared with R inside that job (DEC-77), and this
+  command recomputes each deviation from the recorded engine and R values
+  (:func:`f13_recorded_outcome`; a recorded engine value moved by 1e-3 gives F13
+  ``not_matched`` and exit 6:
+  ``tests/test_e13_report_rows.py::test_the_f13_status_cell_follows_a_drift_planted_in_the_recorded_comparison``).
 
 Exit code (:func:`exit_code_for`): ``EXIT_OK`` (0) when every row with an oracle is
 ``matched``, :data:`proofpack.errors.EXIT_FIXTURES_NOT_MATCHED` (6) when one or more is
