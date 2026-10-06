@@ -168,7 +168,7 @@ jobs:
           $NS .venv/bin/python -m pytest -q -p no:cacheprovider tests/test_f19_egress_bytes.py | tee f19_pytest.txt
       - name: upload the F19 namespace logs
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: f19-offline-namespace
           path: |
@@ -252,7 +252,7 @@ jobs:
           docker run --rm --network none -v "$PWD:/src:ro" -v "$PWD/smoke:/work" -w /work --entrypoint python proofpack:ci /src/scripts/f17_determinism.py --out /work/f17ref --compare-dirs /work/f17ref/run1 /work/f17ref/run2 --require-reference-platform --where "ci.yml docker-smoke: two containers of the image proofpack:ci, no network"
       - name: upload the F17 reference-image runs
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: f17-reference-image
           path: |

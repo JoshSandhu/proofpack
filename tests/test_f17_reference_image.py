@@ -205,7 +205,7 @@ def test_the_docker_smoke_job_runs_f17_twice_on_one_image_and_uploads_both_run_j
     assert run.count("--network none") == 3
     assert steps.index(step) > steps.index(builds[0])
     upload = steps[steps.index(step) + 1]
-    assert upload["uses"] == "actions/upload-artifact@v4"
+    assert upload["uses"] == "actions/upload-artifact@v7"
     assert upload["with"]["name"] == f17.CI_ARTEFACT == "f17-reference-image"
     assert upload["with"]["if-no-files-found"] == "error"
     for path in ("run1/run.json", "run2/run.json", "f17_result.json"):

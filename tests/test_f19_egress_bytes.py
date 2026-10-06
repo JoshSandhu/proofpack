@@ -313,6 +313,6 @@ def test_f19_the_namespace_job_runs_this_file_and_uploads_the_named_artefact():
     uploads = [s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact@")]
     assert len(uploads) == 1
     assert uploads[0]["with"]["name"] == f19.CI_ARTEFACT == "f19-offline-namespace"
-    assert uploads[0]["uses"] == "actions/upload-artifact@v4"  # pinned as ci.yml pins
+    assert uploads[0]["uses"] == "actions/upload-artifact@v7"  # pinned as ci.yml pins
     for name in ("namespace.txt", "offline.txt", "online.txt", "f19_pytest.txt"):
         assert name in uploads[0]["with"]["path"]
