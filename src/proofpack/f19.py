@@ -12,9 +12,14 @@ document tabulates (as ``tests/test_egress.py`` has done since build day 8).
 suppression 10 / 5 / 5) and a confirmed mapping into a directory and runs ``proofpack
 run`` in process (``proofpack.cli.main``) with a recording transport in place of
 ``urllib``: the bytes recorded are the request body the runner would send. While the run
-lasts, ``socket.socket``, ``socket.getaddrinfo`` and ``socket.create_connection`` refuse
-and count every call (:func:`_no_sockets`), so a transport that bypassed the recorder
-would be counted, not sent. It then builds the ``proofpack-aggregates/1`` document from the
+lasts, the three module attributes ``socket.socket``, ``socket.getaddrinfo`` and
+``socket.create_connection`` are replaced by functions that raise ``OSError`` and count
+the call (:func:`_no_sockets`). Only calls that reach one of those three names are
+seen: a socket made through ``_socket.socket``, or through a reference to ``socket.socket`` taken
+before the run, is neither counted nor refused (E13 lens 1 counter-examples FA-B4 and
+RG-B1; ``tests/test_f19_egress_bytes.py::
+test_f19_a_socket_made_through_a_reference_taken_before_the_run_is_not_counted``). It
+then builds the ``proofpack-aggregates/1`` document from the
 written ``run.json`` (no code path sends it at launch; it is checked because it is the
 other document ``egress_schema.json`` describes) and checks, on the bytes of both
 documents:
@@ -37,10 +42,13 @@ documents:
 * **names** - no site name, no free-text value and no original header appears in either
   document's bytes in any form :func:`proofpack.egress.scan.find` searches.
 
-The network half of gate 8 (``--offline`` inside ``unshare -rn``) is Linux only: the CI
-job ``offline-namespace`` (``.github/workflows/ci.yml``) runs it, runs
-``tests/test_f19_egress_bytes.py`` inside the same namespace and uploads the logs as the
-artefact :data:`CI_ARTEFACT`. This module does not see that run.
+The network half of gate 8 (``--offline`` inside a network namespace) is Linux only: the
+CI job ``offline-namespace`` (``.github/workflows/ci.yml``) uses ``unshare -rn`` where the
+runner allows unprivileged user namespaces and ``sudo unshare -n`` otherwise, writes the
+command it used to ``namespace.txt``, runs ``tests/test_f19_egress_bytes.py`` inside the
+same namespace and uploads the logs as the artefact :data:`CI_ARTEFACT`. In the three runs
+of that job at 941c8e4 (37455062159, 37458152406, 37458488364) the job logged
+``namespace command: sudo unshare -n``. This module does not see that run.
 """
 
 from __future__ import annotations
@@ -118,8 +126,10 @@ class _Recorder:
 
 @contextlib.contextmanager
 def _no_sockets() -> Iterator[list[str]]:
-    """``socket.socket``, ``getaddrinfo`` and ``create_connection`` refuse (``OSError``)
-    and are counted for the duration; restored afterwards."""
+    """The module attributes ``socket.socket``, ``socket.getaddrinfo`` and
+    ``socket.create_connection`` raise ``OSError`` and count each call made through them
+    for the duration; restored afterwards. Only a call that reaches one of the three is
+    counted."""
     import socket  # noqa: PLC0415 - not a network call; kept off module level
 
     names = ("socket", "getaddrinfo", "create_connection")

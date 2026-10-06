@@ -51,8 +51,26 @@ STATUS_TEXT: dict[str, str] = {
     "no_oracle_recorded": "no oracle recorded",
     "no_independent_oracle": "no independent oracle (frozen engine value, [unverified])",
     "not_built": "not built in this version",
-    "suite_only": "compared by the test suite only",
+    "suite_only": "checked by the test suite or a CI job, not by this command",
 }
+#: The status cell of a ``suite_only`` row whose ``evidence.measured_by_this_command`` is
+#: set (F12, F16, F17 and F19 since build day 13). E13 repair 1, lens FA-B5: at 941c8e4
+#: every ``suite_only`` row printed one text saying the test suite alone compared it,
+#: including the four this command measures itself (in the lens's run a drift planted in
+#: ``fixtures/f16_parity_native.json`` made ``proofpack fixtures --offline`` exit 6 with no
+#: pytest involved); ``tests/test_t12.py::test_the_suite_only_status_cell_names_who_checked_the_row``.
+SUITE_ONLY_MEASURED_TEXT = "checked by this command, against no independent oracle"
+
+
+def status_text(row: dict[str, Any]) -> str:
+    """The words of one row's status cell (:data:`STATUS_TEXT`, or
+    :data:`SUITE_ONLY_MEASURED_TEXT` for a ``suite_only`` row this command measured)."""
+    measured = (row.get("evidence") or {}).get("measured_by_this_command")
+    if row["status"] == "suite_only" and measured is not None:
+        return SUITE_ONLY_MEASURED_TEXT
+    return STATUS_TEXT[row["status"]]
+
+
 INTENDED_USE_SLOT = (
     "CT-T12",
     "intended use of ProofPack in the manufacturer's process, and the records its output enters",
@@ -185,7 +203,7 @@ def evidence_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
                 "deviation": _dev(r.get("max_abs_deviation")),
                 "n": str(r.get("n_values_compared", 0)),
                 "status": r["status"],
-                "status_text": STATUS_TEXT[r["status"]],
+                "status_text": status_text(r),
                 "reason": reason,
                 "reason_unverified": reason.startswith("[unverified"),
                 "suite_tests": ", ".join(r.get("suite_tests") or []),

@@ -4,15 +4,19 @@ synthetic cohort and of a cohort with small cells and real-looking site names
 knows, with the small cells re-derived from ``run.json`` rather than read from the
 suppression module.
 
-The CI job ``offline-namespace`` runs this file inside ``unshare -rn`` and uploads its
-log as the artefact ``f19-offline-namespace``; locally it runs with the network present
-and the telemetry transport replaced by a recorder (no socket is opened).
+The CI job ``offline-namespace`` runs this file inside the network namespace its first
+step chose (``unshare -rn`` where the runner allows unprivileged user namespaces, ``sudo
+unshare -n`` otherwise; the job writes which to ``namespace.txt``, and its three runs at
+941c8e4 logged ``sudo unshare -n``) and uploads its log as the artefact
+``f19-offline-namespace``. Locally it runs with the network present and the telemetry
+transport replaced by a recorder.
 """
 
 from __future__ import annotations
 
 import base64
 import json
+import socket
 import urllib.parse
 from pathlib import Path
 
@@ -24,6 +28,8 @@ from proofpack.egress import build as build_mod
 from proofpack.egress import scan, suppress
 
 pytestmark = [pytest.mark.day13, pytest.mark.fixture]
+#: ``socket.socket`` as this module imported it, before any F19 run installs the guard.
+SOCKET_TAKEN_AT_IMPORT = socket.socket
 REPO = Path(__file__).resolve().parent.parent
 
 
@@ -164,15 +170,20 @@ def test_f19_small_cell_values_with_their_counts_nulled_are_caught(tmp_path: Pat
         assert f"planted: {name}" in failed
 
 
-def test_f19_a_send_that_bypasses_the_recorder_is_counted_and_refused(tmp_path: Path, monkeypatch):
-    """Planted: the telemetry send ignores the transport it is given and opens a socket
-    itself (a name lookup, then a connection, to a ``.invalid`` host: RFC 6761, never
-    resolves). The socket guard refuses both and counts them; nothing is recorded.
+def test_f19_a_send_that_calls_getaddrinfo_and_create_connection_itself_is_counted(
+    tmp_path: Path, monkeypatch
+):
+    """Planted: the telemetry send ignores the transport it is given and calls
+    ``socket.getaddrinfo`` and then ``socket.create_connection`` itself, through the module
+    attributes, to a ``.invalid`` host (RFC 6761, never resolves). The socket guard refuses
+    both and counts them; nothing is recorded. A socket made through another name is not
+    counted: :func:`test_f19_a_socket_made_through_a_reference_taken_before_the_run_is_not_counted`.
 
     Gate repair (run 37453449607, job offline-namespace, at fdc2a25): the first version of
     this plant went through the real urllib transport restored from ``conftest``; it
-    passed on win-amd64-cp314 and in the CI job ``pytest + ruff``, and failed inside
-    ``unshare -rn`` with ``socket_calls`` 0 - the urllib path never reached a patched
+    passed on win-amd64-cp314 and in the CI job ``pytest + ruff``, and failed inside the
+    job's namespace (``sudo unshare -n`` on that run) with ``socket_calls`` 0 - the urllib
+    path never reached a patched
     socket function there. Why was not diagnosed [unverified]; the plant now opens the
     socket itself, so it measures the guard and nothing else."""
     import socket
@@ -195,6 +206,37 @@ def test_f19_a_send_that_bypasses_the_recorder_is_counted_and_refused(tmp_path: 
     assert r["socket_calls"] == 2 and r["telemetry_sends"] == 0
     assert "planted: socket_calls" in f19.check(r)
     assert "planted: telemetry_sends" in f19.check(r)
+
+
+@pytest.mark.parametrize("route", ["reference_taken_at_import", "_socket.socket"])
+def test_f19_a_socket_made_through_a_reference_taken_before_the_run_is_not_counted(
+    tmp_path: Path, monkeypatch, route: str
+):
+    """The limit of the guard (E13 lens 1 counter-examples FA-B4 and RG-B1): the send
+    makes a socket through ``socket.socket`` as this module imported it (before the guard
+    is installed) or through ``_socket.socket``, closes it unconnected, then sends through
+    the recorder as the real send does. The socket is made (not refused), ``socket_calls``
+    is 0 and every F19 check passes. ``f19``'s docstring says only calls that reach the
+    three module attributes are seen; this test pins that sentence's limit."""
+    import _socket
+
+    from proofpack.egress import telemetry
+
+    real_send = telemetry.send
+    made: list[str] = []
+
+    def send(*args, **kwargs):
+        early = route == "reference_taken_at_import"
+        sock = SOCKET_TAKEN_AT_IMPORT() if early else _socket.socket()
+        made.append(type(sock).__name__)
+        sock.close()
+        return real_send(*args, **kwargs)
+
+    monkeypatch.setattr(telemetry, "send", send)
+    r = f19.run_cohort("limit", f19.small_cell_cohort(), tmp_path / "w")
+    assert len(made) == 1
+    assert r["socket_calls"] == 0 and r["telemetry_sends"] == 1
+    assert f19.check(r) == []
 
 
 def test_f19_the_socket_guard_refuses_counts_and_restores():
@@ -261,7 +303,8 @@ def test_f19_the_namespace_job_runs_this_file_and_uploads_the_named_artefact():
     ci = yaml.safe_load((REPO / ".github" / "workflows" / "ci.yml").read_text("utf-8"))
     steps = ci["jobs"][f19.CI_JOB]["steps"]
     runs = "\n".join(str(s.get("run", "")) for s in steps)
-    assert "unshare -rn" in runs
+    assert 'NS="unshare -rn"' in runs and 'NS="sudo unshare -n"' in runs
+    assert 'echo "$NS" > namespace.txt' in runs
     assert (
         "$NS .venv/bin/python -m pytest -q -p no:cacheprovider tests/test_f19_egress_bytes.py"
         in runs

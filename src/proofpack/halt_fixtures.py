@@ -31,9 +31,9 @@ exit code (measured on 5 October 2026 at 5154468: H01-H06 and H11 printed ``HALT
 "No document written" is measured as: no file under the fixture's directory (inputs,
 ``--out`` and the ``PROOFPACK_HOME`` the run is given) was added, removed or changed by
 the run, and ``--out`` does not exist afterwards. The engine documents no file for a
-halt (``errors``: "No document is written on HALT"); a halted run writes no ``run.json``,
-no ``ingest_report.json``, no ``pseudonyms.json``, no HTML and no DOCX, and does not touch
-the ledger in ``PROOFPACK_HOME``.
+halt (``errors``: "No document is written on HALT"). :func:`check` inspects those two
+places only: a file written anywhere else is not seen (E13 lens 1, RG-B3: a planted
+invoke that wrote ``leaked_run.json`` to another temporary directory scored ``ok``).
 """
 
 from __future__ import annotations

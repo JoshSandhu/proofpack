@@ -1609,8 +1609,8 @@ def f12_behaviour(results: list[dict[str, Any]] | None = None) -> dict[str, Any]
     codes = ", ".join(r["code"] for r in results)
     reason = (
         f"this command ran {len(results)} HALT fixtures ({codes}) through proofpack.cli.main "
-        f"with --offline: {len(good)} of {len(results)} exited 3, printed their own code and "
-        "changed no file"
+        f"with --offline: {len(good)} of {len(results)} exited 3, printed their own code, "
+        "changed no file under the fixture's directory and wrote no --out"
     )
     if bad:
         reason += "; not so: " + "; ".join(
@@ -1796,7 +1796,8 @@ def f17_behaviour(result: dict[str, Any] | None = None) -> dict[str, Any]:
         "this command ran proofpack run twice in process on this machine "
         f"({result['rows']} synthetic rows, exit codes {result['exit_codes']}) and compared "
         f"run.json and the manifest hash with {', '.join(result['masked_keys'])} masked, "
-        "pseudonyms.json with run_id masked, ingest_report.json and the file lists: "
+        "pseudonyms.json with run_id masked, ingest_report.json, the file lists and every "
+        "other file's bytes: "
         f"{len(checks) - len(bad)} of {len(checks)} equal. A same-platform repeat, not the "
         "reference image: hash identity is claimed on the reference platform only (D1 "
         "section 9), and the reference-image comparison is the CI job "
@@ -1839,9 +1840,11 @@ def f17_behaviour(result: dict[str, Any] | None = None) -> dict[str, Any]:
 
 def f19_behaviour(results: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Row F19's ``status``, ``reason`` and ``evidence``: :func:`proofpack.f19.run_all`
-    (both cohorts through ``proofpack.cli.main`` with a recording transport and sockets
-    refused); ``results`` is the test hook. The network half (``--offline`` inside
-    ``unshare -rn``) is the CI job's artefact, not seen here."""
+    (both cohorts through ``proofpack.cli.main`` with a recording transport and the three
+    module attributes ``socket.socket``, ``socket.getaddrinfo`` and
+    ``socket.create_connection`` replaced by counting refusals); ``results`` is the test
+    hook. The network half (``--offline`` inside a network namespace) is the CI job's
+    artefact, not seen here."""
     from proofpack import f19  # noqa: PLC0415
 
     results = f19.run_all() if results is None else results
@@ -1850,13 +1853,15 @@ def f19_behaviour(results: list[dict[str, Any]] | None = None) -> dict[str, Any]
     reason = (
         f"this command built the telemetry and aggregates payloads of {len(results)} cohorts "
         f"({', '.join(r['cohort'] for r in results)}) through proofpack.cli.main with "
-        "sockets refused and searched their bytes: "
+        "socket.socket, socket.getaddrinfo and socket.create_connection replaced by "
+        "counting refusals, and searched their bytes: "
         f"{len(results) - len(bad)} of {len(results)} with every payload valid against "
         "egress_schema.json, no small cell unsuppressed, and no small-only value, site "
         "name, header or free-text value in either payload's bytes. The --offline run inside "
-        "unshare -rn "
-        f"is Linux only: the CI job {f19.CI_JOB} (artefact {f19.CI_ARTEFACT}), which this "
-        "command does not see"
+        f"a network namespace is Linux only: the CI job {f19.CI_JOB} (artefact "
+        f"{f19.CI_ARTEFACT}) uses unshare -rn where the runner allows it and sudo unshare -n "
+        "otherwise, and records which in the artefact's namespace.txt; this command does "
+        "not see that job"
     )
     if bad:
         reason += "; not so: " + "; ".join(f for c in bad for f in failed[c])
@@ -1865,7 +1870,8 @@ def f19_behaviour(results: list[dict[str, Any]] | None = None) -> dict[str, Any]
         "reason": reason,
         "evidence": {
             "measured_by_this_command": {
-                "what": "egress payloads of two cohorts built and searched (sockets refused)",
+                "what": "egress payloads of two cohorts built and searched (the three "
+                "socket module attributes replaced by counting refusals)",
                 "total": len(results),
                 "ok": len(results) - len(bad),
                 "failures": bad,
@@ -1893,13 +1899,15 @@ def f19_behaviour(results: list[dict[str, Any]] | None = None) -> dict[str, Any]
                 _ci_artefact(
                     f19.CI_JOB,
                     f19.CI_ARTEFACT,
-                    "proofpack run --offline inside unshare -rn, then the F19 test file "
-                    "inside the same namespace",
+                    "proofpack run --offline inside a network namespace (unshare -rn, or "
+                    "sudo unshare -n where the runner refuses it; namespace.txt records "
+                    "which), then the F19 test file inside the same namespace",
                 ),
                 _test_artefact(
                     f19.CI_TEST_FILE,
                     "the same two cohorts with plants (suppression removed or leaking, a "
-                    "send that bypasses the recorder, a site name added)",
+                    "send that calls getaddrinfo and create_connection itself, a site name "
+                    "added)",
                 ),
             ],
         },
@@ -2172,7 +2180,8 @@ def register() -> tuple[Row, ...]:
             "F12",
             "the HALT fixtures of proofpack.halt_fixtures run through proofpack run or "
             "compare with --offline: exit 3, the fixture's own code on the first stderr "
-            "line, no file written",
+            "line, no file added, removed or changed under the fixture's directory (its "
+            "inputs and its PROOFPACK_HOME), and no --out",
             status="suite_only",
             suite_tests=("tests/test_f12_halt_cli.py", "tests/test_halt_gates.py"),
             behaviour=lambda: f12_behaviour(),
@@ -2198,9 +2207,10 @@ def register() -> tuple[Row, ...]:
         Row(
             "F16",
             "F16",
-            "the engine half of F16: every register value F1-F11 and F14 and the E6, E7 and "
-            "E10 statistics blocks computed natively by proofpack.parity, against the "
-            "committed native file the site's Pyodide test compares with",
+            "the engine half of F16: every value the register's engine functions compute "
+            "for F1-F11 and F14 (F3-auprc and F7 have none) and the E6, E7 and E10 "
+            "statistics blocks, computed natively by proofpack.parity, against the committed "
+            "native file the site's Pyodide test compares with",
             status="suite_only",
             suite_tests=("tests/test_f16_parity_native.py",),
             behaviour=lambda: f16_behaviour(),
@@ -2659,7 +2669,7 @@ def summary_lines(report: dict[str, Any], path: Path | None) -> list[str]:
         f"  rows {s['rows']}: matched {s['matched']}, not matched {s['not_matched']}, "
         f"no oracle recorded {s['no_oracle_recorded']}, no independent oracle "
         f"{s['no_independent_oracle']}, not built {s['not_built']}, "
-        f"compared by the test suite only {s['suite_only']}",
+        f"suite only (checked by this command, the test suite or a CI job) {s['suite_only']}",
         f"  platform {report['platform']} (reference platform {report['reference_platform']}: "
         f"{'yes' if report['on_reference_platform'] else 'no'}); python {report['python']}, "
         f"numpy {report['numpy']}, scipy {report['scipy'] or 'not installed'}",

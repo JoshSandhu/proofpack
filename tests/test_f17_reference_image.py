@@ -70,6 +70,7 @@ def test_f17_cli_twice_same_platform_repeat_not_the_reference_image_is_identical
         "file_names",
         "ingest_report_json",
         "manifest_masked",
+        "other_files",
         "pseudonyms_json_masked",
         "run_json_masked",
     ]
@@ -91,6 +92,26 @@ def _copy(two_runs: Path, tmp_path: Path) -> tuple[Path, Path]:
     shutil.copytree(two_runs / "run1", a)
     shutil.copytree(two_runs / "run2", b)
     return a, b
+
+
+def test_compare_reads_the_bytes_of_every_other_file(two_runs: Path, tmp_path):
+    """E13 repair 1, lens FA-B6: a ``T8.json`` of ``{"run_id": "a"}`` in one run and
+    ``{"run_id": "b", "x": 1}`` in the other (same file names) left ``identical`` true at
+    941c8e4. Now ``other_files`` differs; the same file with equal bytes in both is equal."""
+    a, b = _copy(two_runs, tmp_path)
+    (a / "T8.json").write_text('{"run_id": "a"}', encoding="utf-8")
+    (b / "T8.json").write_text('{"run_id": "b", "x": 1}', encoding="utf-8")
+    result = f17.compare(a, b)
+    assert result["identical"] is False
+    assert [k for k, v in result["checks"].items() if not v["equal"]] == ["other_files"]
+    (b / "T8.json").write_text('{"run_id": "a"}', encoding="utf-8")
+    assert f17.compare(a, b)["identical"] is True
+    (b / "sub").mkdir()
+    (a / "sub").mkdir()
+    (a / "sub" / "run.json").write_bytes(b"1")
+    (b / "sub" / "run.json").write_bytes(b"2")
+    nested = f17.compare(a, b)
+    assert [k for k, v in nested["checks"].items() if not v["equal"]] == ["other_files"]
 
 
 def test_compare_dirs_exits_0_on_the_two_runs_and_writes_the_result(two_runs: Path, tmp_path):

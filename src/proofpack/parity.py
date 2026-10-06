@@ -4,14 +4,20 @@ values the site's Pyodide parity test compares against.
 D1 section 3.2's F16 row: *all of F1-F8 identical to 1e-9 (closed form) / 1e-6 (IRLS) /
 reported rounding (bootstrap) under Pyodide vs native*. F16 has two halves:
 
-* **native** (this module, lane E): :func:`compute` returns, for every value the fixture
-  register computes (each register row with an engine function, F1-F11 and F14; F13 and
-  F13b need R or the aSAH vectors and are not here), and for the build day 6-10
-  statistics the register does not list in full - the whole calibration block on the F4
-  rows (E6), the whole paired comparison block and the unpaired DeLong difference on the
-  F3 pair (E10), the attainability bounds (E7) and the heterogeneity footnote on the F6
-  sites - one entry ``{"value", "tol", "class"}`` per value, or ``{"value": None,
-  "reason"}`` when the environment cannot compute it. ``scripts/f16_parity_native.py``
+* **native** (this module, lane E): :func:`compute` returns one entry ``{"value", "tol",
+  "class"}`` per value, or ``{"value": None, "reason"}`` when the environment cannot
+  compute it, for: each register row with an engine function whose tolerance class is
+  not ``register`` (F1-F11 and F14; F3-auprc and F7 have no engine function; F13 and
+  F13b need R or the aSAH vectors and are not here); F5's paired accuracy difference
+  ``difference_paired(80, 2, 10, 8)`` as the block ``F5-register.accuracy_diff`` (the one
+  ``register``-class value no other row holds, E13 repair 1, lens FA-B1); and the build
+  day 6-10 statistics the register does not list in full - the whole calibration block on
+  the F4 rows (E6), the whole paired comparison block and the unpaired DeLong difference
+  on the F3 pair (E10), the attainability bounds (E7) and the heterogeneity footnote on
+  the F6 sites.
+  ``tests/test_f16_parity_native.py::test_every_register_class_value_is_in_the_file``
+  looks up each of the 67 values of the ``register``-class rows (F1-F6 and F8) among the
+  file's values of the same fixture, by exact equality. ``scripts/f16_parity_native.py``
   writes it to :data:`COMMITTED_FILE` with the engine commit it was produced at;
   ``tests/test_f16_parity_native.py`` holds the committed file equal to a fresh native
   run under :func:`compare`.
@@ -198,6 +204,14 @@ def _f5_unpaired_delong() -> dict[str, Any]:
     return {k: getattr(r, k) for k in r.__dataclass_fields__}
 
 
+def _f5_accuracy_difference() -> Any:
+    """F5's paired accuracy difference, the Number whose ``est`` the register row
+    ``F5-register`` compares as ``accuracy_diff`` (``fixtures._f5_register_values``)."""
+    from proofpack.stats.proportions import difference_paired  # noqa: PLC0415
+
+    return difference_paired(80, 2, 10, 8)
+
+
 def _f8_attainability() -> dict[str, Any]:
     from proofpack.stats.attainability import attainable, max_lower_bound_at_n  # noqa: PLC0415
 
@@ -220,6 +234,7 @@ def _f6_heterogeneity() -> dict[str, Any]:
 #: The statistics blocks beyond the register: (fixture, entry prefix, builder).
 BLOCKS: tuple[tuple[str, str, Callable[[], Any]], ...] = (
     ("F4", "E6.calibration_block", _f4_calibration_block),
+    ("F5", "F5-register.accuracy_diff", _f5_accuracy_difference),
     ("F5", "E10.compare_versions", _f5_compare_versions),
     ("F5", "E10.unpaired_delong", _f5_unpaired_delong),
     ("F6", "subgroups.heterogeneity_footnote", _f6_heterogeneity),
@@ -277,7 +292,12 @@ def _flatten(v: Any) -> list[float]:
 
 
 def compare_entry(native: Mapping[str, Any], other: Mapping[str, Any]) -> tuple[bool, float | None]:
-    """``(ok, deviation)`` of one entry, by the rules of the site's ``compareEntry``."""
+    """``(ok, deviation)`` of one entry, by the rules of the site's ``compareEntry``, after
+    one rule of this repository's: the two entries' ``tol`` and ``class`` labels must be
+    equal (E13 repair 1, lens FA-B2: a committed entry whose label was widened from
+    ``closed`` to ``bootstrap`` beside a value moved by 3e-5 agreed with a fresh run when
+    the label was read from the committed side alone;
+    ``tests/test_f16_parity_native.py::test_compare_fails_when_the_two_labels_differ``)."""
     if native.get("value") is None or other.get("value") is None:
         ok = (
             native.get("value") is None
@@ -285,6 +305,8 @@ def compare_entry(native: Mapping[str, Any], other: Mapping[str, Any]) -> tuple[
             and native.get("reason") == other.get("reason")
         )
         return ok, None
+    if native.get("tol") != other.get("tol") or native.get("class") != other.get("class"):
+        return False, None
     tol = native.get("tol")
     if tol not in TOL_LABELS:
         return False, None

@@ -47,7 +47,7 @@ def test_the_four_rows_are_measured_by_this_command_and_behave(report):
     assert report["summary"]["not_built"] == 4 and report["summary"]["suite_only"] == 7
     assert _row(report, "F12")["evidence"]["measured_by_this_command"]["total"] == 11
     assert _row(report, "F19")["evidence"]["measured_by_this_command"]["total"] == 2
-    assert _row(report, "F17")["evidence"]["measured_by_this_command"]["total"] == 5
+    assert _row(report, "F17")["evidence"]["measured_by_this_command"]["total"] == 6
 
 
 def test_no_row_says_verified_and_ci_artefacts_are_marked_unseen(report):
@@ -67,7 +67,60 @@ def test_no_row_says_verified_and_ci_artefacts_are_marked_unseen(report):
         f19.CI_TEST_FILE,
     }
     assert "not the reference image" in _row(report, "F17")["reason"]
-    assert "unshare -rn" in _row(report, "F19")["reason"]
+
+
+def test_the_f19_row_names_the_namespace_fallback_and_the_three_socket_attributes(report):
+    """E13 repair 1, lens FA-B3 / RG-B2 and FA-B4 / RG-B1: at 941c8e4 the F19 reason said
+    "The --offline run inside unshare -rn" (the three runs of the job at 941c8e4 logged
+    ``namespace command: sudo unshare -n``) and "sockets refused" (a socket made through
+    ``_socket.socket`` was not counted)."""
+    row = _row(report, "F19")
+    text = json.dumps(row)
+    assert "inside unshare -rn" not in text and "sockets refused" not in text
+    assert (
+        "uses unshare -rn where the runner allows it and sudo unshare -n otherwise, and "
+        "records which in the artefact's namespace.txt" in row["reason"]
+    )
+    assert (
+        "with socket.socket, socket.getaddrinfo and socket.create_connection replaced by "
+        "counting refusals" in row["reason"]
+    )
+
+
+def test_the_f12_row_names_where_no_file_was_written(report):
+    """E13 repair 1, lens RG-B3: at 941c8e4 the F12 row said "no file written";
+    ``halt_fixtures.check`` inspects the fixture's directory and ``--out`` only."""
+    row = _row(report, "F12")
+    assert "no file written" not in row["what_is_compared"]
+    assert row["what_is_compared"].endswith(
+        "no file added, removed or changed under the fixture's directory (its inputs and "
+        "its PROOFPACK_HOME), and no --out"
+    )
+    assert "changed no file under the fixture's directory and wrote no --out" in row["reason"]
+
+
+#: (file, a sentence an E13 lens 1 note found false at 941c8e4); each must be absent.
+FALSE_AT_941C8E4 = (
+    ("src/proofpack/f19.py", "would be counted, not sent"),
+    ("src/proofpack/f19.py", "(``--offline`` inside ``unshare -rn``)"),
+    ("src/proofpack/fixtures.py", "sockets refused"),
+    ("src/proofpack/fixtures.py", '"unshare -rn "'),
+    ("src/proofpack/fixtures.py", "line, no file written"),
+    ("src/proofpack/fixtures.py", "every register value F1-F11"),
+    ("src/proofpack/parity.py", "for every value the fixture"),
+    ("src/proofpack/f17.py", "and fails on any other difference"),
+    ("src/proofpack/render/t12.py", "compared by the test suite only"),
+    ("src/proofpack/templates/T12.html", "compared by the test suite only"),
+    ("tests/test_f19_egress_bytes.py", "runs this file inside ``unshare -rn``"),
+    ("tests/test_f19_egress_bytes.py", "bypasses_the_recorder_is_counted_and_refused"),
+    ("tests/test_f16_parity_native.py", "test_every_register_row_with_an_engine_is_in_the_file"),
+)
+
+
+@pytest.mark.parametrize("path,sentence", FALSE_AT_941C8E4)
+def test_the_sentences_the_e13_lenses_found_false_are_gone(path, sentence):
+    text = (REPO / path).read_text(encoding="utf-8")
+    assert sentence not in text, (path, sentence)
 
 
 def test_f16_names_the_committed_file_and_the_engine_commit_that_wrote_it(report):

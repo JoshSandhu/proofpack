@@ -66,7 +66,7 @@ def test_the_committed_file_names_the_clean_engine_commit_that_produced_it(commi
         assert shallow.stdout.strip() == "true", ancestor.stderr
 
 
-def test_every_register_row_with_an_engine_is_in_the_file_except_f13_and_f13b(committed):
+def test_every_non_register_class_row_with_an_engine_is_in_the_file_except_f13_f13b(committed):
     keys = {k for v in committed["fixtures"].values() for k in v}
     for row in fx.register():
         if row.engine is None or row.tolerance_class in (None, "register"):
@@ -79,11 +79,71 @@ def test_every_register_row_with_an_engine_is_in_the_file_except_f13_and_f13b(co
     assert set(parity.LEFT_OUT) == {"F13", "F13b"}
 
 
+def _numbers(v) -> list[float]:
+    if isinstance(v, list):
+        return [y for x in v for y in _numbers(x)]
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return [float(v)]
+    return []
+
+
+def test_every_register_class_value_is_in_the_file(committed):
+    """E13 repair 1, lens FA-B1: ``_register_entries`` skips the rows whose tolerance class
+    is ``register`` (F1, F1b, F1c, F1d, F2, F3, F4, F5, F6 and F8 ``-register``). Each of
+    their values, computed now, must equal (exactly) a value the committed file holds for
+    the same fixture. At 941c8e4 F5-register's ``accuracy_diff`` (-0.08) was in no entry."""
+    seen = 0
+    for row in fx.register():
+        if row.engine is None or row.tolerance_class != "register":
+            continue
+        block = committed["fixtures"][row.fixture].values()
+        held = {x for e in block for x in _numbers(e.get("value"))}
+        for name, value in row.engine().items():
+            assert float(value) in held, (row.id, name, value)
+            seen += 1
+    assert seen == 67
+
+
+def test_f5_accuracy_difference_is_in_the_file_with_its_interval(committed):
+    f5 = committed["fixtures"]["F5"]
+    assert f5["F5-register.accuracy_diff.est"] == {
+        "value": -0.08,
+        "tol": "closed",
+        "class": "closed_form",
+    }
+    assert f5["F5-register.accuracy_diff.method"]["value"] == "newcombe_paired"
+    assert f5["F5-register.accuracy_diff.n"]["value"] == 100
+    assert abs(f5["F5-register.accuracy_diff.ci_lo"]["value"] - -0.1553563811022839) < 1e-12
+    assert abs(f5["F5-register.accuracy_diff.ci_hi"]["value"] - -0.010249291949335215) < 1e-12
+
+
+@pytest.mark.parametrize(
+    "tol,cls,delta",
+    [
+        ("bootstrap", "closed_form", 3.0e-5),  # lens FA-B2's plant: label widened, value moved
+        ("bootstrap", "closed_form", 0.0),  # the label alone
+        ("closed", "reported_rounding", 0.0),  # the class alone
+    ],
+)
+def test_compare_fails_when_the_two_labels_differ(committed, fresh, tol, cls, delta):
+    """E13 repair 1, lens FA-B2: ``F1-wilson.wilson_lo`` is ``closed`` / ``closed_form``
+    in a fresh run. The committed copy is planted with the label (and value) given; at
+    941c8e4 the first case agreed (the label was read from the committed side only)."""
+    planted = copy.deepcopy(committed)
+    entry = planted["fixtures"]["F1"]["F1-wilson.wilson_lo"]
+    assert fresh["fixtures"]["F1"]["F1-wilson.wilson_lo"]["tol"] == "closed"
+    entry.update(tol=tol, **{"class": cls})
+    entry["value"] += delta
+    failures = parity.compare(planted, fresh)["failures"]
+    assert len(failures) == 1 and failures[0].startswith("F1.F1-wilson.wilson_lo:"), failures
+
+
 def test_the_e6_to_e10_blocks_are_in_the_file(committed):
     prefixes = {p for _, p, _ in parity.BLOCKS}
     for fixture, prefix, _ in parity.BLOCKS:
         assert any(k.startswith(prefix + ".") for k in committed["fixtures"][fixture]), prefix
     assert prefixes == {
+        "F5-register.accuracy_diff",
         "E6.calibration_block",
         "E10.compare_versions",
         "E10.unpaired_delong",

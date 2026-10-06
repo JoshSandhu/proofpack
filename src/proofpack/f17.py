@@ -4,8 +4,9 @@ three-key mask.
 D1 section 3.2's F17 row: *synthetic 5k-row cohort, same platform, two runs: identical
 manifest hash and byte-identical JSON*. Two runs of one input cannot be byte-identical
 in full: the manifest records the run's own id, its start time and its duration
-(:data:`proofpack.manifest.VOLATILE_KEYS`). This module masks exactly those three values
-(:data:`MASKED_KEYS`) and nothing else, and fails on any other difference.
+(:data:`proofpack.manifest.VOLATILE_KEYS`). This module masks those three values
+(:data:`MASKED_KEYS`) in ``run.json`` and in the manifest hash, and ``run_id`` in
+``pseudonyms.json``; it masks nothing else.
 
 :func:`compare` of two run directories (moved here from ``scripts/f17_determinism.py`` at
 build day 13 so the fixtures command and the reference image use the same code) hashes:
@@ -17,7 +18,13 @@ build day 13 so the fixtures command and the reference image use the same code) 
   *manifest hash* of D1's row; the egress ``manifest_sha256`` hashes ``run_id`` and so
   differs between two runs by construction: it is recorded, not compared);
 * ``pseudonyms.json`` bytes with its ``run_id`` masked, ``ingest_report.json`` bytes as
-  written, and the sorted list of file paths under each run directory.
+  written, and the sorted list of file paths under each run directory;
+* ``other_files``: the bytes, unmasked, of every file under each run directory other than
+  the three above (:data:`KNOWN_FILES`), with its path (:func:`other_files_sha256`). E13
+  repair 1, lens FA-B6: at 941c8e4 a ``T8.json`` of ``{"run_id": "a"}`` in one run and
+  ``{"run_id": "b", "x": 1}`` in the other left ``identical`` true, because no other
+  file's content was read
+  (``tests/test_f17_reference_image.py::test_compare_reads_the_bytes_of_every_other_file``).
 
 Where the two runs were made is recorded, never inferred: ``where`` names it, and
 ``run_platforms`` is read from each ``run.json`` manifest. Hash identity is claimed on the
@@ -52,6 +59,9 @@ _VALUE = {
     "started": rb'"started": "[0-9T:\-]+Z"',
     "duration_s": rb'"duration_s": [0-9.eE+\-]+',
 }
+#: The files :func:`compare` reads under their own rules; every other file under a run
+#: directory is compared byte for byte as ``other_files``.
+KNOWN_FILES = ("run.json", "pseudonyms.json", "ingest_report.json")
 CI_JOB = "docker-smoke"
 CI_ARTEFACT = "f17-reference-image"
 CI_TEST_FILE = "tests/test_f17_reference_image.py"
@@ -84,6 +94,18 @@ def file_names(run_dir: Path) -> list[str]:
     return sorted(p.relative_to(run_dir).as_posix() for p in run_dir.rglob("*") if p.is_file())
 
 
+def other_files_sha256(run_dir: Path) -> str:
+    """SHA-256 over ``path NUL sha256(bytes) LF`` of every file under ``run_dir`` whose
+    relative path is not one of :data:`KNOWN_FILES`, in sorted path order."""
+    h = hashlib.sha256()
+    for name in file_names(run_dir):
+        if name in KNOWN_FILES:
+            continue
+        digest = hashlib.sha256((run_dir / name).read_bytes()).hexdigest()
+        h.update(name.encode("utf-8") + bytes([0]) + digest.encode("ascii") + bytes([10]))
+    return h.hexdigest()
+
+
 def compare(run1: Path, run2: Path, *, where: str | None = None) -> dict[str, Any]:
     """The comparison of two run directories (module docstring). ``identical`` is true
     only when every hash in ``checks`` is equal."""
@@ -107,6 +129,7 @@ def compare(run1: Path, run2: Path, *, where: str | None = None) -> dict[str, An
             hashlib.sha256("\n".join(names).encode("utf-8")).hexdigest()
             for names in (file_names(run1), file_names(run2))
         ],
+        "other_files": [other_files_sha256(p) for p in (run1, run2)],
     }
     manifests = [json.loads(x.decode("utf-8"))["manifest"] for x in (ra, rb)]
     run_platforms = [m.get("platform") for m in manifests]

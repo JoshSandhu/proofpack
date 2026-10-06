@@ -35,7 +35,7 @@
 <header class="page-header">{{ header_engine }}</header>
 <h2 id="t12-s3">3. Assurance evidence: the fixture register (fixtures_report.json)</h2>
 {{ margin_note(anchor.evidence) }}
-<p>Every row of the report is printed, whatever its status. A row reads "matched" only when every compared value lies within the row's tolerance; "not matched", "no oracle recorded", "not built in this version" and "compared by the test suite only" are printed as they stand.</p>
+<p>Every row of the report is printed, whatever its status. A row reads "matched" only when every compared value lies within the row's tolerance; "not matched", "no oracle recorded", "not built in this version", "checked by this command, against no independent oracle" and "checked by the test suite or a CI job, not by this command" are printed as they stand.</p>
 <table class="environment">
 <caption>Where the report was generated</caption>
 <tbody>
@@ -61,7 +61,7 @@
 <tr><th scope="row">no oracle recorded</th><td class="num" data-count="no_oracle_recorded">{{ summary.no_oracle_recorded }}</td></tr>
 <tr><th scope="row">no independent oracle</th><td class="num" data-count="no_independent_oracle">{{ summary.no_independent_oracle }}</td></tr>
 <tr><th scope="row">not built in this version</th><td class="num" data-count="not_built">{{ summary.not_built }}</td></tr>
-<tr><th scope="row">compared by the test suite only</th><td class="num" data-count="suite_only">{{ summary.suite_only }}</td></tr>
+<tr><th scope="row">suite only: checked by this command, the test suite or a CI job</th><td class="num" data-count="suite_only">{{ summary.suite_only }}</td></tr>
 <tr><th scope="row">Exit code of proofpack fixtures</th><td class="num" data-count="exit_code">{{ report.exit_code }}</td></tr>
 </tbody>
 </table>
