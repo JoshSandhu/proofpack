@@ -342,10 +342,12 @@ def load_oracles() -> dict[str, Any]:
     """The committed oracle files, keyed by the file name each row cites. A file that is
     absent is left out of the mapping (F14's Newcombe table: :data:`NEWCOMBE_ABSENT`; the
     others: :class:`OracleFileMissing` when a row looks it up); a file that raises
-    ``ValueError`` when parsed is named in ``unreadable``. The Newcombe table is read from
-    ``<root>/fixtures/newcombe_table2.json`` only when :func:`source_checkout_root` returns
-    ``<root>`` (lens FA2-R2: a wheel installed with ``pip --target X/src`` read
-    ``X/fixtures/newcombe_table2.json``)."""
+    ``ValueError`` when parsed - a repeated key in any object included
+    (:class:`DuplicateJSONKeyError`; E13 lens 5 N0: a planted ``"wilson_lo": 0.9`` before
+    the real one left F1-wilson ``matched``) - is named in ``unreadable``. The Newcombe
+    table is read from ``<root>/fixtures/newcombe_table2.json`` only when
+    :func:`source_checkout_root` returns ``<root>`` (lens FA2-R2: a wheel installed with
+    ``pip --target X/src`` read ``X/fixtures/newcombe_table2.json``)."""
     out = Oracles()
     paths: dict[str, Callable[[], Path]] = {
         "oracles_v1.json": lambda: resource_path("oracles_v1.json"),
@@ -357,7 +359,9 @@ def load_oracles() -> dict[str, Any]:
         paths[NEWCOMBE_FILE] = lambda: root / "fixtures" / NEWCOMBE_FILE
     for name, where in paths.items():
         try:
-            out[name] = json.loads(where().read_text(encoding="utf-8"))
+            out[name] = json.loads(
+                where().read_text(encoding="utf-8"), object_pairs_hook=_refuse_duplicate_keys
+            )
         except FileNotFoundError:
             continue
         except ValueError as exc:  # JSONDecodeError, UnicodeDecodeError
@@ -397,7 +401,7 @@ def _f4_rows() -> tuple[np.ndarray, np.ndarray]:
 def _register(oracles: dict[str, Any], key: str) -> tuple[dict[str, float], dict[str, float]]:
     """A register entry and the per-value tolerance its printed decimals give."""
     doc = oracles["oracles_v1.json"]
-    values = doc["register"][key]
+    values = _object_entry(doc["register"][key], f"register.{key}")
     dec = doc["register_decimals"][key]
     if key == "F3_bootstrap":  # a bootstrap interval: D1 section 9's reported rounding
         tol = {
@@ -407,6 +411,53 @@ def _register(oracles: dict[str, Any], key: str) -> tuple[dict[str, float], dict
     else:
         tol = {k: float(TOLERANCES["register"]) for k in values}  # type: ignore[arg-type]
     return values, tol
+
+
+class OracleEntryMalformed(ValueError):
+    """An oracle entry whose shape the row cannot read without guessing: an entry that must
+    be a JSON object and is not, or a field the reader does not know (E13 N0 lens 2 B1/B2).
+    The row is ``not_matched`` with reason ``oracle_entry_malformed: ...``."""
+
+
+class OracleEntryRepeated(ValueError):
+    """One oracle name built twice from a list of entries (E13 N0 lens B1). The row is
+    ``not_matched`` with reason ``oracle_entry_repeated: ...``."""
+
+
+#: JSON's names for the Python types ``json.loads`` returns.
+_JSON_TYPE = {
+    dict: "object",
+    list: "array",
+    str: "string",
+    int: "number",
+    float: "number",
+    bool: "boolean",
+    type(None): "null",
+}
+
+
+def _object_entry(value: Any, where: str) -> dict[str, Any]:
+    """An oracle entry that must be a JSON object, returned as is: a list of pairs passed to
+    ``dict()`` keeps the last of two equal names and drops the first without a word (E13 N0
+    lens B1: F1-wilson's ``values`` written as ``[["wilson_lo", 0.9], ...,
+    ["wilson_lo", 0.255...]]`` stayed ``matched``). Anything else raises
+    :class:`OracleEntryMalformed` naming the JSON type found (the row is ``not_matched``)."""
+    if not isinstance(value, dict):
+        found = _JSON_TYPE.get(type(value), type(value).__name__)
+        raise OracleEntryMalformed(f"{where} is a JSON {found}, not an object")
+    return value
+
+
+def _unique(pairs: list[tuple[str, Any]], where: str) -> dict[str, Any]:
+    """``dict(pairs)`` that refuses a name built twice from a list of entries (E13 N0 lens
+    B1: a second Newcombe row or example with the same cells, placed first, was dropped
+    and the row stayed ``matched``): :class:`OracleEntryRepeated`."""
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise OracleEntryRepeated(f"{where}: {key!r} appears twice")
+        out[key] = value
+    return out
 
 
 # ------------------------------------------------------------------- engine values
@@ -706,13 +757,33 @@ def _f11() -> dict[str, float]:
     return out
 
 
+_PAIRED_ROW_KEYS = frozenset({"e", "f", "g", "h", "method10"})
+_PAIRED_SIDES = frozenset({"lower", "upper"})
+
+
 def _paired_rows(doc: dict[str, Any]) -> list[tuple[str, float]]:
+    """``(name, value)`` for every printed side of every Table III row. A row with a field
+    other than ``e``, ``f``, ``g``, ``h`` and ``method10``, or a ``method10`` with a side
+    other than ``lower`` and ``upper`` or with none, raises :class:`OracleEntryMalformed`
+    (E13 N0 lens 2 B1: a second row whose sides were spelt ``"lower "`` was skipped, never
+    compared, and the row stayed ``matched``)."""
+    rows = doc["rows"]
+    if not isinstance(rows, list):  # E13 N0 lens 3 B1: an object or string named rows[0]
+        found = _JSON_TYPE.get(type(rows), type(rows).__name__)
+        raise OracleEntryMalformed(f"{NEWCOMBE_PAIRED_FILE} rows is a JSON {found}, not an array")
     out = []
-    for row in doc["rows"]:
+    for i, row in enumerate(rows):
+        where = f"{NEWCOMBE_PAIRED_FILE} rows[{i}]"
+        row = _object_entry(row, where)
+        if set(row) != _PAIRED_ROW_KEYS:
+            raise OracleEntryMalformed(f"{where} fields {sorted(row)}")
+        sides = _object_entry(row["method10"], f"{where}.method10")
+        if not sides or not set(sides) <= _PAIRED_SIDES:
+            raise OracleEntryMalformed(f"{where}.method10 sides {sorted(sides)}")
         cells = f"e {row['e']} f {row['f']} g {row['g']} h {row['h']}"
         for side in ("lower", "upper"):
-            if side in row["method10"]:
-                out.append((f"{cells} method10 {side}", float(row["method10"][side])))
+            if side in sides:
+                out.append((f"{cells} method10 {side}", float(sides[side])))
     return out
 
 
@@ -733,7 +804,7 @@ def _f5_newcombe_paired() -> dict[str, float]:
 
 def _f5_newcombe_paired_oracle(o: dict[str, Any]):
     doc = o[NEWCOMBE_PAIRED_FILE]
-    values = dict(_paired_rows(doc))
+    values = _unique(_paired_rows(doc), f"{NEWCOMBE_PAIRED_FILE} rows")
     excluded = "; ".join(
         f"e {x['e']} f {x['f']} g {x['g']} h {x['h']} {x['value']} not compared: printed "
         f"{x['printed']}, method 8 of the same row printed {x['printed_method8_same_row']}"
@@ -883,7 +954,8 @@ def _vectors_path_from_env() -> Path | None:
 
 
 class DuplicateJSONKeyError(ValueError):
-    """A JSON object in an R capture file names one key twice. ``json.loads`` keeps the
+    """A JSON object in an R capture file, an oracle file (:func:`load_oracles`) or the
+    committed F16 parity file names one key twice. ``json.loads`` keeps the
     last copy and drops the first without a word, so a bad pair placed before the real one
     was never read (E13 repair 4, lens 4 FA-B1: a repeated ``"s100b auc"`` with engine 0.1
     and R 0.9 before the real pair left F13 ``suite_only`` and the command exited 0)."""
@@ -1437,7 +1509,7 @@ def _captured(key: str, cls: str) -> Callable:
         doc = o["oracles_v1.json"]
         entry = doc["captured"][key]
         tol = TOLERANCES[cls]
-        values = dict(entry["values"])
+        values = _object_entry(entry["values"], f"captured.{key}.values")
         return (
             values,
             {k: float(tol) for k in values},  # type: ignore[arg-type]
@@ -1560,11 +1632,12 @@ def _f14_oracle(o: dict[str, Any]):
     if NEWCOMBE_FILE not in o and NEWCOMBE_FILE not in getattr(o, "unreadable", {}):
         raise OracleAbsent(NEWCOMBE_ABSENT)
     doc = o[NEWCOMBE_FILE]
-    values = {}
+    pairs = []
     for ex in doc["examples"]:
         for method in ("method10", "method11"):
-            values[f"{ex['label']} {method} lower"] = ex[method]["lower"]
-            values[f"{ex['label']} {method} upper"] = ex[method]["upper"]
+            pairs.append((f"{ex['label']} {method} lower", ex[method]["lower"]))
+            pairs.append((f"{ex['label']} {method} upper", ex[method]["upper"]))
+    values = _unique(pairs, f"{NEWCOMBE_FILE} examples")
     status = doc["provenance"]["status"]
     return (
         values,
@@ -1753,7 +1826,10 @@ def f16_behaviour(
                 "evidence": {"measured_by_this_command": None, "artefacts": [test]},
             }
         try:
-            committed = json.loads((root / parity.COMMITTED_FILE).read_text(encoding="utf-8"))
+            committed = json.loads(
+                (root / parity.COMMITTED_FILE).read_text(encoding="utf-8"),
+                object_pairs_hook=_refuse_duplicate_keys,
+            )
         except (OSError, ValueError) as exc:
             return {
                 "status": "not_matched",
@@ -2388,6 +2464,12 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
         return out
     except RCaptureInputMismatch as exc:
         out.update(status="not_matched", reason=f"r_capture_input_mismatch: {exc}")
+        return out
+    except OracleEntryRepeated as exc:
+        out.update(status="not_matched", reason=f"oracle_entry_repeated: {exc}")
+        return out
+    except OracleEntryMalformed as exc:
+        out.update(status="not_matched", reason=f"oracle_entry_malformed: {exc}")
         return out
     except ComparedInRunner as exc:
         out.update(
