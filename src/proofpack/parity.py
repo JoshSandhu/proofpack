@@ -19,7 +19,8 @@ reported rounding (bootstrap) under Pyodide vs native*. F16 has two halves:
   looks up each of the 67 values of the ``register``-class rows (F1-F6 and F8) among the
   values a fresh :func:`compute` gives for the same fixture, by exact equality, and asks
   the committed file for every key among the fresh entries holding an equal value (19 of
-  the 67 values equal two or three entries); it reads no value of the file.
+  the 67 values equal more than one entry: 9 equal two, 8 three and 2 four); it reads no
+  value of the file.
   The file's values are held to that fresh run by :func:`compare`, under the labelled
   tolerances, not by exact equality (``F3-delong.paired_p``, labelled ``irls``, moved by
   5e-10 in a copy of the file still passes both:

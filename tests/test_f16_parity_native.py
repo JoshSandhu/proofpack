@@ -12,6 +12,7 @@ is not run here.
 
 from __future__ import annotations
 
+import collections
 import copy
 import json
 import re
@@ -93,8 +94,8 @@ def _register_class_lookup(committed: dict, fresh: dict) -> tuple[int, list]:
     now, looked up among the values of ``fresh`` for the same fixture by exact equality; a
     miss is a value no entry of ``fresh`` holds, or one for which ANY key among the fresh
     entries holding it is absent from ``committed`` (E13 repair 3, lens 3 FA-B1: with
-    ``any`` a value matched by two or three keys - 19 of the 67 - passed with one of its
-    keys deleted). No value of ``committed`` is read."""
+    ``any`` a value matched by more than one key - 19 of the 67: 9 by two, 8 by three, 2 by
+    four - passed with one of its keys deleted). No value of ``committed`` is read."""
     seen, misses = 0, []
     for row in fx.register():
         if row.engine is None or row.tolerance_class != "register":
@@ -298,6 +299,12 @@ def test_e13r3_b1_deleting_any_one_key_of_a_multi_key_value_is_a_miss(committed,
             if len(keys) > 1:
                 multi.append((row.id, row.fixture, name, keys))
     assert len(multi) == 19
+    # E13 repair 4 (lens 4 FA-B2): the split the parity docstring states
+    assert sorted(collections.Counter(len(m[3]) for m in multi).items()) == [
+        (2, 9),
+        (3, 8),
+        (4, 2),
+    ]
     for rid, fixture, name, keys in multi:
         for key in keys:
             planted = copy.deepcopy(committed)

@@ -882,6 +882,22 @@ def _vectors_path_from_env() -> Path | None:
     return None if value is None else Path(value)
 
 
+class DuplicateJSONKeyError(ValueError):
+    """A JSON object in an R capture file names one key twice. ``json.loads`` keeps the
+    last copy and drops the first without a word, so a bad pair placed before the real one
+    was never read (E13 repair 4, lens 4 FA-B1: a repeated ``"s100b auc"`` with engine 0.1
+    and R 0.9 before the real pair left F13 ``suite_only`` and the command exited 0)."""
+
+
+def _refuse_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise DuplicateJSONKeyError(f"key {key!r} appears twice in one object")
+        out[key] = value
+    return out
+
+
 def load_r_captures(
     directory: Path | None = None, *, vectors: Path | str | None = FROM_ENV
 ) -> RCaptures:
@@ -889,7 +905,8 @@ def load_r_captures(
     from ``directory`` (default :func:`r_captures_dir`), and the aSAH vectors from the file
     ``vectors`` names (default: :data:`R_VECTORS_ENV`; ``None``: not read, the DEC-77
     shape everywhere outside the r-captures job). A JSON file that is absent is left
-    ``None``; one that cannot be read or parsed is ``None`` and named in ``unreadable``.
+    ``None``; one that cannot be read or parsed, or that names one key twice in any object
+    (:class:`DuplicateJSONKeyError`), is ``None`` and named in ``unreadable``.
     The vectors file, when one is named, is named in ``unreadable`` when it is missing as
     well (``FileNotFoundError``): there its absence is a failure, not a skip."""
     where = r_captures_dir() if directory is None else Path(directory)
@@ -903,7 +920,7 @@ def load_r_captures(
     for rel in (*R_CAPTURE_FILES, R_COMPARISON_FILE):
         try:
             raw_json = (where / Path(rel).name).read_bytes()
-            doc = json.loads(raw_json.decode("utf-8"))
+            doc = json.loads(raw_json.decode("utf-8"), object_pairs_hook=_refuse_duplicate_keys)
             if not isinstance(doc, dict):
                 raise ValueError("not a JSON object")
             docs[rel] = doc
