@@ -67,15 +67,16 @@ def _planted(key: str, value: str, delta: float) -> dict:
 
 #: The summary with no R capture committed (measured before the capture commit, and since
 #: then in the absent state the ``no_r_capture`` fixture builds): F13 and F13b
-#: ``no_oracle_recorded``.
+#: ``no_oracle_recorded``. Build day 13 (E13): F16's engine half is measured by the command
+#: (``fixtures.f16_behaviour``), so F16 moves from ``not_built`` to ``suite_only``.
 SUMMARY_WITHOUT_THE_CAPTURE = {
     "rows": 46,
     "matched": 34,
     "not_matched": 0,
     "no_oracle_recorded": 2,
     "no_independent_oracle": 0,
-    "not_built": 5,
-    "suite_only": 5,
+    "not_built": 4,
+    "suite_only": 6,
 }
 #: The summary with run 37332685741's capture committed (5 October 2026): F13b matched
 #: (+1 matched), F13 ``suite_only`` from the job's recorded comparison (+1 suite only).
@@ -83,7 +84,7 @@ SUMMARY_WITH_THE_CAPTURE = {
     **SUMMARY_WITHOUT_THE_CAPTURE,
     "matched": 35,
     "no_oracle_recorded": 0,
-    "suite_only": 6,
+    "suite_only": 7,
 }
 
 
@@ -211,6 +212,7 @@ def test_without_an_r_capture_f13_and_f13b_have_no_oracle_recorded(no_r_capture)
     assert [k for k, v in status.items() if v == "no_oracle_recorded"] == ["F13", "F13b"]
     assert sorted(k for k, v in status.items() if v == "suite_only") == [
         "F12",
+        "F16",
         "F17",
         "F18",
         "F19",
@@ -261,9 +263,9 @@ def test_the_statuses_of_the_register_rows_are_the_ones_named(report):
     # state is test_without_an_r_capture_f13_and_f13b_have_no_oracle_recorded
     assert [k for k, v in status.items() if v == "no_oracle_recorded"] == []
     assert status["F13b"] == "matched"
+    # build day 13 (E13): F16's engine half is measured by the command (suite_only)
     assert sorted(k for k, v in status.items() if v == "not_built") == [
         "F15",
-        "F16",
         "F21",
         "F3-auprc",
         "F7",
@@ -274,6 +276,7 @@ def test_the_statuses_of_the_register_rows_are_the_ones_named(report):
     assert sorted(k for k, v in status.items() if v == "suite_only") == [
         "F12",
         "F13",
+        "F16",
         "F17",
         "F18",
         "F19",
@@ -300,6 +303,10 @@ def test_an_absent_optional_dependency_is_not_matched_with_its_reason(monkeypatc
     monkeypatch.setattr(props, "clopper_pearson_bounds", no_scipy)
     rep = fx.run_fixtures(doctor=False)
     hit = {r["id"]: r["reason"] for r in rep["rows"] if r["status"] == "not_matched"}
+    # build day 13 (E13): F16's engine half recomputes the same values without scipy and
+    # finds the committed native file's Clopper-Pearson entries absent
+    f16 = hit.pop("F16")
+    assert "not so: F1.F1-clopper-pearson.cp_hi: " in f16 and "None" in f16
     assert hit == {
         "F1-clopper-pearson": "optional_dependency_missing: scipy",
         "F1-register": "optional_dependency_missing: scipy",

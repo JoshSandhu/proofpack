@@ -51,8 +51,63 @@ STATUS_TEXT: dict[str, str] = {
     "no_oracle_recorded": "no oracle recorded",
     "no_independent_oracle": "no independent oracle (frozen engine value, [unverified])",
     "not_built": "not built in this version",
-    "suite_only": "compared by the test suite only",
+    "suite_only": "checked by the test suite or a CI job, not by this command",
 }
+#: The status cell of a ``suite_only`` row whose ``evidence.measured_by_this_command`` is
+#: set (F12, F16, F17 and F19 since build day 13). E13 repair 1, lens FA-B5: at 941c8e4
+#: every ``suite_only`` row printed one text saying the test suite alone compared it,
+#: including the four this command measures itself (in the lens's run a drift planted in
+#: ``fixtures/f16_parity_native.json`` made ``proofpack fixtures --offline`` exit 6 with no
+#: pytest involved);
+#: ``tests/test_t12.py::test_the_suite_only_status_cell_names_who_checked_the_row``.
+SUITE_ONLY_MEASURED_TEXT = "checked by this command, against no independent oracle"
+#: The status cell of a ``suite_only`` row with no ``evidence.measured_by_this_command``
+#: and a numeric ``max_abs_deviation``: F13 read from the r-captures job's recorded
+#: comparison (``fixtures.f13_recorded_outcome``, DEC-77). E13 repair 2, lens 2 FA-B2: at
+#: bcb1dac F13 printed "checked by the test suite or a CI job, not by this command"; in the
+#: lens's run ``values["ndka auc"].engine`` raised by 1e-3 in
+#: ``fixtures/r/f13_engine_comparison.json`` made ``proofpack fixtures --offline`` exit 6
+#: with F13 ``not_matched``, no pytest involved;
+#: ``tests/test_t12.py::test_the_suite_only_status_cell_names_who_checked_the_row`` and
+#: ``tests/test_e13_report_rows.py::``
+#: ``test_the_f13_status_cell_follows_a_drift_planted_in_the_recorded_comparison``.
+SUITE_ONLY_RECORDED_TEXT = (
+    "compared inside a CI job; deviations recomputed by this command from the recorded values"
+)
+
+
+def values_cell(row: dict[str, Any]) -> int:
+    """The Values cell: ``n_values_compared``, except for a row whose status cell is
+    :data:`SUITE_ONLY_RECORDED_TEXT` (F13 read from the r-captures job's recorded
+    comparison), which prints the number of recorded pairs whose deviation this command
+    recomputed: every one of ``fixtures.F13_NAMES``, since any other recorded name, or any
+    of them missing, makes the row ``not_matched`` (``fixtures.f13_recorded_outcome``). The
+    report keeps ``n_values_compared`` 0 for that row (the schema's ``suite_only`` rule).
+    E13 repair 3, lens 3 FA-B3: at ec989ed this cell printed 0 beside a largest deviation
+    of 2.78e-17 and a status saying the deviations were recomputed."""
+    if status_text(row) == SUITE_ONLY_RECORDED_TEXT:
+        from proofpack.fixtures import F13_NAMES
+
+        return len(F13_NAMES)
+    return int(row.get("n_values_compared", 0))
+
+
+def status_text(row: dict[str, Any]) -> str:
+    """The words of one row's status cell: :data:`STATUS_TEXT`, except for a ``suite_only``
+    row this command measured (:data:`SUITE_ONLY_MEASURED_TEXT`) or whose recorded
+    comparison's deviations it recomputed (:data:`SUITE_ONLY_RECORDED_TEXT`). Any other
+    status prints its :data:`STATUS_TEXT` whatever the evidence
+    (``tests/test_e13_report_rows.py::``
+    ``test_a_not_matched_row_prints_not_matched_whatever_its_evidence``)."""
+    if row["status"] != "suite_only":
+        return STATUS_TEXT[row["status"]]
+    if (row.get("evidence") or {}).get("measured_by_this_command") is not None:
+        return SUITE_ONLY_MEASURED_TEXT
+    if row.get("max_abs_deviation") is not None:
+        return SUITE_ONLY_RECORDED_TEXT
+    return STATUS_TEXT["suite_only"]
+
+
 INTENDED_USE_SLOT = (
     "CT-T12",
     "intended use of ProofPack in the manufacturer's process, and the records its output enters",
@@ -183,9 +238,9 @@ def evidence_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
                 "oracle": _oracle(r.get("oracle_source")),
                 "tolerance": _tolerance(r.get("tolerance")),
                 "deviation": _dev(r.get("max_abs_deviation")),
-                "n": str(r.get("n_values_compared", 0)),
+                "n": str(values_cell(r)),
                 "status": r["status"],
-                "status_text": STATUS_TEXT[r["status"]],
+                "status_text": status_text(r),
                 "reason": reason,
                 "reason_unverified": reason.startswith("[unverified"),
                 "suite_tests": ", ".join(r.get("suite_tests") or []),

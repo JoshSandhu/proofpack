@@ -1,0 +1,4565 @@
+{
+ "engine_version": "0.1.0.dev1",
+ "fixtures": {
+  "F1": {
+   "F1-clopper-pearson.cp_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.36762192260135135
+   },
+   "F1-clopper-pearson.cp_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.25273674558527126
+   },
+   "F1-wilson.wilson_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.36620957698280004
+   },
+   "F1-wilson.wilson_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.2552885198782742
+   }
+  },
+  "F10": {
+   "F10-exact.as_negative_sensitivity": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8490566037735849
+   },
+   "F10-exact.as_negative_specificity": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9019607843137255
+   },
+   "F10-exact.as_positive_sensitivity": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9056603773584906
+   },
+   "F10-exact.as_positive_specificity": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8823529411764706
+   }
+  },
+  "F11": {
+   "F11-ppa-npa.npa": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9
+   },
+   "F11-ppa-npa.npa_ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9343295513309041
+   },
+   "F11-ppa-npa.npa_ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8505941875672826
+   },
+   "F11-ppa-npa.ppa": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9
+   },
+   "F11-ppa-npa.ppa_ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9447708629393248
+   },
+   "F11-ppa-npa.ppa_ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8256343384950866
+   }
+  },
+  "F14": {
+   "F14-newcombe.10/10 - 0/20 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.6790860371419147
+   },
+   "F14-newcombe.10/10 - 0/20 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "F14-newcombe.10/10 - 0/20 method11 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.6013931281001693
+   },
+   "F14-newcombe.10/10 - 0/20 method11 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "F14-newcombe.56/70 - 48/80 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.0524314724023649
+   },
+   "F14-newcombe.56/70 - 48/80 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.3338726540369059
+   },
+   "F14-newcombe.56/70 - 48/80 method11 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.042767872002889784
+   },
+   "F14-newcombe.56/70 - 48/80 method11 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.3421862784381805
+   },
+   "F14-newcombe.9/10 - 3/10 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.17052272393450302
+   },
+   "F14-newcombe.9/10 - 3/10 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.809017973535488
+   },
+   "F14-newcombe.9/10 - 3/10 method11 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.1012872258857006
+   },
+   "F14-newcombe.9/10 - 3/10 method11 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.8386689697680605
+   }
+  },
+  "F1b": {
+   "F1b-clopper-pearson.cp_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.9903685704135666
+   },
+   "F1b-clopper-pearson.cp_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.9635275917077902
+   },
+   "F1b-wilson.wilson_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9891008164037892
+   },
+   "F1b-wilson.wilson_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9635798167531207
+   }
+  },
+  "F1c": {
+   "F1c-clopper-pearson.cp_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.16843347098308525
+   },
+   "F1c-clopper-pearson.cp_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.0
+   },
+   "F1c-wilson.wilson_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.16112515805281932
+   },
+   "F1c-wilson.wilson_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.0
+   }
+  },
+  "F1d": {
+   "F1d-clopper-pearson.cp_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 1.0
+   },
+   "F1d-clopper-pearson.cp_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.8315665290169147
+   },
+   "F1d-wilson.wilson_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "F1d-wilson.wilson_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8388748419471808
+   }
+  },
+  "F2": {
+   "F2-exact.dor": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 81.0
+   },
+   "F2-exact.f1": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8571428571428571
+   },
+   "F2-exact.lr_neg": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.11111111111111108
+   },
+   "F2-exact.lr_pos": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 9.000000000000002
+   },
+   "F2-exact.mcc": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.7825855808712295
+   },
+   "F2-exact.npv": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9473684210526315
+   },
+   "F2-exact.npv_at_0.05": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9941860465116279
+   },
+   "F2-exact.ppv": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8181818181818182
+   },
+   "F2-exact.ppv_at_0.05": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3214285714285715
+   },
+   "F2-exact.prevalence": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3333333333333333
+   },
+   "F2-exact.sensitivity": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9
+   },
+   "F2-exact.sensitivity_ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9447708629393248
+   },
+   "F2-exact.sensitivity_ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8256343384950866
+   },
+   "F2-exact.specificity": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9
+   },
+   "F2-exact.specificity_ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9343295513309041
+   },
+   "F2-exact.specificity_ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8505941875672826
+   },
+   "F2-exact.youden": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8
+   }
+  },
+  "F3": {
+   "F3-auroc.auc_s1": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8
+   },
+   "F3-auroc.auc_s2": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.64
+   },
+   "F3-bootstrap.ci_hi": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 1.0
+   },
+   "F3-bootstrap.ci_lo": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.44
+   },
+   "F3-delong.delong_se_s1": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.15491933384829668
+   },
+   "F3-delong.delong_se_s2": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.1979898987322333
+   },
+   "F3-delong.logit_ci_hi_s1": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.9638765618952637
+   },
+   "F3-delong.logit_ci_lo_s1": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.374857749171578
+   },
+   "F3-delong.paired_p": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.0593464387919201
+   },
+   "F3-delong.paired_var_diff": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.007200000000000005
+   },
+   "F3-delong.paired_z": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 1.8856180831641252
+   },
+   "F3-delong.wald_ci_hi_s1": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 1.1036363148515984
+   },
+   "F3-delong.wald_ci_lo_s1": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.4963636851484017
+   }
+  },
+  "F4": {
+   "E6.calibration_block.brier.analytic.ci_hi": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.brier.analytic.ci_lo": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.158755
+   },
+   "E6.calibration_block.brier.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E6.calibration_block.brier.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.brier.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.brier.analytic.not_estimable_reason": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "analytic_ci_unavailable"
+   },
+   "E6.calibration_block.brier.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.brier.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.brier.bootstrap.B": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 200
+   },
+   "E6.calibration_block.brier.bootstrap.b_source": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "engine_default"
+   },
+   "E6.calibration_block.brier.bootstrap.cell_key": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "[\"calibration\", \"brier\"]"
+   },
+   "E6.calibration_block.brier.bootstrap.interval": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "percentile"
+   },
+   "E6.calibration_block.brier.bootstrap.resample_sd": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.04185074641204865
+   },
+   "E6.calibration_block.brier.bootstrap.resample_sd_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier.bootstrap.resampling.class_strata.negative": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     8,
+     0
+    ]
+   },
+   "E6.calibration_block.brier.bootstrap.resampling.class_strata.positive": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     12,
+     0
+    ]
+   },
+   "E6.calibration_block.brier.bootstrap.resampling.class_units.negative": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 8
+   },
+   "E6.calibration_block.brier.bootstrap.resampling.class_units.positive": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 12
+   },
+   "E6.calibration_block.brier.bootstrap.resampling.deficient_class": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier.bootstrap.resampling.frozen_variance_share.negative": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.0
+   },
+   "E6.calibration_block.brier.bootstrap.resampling.frozen_variance_share.positive": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.0
+   },
+   "E6.calibration_block.brier.bootstrap.resampling.kind": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "stratified"
+   },
+   "E6.calibration_block.brier.bootstrap.resampling.units_per_stratum.negative": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 8
+   },
+   "E6.calibration_block.brier.bootstrap.resampling.units_per_stratum.positive": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 12
+   },
+   "E6.calibration_block.brier.bootstrap.seed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20240101
+   },
+   "E6.calibration_block.brier.bootstrap.seed_source": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "engine_default"
+   },
+   "E6.calibration_block.brier.bootstrap.thresholds.low_precision_units": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E6.calibration_block.brier.bootstrap.thresholds.max_frozen_variance_share": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.2
+   },
+   "E6.calibration_block.brier.bootstrap.thresholds.min_units_per_class_stratum": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.brier.bootstrap.thresholds.min_usable_fraction": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.9
+   },
+   "E6.calibration_block.brier.bootstrap.thresholds.small_class": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E6.calibration_block.brier.bootstrap.thresholds.very_low_precision_units": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 30
+   },
+   "E6.calibration_block.brier.bootstrap.usable_resamples": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 200
+   },
+   "E6.calibration_block.brier.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.brier.number.ci_hi": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.2416
+   },
+   "E6.calibration_block.brier.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.brier.number.ci_lo": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.09159725
+   },
+   "E6.calibration_block.brier.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.158755
+   },
+   "E6.calibration_block.brier.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "very_low_precision"
+    ]
+   },
+   "E6.calibration_block.brier.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "bootstrap_percentile"
+   },
+   "E6.calibration_block.brier.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.brier.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.brier_ref.analytic.ci_hi": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier_ref.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.brier_ref.analytic.ci_lo": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier_ref.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.24
+   },
+   "E6.calibration_block.brier_ref.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E6.calibration_block.brier_ref.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.brier_ref.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.brier_ref.analytic.not_estimable_reason": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "analytic_ci_unavailable"
+   },
+   "E6.calibration_block.brier_ref.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.brier_ref.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "unavailable"
+   },
+   "E6.calibration_block.brier_ref.bootstrap.B": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 200
+   },
+   "E6.calibration_block.brier_ref.bootstrap.b_source": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "engine_default"
+   },
+   "E6.calibration_block.brier_ref.bootstrap.cell_key": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "[\"calibration\", \"brier_ref\"]"
+   },
+   "E6.calibration_block.brier_ref.bootstrap.interval": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "percentile"
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resample_sd": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resample_sd_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resampling.class_strata.negative": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     8,
+     0
+    ]
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resampling.class_strata.positive": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     12,
+     0
+    ]
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resampling.class_units.negative": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 8
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resampling.class_units.positive": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 12
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resampling.deficient_class": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resampling.frozen_variance_share.negative": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.0
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resampling.frozen_variance_share.positive": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.0
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resampling.kind": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "stratified"
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resampling.units_per_stratum.negative": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 8
+   },
+   "E6.calibration_block.brier_ref.bootstrap.resampling.units_per_stratum.positive": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 12
+   },
+   "E6.calibration_block.brier_ref.bootstrap.seed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20240101
+   },
+   "E6.calibration_block.brier_ref.bootstrap.seed_source": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "engine_default"
+   },
+   "E6.calibration_block.brier_ref.bootstrap.thresholds.low_precision_units": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E6.calibration_block.brier_ref.bootstrap.thresholds.max_frozen_variance_share": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.2
+   },
+   "E6.calibration_block.brier_ref.bootstrap.thresholds.min_units_per_class_stratum": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.brier_ref.bootstrap.thresholds.min_usable_fraction": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.9
+   },
+   "E6.calibration_block.brier_ref.bootstrap.thresholds.small_class": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E6.calibration_block.brier_ref.bootstrap.thresholds.very_low_precision_units": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 30
+   },
+   "E6.calibration_block.brier_ref.bootstrap.usable_resamples": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E6.calibration_block.brier_ref.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.brier_ref.number.ci_hi": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier_ref.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.brier_ref.number.ci_lo": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.brier_ref.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.24
+   },
+   "E6.calibration_block.brier_ref.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "very_low_precision"
+    ]
+   },
+   "E6.calibration_block.brier_ref.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.brier_ref.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.brier_ref.number.not_estimable_reason": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "fixed_by_outcome_stratification"
+   },
+   "E6.calibration_block.brier_ref.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.clip_eps": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1e-12
+   },
+   "E6.calibration_block.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.convention": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "ProofPack convention after Van Calster 2019"
+   },
+   "E6.calibration_block.curve_flag.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 12
+   },
+   "E6.calibration_block.curve_flag.flag": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "below_200_events_or_nonevents"
+   },
+   "E6.calibration_block.curve_flag.minimum": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 200
+   },
+   "E6.calibration_block.curve_flag.nonevents": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 8
+   },
+   "E6.calibration_block.curve_flag.note": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "fewer than 200 events or fewer than 200 non-events (ProofPack convention after Van Calster 2019); the decile table, intercept, slope and O:E remain reported"
+   },
+   "E6.calibration_block.decile_curve.0.bin": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.0.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E6.calibration_block.decile_curve.0.mean_pred": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.07500000000000001
+   },
+   "E6.calibration_block.decile_curve.0.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.0.observed.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.6576197724933468
+   },
+   "E6.calibration_block.decile_curve.0.observed.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.0.observed.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.0
+   },
+   "E6.calibration_block.decile_curve.0.observed.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.0
+   },
+   "E6.calibration_block.decile_curve.0.observed.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise"
+    ]
+   },
+   "E6.calibration_block.decile_curve.0.observed.analytic.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E6.calibration_block.decile_curve.0.observed.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.0.observed.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.0.observed.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.0.observed.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.0.observed.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.decile_curve.0.observed.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.0.observed.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.decile_curve.0.observed.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.6576197724933468
+   },
+   "E6.calibration_block.decile_curve.0.observed.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.0.observed.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.0
+   },
+   "E6.calibration_block.decile_curve.0.observed.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.0
+   },
+   "E6.calibration_block.decile_curve.0.observed.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise",
+     "below_200_events_or_nonevents"
+    ]
+   },
+   "E6.calibration_block.decile_curve.0.observed.number.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E6.calibration_block.decile_curve.0.observed.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.0.observed.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.0.observed.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.0.observed.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.0.score_max": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.1
+   },
+   "E6.calibration_block.decile_curve.0.score_min": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.05
+   },
+   "E6.calibration_block.decile_curve.1.bin": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.1.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E6.calibration_block.decile_curve.1.mean_pred": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.175
+   },
+   "E6.calibration_block.decile_curve.1.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.1.observed.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.6576197724933468
+   },
+   "E6.calibration_block.decile_curve.1.observed.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.1.observed.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.0
+   },
+   "E6.calibration_block.decile_curve.1.observed.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.0
+   },
+   "E6.calibration_block.decile_curve.1.observed.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise"
+    ]
+   },
+   "E6.calibration_block.decile_curve.1.observed.analytic.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E6.calibration_block.decile_curve.1.observed.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.1.observed.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.1.observed.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.1.observed.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.1.observed.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.decile_curve.1.observed.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.1.observed.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.decile_curve.1.observed.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.6576197724933468
+   },
+   "E6.calibration_block.decile_curve.1.observed.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.1.observed.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.0
+   },
+   "E6.calibration_block.decile_curve.1.observed.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.0
+   },
+   "E6.calibration_block.decile_curve.1.observed.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise",
+     "below_200_events_or_nonevents"
+    ]
+   },
+   "E6.calibration_block.decile_curve.1.observed.number.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E6.calibration_block.decile_curve.1.observed.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.1.observed.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.1.observed.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.1.observed.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.1.score_max": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.2
+   },
+   "E6.calibration_block.decile_curve.1.score_min": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.15
+   },
+   "E6.calibration_block.decile_curve.2.bin": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 3
+   },
+   "E6.calibration_block.decile_curve.2.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.2.mean_pred": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.275
+   },
+   "E6.calibration_block.decile_curve.2.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.2.observed.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9054687942657692
+   },
+   "E6.calibration_block.decile_curve.2.observed.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.2.observed.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.09453120573423074
+   },
+   "E6.calibration_block.decile_curve.2.observed.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.5
+   },
+   "E6.calibration_block.decile_curve.2.observed.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise"
+    ]
+   },
+   "E6.calibration_block.decile_curve.2.observed.analytic.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.2.observed.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.2.observed.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.2.observed.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.2.observed.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.2.observed.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.decile_curve.2.observed.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.2.observed.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.decile_curve.2.observed.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9054687942657692
+   },
+   "E6.calibration_block.decile_curve.2.observed.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.2.observed.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.09453120573423074
+   },
+   "E6.calibration_block.decile_curve.2.observed.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.5
+   },
+   "E6.calibration_block.decile_curve.2.observed.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise",
+     "below_200_events_or_nonevents"
+    ]
+   },
+   "E6.calibration_block.decile_curve.2.observed.number.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.2.observed.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.2.observed.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.2.observed.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.2.observed.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.2.score_max": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3
+   },
+   "E6.calibration_block.decile_curve.2.score_min": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.25
+   },
+   "E6.calibration_block.decile_curve.3.bin": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 4
+   },
+   "E6.calibration_block.decile_curve.3.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.3.mean_pred": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.375
+   },
+   "E6.calibration_block.decile_curve.3.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.3.observed.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9054687942657692
+   },
+   "E6.calibration_block.decile_curve.3.observed.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.3.observed.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.09453120573423074
+   },
+   "E6.calibration_block.decile_curve.3.observed.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.5
+   },
+   "E6.calibration_block.decile_curve.3.observed.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise"
+    ]
+   },
+   "E6.calibration_block.decile_curve.3.observed.analytic.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.3.observed.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.3.observed.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.3.observed.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.3.observed.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.3.observed.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.decile_curve.3.observed.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.3.observed.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.decile_curve.3.observed.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9054687942657692
+   },
+   "E6.calibration_block.decile_curve.3.observed.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.3.observed.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.09453120573423074
+   },
+   "E6.calibration_block.decile_curve.3.observed.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.5
+   },
+   "E6.calibration_block.decile_curve.3.observed.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise",
+     "below_200_events_or_nonevents"
+    ]
+   },
+   "E6.calibration_block.decile_curve.3.observed.number.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.3.observed.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.3.observed.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.3.observed.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.3.observed.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.3.score_max": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.4
+   },
+   "E6.calibration_block.decile_curve.3.score_min": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.35
+   },
+   "E6.calibration_block.decile_curve.4.bin": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 5
+   },
+   "E6.calibration_block.decile_curve.4.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.4.mean_pred": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.475
+   },
+   "E6.calibration_block.decile_curve.4.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.4.observed.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.4.observed.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.4.observed.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3423802275066532
+   },
+   "E6.calibration_block.decile_curve.4.observed.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.4.observed.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise"
+    ]
+   },
+   "E6.calibration_block.decile_curve.4.observed.analytic.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.4.observed.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.4.observed.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.4.observed.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.4.observed.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.4.observed.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.decile_curve.4.observed.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.4.observed.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.decile_curve.4.observed.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.4.observed.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.4.observed.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3423802275066532
+   },
+   "E6.calibration_block.decile_curve.4.observed.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.4.observed.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise",
+     "below_200_events_or_nonevents"
+    ]
+   },
+   "E6.calibration_block.decile_curve.4.observed.number.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.4.observed.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.4.observed.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.4.observed.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.4.observed.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.4.score_max": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.5
+   },
+   "E6.calibration_block.decile_curve.4.score_min": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.45
+   },
+   "E6.calibration_block.decile_curve.5.bin": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 6
+   },
+   "E6.calibration_block.decile_curve.5.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.5.mean_pred": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.575
+   },
+   "E6.calibration_block.decile_curve.5.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.5.observed.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9054687942657692
+   },
+   "E6.calibration_block.decile_curve.5.observed.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.5.observed.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.09453120573423074
+   },
+   "E6.calibration_block.decile_curve.5.observed.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.5
+   },
+   "E6.calibration_block.decile_curve.5.observed.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise"
+    ]
+   },
+   "E6.calibration_block.decile_curve.5.observed.analytic.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.5.observed.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.5.observed.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.5.observed.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.5.observed.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.5.observed.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.decile_curve.5.observed.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.5.observed.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.decile_curve.5.observed.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9054687942657692
+   },
+   "E6.calibration_block.decile_curve.5.observed.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.5.observed.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.09453120573423074
+   },
+   "E6.calibration_block.decile_curve.5.observed.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.5
+   },
+   "E6.calibration_block.decile_curve.5.observed.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise",
+     "below_200_events_or_nonevents"
+    ]
+   },
+   "E6.calibration_block.decile_curve.5.observed.number.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.5.observed.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.5.observed.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.5.observed.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.5.observed.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.5.score_max": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.6
+   },
+   "E6.calibration_block.decile_curve.5.score_min": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.55
+   },
+   "E6.calibration_block.decile_curve.6.bin": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 7
+   },
+   "E6.calibration_block.decile_curve.6.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.6.mean_pred": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.675
+   },
+   "E6.calibration_block.decile_curve.6.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.6.observed.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.6.observed.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.6.observed.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3423802275066532
+   },
+   "E6.calibration_block.decile_curve.6.observed.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.6.observed.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise"
+    ]
+   },
+   "E6.calibration_block.decile_curve.6.observed.analytic.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.6.observed.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.6.observed.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.6.observed.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.6.observed.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.6.observed.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.decile_curve.6.observed.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.6.observed.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.decile_curve.6.observed.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.6.observed.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.6.observed.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3423802275066532
+   },
+   "E6.calibration_block.decile_curve.6.observed.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.6.observed.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise",
+     "below_200_events_or_nonevents"
+    ]
+   },
+   "E6.calibration_block.decile_curve.6.observed.number.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.6.observed.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.6.observed.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.6.observed.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.6.observed.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.6.score_max": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.7
+   },
+   "E6.calibration_block.decile_curve.6.score_min": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.65
+   },
+   "E6.calibration_block.decile_curve.7.bin": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 8
+   },
+   "E6.calibration_block.decile_curve.7.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.7.mean_pred": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.775
+   },
+   "E6.calibration_block.decile_curve.7.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.7.observed.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9054687942657692
+   },
+   "E6.calibration_block.decile_curve.7.observed.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.7.observed.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.09453120573423074
+   },
+   "E6.calibration_block.decile_curve.7.observed.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.5
+   },
+   "E6.calibration_block.decile_curve.7.observed.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise"
+    ]
+   },
+   "E6.calibration_block.decile_curve.7.observed.analytic.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.7.observed.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.7.observed.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.7.observed.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.7.observed.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.7.observed.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.decile_curve.7.observed.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.7.observed.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.decile_curve.7.observed.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9054687942657692
+   },
+   "E6.calibration_block.decile_curve.7.observed.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.7.observed.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.09453120573423074
+   },
+   "E6.calibration_block.decile_curve.7.observed.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.5
+   },
+   "E6.calibration_block.decile_curve.7.observed.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise",
+     "below_200_events_or_nonevents"
+    ]
+   },
+   "E6.calibration_block.decile_curve.7.observed.number.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E6.calibration_block.decile_curve.7.observed.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.7.observed.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.7.observed.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.7.observed.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.7.score_max": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8
+   },
+   "E6.calibration_block.decile_curve.7.score_min": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.75
+   },
+   "E6.calibration_block.decile_curve.8.bin": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 9
+   },
+   "E6.calibration_block.decile_curve.8.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.8.mean_pred": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.875
+   },
+   "E6.calibration_block.decile_curve.8.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.8.observed.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.8.observed.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.8.observed.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3423802275066532
+   },
+   "E6.calibration_block.decile_curve.8.observed.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.8.observed.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise"
+    ]
+   },
+   "E6.calibration_block.decile_curve.8.observed.analytic.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.8.observed.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.8.observed.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.8.observed.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.8.observed.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.8.observed.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.decile_curve.8.observed.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.8.observed.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.decile_curve.8.observed.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.8.observed.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.8.observed.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3423802275066532
+   },
+   "E6.calibration_block.decile_curve.8.observed.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.8.observed.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise",
+     "below_200_events_or_nonevents"
+    ]
+   },
+   "E6.calibration_block.decile_curve.8.observed.number.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.8.observed.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.8.observed.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.8.observed.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.8.observed.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.8.score_max": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9
+   },
+   "E6.calibration_block.decile_curve.8.score_min": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.85
+   },
+   "E6.calibration_block.decile_curve.9.bin": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E6.calibration_block.decile_curve.9.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.9.mean_pred": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.97
+   },
+   "E6.calibration_block.decile_curve.9.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.9.observed.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.9.observed.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.9.observed.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3423802275066532
+   },
+   "E6.calibration_block.decile_curve.9.observed.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.9.observed.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise"
+    ]
+   },
+   "E6.calibration_block.decile_curve.9.observed.analytic.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.9.observed.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.9.observed.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.9.observed.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.9.observed.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.9.observed.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.decile_curve.9.observed.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.9.observed.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.decile_curve.9.observed.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.9.observed.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_curve.9.observed.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3423802275066532
+   },
+   "E6.calibration_block.decile_curve.9.observed.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E6.calibration_block.decile_curve.9.observed.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "not_evaluable_shown_for_transparency",
+     "imprecise",
+     "below_200_events_or_nonevents"
+    ]
+   },
+   "E6.calibration_block.decile_curve.9.observed.number.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.9.observed.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "wilson"
+   },
+   "E6.calibration_block.decile_curve.9.observed.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.decile_curve.9.observed.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.decile_curve.9.observed.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.decile_curve.9.score_max": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.99
+   },
+   "E6.calibration_block.decile_curve.9.score_min": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.decile_tie_rule": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "ten equal-mass bins by score rank; ties placed by stable sort order (row order preserved); numpy.array_split, so the first N mod 10 bins hold one extra row"
+   },
+   "E6.calibration_block.ece_equal_mass_10.bins": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E6.calibration_block.ece_equal_mass_10.ci_not_computed_because": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "no interval is emitted for the ECE: no coverage run of a bootstrap interval for a binned absolute deviation has been made against the DEC-08 bar of 0.90, and the ECE is reported as a descriptive figure (R2 section 1.4)"
+   },
+   "E6.calibration_block.ece_equal_mass_10.edges": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": [
+     0.05,
+     0.15,
+     0.25,
+     0.35,
+     0.45,
+     0.55,
+     0.65,
+     0.75,
+     0.85,
+     0.95,
+     0.99
+    ]
+   },
+   "E6.calibration_block.ece_equal_mass_10.note": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "supplementary; ECE is bin-sensitive and descriptive (R2 section 1.4 after Nixon et al. 2019); the scheme is stated beside the value; no interval is emitted for it"
+   },
+   "E6.calibration_block.ece_equal_mass_10.number.ci_hi": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.ece_equal_mass_10.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.ece_equal_mass_10.number.ci_lo": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.ece_equal_mass_10.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.1955
+   },
+   "E6.calibration_block.ece_equal_mass_10.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E6.calibration_block.ece_equal_mass_10.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.ece_equal_mass_10.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.ece_equal_mass_10.number.not_estimable_reason": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "not_computed_this_run"
+   },
+   "E6.calibration_block.ece_equal_mass_10.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.ece_equal_mass_10.scheme": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "equal_mass"
+   },
+   "E6.calibration_block.ece_equal_width_10.bins": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E6.calibration_block.ece_equal_width_10.ci_not_computed_because": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "no interval is emitted for the ECE: no coverage run of a bootstrap interval for a binned absolute deviation has been made against the DEC-08 bar of 0.90, and the ECE is reported as a descriptive figure (R2 section 1.4)"
+   },
+   "E6.calibration_block.ece_equal_width_10.edges": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": [
+     0.0,
+     0.1,
+     0.2,
+     0.3,
+     0.4,
+     0.5,
+     0.6,
+     0.7,
+     0.8,
+     0.9,
+     1.0
+    ]
+   },
+   "E6.calibration_block.ece_equal_width_10.note": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "supplementary; ECE is bin-sensitive and descriptive (R2 section 1.4 after Nixon et al. 2019); the scheme is stated beside the value; no interval is emitted for it"
+   },
+   "E6.calibration_block.ece_equal_width_10.number.ci_hi": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.ece_equal_width_10.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.ece_equal_width_10.number.ci_lo": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.ece_equal_width_10.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.1955
+   },
+   "E6.calibration_block.ece_equal_width_10.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E6.calibration_block.ece_equal_width_10.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.ece_equal_width_10.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.ece_equal_width_10.number.not_estimable_reason": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "not_computed_this_run"
+   },
+   "E6.calibration_block.ece_equal_width_10.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.ece_equal_width_10.scheme": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "equal_width"
+   },
+   "E6.calibration_block.events": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 12
+   },
+   "E6.calibration_block.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "below_200_events_or_nonevents"
+    ]
+   },
+   "E6.calibration_block.intercept.analytic.ci_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 1.6660592306413493
+   },
+   "E6.calibration_block.intercept.analytic.ci_level": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.95
+   },
+   "E6.calibration_block.intercept.analytic.ci_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": -0.6665159621509789
+   },
+   "E6.calibration_block.intercept.analytic.est": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.4997716342451853
+   },
+   "E6.calibration_block.intercept.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "very_low_precision"
+    ]
+   },
+   "E6.calibration_block.intercept.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "irls_wald"
+   },
+   "E6.calibration_block.intercept.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.intercept.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.intercept.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.intercept.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.intercept.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.intercept.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.intercept.detail.deviance": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 18.07627682073649
+   },
+   "E6.calibration_block.intercept.detail.iterations": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 7
+   },
+   "E6.calibration_block.intercept.detail.model": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "logit P(y=1) = a + b * logit(p)"
+   },
+   "E6.calibration_block.intercept.detail.outcome": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "converged"
+   },
+   "E6.calibration_block.intercept.detail.wald_se": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.5950556263256326
+   },
+   "E6.calibration_block.intercept.number.ci_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 1.6660592306413493
+   },
+   "E6.calibration_block.intercept.number.ci_level": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.95
+   },
+   "E6.calibration_block.intercept.number.ci_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": -0.6665159621509789
+   },
+   "E6.calibration_block.intercept.number.est": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.4997716342451853
+   },
+   "E6.calibration_block.intercept.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "very_low_precision"
+    ]
+   },
+   "E6.calibration_block.intercept.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "irls_wald"
+   },
+   "E6.calibration_block.intercept.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.intercept.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.intercept.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.intercept_large.analytic.ci_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 1.541436310865483
+   },
+   "E6.calibration_block.intercept_large.analytic.ci_level": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.95
+   },
+   "E6.calibration_block.intercept_large.analytic.ci_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": -0.628975379943064
+   },
+   "E6.calibration_block.intercept_large.analytic.est": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.45623046546120954
+   },
+   "E6.calibration_block.intercept_large.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "very_low_precision"
+    ]
+   },
+   "E6.calibration_block.intercept_large.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "irls_wald"
+   },
+   "E6.calibration_block.intercept_large.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.intercept_large.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.intercept_large.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.intercept_large.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.intercept_large.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.intercept_large.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.intercept_large.detail.deviance": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 18.207926202461742
+   },
+   "E6.calibration_block.intercept_large.detail.iterations": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 4
+   },
+   "E6.calibration_block.intercept_large.detail.model": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "logit P(y=1) = a + logit(p), slope fixed at 1"
+   },
+   "E6.calibration_block.intercept_large.detail.outcome": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "converged"
+   },
+   "E6.calibration_block.intercept_large.detail.wald_se": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.5536866258585561
+   },
+   "E6.calibration_block.intercept_large.number.ci_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 1.541436310865483
+   },
+   "E6.calibration_block.intercept_large.number.ci_level": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.95
+   },
+   "E6.calibration_block.intercept_large.number.ci_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": -0.628975379943064
+   },
+   "E6.calibration_block.intercept_large.number.est": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.45623046546120954
+   },
+   "E6.calibration_block.intercept_large.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "very_low_precision"
+    ]
+   },
+   "E6.calibration_block.intercept_large.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "irls_wald"
+   },
+   "E6.calibration_block.intercept_large.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.intercept_large.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.intercept_large.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.ipa.analytic.ci_hi": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.ipa.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.ipa.analytic.ci_lo": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.ipa.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.33852083333333327
+   },
+   "E6.calibration_block.ipa.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E6.calibration_block.ipa.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.ipa.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.ipa.analytic.not_estimable_reason": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "analytic_ci_unavailable"
+   },
+   "E6.calibration_block.ipa.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.ipa.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.ipa.bootstrap.B": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 200
+   },
+   "E6.calibration_block.ipa.bootstrap.b_source": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "engine_default"
+   },
+   "E6.calibration_block.ipa.bootstrap.cell_key": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "[\"calibration\", \"ipa\"]"
+   },
+   "E6.calibration_block.ipa.bootstrap.interval": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "percentile"
+   },
+   "E6.calibration_block.ipa.bootstrap.resample_sd": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.15968853489823512
+   },
+   "E6.calibration_block.ipa.bootstrap.resample_sd_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.ipa.bootstrap.resampling.class_strata.negative": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     8,
+     0
+    ]
+   },
+   "E6.calibration_block.ipa.bootstrap.resampling.class_strata.positive": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     12,
+     0
+    ]
+   },
+   "E6.calibration_block.ipa.bootstrap.resampling.class_units.negative": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 8
+   },
+   "E6.calibration_block.ipa.bootstrap.resampling.class_units.positive": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 12
+   },
+   "E6.calibration_block.ipa.bootstrap.resampling.deficient_class": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.ipa.bootstrap.resampling.frozen_variance_share.negative": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.0
+   },
+   "E6.calibration_block.ipa.bootstrap.resampling.frozen_variance_share.positive": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.0
+   },
+   "E6.calibration_block.ipa.bootstrap.resampling.kind": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "stratified"
+   },
+   "E6.calibration_block.ipa.bootstrap.resampling.units_per_stratum.negative": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 8
+   },
+   "E6.calibration_block.ipa.bootstrap.resampling.units_per_stratum.positive": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 12
+   },
+   "E6.calibration_block.ipa.bootstrap.seed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20240101
+   },
+   "E6.calibration_block.ipa.bootstrap.seed_source": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "engine_default"
+   },
+   "E6.calibration_block.ipa.bootstrap.thresholds.low_precision_units": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E6.calibration_block.ipa.bootstrap.thresholds.max_frozen_variance_share": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.2
+   },
+   "E6.calibration_block.ipa.bootstrap.thresholds.min_units_per_class_stratum": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "E6.calibration_block.ipa.bootstrap.thresholds.min_usable_fraction": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.9
+   },
+   "E6.calibration_block.ipa.bootstrap.thresholds.small_class": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E6.calibration_block.ipa.bootstrap.thresholds.very_low_precision_units": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 30
+   },
+   "E6.calibration_block.ipa.bootstrap.usable_resamples": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 200
+   },
+   "E6.calibration_block.ipa.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.ipa.number.ci_hi": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.6147708333333333
+   },
+   "E6.calibration_block.ipa.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.ipa.number.ci_lo": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": -0.02902552083333369
+   },
+   "E6.calibration_block.ipa.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.33852083333333327
+   },
+   "E6.calibration_block.ipa.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "very_low_precision",
+     "imprecise"
+    ]
+   },
+   "E6.calibration_block.ipa.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "bootstrap_percentile"
+   },
+   "E6.calibration_block.ipa.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.ipa.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.ipa.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.n_cases": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.n_clipped": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E6.calibration_block.nonevents": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 8
+   },
+   "E6.calibration_block.oe.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.6361125900282714
+   },
+   "E6.calibration_block.oe.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.oe.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.7998311777760543
+   },
+   "E6.calibration_block.oe.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.1439466158245948
+   },
+   "E6.calibration_block.oe.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "very_low_precision"
+    ]
+   },
+   "E6.calibration_block.oe.analytic.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 12
+   },
+   "E6.calibration_block.oe.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "log_delta"
+   },
+   "E6.calibration_block.oe.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.oe.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.oe.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.oe.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.oe.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.oe.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.oe.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.6361125900282714
+   },
+   "E6.calibration_block.oe.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E6.calibration_block.oe.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.7998311777760543
+   },
+   "E6.calibration_block.oe.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.1439466158245948
+   },
+   "E6.calibration_block.oe.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "very_low_precision"
+    ]
+   },
+   "E6.calibration_block.oe.number.k": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 12
+   },
+   "E6.calibration_block.oe.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "log_delta"
+   },
+   "E6.calibration_block.oe.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.oe.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.oe.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.slope.analytic.ci_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 2.2955140448683133
+   },
+   "E6.calibration_block.slope.analytic.ci_level": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.95
+   },
+   "E6.calibration_block.slope.analytic.ci_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.09351091441882398
+   },
+   "E6.calibration_block.slope.analytic.est": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 1.1945124796435687
+   },
+   "E6.calibration_block.slope.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "very_low_precision"
+    ]
+   },
+   "E6.calibration_block.slope.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "irls_wald"
+   },
+   "E6.calibration_block.slope.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.slope.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.slope.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.slope.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E6.calibration_block.slope.bootstrap": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.slope.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E6.calibration_block.slope.detail.deviance": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 18.07627682073649
+   },
+   "E6.calibration_block.slope.detail.iterations": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 7
+   },
+   "E6.calibration_block.slope.detail.model": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "logit P(y=1) = a + b * logit(p)"
+   },
+   "E6.calibration_block.slope.detail.outcome": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "converged"
+   },
+   "E6.calibration_block.slope.detail.wald_se": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.561745814672772
+   },
+   "E6.calibration_block.slope.number.ci_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 2.2955140448683133
+   },
+   "E6.calibration_block.slope.number.ci_level": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.95
+   },
+   "E6.calibration_block.slope.number.ci_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.09351091441882398
+   },
+   "E6.calibration_block.slope.number.est": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 1.1945124796435687
+   },
+   "E6.calibration_block.slope.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": [
+     "very_low_precision"
+    ]
+   },
+   "E6.calibration_block.slope.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "irls_wald"
+   },
+   "E6.calibration_block.slope.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20
+   },
+   "E6.calibration_block.slope.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E6.calibration_block.slope.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E6.calibration_block.suppressed_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "F4-closed-form.brier": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.158755
+   },
+   "F4-closed-form.brier_ref": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.24
+   },
+   "F4-closed-form.ece_equal_mass_10": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.1955
+   },
+   "F4-closed-form.ece_equal_width_10": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.1955
+   },
+   "F4-closed-form.ipa": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.33852083333333327
+   },
+   "F4-closed-form.oe": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.1439466158245948
+   },
+   "F4-closed-form.oe_ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.6361125900282714
+   },
+   "F4-closed-form.oe_ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.7998311777760543
+   },
+   "F4-irls.intercept": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.4997716342451853
+   },
+   "F4-irls.intercept_large": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.45623046546120954
+   },
+   "F4-irls.intercept_large_se": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.5536866258585561
+   },
+   "F4-irls.intercept_se": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.5950556263256326
+   },
+   "F4-irls.slope": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 1.1945124796435687
+   },
+   "F4-irls.slope_se": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.561745814672772
+   }
+  },
+  "F5": {
+   "E10.compare_versions.bootstrap.B": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 200
+   },
+   "E10.compare_versions.bootstrap.interval": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "percentile"
+   },
+   "E10.compare_versions.bootstrap.seed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 20240101
+   },
+   "E10.compare_versions.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E10.compare_versions.differences.auroc.analytic.ci_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.32630845892196125
+   },
+   "E10.compare_versions.differences.auroc.analytic.ci_level": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.95
+   },
+   "E10.compare_versions.differences.auroc.analytic.ci_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": -0.006308458921961441
+   },
+   "E10.compare_versions.differences.auroc.analytic.est": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.15999999999999992
+   },
+   "E10.compare_versions.differences.auroc.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.compare_versions.differences.auroc.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "delong_wald"
+   },
+   "E10.compare_versions.differences.auroc.analytic.n_neg": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 5
+   },
+   "E10.compare_versions.differences.auroc.analytic.n_pos": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 5
+   },
+   "E10.compare_versions.differences.auroc.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.auroc.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E10.compare_versions.differences.auroc.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E10.compare_versions.differences.auroc.number.ci_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.32630845892196125
+   },
+   "E10.compare_versions.differences.auroc.number.ci_level": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.95
+   },
+   "E10.compare_versions.differences.auroc.number.ci_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": -0.006308458921961441
+   },
+   "E10.compare_versions.differences.auroc.number.est": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.15999999999999992
+   },
+   "E10.compare_versions.differences.auroc.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.compare_versions.differences.auroc.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "delong_wald"
+   },
+   "E10.compare_versions.differences.auroc.number.n_neg": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 5
+   },
+   "E10.compare_versions.differences.auroc.number.n_pos": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 5
+   },
+   "E10.compare_versions.differences.auroc.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.auroc.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E10.compare_versions.differences.brier.analytic": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.brier.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E10.compare_versions.differences.brier.number.ci_hi": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": -0.022493750000000014
+   },
+   "E10.compare_versions.differences.brier.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E10.compare_versions.differences.brier.number.ci_lo": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": -0.09031874999999996
+   },
+   "E10.compare_versions.differences.brier.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.05099999999999996
+   },
+   "E10.compare_versions.differences.brier.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.compare_versions.differences.brier.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "bootstrap_percentile"
+   },
+   "E10.compare_versions.differences.brier.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E10.compare_versions.differences.brier.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.brier.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E10.compare_versions.differences.op1.accuracy.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3356710671169607
+   },
+   "E10.compare_versions.differences.op1.accuracy.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E10.compare_versions.differences.op1.accuracy.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.1535261695900716
+   },
+   "E10.compare_versions.differences.op1.accuracy.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.1
+   },
+   "E10.compare_versions.differences.op1.accuracy.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.compare_versions.differences.op1.accuracy.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "newcombe_paired"
+   },
+   "E10.compare_versions.differences.op1.accuracy.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E10.compare_versions.differences.op1.accuracy.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.op1.accuracy.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E10.compare_versions.differences.op1.accuracy.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E10.compare_versions.differences.op1.accuracy.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3356710671169607
+   },
+   "E10.compare_versions.differences.op1.accuracy.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E10.compare_versions.differences.op1.accuracy.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.1535261695900716
+   },
+   "E10.compare_versions.differences.op1.accuracy.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.1
+   },
+   "E10.compare_versions.differences.op1.accuracy.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.compare_versions.differences.op1.accuracy.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "newcombe_paired"
+   },
+   "E10.compare_versions.differences.op1.accuracy.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E10.compare_versions.differences.op1.accuracy.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.op1.accuracy.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E10.compare_versions.differences.op1.sensitivity.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.5883838115589455
+   },
+   "E10.compare_versions.differences.op1.sensitivity.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E10.compare_versions.differences.op1.sensitivity.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.2852241917610456
+   },
+   "E10.compare_versions.differences.op1.sensitivity.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.2
+   },
+   "E10.compare_versions.differences.op1.sensitivity.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.compare_versions.differences.op1.sensitivity.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "newcombe_paired"
+   },
+   "E10.compare_versions.differences.op1.sensitivity.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 5
+   },
+   "E10.compare_versions.differences.op1.sensitivity.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.op1.sensitivity.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E10.compare_versions.differences.op1.sensitivity.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E10.compare_versions.differences.op1.sensitivity.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.5883838115589455
+   },
+   "E10.compare_versions.differences.op1.sensitivity.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E10.compare_versions.differences.op1.sensitivity.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.2852241917610456
+   },
+   "E10.compare_versions.differences.op1.sensitivity.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.2
+   },
+   "E10.compare_versions.differences.op1.sensitivity.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.compare_versions.differences.op1.sensitivity.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "newcombe_paired"
+   },
+   "E10.compare_versions.differences.op1.sensitivity.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 5
+   },
+   "E10.compare_versions.differences.op1.sensitivity.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.op1.sensitivity.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E10.compare_versions.differences.op1.specificity.analytic.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3073231091942118
+   },
+   "E10.compare_versions.differences.op1.specificity.analytic.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E10.compare_versions.differences.op1.specificity.analytic.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.3073231091942118
+   },
+   "E10.compare_versions.differences.op1.specificity.analytic.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.0
+   },
+   "E10.compare_versions.differences.op1.specificity.analytic.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.compare_versions.differences.op1.specificity.analytic.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "newcombe_paired"
+   },
+   "E10.compare_versions.differences.op1.specificity.analytic.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 5
+   },
+   "E10.compare_versions.differences.op1.specificity.analytic.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.op1.specificity.analytic.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E10.compare_versions.differences.op1.specificity.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E10.compare_versions.differences.op1.specificity.number.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3073231091942118
+   },
+   "E10.compare_versions.differences.op1.specificity.number.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "E10.compare_versions.differences.op1.specificity.number.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.3073231091942118
+   },
+   "E10.compare_versions.differences.op1.specificity.number.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.0
+   },
+   "E10.compare_versions.differences.op1.specificity.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.compare_versions.differences.op1.specificity.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "newcombe_paired"
+   },
+   "E10.compare_versions.differences.op1.specificity.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 5
+   },
+   "E10.compare_versions.differences.op1.specificity.number.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.op1.specificity.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E10.compare_versions.differences.slope.analytic": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.slope.analytic_status": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "used"
+   },
+   "E10.compare_versions.differences.slope.number.ci_hi": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.slope.number.ci_level": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.95
+   },
+   "E10.compare_versions.differences.slope.number.ci_lo": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.differences.slope.number.est": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.552946549383
+   },
+   "E10.compare_versions.differences.slope.number.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.compare_versions.differences.slope.number.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "E10.compare_versions.differences.slope.number.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E10.compare_versions.differences.slope.number.not_estimable_reason": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "degenerate_resamples"
+   },
+   "E10.compare_versions.differences.slope.number.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E10.compare_versions.label": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.mcnemar.op1.b": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E10.compare_versions.mcnemar.op1.c": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E10.compare_versions.mcnemar.op1.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "exact_mcnemar"
+   },
+   "E10.compare_versions.mcnemar.op1.n_discordant": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E10.compare_versions.mcnemar.op1.not_computed_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.mcnemar.op1.p": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E10.compare_versions.mcnemar.op1.statistic": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.sensitivity.b": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.sensitivity.c": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.sensitivity.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "exact_mcnemar"
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.sensitivity.n_discordant": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.sensitivity.not_computed_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.sensitivity.p": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.sensitivity.statistic": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.specificity.b": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.specificity.c": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.specificity.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "exact_mcnemar"
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.specificity.n_discordant": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.specificity.not_computed_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.specificity.p": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "E10.compare_versions.mcnemar_by_metric.op1.specificity.statistic": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.n_new": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E10.compare_versions.n_pairs": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E10.compare_versions.n_prior": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E10.compare_versions.paired": {
+    "class": "exact",
+    "tol": "exact",
+    "value": true
+   },
+   "E10.compare_versions.score_is_probability": {
+    "class": "exact",
+    "tol": "exact",
+    "value": true
+   },
+   "E10.compare_versions.subgroups": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.compare_versions.subgroups_not_computed": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.compare_versions.unpaired_rows.label_mismatch": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E10.compare_versions.unpaired_rows.n_pairs": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E10.compare_versions.unpaired_rows.new_only": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E10.compare_versions.unpaired_rows.prior_only": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 0
+   },
+   "E10.unpaired_delong.auroc_a": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.7999999999999999
+   },
+   "E10.unpaired_delong.auroc_b": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.64
+   },
+   "E10.unpaired_delong.difference.ci_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.6527273053808451
+   },
+   "E10.unpaired_delong.difference.ci_level": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.95
+   },
+   "E10.unpaired_delong.difference.ci_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": -0.3327273053808452
+   },
+   "E10.unpaired_delong.difference.est": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.15999999999999992
+   },
+   "E10.unpaired_delong.difference.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "E10.unpaired_delong.difference.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "delong_wald"
+   },
+   "E10.unpaired_delong.difference.n_neg": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E10.unpaired_delong.difference.n_pos": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 10
+   },
+   "E10.unpaired_delong.difference.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "E10.unpaired_delong.difference.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E10.unpaired_delong.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "unpaired_delong"
+   },
+   "E10.unpaired_delong.p_value": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.5244858793188232
+   },
+   "E10.unpaired_delong.variance_a": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.024
+   },
+   "E10.unpaired_delong.variance_b": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.0392
+   },
+   "E10.unpaired_delong.variance_difference": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.0632
+   },
+   "E10.unpaired_delong.z": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.6364458273405837
+   },
+   "F5-delong-pair.ci_hi": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.32630845892196125
+   },
+   "F5-delong-pair.ci_lo": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": -0.006308458921961441
+   },
+   "F5-delong-pair.est": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.15999999999999992
+   },
+   "F5-delong-pair.var_diff": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.007200000000000005
+   },
+   "F5-mcnemar.cc_chi2": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 4.083333333333333
+   },
+   "F5-mcnemar.cc_chi2_p": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.04330814281079198
+   },
+   "F5-mcnemar.mcnemar_exact_p": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.03857421875
+   },
+   "F5-newcombe-paired.e 0 f 29 g 1 h 0 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.6665921801718167
+   },
+   "F5-newcombe-paired.e 0 f 29 g 1 h 0 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.9881828192367751
+   },
+   "F5-newcombe-paired.e 0 f 30 g 0 h 0 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.839467819862384
+   },
+   "F5-newcombe-paired.e 0 f 30 g 0 h 0 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 1.0
+   },
+   "F5-newcombe-paired.e 1 f 97 g 1 h 1 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.9850257703740077
+   },
+   "F5-newcombe-paired.e 1 f 98 g 0 h 1 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.9170870180256848
+   },
+   "F5-newcombe-paired.e 1 f 98 g 0 h 1 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.9916426092280501
+   },
+   "F5-newcombe-paired.e 18 f 12 g 2 h 18 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.05617184398825323
+   },
+   "F5-newcombe-paired.e 18 f 12 g 2 h 18 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.3289759688858016
+   },
+   "F5-newcombe-paired.e 18 f 14 g 0 h 18 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.14408261615735732
+   },
+   "F5-newcombe-paired.e 18 f 14 g 0 h 18 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.3963252817333278
+   },
+   "F5-newcombe-paired.e 2 f 97 g 1 h 0 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.872116478340209
+   },
+   "F5-newcombe-paired.e 2 f 97 g 1 h 0 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.9853664502217372
+   },
+   "F5-newcombe-paired.e 2 f 98 g 0 h 0 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.9177931022999384
+   },
+   "F5-newcombe-paired.e 2 f 98 g 0 h 0 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.9944980324498376
+   },
+   "F5-newcombe-paired.e 20 f 12 g 2 h 16 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.056156424841748404
+   },
+   "F5-newcombe-paired.e 20 f 12 g 2 h 16 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.3292069954001405
+   },
+   "F5-newcombe-paired.e 27 f 0 g 0 h 27 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": -0.03506966297161304
+   },
+   "F5-newcombe-paired.e 27 f 0 g 0 h 27 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.03506966297161304
+   },
+   "F5-newcombe-paired.e 28 f 0 g 0 h 26 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": -0.03515582018111083
+   },
+   "F5-newcombe-paired.e 28 f 0 g 0 h 26 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.035155820181110735
+   },
+   "F5-newcombe-paired.e 29 f 0 g 0 h 25 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": -0.03541303414844331
+   },
+   "F5-newcombe-paired.e 29 f 0 g 0 h 25 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.03541303414844331
+   },
+   "F5-newcombe-paired.e 30 f 0 g 0 h 24 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": -0.035837621934486086
+   },
+   "F5-newcombe-paired.e 30 f 0 g 0 h 24 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.03583762193448611
+   },
+   "F5-newcombe-paired.e 35 f 14 g 0 h 1 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.1460739058646331
+   },
+   "F5-newcombe-paired.e 35 f 14 g 0 h 1 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.41746247415539406
+   },
+   "F5-newcombe-paired.e 36 f 12 g 2 h 0 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.05692958400323883
+   },
+   "F5-newcombe-paired.e 36 f 12 g 2 h 0 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.34042760297494057
+   },
+   "F5-newcombe-paired.e 36 f 14 g 0 h 0 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.1528395178558573
+   },
+   "F5-newcombe-paired.e 36 f 14 g 0 h 0 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.4166512369595655
+   },
+   "F5-newcombe-paired.e 53 f 0 g 0 h 1 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": -0.07293814547857684
+   },
+   "F5-newcombe-paired.e 53 f 0 g 0 h 1 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.07293814547857684
+   },
+   "F5-newcombe-paired.e 54 f 0 g 0 h 0 method10 lower": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": -0.06641358809089637
+   },
+   "F5-newcombe-paired.e 54 f 0 g 0 h 0 method10 upper": {
+    "class": "reported_rounding",
+    "tol": "closed",
+    "value": 0.06641358809089637
+   },
+   "F5-register.accuracy_diff.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.010249291949335215
+   },
+   "F5-register.accuracy_diff.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "F5-register.accuracy_diff.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.1553563811022839
+   },
+   "F5-register.accuracy_diff.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.08
+   },
+   "F5-register.accuracy_diff.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "F5-register.accuracy_diff.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "newcombe_paired"
+   },
+   "F5-register.accuracy_diff.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 100
+   },
+   "F5-register.accuracy_diff.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "F5-register.accuracy_diff.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   }
+  },
+  "F6": {
+   "F6-closed-form.chi2": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 4.632727272727273
+   },
+   "F6-closed-form.holm_1": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.036000000000000004
+   },
+   "F6-closed-form.holm_2": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.08
+   },
+   "F6-closed-form.holm_3": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.3
+   },
+   "F6-closed-form.se_site1": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9
+   },
+   "F6-closed-form.se_site2": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.76
+   },
+   "F6-closed-form.se_site3": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9
+   },
+   "F6-p.chi2_p": {
+    "class": "iterative",
+    "tol": "irls",
+    "value": 0.09863159462846645
+   },
+   "subgroups.heterogeneity_footnote.adjustment": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "holm"
+   },
+   "subgroups.heterogeneity_footnote.clustering_route": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "none"
+   },
+   "subgroups.heterogeneity_footnote.family_size": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 1
+   },
+   "subgroups.heterogeneity_footnote.label": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "exploratory"
+   },
+   "subgroups.heterogeneity_footnote.sentence": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "exploratory; no conclusion about subgroup consistency is drawn from this test"
+   },
+   "subgroups.heterogeneity_footnote.tests.0.df": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 2
+   },
+   "subgroups.heterogeneity_footnote.tests.0.metric": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "sensitivity"
+   },
+   "subgroups.heterogeneity_footnote.tests.0.min_expected": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 4.615384615384615
+   },
+   "subgroups.heterogeneity_footnote.tests.0.n_levels": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 3
+   },
+   "subgroups.heterogeneity_footnote.tests.0.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "subgroups.heterogeneity_footnote.tests.0.operating_point": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "op1"
+   },
+   "subgroups.heterogeneity_footnote.tests.0.p_holm": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.09863159462846645
+   },
+   "subgroups.heterogeneity_footnote.tests.0.p_raw": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.09863159462846645
+   },
+   "subgroups.heterogeneity_footnote.tests.0.statistic": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 4.632727272727273
+   },
+   "subgroups.heterogeneity_footnote.tests.0.test": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "chi2_homogeneity"
+   }
+  },
+  "F8": {
+   "E7.attainability.attainable_0.9_ge_n100": {
+    "class": "exact",
+    "tol": "exact",
+    "value": true
+   },
+   "E7.attainability.attainable_0.9_ge_n30": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
+   },
+   "E7.attainability.attainable_0.9_ge_n300": {
+    "class": "exact",
+    "tol": "exact",
+    "value": true
+   },
+   "E7.attainability.attainable_0.9_ge_n50": {
+    "class": "exact",
+    "tol": "exact",
+    "value": true
+   },
+   "E7.attainability.max_lower_bound_at_n100": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9630065017930143
+   },
+   "E7.attainability.max_lower_bound_at_n30": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.8864866068260313
+   },
+   "E7.attainability.max_lower_bound_at_n300": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.987357028775454
+   },
+   "E7.attainability.max_lower_bound_at_n50": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.9286524008666414
+   },
+   "F8-half-width.half_width_n100": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.059568262222119084
+   },
+   "F8-half-width.half_width_n300": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.03410927389480306
+   },
+   "F8-half-width.half_width_n50": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.08506327472145309
+   }
+  },
+  "F9": {
+   "F9-cluster-bootstrap.ci_hi": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 1.0
+   },
+   "F9-cluster-bootstrap.ci_lo": {
+    "class": "reported_rounding",
+    "tol": "bootstrap",
+    "value": 0.44
+   }
+  }
+ },
+ "generated": {
+  "by": "scripts/f16_parity_native.py",
+  "engine_commit": "fa4929dd132fc58a5a7207a0643df734d64fa5db",
+  "platform": "win-amd64-cp314",
+  "tree_clean": true
+ },
+ "left_out": {
+  "F13": "needs the aSAH vectors, which exist only inside the r-captures job (DEC-77)",
+  "F13b": "an R capture of rms::val.prob; the engine values are the F4 IRLS rows here"
+ },
+ "numpy_version": "2.5.1",
+ "python": "3.14.6",
+ "schema": "proofpack-f16-parity-native/1",
+ "scipy_available": true
+}

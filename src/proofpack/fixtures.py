@@ -21,11 +21,24 @@ tolerance. The five row statuses:
   is not read (the package is not ``<root>/src/proofpack`` of a ``pyproject.toml`` naming
   ``proofpack``: :data:`NEWCOMBE_ABSENT`); never matched;
 * ``not_built`` - the engine has no function for the fixture in this version (F5, F7,
-  F15, F16, F21, F3's AUPRC); never matched;
+  F15, F21, F3's AUPRC; F16 until build day 13); never matched;
 * ``suite_only`` - a behaviour the test suite inspects (F12, F17-F20; the row names the
-  test file) and this command does not re-run; never matched. F13 outside the r-captures
-  job, when ``proc_asah.json`` and :data:`R_COMPARISON_FILE` are committed and agree,
-  carries it too: the comparison was made inside that job (DEC-77), not by this command.
+  test file) and this command does not re-run; never matched. Since build day 13 F12 is
+  also run by this command (:func:`f12_behaviour`: every HALT fixture of
+  :mod:`proofpack.halt_fixtures` through ``proofpack.cli.main`` with ``--offline``): the row
+  stays ``suite_only`` with the run's counts in ``reason`` and ``evidence`` when every
+  fixture exits 3 with its own code and changes no file, and is ``not_matched`` (exit 6)
+  when one does not. Build day 13 also gives F16 (the engine half: :func:`f16_behaviour`),
+  F17 (a same-platform repeat: :func:`f17_behaviour`) and F19 (two cohorts' egress bytes:
+  :func:`f19_behaviour`) a measurement of this command's own, with the same two outcomes;
+  each row's ``evidence`` names the CI artefact it cannot see as ``seen_by_this_command:
+  false``. F13 outside the r-captures
+  job, when ``proc_asah.json`` and :data:`R_COMPARISON_FILE` are committed and agree, is
+  ``suite_only`` too: the engine was compared with R inside that job (DEC-77), and this
+  command recomputes each deviation from the recorded engine and R values
+  (:func:`f13_recorded_outcome`; a recorded engine value moved by 1e-3 gives F13
+  ``not_matched`` and exit 6:
+  ``tests/test_e13_report_rows.py::test_the_f13_status_cell_follows_a_drift_planted_in_the_recorded_comparison``).
 
 Exit code (:func:`exit_code_for`): ``EXIT_OK`` (0) when every row with an oracle is
 ``matched``, :data:`proofpack.errors.EXIT_FIXTURES_NOT_MATCHED` (6) when one or more is
@@ -869,6 +882,22 @@ def _vectors_path_from_env() -> Path | None:
     return None if value is None else Path(value)
 
 
+class DuplicateJSONKeyError(ValueError):
+    """A JSON object in an R capture file names one key twice. ``json.loads`` keeps the
+    last copy and drops the first without a word, so a bad pair placed before the real one
+    was never read (E13 repair 4, lens 4 FA-B1: a repeated ``"s100b auc"`` with engine 0.1
+    and R 0.9 before the real pair left F13 ``suite_only`` and the command exited 0)."""
+
+
+def _refuse_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise DuplicateJSONKeyError(f"key {key!r} appears twice in one object")
+        out[key] = value
+    return out
+
+
 def load_r_captures(
     directory: Path | None = None, *, vectors: Path | str | None = FROM_ENV
 ) -> RCaptures:
@@ -876,7 +905,8 @@ def load_r_captures(
     from ``directory`` (default :func:`r_captures_dir`), and the aSAH vectors from the file
     ``vectors`` names (default: :data:`R_VECTORS_ENV`; ``None``: not read, the DEC-77
     shape everywhere outside the r-captures job). A JSON file that is absent is left
-    ``None``; one that cannot be read or parsed is ``None`` and named in ``unreadable``.
+    ``None``; one that cannot be read or parsed, or that names one key twice in any object
+    (:class:`DuplicateJSONKeyError`), is ``None`` and named in ``unreadable``.
     The vectors file, when one is named, is named in ``unreadable`` when it is missing as
     well (``FileNotFoundError``): there its absence is a failure, not a skip."""
     where = r_captures_dir() if directory is None else Path(directory)
@@ -890,7 +920,7 @@ def load_r_captures(
     for rel in (*R_CAPTURE_FILES, R_COMPARISON_FILE):
         try:
             raw_json = (where / Path(rel).name).read_bytes()
-            doc = json.loads(raw_json.decode("utf-8"))
+            doc = json.loads(raw_json.decode("utf-8"), object_pairs_hook=_refuse_duplicate_keys)
             if not isinstance(doc, dict):
                 raise ValueError("not a JSON object")
             docs[rel] = doc
@@ -1154,10 +1184,13 @@ def f13_recorded_outcome(caps: RCaptures) -> ComparedInRunner:
     refused), ``r`` equal to
     ``proc_asah.json``'s value and ``tolerance`` equal to the ``iterative`` 1e-6; the
     deviation is recomputed here as ``abs(engine - r)`` (the file's ``abs_deviation`` and
-    ``within`` are not read). Outcome: ``not_matched`` when a name fails those checks or
-    lies outside 1e-6, ``suite_only`` otherwise, with a reason naming the run, the engine
-    commit, the maximum deviation and that a local re-check needs R; when the engine commit
-    is not this checkout's HEAD (:func:`git_sha`) the reason says so."""
+    ``within`` are not read). A recorded name outside :data:`F13_NAMES` is refused, never
+    skipped (E13 repair 3, lens 3 FA-B2: at ec989ed an extra pair 0.8 apart was not read and
+    the command exited 0). Outcome: ``not_matched`` when a name fails those checks, is not
+    one of :data:`F13_NAMES`, or lies outside 1e-6, ``suite_only`` otherwise, with a reason
+    naming the run, the number of names recomputed, the engine commit, the maximum deviation
+    and that a local re-check needs R; when the engine commit is not this checkout's HEAD
+    (:func:`git_sha`) the reason says so."""
     proc, cmp_doc = caps.proc, caps.comparison
     assert proc is not None and cmp_doc is not None
     if cmp_doc.get("schema") != R_COMPARISON_SCHEMA or cmp_doc.get("fixture") != "F13":
@@ -1187,6 +1220,10 @@ def f13_recorded_outcome(caps: RCaptures) -> ComparedInRunner:
     problems: list[str] = []
     outside: list[str] = []
     worst = 0.0
+    recomputed = 0
+    extra = sorted(str(k) for k in values if k not in F13_NAMES)
+    if extra:
+        problems.append("recorded names outside the 16 F13 names: " + ", ".join(extra))
     for name in F13_NAMES:
         rec = _as_dict(values.get(name))
         e, r = _json_number(rec.get("engine")), _json_number(rec.get("r"))
@@ -1200,6 +1237,7 @@ def f13_recorded_outcome(caps: RCaptures) -> ComparedInRunner:
             problems.append(f"tolerance not {tol:g}: {name}")
             continue
         dev = abs(e - r)
+        recomputed += 1
         worst = max(worst, dev)
         if not dev <= tol:
             outside.append(name)
@@ -1225,7 +1263,7 @@ def f13_recorded_outcome(caps: RCaptures) -> ComparedInRunner:
     return ComparedInRunner(
         "suite_only",
         f"compared inside the r-captures job, not by this command: {run} recorded "
-        f"{len(F13_NAMES)} values of the engine at commit {engine_sha} against pROC "
+        f"{recomputed} values of the engine at commit {engine_sha} against pROC "
         f"(proc_asah.json), max abs deviation {worst!r}, each within 1e-6 as recomputed "
         f"here from the recorded engine and R numbers; {where}. The aSAH vectors are never "
         "committed (DEC-77), so a local re-check needs R: the r-captures job "
@@ -1384,6 +1422,14 @@ class Row:
     reason: str | None = None
     suite_tests: tuple[str, ...] = ()
     compares: tuple[str, ...] = ()
+    #: Build day 13 (E13): a behaviour this command measures itself (F12): returns the
+    #: row's ``status``, ``reason`` and ``evidence``. ``suite_only`` when every case
+    #: behaved, ``not_matched`` (exit 6) when one did not; never ``matched``, which is kept
+    #: for value comparisons with an oracle.
+    behaviour: Callable[[], dict[str, Any]] | None = None
+    #: Build day 13 (E13): the artefacts a row cites (a CI job, a committed file), written
+    #: as the row's ``evidence`` (schema ``$defs/evidence``).
+    evidence: Callable[[], dict[str, Any]] | None = None
 
 
 def _captured(key: str, cls: str) -> Callable:
@@ -1578,6 +1624,323 @@ def r_capture_rows(captures: RCaptures | None = None) -> tuple[Row, Row]:
             compares=F13B_NAMES,
         ),
     )
+
+
+def f12_behaviour(results: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Row F12's ``status``, ``reason`` and ``evidence`` from a run of every HALT fixture
+    (:func:`proofpack.halt_fixtures.run_all`, in process, ``--offline``); ``results`` is the
+    test hook. The counts are the run's, not typed here."""
+    from proofpack import halt_fixtures as hf  # noqa: PLC0415
+
+    results = hf.run_all() if results is None else results
+    good = [r for r in results if r["ok"]]
+    bad = [r for r in results if not r["ok"]]
+    codes = ", ".join(r["code"] for r in results)
+    reason = (
+        f"this command ran {len(results)} HALT fixtures ({codes}) through proofpack.cli.main "
+        f"with --offline: {len(good)} of {len(results)} exited 3, printed their own code, "
+        "changed no file under the fixture's directory and wrote no --out"
+    )
+    if bad:
+        reason += "; not so: " + "; ".join(
+            f"{r['code']} exit {r['exit_code']}, printed {r['printed_code'] or 'no HALT line'}"
+            f", --out {'present' if r['out_exists'] else 'absent'}, files changed "
+            f"{len(r['files_changed'])}"
+            for r in bad
+        )
+    reason += (
+        "; "
+        + "; ".join(f"{c} has no HALT fixture ({why})" for c, why in hf.NO_FIXTURE.items())
+        + f"; {', '.join(hf.OTHER_EXIT_3_CODES)} also exit 3 and have no fixture in this row"
+        + "; the child-process run is tests/test_f12_halt_cli.py"
+    )
+    return {
+        "status": "not_matched" if bad or not results else "suite_only",
+        "reason": reason,
+        "evidence": {
+            "measured_by_this_command": {
+                "what": "HALT fixtures run through proofpack.cli.main with --offline",
+                "total": len(results),
+                "ok": len(good),
+                "failures": [r["id"] for r in bad],
+                "items": [
+                    {
+                        "id": r["id"],
+                        "code": r["code"],
+                        "command": r["command"],
+                        "exit_code": r["exit_code"],
+                        "printed_code": r["printed_code"],
+                        "out_exists": r["out_exists"],
+                        "files_changed": len(r["files_changed"]),
+                        "ok": r["ok"],
+                    }
+                    for r in results
+                ],
+            },
+            "artefacts": [
+                {
+                    "kind": "test",
+                    "name": "tests/test_f12_halt_cli.py",
+                    "where": "the engine test suite (pytest -m day13); a child process per fixture",
+                    "engine_commit": None,
+                    "seen_by_this_command": False,
+                    "note": "the same fixtures through python -m proofpack.cli; this command "
+                    "does not run the test suite",
+                }
+            ],
+        },
+    }
+
+
+#: Build day 13 (E13): what an artefact this command did not see says about itself.
+NOT_SEEN_BY_THIS_COMMAND = (
+    "this command does not see CI runs; the run id is not known to it and is not recorded "
+    "here (the handoff names the gate run for the commit it was built at)"
+)
+
+
+def _ci_artefact(job: str, artefact: str, what: str) -> dict[str, Any]:
+    return {
+        "kind": "ci_job",
+        "name": f"{job} (artefact {artefact})",
+        "where": f".github/workflows/ci.yml job {job}: {what}",
+        "engine_commit": None,
+        "seen_by_this_command": False,
+        "note": NOT_SEEN_BY_THIS_COMMAND,
+    }
+
+
+def _test_artefact(path: str, note: str) -> dict[str, Any]:
+    return {
+        "kind": "test",
+        "name": path,
+        "where": "the engine test suite (pytest -m day13)",
+        "engine_commit": None,
+        "seen_by_this_command": False,
+        "note": note,
+    }
+
+
+def f16_behaviour(
+    committed: dict[str, Any] | None = None, fresh: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Row F16's ``status``, ``reason`` and ``evidence``: the engine half only. This
+    command computes :func:`proofpack.parity.compute` and compares it with the committed
+    :data:`proofpack.parity.COMMITTED_FILE` (read only from a source checkout, as the
+    Newcombe file is); ``committed`` / ``fresh`` are the test hooks. ``suite_only`` when
+    they agree under :func:`proofpack.parity.compare`, ``not_matched`` (exit 6) when they do
+    not, ``no_oracle_recorded`` when the file cannot be read here. The Pyodide half is not
+    run by this command or this repository."""
+    from proofpack import parity  # noqa: PLC0415
+
+    pyodide = (
+        "the Pyodide half (the same function in the browser against this file) is lane S's "
+        "proofpack-site/tests/e2e/parity.spec.ts, after a pin move past 81f1102 (DEC-43); "
+        "it is not run by this command or this repository"
+    )
+    test = _test_artefact(
+        "tests/test_f16_parity_native.py",
+        "the committed file against a fresh native run; this command makes the same "
+        "comparison itself",
+    )
+    if committed is None:
+        root = source_checkout_root()
+        if root is None:
+            return {
+                "status": "no_oracle_recorded",
+                "reason": f"{parity.COMMITTED_FILE} is read only from a proofpack source "
+                f"checkout (this package is not <root>/src/proofpack); {pyodide}",
+                "evidence": {"measured_by_this_command": None, "artefacts": [test]},
+            }
+        try:
+            committed = json.loads((root / parity.COMMITTED_FILE).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            return {
+                "status": "not_matched",
+                "reason": f"oracle_file_unreadable: {parity.COMMITTED_FILE} "
+                f"({type(exc).__name__}); {pyodide}",
+                "evidence": {"measured_by_this_command": None, "artefacts": [test]},
+            }
+    fresh = parity.compute() if fresh is None else fresh
+    result = parity.compare(committed, fresh)
+    gen = committed.get("generated") or {}
+    commit = gen.get("engine_commit")
+    commit = commit if isinstance(commit, str) and len(commit) == 40 else None
+    bad = result["failures"]
+    reason = (
+        "engine half only: this command computed proofpack.parity on this machine and "
+        f"compared {result['entries']} entries with {parity.COMMITTED_FILE} (written at "
+        f"engine {commit or 'an unrecorded commit'} on {gen.get('platform')}) under the "
+        f"site's rules (closed 1e-9, irls 1e-6, bootstrap at 4 decimals, exact): "
+        f"{result['entries'] - len(bad)} of {result['entries']} agree; {pyodide}"
+    )
+    if bad:
+        reason += "; not so: " + "; ".join(bad[:5])
+    return {
+        "status": "not_matched" if bad or not result["entries"] else "suite_only",
+        "reason": reason,
+        "evidence": {
+            "measured_by_this_command": {
+                "what": "proofpack.parity.compute() on this machine against the committed "
+                "native file (native against native, not Pyodide)",
+                "total": result["entries"],
+                "ok": result["entries"] - len(bad),
+                "failures": bad[:20],
+                "items": [{"fixture": k, **v} for k, v in result["fixtures"].items()]
+                + [
+                    {
+                        "platform": platform_tag(),
+                        "numeric_bit_equal": result["numeric_bit_equal"],
+                        "committed_platform": gen.get("platform"),
+                    }
+                ],
+            },
+            "artefacts": [
+                {
+                    "kind": "committed_file",
+                    "name": parity.COMMITTED_FILE,
+                    "where": "this repository (scripts/f16_parity_native.py writes it)",
+                    "engine_commit": commit,
+                    "seen_by_this_command": True,
+                    "note": f"generated on {gen.get('platform')}, tree_clean "
+                    f"{gen.get('tree_clean')}",
+                },
+                test,
+            ],
+        },
+    }
+
+
+def f17_behaviour(result: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Row F17's ``status``, ``reason`` and ``evidence``: :func:`proofpack.f17.run_repeat`
+    (two in-process runs on this machine, compared under the three-key mask) - a
+    same-platform repeat, never the reference image; ``result`` is the test hook. The
+    reference-image comparison is the CI job's artefact, not seen here."""
+    from proofpack import f17  # noqa: PLC0415
+
+    result = f17.run_repeat() if result is None else result
+    checks = result["checks"]
+    bad = sorted(k for k, v in checks.items() if not v["equal"])
+    reason = (
+        "this command ran proofpack run twice in process on this machine "
+        f"({result['rows']} synthetic rows, exit codes {result['exit_codes']}) and compared "
+        f"run.json and the manifest hash with {', '.join(result['masked_keys'])} masked, "
+        "pseudonyms.json with run_id masked, ingest_report.json, the file lists and every "
+        "other file's bytes: "
+        f"{len(checks) - len(bad)} of {len(checks)} equal. A same-platform repeat, not the "
+        "reference image: hash identity is claimed on the reference platform only (D1 "
+        "section 9), and the reference-image comparison is the CI job "
+        f"{f17.CI_JOB}'s (artefact {f17.CI_ARTEFACT}), which this command does not see"
+    )
+    if bad:
+        reason += "; not so: " + ", ".join(bad)
+    return {
+        "status": "not_matched" if bad or not checks else "suite_only",
+        "reason": reason,
+        "evidence": {
+            "measured_by_this_command": {
+                "what": "two in-process runs on this machine compared under the three-key "
+                "mask (not the reference image)",
+                "total": len(checks),
+                "ok": len(checks) - len(bad),
+                "failures": bad,
+                "items": [
+                    {"check": k, "equal": v["equal"], "sha256_run1": v["sha256"][0]}
+                    for k, v in sorted(checks.items())
+                ]
+                + [{"run_platforms": result["run_platforms"], "rows": result["rows"]}],
+            },
+            "artefacts": [
+                _ci_artefact(
+                    f17.CI_JOB,
+                    f17.CI_ARTEFACT,
+                    "the 5,000-row run twice in two docker run --network none containers of "
+                    "one image, compared with --require-reference-platform",
+                ),
+                _test_artefact(
+                    f17.CI_TEST_FILE,
+                    "the CLI twice in child processes, compared the same way (not the "
+                    "reference image)",
+                ),
+            ],
+        },
+    }
+
+
+def f19_behaviour(results: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Row F19's ``status``, ``reason`` and ``evidence``: :func:`proofpack.f19.run_all`
+    (both cohorts through ``proofpack.cli.main`` with a recording transport and the three
+    module attributes ``socket.socket``, ``socket.getaddrinfo`` and
+    ``socket.create_connection`` replaced by counting refusals); ``results`` is the test
+    hook. The network half (``--offline`` inside a network namespace) is the CI job's
+    artefact, not seen here."""
+    from proofpack import f19  # noqa: PLC0415
+
+    results = f19.run_all() if results is None else results
+    failed = {r["cohort"]: f19.check(r) for r in results}
+    bad = sorted(c for c, f in failed.items() if f)
+    reason = (
+        f"this command built the telemetry and aggregates payloads of {len(results)} cohorts "
+        f"({', '.join(r['cohort'] for r in results)}) through proofpack.cli.main with "
+        "socket.socket, socket.getaddrinfo and socket.create_connection replaced by "
+        "counting refusals, and searched their bytes: "
+        f"{len(results) - len(bad)} of {len(results)} with every payload valid against "
+        "egress_schema.json, no small cell unsuppressed, and no small-only value, site "
+        "name, header or free-text value in either payload's bytes. The --offline run inside "
+        f"a network namespace is Linux only: the CI job {f19.CI_JOB} (artefact "
+        f"{f19.CI_ARTEFACT}) uses unshare -rn where the runner allows it and sudo unshare -n "
+        "otherwise, and records which in the artefact's namespace.txt; this command does "
+        "not see that job"
+    )
+    if bad:
+        reason += "; not so: " + "; ".join(f for c in bad for f in failed[c])
+    return {
+        "status": "not_matched" if bad or not results else "suite_only",
+        "reason": reason,
+        "evidence": {
+            "measured_by_this_command": {
+                "what": "egress payloads of two cohorts built and searched (the three "
+                "socket module attributes replaced by counting refusals)",
+                "total": len(results),
+                "ok": len(results) - len(bad),
+                "failures": bad,
+                "items": [
+                    {
+                        "cohort": r["cohort"],
+                        "socket_calls": r["socket_calls"],
+                        "telemetry_valid": r["telemetry_valid"],
+                        "aggregates_valid": r["aggregates_valid"],
+                        "aggregates_cells": r["aggregates_cells"],
+                        "small_rows": len(r["small_rows"]),
+                        "small_cells": r["small_cells"],
+                        "small_cells_unsuppressed": r["small_cells_unsuppressed"],
+                        "structural_violations": len(r["structural_violations"]),
+                        "small_only_values": r["small_only_values"],
+                        "small_value_hits": len(r["small_value_hits"]),
+                        "needles": r["needles"],
+                        "hits": len(r["hits"]),
+                        "failed": failed[r["cohort"]],
+                    }
+                    for r in results
+                ],
+            },
+            "artefacts": [
+                _ci_artefact(
+                    f19.CI_JOB,
+                    f19.CI_ARTEFACT,
+                    "proofpack run --offline inside a network namespace (unshare -rn, or "
+                    "sudo unshare -n where the runner refuses it; namespace.txt records "
+                    "which), then the F19 test file inside the same namespace",
+                ),
+                _test_artefact(
+                    f19.CI_TEST_FILE,
+                    "the same two cohorts with plants (suppression removed or leaking, a "
+                    "send that calls getaddrinfo and create_connection itself, a site name "
+                    "added)",
+                ),
+            ],
+        },
+    }
 
 
 def register() -> tuple[Row, ...]:
@@ -1844,10 +2207,13 @@ def register() -> tuple[Row, ...]:
         Row(
             "F12",
             "F12",
-            "HALT codes H01-H11 and exit 3 on the malformed inputs",
+            "the HALT fixtures of proofpack.halt_fixtures run through proofpack run or "
+            "compare with --offline: exit 3, the fixture's own code on the first stderr "
+            "line, no file added, removed or changed under the fixture's directory (its "
+            "inputs and its PROOFPACK_HOME), and no --out",
             status="suite_only",
-            reason="a behaviour, not a value: the test suite inspects each HALT code",
-            suite_tests=("tests/test_halt_gates.py",),
+            suite_tests=("tests/test_f12_halt_cli.py", "tests/test_halt_gates.py"),
+            behaviour=lambda: f12_behaviour(),
         ),
         *r_capture_rows(),
         Row(
@@ -1870,9 +2236,13 @@ def register() -> tuple[Row, ...]:
         Row(
             "F16",
             "F16",
-            "F1-F8 under Pyodide against native",
-            status="not_built",
-            reason="the Pyodide build is build day 10's",
+            "the engine half of F16: every value the register's engine functions compute "
+            "for F1-F11 and F14 (F3-auprc and F7 have none) and the E6, E7 and E10 "
+            "statistics blocks, computed natively by proofpack.parity, against the committed "
+            "native file the site's Pyodide test compares with",
+            status="suite_only",
+            suite_tests=("tests/test_f16_parity_native.py",),
+            behaviour=lambda: f16_behaviour(),
         ),
         Row(
             "F17",
@@ -1880,9 +2250,12 @@ def register() -> tuple[Row, ...]:
             "two runs of the synthetic cohort: manifest and run.json bytes with run_id, "
             "started and duration_s masked",
             status="suite_only",
-            reason="a same-platform repeat run by the suite and by scripts/f17_determinism.py; "
-            "hash identity is claimed on the reference platform only (D1 section 9)",
-            suite_tests=("tests/test_f17_determinism.py", "tests/test_manifest.py"),
+            suite_tests=(
+                "tests/test_f17_reference_image.py",
+                "tests/test_f17_determinism.py",
+                "tests/test_manifest.py",
+            ),
+            behaviour=lambda: f17_behaviour(),
         ),
         Row(
             "F18",
@@ -1897,8 +2270,12 @@ def register() -> tuple[Row, ...]:
             "F19",
             "egress payload: schema, whitelist, suppression, no site name",
             status="suite_only",
-            reason="a property of the egress bytes, not a value",
-            suite_tests=("tests/test_egress.py", "tests/test_offline.py"),
+            suite_tests=(
+                "tests/test_f19_egress_bytes.py",
+                "tests/test_egress.py",
+                "tests/test_offline.py",
+            ),
+            behaviour=lambda: f19_behaviour(),
         ),
         Row(
             "F20",
@@ -1991,6 +2368,11 @@ def compare_row(row: Row, oracles: dict[str, Any]) -> dict[str, Any]:
         "reason": row.reason,
         "suite_tests": list(row.suite_tests),
     }
+    if row.evidence is not None:
+        out["evidence"] = row.evidence()
+    if row.behaviour is not None:
+        out.update(row.behaviour())
+        return out
     if row.engine is None or row.oracle is None:
         return out
     try:
@@ -2316,7 +2698,7 @@ def summary_lines(report: dict[str, Any], path: Path | None) -> list[str]:
         f"  rows {s['rows']}: matched {s['matched']}, not matched {s['not_matched']}, "
         f"no oracle recorded {s['no_oracle_recorded']}, no independent oracle "
         f"{s['no_independent_oracle']}, not built {s['not_built']}, "
-        f"compared by the test suite only {s['suite_only']}",
+        f"suite only (checked by this command, the test suite or a CI job) {s['suite_only']}",
         f"  platform {report['platform']} (reference platform {report['reference_platform']}: "
         f"{'yes' if report['on_reference_platform'] else 'no'}); python {report['python']}, "
         f"numpy {report['numpy']}, scipy {report['scipy'] or 'not installed'}",

@@ -16,8 +16,9 @@ EXIT_HALT = 3
 EXIT_LICENCE = 4
 EXIT_INTERNAL = 5
 #: ``proofpack fixtures`` (A-P3, build day 9): one or more report rows with an oracle is
-#: ``not_matched`` (``proofpack.fixtures.exit_code_for``). Rows without an oracle, not built
-#: or compared by the test suite only never set it.
+#: ``not_matched`` (``proofpack.fixtures.exit_code_for``). Rows whose status is
+#: ``no_oracle_recorded``, ``no_independent_oracle``, ``not_built`` or ``suite_only`` never
+#: set it.
 EXIT_FIXTURES_NOT_MATCHED = 6
 #: ``proofpack run --format ...docx...`` (A-P4, build day 10) when docxtpl, python-docx or
 #: matplotlib cannot be found (``proofpack.render.docx.extra_available``): the CLI prints

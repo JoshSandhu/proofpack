@@ -159,6 +159,45 @@ def test_golden_t12_matches_the_committed_render(report):
     assert t12.render_t12(masked_report(report)) == t12.render_t12(masked_report(report))
 
 
+#: :data:`t12.SUITE_ONLY_RECORDED_TEXT`, written out.
+RECORDED_TEXT = (
+    "compared inside a CI job; deviations recomputed by this command from the recorded values"
+)
+
+
+def test_the_suite_only_status_cell_names_who_checked_the_row(report, page):
+    """E13 repair 1, lens FA-B5: at 941c8e4 every ``suite_only`` row printed "compared by
+    the test suite only", F12, F16, F17 and F19 included, which this command measures
+    itself. Now a ``suite_only`` row with ``evidence.measured_by_this_command`` prints
+    :data:`t12.SUITE_ONLY_MEASURED_TEXT`; one with a numeric ``max_abs_deviation`` (F13
+    read from the r-captures job's record; E13 repair 2, lens 2 FA-B2: at bcb1dac it
+    printed "not by this command") prints :data:`t12.SUITE_ONLY_RECORDED_TEXT`; the others
+    (F18, F20 here) print "checked by the test suite or a CI job, not by this command"."""
+    assert "compared by the test suite only" not in page
+    assert not any("compared by the test suite only" in x for x in fx.summary_lines(report, None))
+    measured, recorded, other = set(), set(), set()
+    for row in report["rows"]:
+        if row["status"] != "suite_only":
+            continue
+        cells = re.findall(rf'<tr data-row="{re.escape(row["id"])}">(.*?)</tr>', page)
+        cell = re.search(r'data-status="suite_only">([^<]*)</td>', cells[0])
+        assert cell is not None, row["id"]
+        if (row.get("evidence") or {}).get("measured_by_this_command") is not None:
+            measured.add(row["id"])
+            assert cell.group(1) == t12.SUITE_ONLY_MEASURED_TEXT, row["id"]
+        elif row["max_abs_deviation"] is not None:
+            recorded.add(row["id"])
+            assert cell.group(1) == RECORDED_TEXT, row["id"]
+        else:
+            other.add(row["id"])
+            assert cell.group(1) == "checked by the test suite or a CI job, not by this command"
+    assert {"F12", "F17", "F19"} <= measured
+    assert {"F18", "F20"} <= other
+    f13 = next(r for r in report["rows"] if r["id"] == "F13")
+    if f13["status"] == "suite_only":
+        assert recorded == {"F13"} and "recomputed here" in f13["reason"]
+
+
 def test_every_report_row_appears_in_t12(report, page):
     for row in report["rows"]:
         cells = re.findall(rf'<tr data-row="{re.escape(row["id"])}">(.*?)</tr>', page)
@@ -168,7 +207,7 @@ def test_every_report_row_appears_in_t12(report, page):
         )
         assert status is not None, row["id"]
         assert status.group(1) == row["status"]
-        assert status.group(2) == t12.STATUS_TEXT[row["status"]]
+        assert status.group(2) == t12.status_text(row)
     assert page.count('<tr data-row="') == len(report["rows"]) == 46
     counts = dict(re.findall(r'data-count="([a-z_]+)">([^<]*)</td>', page))
     for key in (

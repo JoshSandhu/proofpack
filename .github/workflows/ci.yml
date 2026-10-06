@@ -156,6 +156,27 @@ jobs:
           $NS .venv/bin/python scripts/ci_namespace_run.py --online | tee online.txt
           grep -q "\[W16\] telemetry not sent (" online.txt
           grep -q "namespace run: --online exit=0 run.json=written" online.txt
+          echo "$NS" > namespace.txt
+      # E13 (build day 13, F19; section 10 gate 8): the F19 egress-byte tests run inside the
+      # same kind of namespace, and the job's logs are uploaded as the artefact
+      # f19-offline-namespace that row F19 of fixtures_report.json names
+      # (proofpack.f19.CI_ARTEFACT). The fixtures report does not know this job's run id.
+      - name: F19 egress-byte tests inside the network namespace
+        run: |
+          set -euo pipefail
+          NS="$(cat namespace.txt)"
+          $NS .venv/bin/python -m pytest -q -p no:cacheprovider tests/test_f19_egress_bytes.py | tee f19_pytest.txt
+      - name: upload the F19 namespace logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: f19-offline-namespace
+          path: |
+            namespace.txt
+            offline.txt
+            online.txt
+            f19_pytest.txt
+          if-no-files-found: error
 
   docker-smoke:
     # A-P3 (build day 9, lane A): the reference-platform image (Dockerfile: python:3.12-slim,
@@ -205,6 +226,40 @@ jobs:
           test "${rc}" = "4"
           test -s smoke/pack/run.json
           docker run --rm --network none -v "$PWD:/src:ro" -v "$PWD/smoke:/work" -w /work --entrypoint python proofpack:ci /src/scripts/f17_determinism.py --out /work/f17 --n 5000
+      # E13 (build day 13, F17; section 10 gate 3): the same 5,000-row run twice on the image
+      # built above, each in its own container with --network none (a fresh
+      # /home/proofpack, so no licence and an empty ledger: exit 4, run.json written), then
+      # the two directories compared inside the image by proofpack.f17.compare: run.json
+      # bytes and the manifest hash with run_id, started and duration_s masked (each must
+      # occur exactly once), pseudonyms.json with run_id masked, ingest_report.json and the
+      # file lists. Any other difference, or a manifest that does not record
+      # linux-x86_64-cp312, fails the step. Both run.json files and f17_result.json are
+      # uploaded as the artefact f17-reference-image (proofpack.f17.CI_ARTEFACT). Written at
+      # build day 13; it had not run when written.
+      - name: F17 on the reference image (two runs, --network none, compared)
+        run: |
+          set -euo pipefail
+          docker run --rm --network none -v "$PWD:/src:ro" -v "$PWD/smoke:/work" -w /work --entrypoint python proofpack:ci /src/scripts/f17_determinism.py --out /work/f17in --n 5000 --inputs-only
+          for i in 1 2; do
+            set +e
+            docker run --rm --network none -v "$PWD/smoke:/work" -w /work proofpack:ci run --input /work/f17in/synthetic.csv --criteria /work/f17in/criteria.yaml --mapping /work/f17in/synthetic.csv.mapping.json --out /work/f17ref/run$i --format json --offline
+            rc=$?
+            set -e
+            echo "F17 reference-image run $i exit code: ${rc} (4 = no licence installed; run.json is still written)"
+            test "${rc}" = "4"
+            test -s "smoke/f17ref/run$i/run.json"
+          done
+          docker run --rm --network none -v "$PWD:/src:ro" -v "$PWD/smoke:/work" -w /work --entrypoint python proofpack:ci /src/scripts/f17_determinism.py --out /work/f17ref --compare-dirs /work/f17ref/run1 /work/f17ref/run2 --require-reference-platform --where "ci.yml docker-smoke: two containers of the image proofpack:ci, no network"
+      - name: upload the F17 reference-image runs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: f17-reference-image
+          path: |
+            smoke/f17ref/run1/run.json
+            smoke/f17ref/run2/run.json
+            smoke/f17ref/f17_result.json
+          if-no-files-found: error
 
   audit:
     name: pip-audit

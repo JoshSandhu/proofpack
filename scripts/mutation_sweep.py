@@ -3430,6 +3430,9 @@ MUTANTS = MUTANTS + AP2_MUTANTS
 FIXTURES = "src/proofpack/fixtures.py"
 T12 = "src/proofpack/render/t12.py"
 F17_SCRIPT = "scripts/f17_determinism.py"
+#: Build day 13 (E13): the mask and the comparison moved from the script into this module;
+#: the two F17 mutants below follow them.
+F17_MODULE = "src/proofpack/f17.py"
 SBOM_SCRIPT = "scripts/sbom.py"
 RELEASE_YML = ".github/workflows/release.yml"
 CAPTURE_SCRIPT = "scripts/capture_fixture_oracles.py"
@@ -3485,7 +3488,7 @@ AP3_MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "ap3_f17_mask_drops_duration_s",
-        F17_SCRIPT,
+        F17_MODULE,
         r'^MASKED_KEYS = \("run_id", "started", "duration_s"\)$',
         'MASKED_KEYS = ("run_id", "started")',
         what="F17's mask leaves duration_s unmasked",
@@ -3656,7 +3659,7 @@ AP3_MUTANTS: tuple[Mutant, ...] = (
     ),
     Mutant(
         "ap3_f17_file_names_not_compared",
-        F17_SCRIPT,
+        F17_MODULE,
         r'        "file_names": \[\n            hashlib[^\n]*\n            for names[^\n]*\n'
         r"        \],\n",
         "",
