@@ -100,14 +100,14 @@ In-process `main(["fixtures", "--offline", "--out", ...])` on a scratch copy of 
 
 | | Git Bash (`tip`) | PowerShell (`mut`, clean) | commit message |
 |---|---|---|---|
-| full suite | 2308 passed, 4 skipped in 305.32 s, exit 0 | PS_FULL | 2308 / 4 |
+| full suite | 2308 passed, 4 skipped in 305.32 s, exit 0 | 2308 passed, 4 skipped in 334.62 s, exit 0 (same two skips) | 2308 / 4 |
 | skips | `[3] test_day12_r_captures.py:156` r_vectors_not_committed_dec77; `[1] test_doctor_cli.py:57` | | |
-| `-m day13` | 108 passed, 2204 deselected | PS_D13 | 108 |
-| `-m day12` | 196 passed, 3 skipped | PS_D12 | 196/3 |
-| `-m day11` | 144 passed | PS_D11 | 144 |
-| `-m day10` | 262 passed, 2050 deselected | PS_D10 | 262 |
-| ruff check / format | "All checks passed!" / "340 files already formatted" | PS_RUFF | clean |
-| doctor / fixtures --offline | | PS_CLI | exit 0 / 0 |
+| `-m day13` | 108 passed, 2204 deselected | 108 passed, 2204 deselected | 108 |
+| `-m day12` | 196 passed, 3 skipped | 196 passed, 3 skipped | 196/3 |
+| `-m day11` | 144 passed | 144 passed | 144 |
+| `-m day10` | 262 passed, 2050 deselected | 262 passed, 2050 deselected | 262 |
+| ruff check / format | "All checks passed!" / "340 files already formatted" | the same | clean |
+| doctor / fixtures --offline | | doctor exit 0; fixtures --offline exit 0 | exit 0 / 0 |
 
 Independent of repository code (plain `json`): the 16 committed F13 pairs give max `abs(engine - r)` 2.7755575615628914e-17, 0 R values unequal to `proc_asah.json`, all within 1e-6; `proc_asah.json`'s LF sha256 equals the recorded `proc_asah_sha256`.
 
@@ -132,5 +132,5 @@ Independent of repository code (plain `json`): the 16 committed F13 pairs give m
 
 ## Could not check
 
-- PowerShell figures are filled in below once that run finishes (see the table).
+- Nothing in the commit message's figures failed to reproduce: every figure matches in both shells (table above).
 - I did not run `ci_gate.sh` (the orchestrator's); I read run 37480583988 only.
