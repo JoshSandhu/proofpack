@@ -91,8 +91,10 @@ def _register_class_lookup(committed: dict, fresh: dict) -> tuple[int, list]:
     """``(values looked up, misses)``: each value of a ``register``-class row with an
     engine function (F1, F1b, F1c, F1d, F2, F3, F4, F5, F6 and F8 ``-register``), computed
     now, looked up among the values of ``fresh`` for the same fixture by exact equality; a
-    miss is a value no entry of ``fresh`` holds, or whose entries' keys are all absent from
-    ``committed``. No value of ``committed`` is read."""
+    miss is a value no entry of ``fresh`` holds, or one for which ANY key among the fresh
+    entries holding it is absent from ``committed`` (E13 repair 3, lens 3 FA-B1: with
+    ``any`` a value matched by two or three keys - 19 of the 67 - passed with one of its
+    keys deleted). No value of ``committed`` is read."""
     seen, misses = 0, []
     for row in fx.register():
         if row.engine is None or row.tolerance_class != "register":
@@ -101,12 +103,14 @@ def _register_class_lookup(committed: dict, fresh: dict) -> tuple[int, list]:
         for name, value in row.engine().items():
             seen += 1
             keys = [k for k, e in block.items() if float(value) in _numbers(e.get("value"))]
-            if not any(k in committed["fixtures"][row.fixture] for k in keys):
+            if not keys or not all(k in committed["fixtures"][row.fixture] for k in keys):
                 misses.append((row.id, name, value, keys))
     return seen, misses
 
 
-def test_every_register_class_value_has_its_key_in_the_file(committed, fresh):
+def test_every_register_class_value_equals_fresh_entries_whose_keys_are_all_in_the_file(
+    committed, fresh
+):
     """E13 repair 1, lens FA-B1: ``_register_entries`` skips the rows whose tolerance class
     is ``register``. Each of their 67 values, computed now, must equal (exactly) the value
     of an entry of a fresh ``parity.compute()`` for the same fixture, and that entry's key
@@ -118,7 +122,9 @@ def test_every_register_class_value_has_its_key_in_the_file(committed, fresh):
     ``F3-register.paired_p`` computed 0.05934643879192011 against the file's
     0.0593464387919201 and the test failed. E13 repair 2 (lens 2 FA-B1 / RG-B1): renamed
     from ``test_every_register_class_value_is_in_the_file``; the lookup reads the file's
-    keys, not its values (the next test)."""
+    keys, not its values (the next test). E13 repair 3 (lens 3 FA-B1): renamed from
+    ``test_every_register_class_value_has_its_key_in_the_file``; every key among the fresh
+    entries holding the value must be in the file, not any one of them."""
     seen, misses = _register_class_lookup(committed, fresh)
     assert misses == []
     assert seen == 67
@@ -275,3 +281,26 @@ def test_the_check_command_agrees(capsys):
     spec.loader.exec_module(module)
     assert module.main(["--check", "--out", str(COMMITTED)]) == 0
     assert "0 failures" in capsys.readouterr().out
+
+
+def test_e13r3_b1_deleting_any_one_key_of_a_multi_key_value_is_a_miss(committed, fresh):
+    """E13 repair 3, lens 3 FA-B1: for each register-class value that equals two or more
+    fresh entries (19 of the 67 at ec989ed), deleting each of those keys in turn from a copy
+    of the committed file is a miss for that value. At ec989ed (``any``) deleting
+    ``F2-exact.sensitivity`` gave no miss."""
+    multi = []
+    for row in fx.register():
+        if row.engine is None or row.tolerance_class != "register":
+            continue
+        block = fresh["fixtures"][row.fixture]
+        for name, value in row.engine().items():
+            keys = [k for k, e in block.items() if float(value) in _numbers(e.get("value"))]
+            if len(keys) > 1:
+                multi.append((row.id, row.fixture, name, keys))
+    assert len(multi) == 19
+    for rid, fixture, name, keys in multi:
+        for key in keys:
+            planted = copy.deepcopy(committed)
+            del planted["fixtures"][fixture][key]
+            _, misses = _register_class_lookup(planted, fresh)
+            assert (rid, name) in [m[:2] for m in misses], (rid, name, key)

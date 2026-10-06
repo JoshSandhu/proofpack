@@ -1167,10 +1167,13 @@ def f13_recorded_outcome(caps: RCaptures) -> ComparedInRunner:
     refused), ``r`` equal to
     ``proc_asah.json``'s value and ``tolerance`` equal to the ``iterative`` 1e-6; the
     deviation is recomputed here as ``abs(engine - r)`` (the file's ``abs_deviation`` and
-    ``within`` are not read). Outcome: ``not_matched`` when a name fails those checks or
-    lies outside 1e-6, ``suite_only`` otherwise, with a reason naming the run, the engine
-    commit, the maximum deviation and that a local re-check needs R; when the engine commit
-    is not this checkout's HEAD (:func:`git_sha`) the reason says so."""
+    ``within`` are not read). A recorded name outside :data:`F13_NAMES` is refused, never
+    skipped (E13 repair 3, lens 3 FA-B2: at ec989ed an extra pair 0.8 apart was not read and
+    the command exited 0). Outcome: ``not_matched`` when a name fails those checks, is not
+    one of :data:`F13_NAMES`, or lies outside 1e-6, ``suite_only`` otherwise, with a reason
+    naming the run, the number of names recomputed, the engine commit, the maximum deviation
+    and that a local re-check needs R; when the engine commit is not this checkout's HEAD
+    (:func:`git_sha`) the reason says so."""
     proc, cmp_doc = caps.proc, caps.comparison
     assert proc is not None and cmp_doc is not None
     if cmp_doc.get("schema") != R_COMPARISON_SCHEMA or cmp_doc.get("fixture") != "F13":
@@ -1200,6 +1203,10 @@ def f13_recorded_outcome(caps: RCaptures) -> ComparedInRunner:
     problems: list[str] = []
     outside: list[str] = []
     worst = 0.0
+    recomputed = 0
+    extra = sorted(str(k) for k in values if k not in F13_NAMES)
+    if extra:
+        problems.append("recorded names outside the 16 F13 names: " + ", ".join(extra))
     for name in F13_NAMES:
         rec = _as_dict(values.get(name))
         e, r = _json_number(rec.get("engine")), _json_number(rec.get("r"))
@@ -1213,6 +1220,7 @@ def f13_recorded_outcome(caps: RCaptures) -> ComparedInRunner:
             problems.append(f"tolerance not {tol:g}: {name}")
             continue
         dev = abs(e - r)
+        recomputed += 1
         worst = max(worst, dev)
         if not dev <= tol:
             outside.append(name)
@@ -1238,7 +1246,7 @@ def f13_recorded_outcome(caps: RCaptures) -> ComparedInRunner:
     return ComparedInRunner(
         "suite_only",
         f"compared inside the r-captures job, not by this command: {run} recorded "
-        f"{len(F13_NAMES)} values of the engine at commit {engine_sha} against pROC "
+        f"{recomputed} values of the engine at commit {engine_sha} against pROC "
         f"(proc_asah.json), max abs deviation {worst!r}, each within 1e-6 as recomputed "
         f"here from the recorded engine and R numbers; {where}. The aSAH vectors are never "
         "committed (DEC-77), so a local re-check needs R: the r-captures job "

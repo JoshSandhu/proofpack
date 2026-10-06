@@ -76,6 +76,22 @@ SUITE_ONLY_RECORDED_TEXT = (
 )
 
 
+def values_cell(row: dict[str, Any]) -> int:
+    """The Values cell: ``n_values_compared``, except for a row whose status cell is
+    :data:`SUITE_ONLY_RECORDED_TEXT` (F13 read from the r-captures job's recorded
+    comparison), which prints the number of recorded pairs whose deviation this command
+    recomputed: every one of ``fixtures.F13_NAMES``, since any other recorded name, or any
+    of them missing, makes the row ``not_matched`` (``fixtures.f13_recorded_outcome``). The
+    report keeps ``n_values_compared`` 0 for that row (the schema's ``suite_only`` rule).
+    E13 repair 3, lens 3 FA-B3: at ec989ed this cell printed 0 beside a largest deviation
+    of 2.78e-17 and a status saying the deviations were recomputed."""
+    if status_text(row) == SUITE_ONLY_RECORDED_TEXT:
+        from proofpack.fixtures import F13_NAMES
+
+        return len(F13_NAMES)
+    return int(row.get("n_values_compared", 0))
+
+
 def status_text(row: dict[str, Any]) -> str:
     """The words of one row's status cell: :data:`STATUS_TEXT`, except for a ``suite_only``
     row this command measured (:data:`SUITE_ONLY_MEASURED_TEXT`) or whose recorded
@@ -222,7 +238,7 @@ def evidence_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
                 "oracle": _oracle(r.get("oracle_source")),
                 "tolerance": _tolerance(r.get("tolerance")),
                 "deviation": _dev(r.get("max_abs_deviation")),
-                "n": str(r.get("n_values_compared", 0)),
+                "n": str(values_cell(r)),
                 "status": r["status"],
                 "status_text": status_text(r),
                 "reason": reason,

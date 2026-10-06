@@ -124,8 +124,18 @@ FALSE_AT_BCB1DAC = (
     ("tests/test_f16_parity_native.py", "def test_every_register_class_value_is_in_the_file"),
 )
 
+#: (file, a sentence the E13 lens 3 fresh-attack note found false at ec989ed); each must be absent.
+FALSE_AT_EC989ED = (
+    ("src/proofpack/parity.py", "the committed file for the key of the entry it finds"),
+    ("src/proofpack/parity.py", "test_every_register_class_value_has_its_key_in_the_file"),
+    (
+        "tests/test_f16_parity_native.py",
+        "def test_every_register_class_value_has_its_key_in_the_file",
+    ),
+)
 
-@pytest.mark.parametrize("path,sentence", FALSE_AT_941C8E4 + FALSE_AT_BCB1DAC)
+
+@pytest.mark.parametrize("path,sentence", FALSE_AT_941C8E4 + FALSE_AT_BCB1DAC + FALSE_AT_EC989ED)
 def test_the_sentences_the_e13_lenses_found_false_are_gone(path, sentence):
     text = (REPO / path).read_text(encoding="utf-8")
     assert sentence not in text, (path, sentence)

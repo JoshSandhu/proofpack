@@ -15,10 +15,11 @@ reported rounding (bootstrap) under Pyodide vs native*. F16 has two halves:
   the F4 rows (E6), the whole paired comparison block and the unpaired DeLong difference
   on the F3 pair (E10), the attainability bounds (E7) and the heterogeneity footnote on
   the F6 sites.
-  ``tests/test_f16_parity_native.py::test_every_register_class_value_has_its_key_in_the_file``
+  ``tests/test_f16_parity_native.py::test_every_register_class_value_equals_fresh_entries_whose_keys_are_all_in_the_file``
   looks up each of the 67 values of the ``register``-class rows (F1-F6 and F8) among the
   values a fresh :func:`compute` gives for the same fixture, by exact equality, and asks
-  the committed file for the key of the entry it finds; it reads no value of the file.
+  the committed file for every key among the fresh entries holding an equal value (19 of
+  the 67 values equal two or three entries); it reads no value of the file.
   The file's values are held to that fresh run by :func:`compare`, under the labelled
   tolerances, not by exact equality (``F3-delong.paired_p``, labelled ``irls``, moved by
   5e-10 in a copy of the file still passes both:
