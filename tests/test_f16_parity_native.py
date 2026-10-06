@@ -87,19 +87,27 @@ def _numbers(v) -> list[float]:
     return []
 
 
-def test_every_register_class_value_is_in_the_file(committed):
+def test_every_register_class_value_is_in_the_file(committed, fresh):
     """E13 repair 1, lens FA-B1: ``_register_entries`` skips the rows whose tolerance class
     is ``register`` (F1, F1b, F1c, F1d, F2, F3, F4, F5, F6 and F8 ``-register``). Each of
-    their values, computed now, must equal (exactly) a value the committed file holds for
-    the same fixture. At 941c8e4 F5-register's ``accuracy_diff`` (-0.08) was in no entry."""
+    their values, computed now, must equal (exactly) the value of an entry of a fresh
+    ``parity.compute()`` for the same fixture, and that entry's key must be in the committed
+    file (whose values ``compare`` holds to the fresh run under the labelled tolerances).
+    At 941c8e4 F5-register's ``accuracy_diff`` (-0.08) was in no entry.
+
+    Gate repair (run 37463363415, at a894fee): the first version looked the values up in
+    the committed file, written on win-amd64-cp314, by exact equality; on the Linux runner
+    ``F3-register.paired_p`` computed 0.05934643879192011 against the file's
+    0.0593464387919201 and the test failed."""
     seen = 0
     for row in fx.register():
         if row.engine is None or row.tolerance_class != "register":
             continue
-        block = committed["fixtures"][row.fixture].values()
-        held = {x for e in block for x in _numbers(e.get("value"))}
+        block = fresh["fixtures"][row.fixture]
         for name, value in row.engine().items():
-            assert float(value) in held, (row.id, name, value)
+            keys = [k for k, e in block.items() if float(value) in _numbers(e.get("value"))]
+            assert keys, (row.id, name, value)
+            assert any(k in committed["fixtures"][row.fixture] for k in keys), (row.id, name)
             seen += 1
     assert seen == 67
 
