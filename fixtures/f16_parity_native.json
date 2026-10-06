@@ -4316,6 +4316,50 @@
     "class": "reported_rounding",
     "tol": "closed",
     "value": 0.06641358809089637
+   },
+   "F5-register.accuracy_diff.ci_hi": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.010249291949335215
+   },
+   "F5-register.accuracy_diff.ci_level": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": 0.95
+   },
+   "F5-register.accuracy_diff.ci_lo": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.1553563811022839
+   },
+   "F5-register.accuracy_diff.est": {
+    "class": "closed_form",
+    "tol": "closed",
+    "value": -0.08
+   },
+   "F5-register.accuracy_diff.flags": {
+    "class": "exact",
+    "tol": "exact",
+    "value": []
+   },
+   "F5-register.accuracy_diff.method": {
+    "class": "exact",
+    "tol": "exact",
+    "value": "newcombe_paired"
+   },
+   "F5-register.accuracy_diff.n": {
+    "class": "exact",
+    "tol": "exact",
+    "value": 100
+   },
+   "F5-register.accuracy_diff.not_estimable_reason": {
+    "reason": "null_in_engine_output",
+    "value": null
+   },
+   "F5-register.accuracy_diff.suppressed": {
+    "class": "exact",
+    "tol": "exact",
+    "value": false
    }
   },
   "F6": {
@@ -4506,7 +4550,7 @@
  },
  "generated": {
   "by": "scripts/f16_parity_native.py",
-  "engine_commit": "f5586f0d661aed6e4509966d275d67517f65e78e",
+  "engine_commit": "fa4929dd132fc58a5a7207a0643df734d64fa5db",
   "platform": "win-amd64-cp314",
   "tree_clean": true
  },
