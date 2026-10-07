@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from conftest import make_cohort, make_criteria, write_csv, write_yaml
-from proofpack.cli import _confirm_interactive, main
+from proofpack.cli import ALL_HIGH_REPROMPT, _confirm_interactive, main
 from proofpack.errors import EXIT_HALT, EXIT_OK, HaltError
 from proofpack.io import declare
 from proofpack.io.mapping import Mapping, apply_mapping, check_h07, check_h11, map_headers
@@ -218,7 +218,8 @@ def test_all_high_prompt_reprompts_on_n_no_e_x_and_takes_a():
     """At e92989b ``n`` at the all-high prompt was taken as accept (``decided_by`` interactive).
 
     Until 1354758 this test was named ``..._on_anything_but_a_or_q``; it feeds the five
-    answers ``n no e x a`` and asserts four ``answer a or q`` lines (the empty answer is
+    answers ``n no e x a`` and asserts four re-prompt lines (``answer a or q`` until E14,
+    :data:`proofpack.cli.ALL_HIGH_REPROMPT` since; the empty answer is
     ``tests/test_mapping_repair3.py::test_empty_answer_reprompts_at_both_prompts``).
     """
     cols = make_cohort()
@@ -234,7 +235,7 @@ def test_all_high_prompt_reprompts_on_n_no_e_x_and_takes_a():
 
     _confirm_interactive(m, ask=ask, say=said.append)
     assert len(prompts) == 5 and len(set(prompts)) == 1
-    assert said == ["  answer a or q"] * 4
+    assert said == [ALL_HIGH_REPROMPT] * 4
     assert m.decided_by == "interactive"
     m = map_headers(list(cols), cols)
     answers = iter(["n", "q"])

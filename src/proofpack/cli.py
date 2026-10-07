@@ -249,13 +249,19 @@ def _ask(ask, prompt: str) -> str:
 ACCEPT_ANSWERS = ("a", "accept")
 EDIT_ANSWERS = ("e", "edit")
 QUIT_ANSWERS = ("q", "quit", "abort")
+#: The all-high prompt's re-prompt (E14 item 4, LW-01 user review note 17): it says what to
+#: type. At 3ee5601 it read ``answer a or q``, and a buyer who typed ``y`` in the LW-01
+#: walk-through was re-prompted without being told how to accept. The answers themselves
+#: are unchanged: ``y``, ``n``, ``e``, ``x`` and the empty answer still do not accept.
+ALL_HIGH_REPROMPT = "  type a and press Enter to accept, or q to quit"
 
 
 def _confirm_interactive(m, ask=None, say=print, *, period_column: str | None = None) -> None:
     """Prompt once per non-high role: accept / edit (a canonical role or ignore) / abort;
     when no role is below high, prompt once for the whole mapping (``a`` or ``accept``
     accepts, ``q``, ``quit`` or ``abort`` aborts, after stripping and lower-casing; the
-    answers ``n``, ``no``, ``e``, ``x`` and the empty answer print ``answer a or q`` and
+    answers ``n``, ``no``, ``e``, ``x``, ``y`` and the empty answer print
+    :data:`ALL_HIGH_REPROMPT` (``answer a or q`` until E14) and
     ask again - at e92989b ``n`` was taken as accept, repair 2, RG-N1;
     ``tests/test_mapping_repair2.py::test_all_high_prompt_reprompts_on_n_no_e_x_and_takes_a``;
     the empty answer is lens-3 FA-B1, :data:`ACCEPT_ANSWERS`).
@@ -317,7 +323,7 @@ def _confirm_interactive(m, ask=None, say=print, *, period_column: str | None = 
                 break
             if answer in QUIT_ANSWERS:
                 raise HaltError("H07", "mapping aborted at the prompt; nothing written")
-            say("  answer a or q")
+            say(ALL_HIGH_REPROMPT)
         m.decided_by = "interactive"
         return
 

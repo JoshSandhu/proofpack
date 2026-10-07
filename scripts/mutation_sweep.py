@@ -886,7 +886,7 @@ MUTANTS_DAY6_A: tuple[Mutant, ...] = (
     Mutant(
         "all_high_prompt_takes_any_answer",
         CLI,
-        r'say\("  answer a or q"\)',
+        r"say\(ALL_HIGH_REPROMPT\)",
         "break",
         day=6,
         what="'n' at the all-high prompt is an accept (RG-N1)",
