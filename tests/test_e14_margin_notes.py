@@ -16,6 +16,7 @@ import re
 
 import pytest
 
+from ap4_docx import needs_extra
 from e14_pages import (
     DRAFT_LABEL,
     NOTE,
@@ -87,11 +88,14 @@ def test_lines_that_differ_in_any_visible_part_stay():
     assert "also" not in a and "also" not in e
 
 
+@pytest.mark.ap4
+@needs_extra
 def test_docx_t1_prints_each_repeated_line_once_naming_every_id(document):  # noqa: F811
     """The DOCX margin line prints its ids in brackets; since E14 a merged line names every
     id it stands for (at 3ee5601 T1.docx section 7 printed four rows, two of them repeats
-    differing only in the bracketed id, and the HTML/DOCX draft-label counts were equal)."""
-    pytest.importorskip("docxtpl")
+    differing only in the bracketed id, and the HTML/DOCX draft-label counts were equal).
+    Marked ``ap4`` so the CI job docx-extra runs it under ``PROOFPACK_REQUIRE_DOCX=1``
+    (E14 repair 1, RG-N3)."""
     import io  # noqa: PLC0415
     import zipfile  # noqa: PLC0415
 

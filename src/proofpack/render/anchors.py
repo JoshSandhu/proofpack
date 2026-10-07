@@ -157,8 +157,8 @@ def distinct_notes(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     equal print as the first of them, which carries the other ids in ``also`` (rendered
     as the note's ``data-also`` attribute, so every anchor of the block is still cited);
     items that differ in any visible part stay. Returns copies; ``items`` is not changed
-    (the DOCX template prints the id on each line and reads the same context). At 3ee5601
-    T1 section 7 printed four lines, two of them repeats."""
+    (the DOCX template reads the same context, and prints a merged line's ids together in
+    one bracket). At 3ee5601 T1 section 7 printed four lines, two of them repeats."""
     out: list[dict[str, Any]] = []
     first: dict[tuple[str, str, str], dict[str, Any]] = {}
     for it in items:

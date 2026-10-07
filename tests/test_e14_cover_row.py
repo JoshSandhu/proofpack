@@ -14,13 +14,12 @@ reads ``assert 19 == 3`` at 3ee5601.
 
 from __future__ import annotations
 
-import io
+import html
 import json
-import re
-import zipfile
 
 import pytest
 
+from ap4_docx import cell_texts, needs_extra
 from e14_pages import (
     AIDSF_TITLE,
     DRAFT_LABEL,
@@ -33,6 +32,8 @@ from e14_pages import (
     t2_page,  # noqa: F401 - a fixture
 )
 from proofpack.render import anchors
+from proofpack.render import html as render_html
+from proofpack.render import t1 as render_t1
 from proofpack.resources import load_guidance_map
 
 pytestmark = pytest.mark.day14
@@ -86,15 +87,23 @@ def test_cover_documents_unit():
     assert anchors.cover_documents(anchors.resolve(["PP_SCOPE", "PP_METHODS"])) == []
 
 
-def test_docx_cover_row_names_the_distinct_documents(document):  # noqa: F811
-    pytest.importorskip("docxtpl")
+@pytest.mark.ap4
+@needs_extra
+def test_docx_cover_row_text_equals_the_html_cover_labels_in_order(document):  # noqa: F811
+    """The DOCX cover cell ``Guidance versions referenced`` of T1 and T8, read through
+    python-docx, equals the HTML cover's link labels of the same document joined with
+    ``"; "``, in order (E14 repair 1, FA-B1: the test this replaces checked only that the
+    cell held no internal entry and the AI-DSF title once, and passed with the T1 cover
+    loop cut to ``cover_guidance[:1]``). Marked ``ap4`` so the CI job docx-extra runs it
+    under ``PROOFPACK_REQUIRE_DOCX=1`` (RG-N3)."""
     from proofpack.render import docx as render_docx  # noqa: PLC0415
 
-    for template_id in ("T1", "T8"):
-        data = render_docx.render_docx_bytes(document, template_id)
-        xml = zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode("utf-8")
-        text = re.sub(r"<[^>]+>", "", xml)
-        cell = text[text.index("Guidance versions referenced") :]
-        cell = cell[len("Guidance versions referenced") : cell.index("Customer sections")]
-        assert INTERNAL_PREFIX not in cell, template_id
-        assert cell.count(AIDSF_TITLE) == 1, (template_id, cell.count(AIDSF_TITLE))
+    for template_id, html_page in (
+        ("T1", render_t1.render_t1(document)),
+        ("T8", render_html.render_t8(document)),
+    ):
+        labels = [html.unescape(lab) for _, lab in cover(html_page)]
+        assert labels, template_id
+        cells = cell_texts(render_docx.render_docx_bytes(document, template_id))
+        at = cells.index("Guidance versions referenced")
+        assert cells[at + 1] == "; ".join(labels), (template_id, cells[at + 1], labels)

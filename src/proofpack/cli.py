@@ -250,9 +250,10 @@ ACCEPT_ANSWERS = ("a", "accept")
 EDIT_ANSWERS = ("e", "edit")
 QUIT_ANSWERS = ("q", "quit", "abort")
 #: The all-high prompt's re-prompt (E14 item 4, LW-01 user review note 17): it says what to
-#: type. At 3ee5601 it read ``answer a or q``, and a buyer who typed ``y`` in the LW-01
-#: walk-through was re-prompted without being told how to accept. The answers themselves
-#: are unchanged: ``y``, ``n``, ``e``, ``x`` and the empty answer still do not accept.
+#: type. At 3ee5601 it read ``answer a or q``, under the unchanged prompt line ``[a]ccept /
+#: [q]uit?``; the review note records that ``y`` re-prompted and asks for "type a to
+#: accept". The answers themselves are unchanged: ``y``, ``n``, ``e``, ``x`` and the empty
+#: answer still do not accept.
 ALL_HIGH_REPROMPT = "  type a and press Enter to accept, or q to quit"
 
 
