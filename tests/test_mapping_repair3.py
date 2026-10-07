@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 from conftest import ephemeral_registry, make_cohort, make_criteria, write_csv, write_yaml
-from proofpack.cli import _confirm_interactive, main
+from proofpack.cli import ALL_HIGH_REPROMPT, _confirm_interactive, main
 from proofpack.errors import EXIT_HALT, EXIT_OK, EXIT_WARNINGS, HaltError
 from proofpack.io.mapping import (
     Mapping,
@@ -114,7 +114,7 @@ def test_empty_answer_reprompts_at_both_prompts():
         return next(answers)
 
     _confirm_interactive(m, ask=ask, say=said.append)
-    assert said == ["  answer a or q"]
+    assert said == [ALL_HIGH_REPROMPT]
     assert seen == ["proposed", "proposed"] and m.decided_by == "interactive"
     # the per-role prompt (Gender 0/1 -> sex medium): "" then "a"
     cols = _sepsis_shaped()

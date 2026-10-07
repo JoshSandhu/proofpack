@@ -19,7 +19,7 @@
 <tr><th scope="row">Engine version</th><td>{{ document.manifest.engine_version | fmt_text }}</td></tr>
 <tr><th scope="row">Reference platform</th><td>{{ document.manifest.reference_platform | fmt_scalar }} ({{ document.manifest.platform | fmt_text }})</td></tr>
 <tr><th scope="row">Input SHA-256</th><td class="mono">{{ document.manifest.input_sha256 | fmt_text }}</td></tr>
-<tr><th scope="row">Guidance versions referenced</th><td>{% for ref in guidance_refs %}<a href="#{{ ref.id }}">{{ ref.label }}</a>{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+<tr><th scope="row">Guidance versions referenced</th><td>{% for ref in cover_guidance %}<a href="#{{ ref.id }}">{{ ref.label }}</a>{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
 <tr><th scope="row">Customer sections outstanding</th><td>{{ customer_sections_outstanding | length | fmt_count }}</td></tr>
 </tbody>
 </table>

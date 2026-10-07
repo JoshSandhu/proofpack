@@ -153,7 +153,7 @@ What it does, in order:
      (`tests/test_mapping_repair3_2.py::test_an_ignored_column_named_for_a_role_does_not_reach_validate_under_that_name`).
      When every role is high the prompt is once for the whole mapping: `a` or
      `accept` accepts, `q`, `quit` or `abort` halts, the empty answer and any other
-     word print `answer a or q` and ask again. The file is written with `decided_by:
+     word print `type a and press Enter to accept, or q to quit` and ask again. The file is written with `decided_by:
      interactive`. Ctrl-C between the table load and the last prompt (the test raises
      it from `load_table` and at two prompts), or a closed stdin at a prompt, is H07
      (`nothing written`); Ctrl-C during the write is H07 `mapping interrupted while

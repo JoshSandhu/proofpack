@@ -472,23 +472,30 @@ class Builder:
 
     def margin_notes(self, expr: str, *, single: bool = False) -> None:
         """D4 section 1.1's margin note as a two-column table: one row per anchor of
-        ``expr`` (a list), or the one row of ``expr`` (a dict) when ``single``."""
+        ``expr`` (a list), or the one row of ``expr`` (a dict) when ``single``. A list goes
+        through the ``distinct_notes`` filter (E14 item 2, as the HTML's ``notes()``
+        macro): anchors that print the same label, section and eSTAR text share one row,
+        whose bracket names every id it stands for (``[FDA_STAT2007_CI,
+        FDA_STAT2007_INDETERMINATE]``)."""
         ref = expr if single else "ref"
         note = (
             "{{ " + ref + ".label }} · section {{ " + ref + ".section }} · eSTAR: "
             "{{ " + ref + ".estar }}"
         )
+        ids = "  [{{ " + ref + ".id }}]"
+        if not single:
+            ids = "  [{{ ref.id }}{% for other in ref.also %}, {{ other }}{% endfor %}]"
         cell = [
             (None, "{%p if " + ref + ".draft %}"),
-            ("PP Margin Note Draft", [(note, None), ("  [{{ " + ref + ".id }}]", "PP Mono")]),
+            ("PP Margin Note Draft", [(note, None), (ids, "PP Mono")]),
             (None, "{%p else %}"),
-            ("PP Margin Note", [(note, None), ("  [{{ " + ref + ".id }}]", "PP Mono")]),
+            ("PP Margin Note", [(note, None), (ids, "PP Mono")]),
             (None, "{%p endif %}"),
         ]
         self.table(
             ["Guidance anchor", "maps to"],
             [[("PP Margin Note", "maps to")], cell],
-            loop=None if single else "ref in " + expr,
+            loop=None if single else "ref in " + expr + " | distinct_notes",
             widths_mm=(28.0, 146.0),
         )
 
@@ -749,7 +756,7 @@ def build_t8() -> bytes:
             [
                 (
                     "PP Body",
-                    "{% for ref in guidance_refs %}{{ ref.label }}{% if not loop.last %}; "
+                    "{% for ref in cover_guidance %}{{ ref.label }}{% if not loop.last %}; "
                     "{% endif %}{% endfor %}",
                 )
             ],
@@ -1166,7 +1173,7 @@ def build_t1() -> bytes:
             [
                 (
                     "PP Body",
-                    "{% for ref in guidance_refs %}{{ ref.label }}{% if not loop.last %}; "
+                    "{% for ref in cover_guidance %}{{ ref.label }}{% if not loop.last %}; "
                     "{% endif %}{% endfor %}",
                 )
             ],

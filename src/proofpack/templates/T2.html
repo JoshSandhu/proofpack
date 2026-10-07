@@ -10,7 +10,7 @@
 <td class="num{% if extra %} {{ extra }}{% endif %}" data-ref="{{ c.ref }}" data-kind="{{ c.kind }}" data-facet="{{ c.facet }}">{{ c.text }}</td>
 {%- endmacro %}
 {% macro notes(key) -%}
-{% for ref in anchors[key] %}{{ margin_note(ref) }}
+{% for ref in anchors[key] | distinct_notes %}{{ margin_note(ref) }}
 {% endfor %}
 {%- endmacro %}
 {% macro narrative(items) -%}
@@ -45,7 +45,7 @@
 {% for label, value, mono in cover_rows %}
 <tr><th scope="row">{{ label }}</th><td{% if mono %} class="mono"{% endif %}>{{ value }}</td></tr>
 {% endfor %}
-<tr><th scope="row">Guidance versions referenced</th><td>{% for ref in guidance_refs %}<a href="#{{ ref.id }}">{{ ref.label }}</a>{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+<tr><th scope="row">Guidance versions referenced</th><td>{% for ref in cover_guidance %}<a href="#{{ ref.id }}">{{ ref.label }}</a>{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
 <tr><th scope="row">Customer sections outstanding</th><td class="num" data-count="outstanding">{{ outstanding }}</td></tr>
 </tbody>
 </table>

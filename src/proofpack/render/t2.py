@@ -564,6 +564,8 @@ def t2_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
             "limit_reached": bool(ledger.get("limit_reached")),
         },
         "guidance_refs": refs,
+        # E14 item 1: each distinct guidance document once, no ProofPack-internal row
+        "cover_guidance": anchors.cover_documents(refs, guidance_map),
     }
     ctx.update(render_html.furniture(document, "T2", refs, outstanding))
     return ctx

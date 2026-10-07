@@ -854,6 +854,8 @@ def t1_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
         "model_card_note": model_card_note(guidance_map),
         "tier_legend": fmt.TIER_LEGEND,
         "guidance_refs": refs,
+        # E14 item 1: each distinct guidance document once, no ProofPack-internal row
+        "cover_guidance": anchors.cover_documents(refs, guidance_map),
         "figures": figures_mod.figures(document, by_id),
     }
     # D4 section 5.2: Se/Sp rows become PPA/NPA when a comparator is declared (FDA 2007)

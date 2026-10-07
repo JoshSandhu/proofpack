@@ -45,7 +45,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="proofpack", description="ProofPack engine")
     p.add_argument("--version", action="version", version=f"proofpack {__version__}")
     # Global flags are accepted both before and after the subcommand
-    # (`proofpack --offline doctor` and `proofpack doctor --offline`, per D1 section 7).
+    # (`proofpack --offline doctor` and `proofpack doctor --offline`, per D1 section 7), and
+    # after a sub-subcommand (`proofpack licence verify FILE --offline`, E14 item 3): every
+    # parser below takes ``common`` as a parent.
     common = argparse.ArgumentParser(add_help=False)
     for parser, default in ((p, False), (common, argparse.SUPPRESS)):
         parser.add_argument("--offline", action="store_true", default=default, help="zero sockets")
@@ -157,10 +159,19 @@ def _build_parser() -> argparse.ArgumentParser:
 
     lic = sub.add_parser("licence", help="show | verify FILE | install FILE", parents=[common])
     lic_sub = lic.add_subparsers(dest="licence_command", required=True)
-    lic_sub.add_parser("show", help="status of the installed licence (no signature printed)")
-    v = lic_sub.add_parser("verify", help="verify FILE against the shipped public key")
+    # E14 item 3 (LW-01 defect 5): the nested parsers take the global flags too; at 3ee5601
+    # `proofpack licence verify FILE --offline` exited 2 "unrecognized arguments: --offline"
+    # (tests/test_e14_global_flags.py walks every parser this function builds)
+    lic_sub.add_parser(
+        "show", help="status of the installed licence (no signature printed)", parents=[common]
+    )
+    v = lic_sub.add_parser(
+        "verify", help="verify FILE against the shipped public key", parents=[common]
+    )
     v.add_argument("file")
-    i = lic_sub.add_parser("install", help="verify FILE and copy it to the per-user location")
+    i = lic_sub.add_parser(
+        "install", help="verify FILE and copy it to the per-user location", parents=[common]
+    )
     i.add_argument("file")
     return p
 
@@ -238,13 +249,20 @@ def _ask(ask, prompt: str) -> str:
 ACCEPT_ANSWERS = ("a", "accept")
 EDIT_ANSWERS = ("e", "edit")
 QUIT_ANSWERS = ("q", "quit", "abort")
+#: The all-high prompt's re-prompt (E14 item 4, LW-01 user review note 17): it says what to
+#: type. At 3ee5601 it read ``answer a or q``, under the unchanged prompt line ``[a]ccept /
+#: [q]uit?``; the review note records that ``y`` re-prompted and asks for "type a to
+#: accept". The answers themselves are unchanged: ``y``, ``n``, ``e``, ``x`` and the empty
+#: answer still do not accept.
+ALL_HIGH_REPROMPT = "  type a and press Enter to accept, or q to quit"
 
 
 def _confirm_interactive(m, ask=None, say=print, *, period_column: str | None = None) -> None:
     """Prompt once per non-high role: accept / edit (a canonical role or ignore) / abort;
     when no role is below high, prompt once for the whole mapping (``a`` or ``accept``
     accepts, ``q``, ``quit`` or ``abort`` aborts, after stripping and lower-casing; the
-    answers ``n``, ``no``, ``e``, ``x`` and the empty answer print ``answer a or q`` and
+    answers ``n``, ``no``, ``e``, ``x``, ``y`` and the empty answer print
+    :data:`ALL_HIGH_REPROMPT` (``answer a or q`` until E14) and
     ask again - at e92989b ``n`` was taken as accept, repair 2, RG-N1;
     ``tests/test_mapping_repair2.py::test_all_high_prompt_reprompts_on_n_no_e_x_and_takes_a``;
     the empty answer is lens-3 FA-B1, :data:`ACCEPT_ANSWERS`).
@@ -306,7 +324,7 @@ def _confirm_interactive(m, ask=None, say=print, *, period_column: str | None = 
                 break
             if answer in QUIT_ANSWERS:
                 raise HaltError("H07", "mapping aborted at the prompt; nothing written")
-            say("  answer a or q")
+            say(ALL_HIGH_REPROMPT)
         m.decided_by = "interactive"
         return
 
