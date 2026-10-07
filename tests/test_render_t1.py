@@ -96,15 +96,22 @@ def test_the_footer_is_on_every_page_and_once_in_print(page):
 
 def test_every_fda_draft_anchor_is_labelled_in_every_margin_note(page):
     notes = re.findall(
-        r'<aside class="margin-note( draft)?">maps to <a href="#([A-Z0-9_]+)">([^<]*)</a>', page
+        r'<aside class="margin-note( draft)?"(?: data-also="([^"]*)")?>maps to '
+        r'<a href="#([A-Z0-9_]+)">([^<]*)</a>',
+        page,
     )
-    assert len(notes) >= 20
-    for draft, internal_id, label in notes:
+    # 21 lines at 3ee5601; 19 since E14 item 2 printed section 7's two repeated lines once
+    assert len(notes) >= 19
+    for draft, also, internal_id, label in notes:
         is_draft = internal_id.startswith("FDA_AIDSF_")
         assert bool(draft) is is_draft, internal_id
         assert (DRAFT_LABEL in label) is is_draft, (internal_id, label)
-    # the section anchors D4 section 2 names are all cited
-    cited = {i for _, i, _ in notes}
+        # E14 item 2: an id merged into this line prints the same label, so the same class
+        for other in also.split():
+            assert other.startswith("FDA_AIDSF_") is is_draft, (internal_id, other)
+    # the section anchors D4 section 2 names are all cited (E14 item 2: an anchor whose
+    # visible line repeats another's in its block is cited in that line's data-also)
+    cited = {i for _, _, i, _ in notes} | {o for _, also, _, _ in notes for o in also.split()}
     for group in render_t1.T1_ANCHORS.values():
         assert set(group) <= cited
     assert "FDA_AIDSF_MODEL_CARD" in cited and "FDA_AIDSF_PUBLIC_SUMMARY" in cited

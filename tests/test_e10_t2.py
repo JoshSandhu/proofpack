@@ -168,14 +168,20 @@ def test_the_footer_is_on_every_page_and_once_in_print(page):
 
 def test_every_pccp_anchor_is_labelled_from_the_map_and_every_aidsf_anchor_is_draft(page):
     notes = re.findall(
-        r'<aside class="margin-note( draft)?">maps to <a href="#([A-Z0-9_]+)">([^<]*)</a>', page
+        r'<aside class="margin-note( draft)?"(?: data-also="([^"]*)")?>maps to '
+        r'<a href="#([A-Z0-9_]+)">([^<]*)</a>',
+        page,
     )
-    cited = {i for _, i, _ in notes}
+    # E14 item 2: an anchor whose visible line repeats another's in its block (section 5's
+    # FDA_PCCP_PMS_PLANS) is cited in that line's data-also and carries the same label
+    cited = {i for _, _, i, _ in notes} | {o for _, also, _, _ in notes for o in also.split()}
     for group in render_t2.T2_ANCHORS.values():
         assert set(group) <= cited
     rows = {r["internal_id"]: r for r in load_guidance_map()}
-    for draft, internal_id, label in notes:
+    for draft, also, internal_id, label in notes:
         assert label == anchors.label_for(rows[internal_id]), internal_id
+        for other in also.split():
+            assert label == anchors.label_for(rows[other]), other
         assert bool(draft) is internal_id.startswith("FDA_AIDSF_")
         if internal_id.startswith("FDA_PCCP_"):
             assert "2024-12-04, updated 2025-08-18" in label and "final" in label

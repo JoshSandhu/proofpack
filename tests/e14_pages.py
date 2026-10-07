@@ -108,12 +108,13 @@ def guidance_table(page: str) -> list[tuple[str, bool, str, str]]:
 
 
 def blocks(page: str) -> list[tuple[str, str]]:
-    """``(h2 id, html)`` per block: from one ``<h2`` to the next."""
-    starts = [m.start() for m in re.finditer(r"<h2 ", page)] + [len(page)]
+    """``(h2 id, html)`` per block: from one ``<h2`` to the next; the part before the
+    first ``<h2`` (the cover, where T2 prints section 0's note) is ``@start``."""
+    starts = [0] + [m.start() for m in re.finditer(r"<h2 ", page)] + [len(page)]
     out = []
     for a, b in zip(starts, starts[1:], strict=False):
         m = re.match(r'<h2 id="([^"]+)"', page[a:])
-        out.append((m.group(1) if m else f"@{a}", page[a:b]))
+        out.append((m.group(1) if m else "@start" if a == 0 else f"@{a}", page[a:b]))
     return out
 
 

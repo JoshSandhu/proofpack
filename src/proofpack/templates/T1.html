@@ -10,7 +10,7 @@
 <td class="num{% if extra %} {{ extra }}{% endif %}" data-ref="{{ c.ref }}" data-kind="{{ c.kind }}" data-facet="{{ c.facet }}">{{ c.text }}</td>
 {%- endmacro %}
 {% macro notes(key) -%}
-{% for ref in anchors[key] %}{{ margin_note(ref) }}
+{% for ref in anchors[key] | distinct_notes %}{{ margin_note(ref) }}
 {% endfor %}
 {%- endmacro %}
 {% macro narrative(items) -%}

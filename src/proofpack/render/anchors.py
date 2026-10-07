@@ -151,6 +151,27 @@ def cover_documents(items: list[dict[str, Any]], guidance_map: Any = None) -> li
     return out
 
 
+def distinct_notes(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One block's margin notes (items from :func:`with_note_fields`) with each visible
+    line printed once (E14 item 2): items whose label, section and eSTAR text are all
+    equal print as the first of them, which carries the other ids in ``also`` (rendered
+    as the note's ``data-also`` attribute, so every anchor of the block is still cited);
+    items that differ in any visible part stay. Returns copies; ``items`` is not changed
+    (the DOCX template prints the id on each line and reads the same context). At 3ee5601
+    T1 section 7 printed four lines, two of them repeats."""
+    out: list[dict[str, Any]] = []
+    first: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for it in items:
+        key = (str(it["label"]), str(it["section"]), str(it["estar"]))
+        if key in first:
+            first[key]["also"].append(it["id"])
+            continue
+        copy = {**it, "also": []}
+        first[key] = copy
+        out.append(copy)
+    return out
+
+
 def with_note_fields(item: dict[str, Any], guidance_map: Any = None) -> dict[str, Any]:
     """``item`` (from :func:`resolve`) plus the two parts of D4 section 1.1's margin note
     the label does not carry: ``section`` and ``estar``, from the map row, each printed

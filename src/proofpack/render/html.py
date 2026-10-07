@@ -125,6 +125,8 @@ def environment() -> Any:
             "fmt_text": fmt.text,
             "fmt_method": fmt.method,
             "fmt_p": fmt.p_value,
+            # E14 item 2: one block's margin notes, each visible line once
+            "distinct_notes": anchors.distinct_notes,
         }
     )
     return env
