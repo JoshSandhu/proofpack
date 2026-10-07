@@ -45,7 +45,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="proofpack", description="ProofPack engine")
     p.add_argument("--version", action="version", version=f"proofpack {__version__}")
     # Global flags are accepted both before and after the subcommand
-    # (`proofpack --offline doctor` and `proofpack doctor --offline`, per D1 section 7).
+    # (`proofpack --offline doctor` and `proofpack doctor --offline`, per D1 section 7), and
+    # after a sub-subcommand (`proofpack licence verify FILE --offline`, E14 item 3): every
+    # parser below takes ``common`` as a parent.
     common = argparse.ArgumentParser(add_help=False)
     for parser, default in ((p, False), (common, argparse.SUPPRESS)):
         parser.add_argument("--offline", action="store_true", default=default, help="zero sockets")
@@ -157,10 +159,19 @@ def _build_parser() -> argparse.ArgumentParser:
 
     lic = sub.add_parser("licence", help="show | verify FILE | install FILE", parents=[common])
     lic_sub = lic.add_subparsers(dest="licence_command", required=True)
-    lic_sub.add_parser("show", help="status of the installed licence (no signature printed)")
-    v = lic_sub.add_parser("verify", help="verify FILE against the shipped public key")
+    # E14 item 3 (LW-01 defect 5): the nested parsers take the global flags too; at 3ee5601
+    # `proofpack licence verify FILE --offline` exited 2 "unrecognized arguments: --offline"
+    # (tests/test_e14_global_flags.py walks every parser this function builds)
+    lic_sub.add_parser(
+        "show", help="status of the installed licence (no signature printed)", parents=[common]
+    )
+    v = lic_sub.add_parser(
+        "verify", help="verify FILE against the shipped public key", parents=[common]
+    )
     v.add_argument("file")
-    i = lic_sub.add_parser("install", help="verify FILE and copy it to the per-user location")
+    i = lic_sub.add_parser(
+        "install", help="verify FILE and copy it to the per-user location", parents=[common]
+    )
     i.add_argument("file")
     return p
 
