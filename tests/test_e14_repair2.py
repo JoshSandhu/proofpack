@@ -9,10 +9,13 @@
   replacement below,
   :func:`test_fa_b1_other_e14_modules_tests_naming_docx_or_importorskip_carry_ap4_and_needs_extra`,
   takes the ``test*`` functions of the ``test_e14_*`` modules (this file excluded), module
-  level and in ``Test*`` classes, whose code - decorators, argument names and body, with the
+  level, inside ``if``/``try`` blocks and in (nested) ``Test*`` classes (orchestrator
+  after-cap repair, lens 3 FA-B1), whose code - decorators, argument names and body, with the
   docstring and comments left out - holds a name, attribute, import or string containing
   ``docx`` in any case, or the name ``importorskip``, directly or through a module-level
-  function of the same module that the test names or takes as an argument. It does not
+  function or module-level lambda of the same module that the test names or takes as an
+  argument. It also asserts that no such test calls ``importorskip`` (restored after lens 3
+  FA-B2 = RG-B1; repair 2 had dropped e67c5fa's guard without recording it). It does not
   read fixtures or helpers defined in other modules. It asserts that set is exactly the two
   E14 DOCX tests, that each carries ``ap4`` (its own, its class's or its module's marks),
   and that its one ``skipif`` is the mark object :data:`ap4_docx.needs_extra` stores. At
@@ -88,22 +91,44 @@ def _names_docx(fn, helpers: dict[str, ast.AST], seen: set[str]) -> bool:
 
 
 def docx_tests_in_source(source: str) -> list[tuple[str | None, str]]:
-    """``(class or None, name)`` of each ``test*`` function in ``source`` whose code names
-    ``docx`` or ``importorskip`` (see the module docstring)."""
+    """``(owner or None, name)`` of each ``test*`` function in ``source`` whose code names
+    ``docx`` or ``importorskip`` (see the module docstring). Orchestrator after-cap repair
+    (lens 3 FA-B1): a test at ANY depth is taken - module level, inside ``if`` or ``try``
+    blocks, and inside ``Test*`` classes nested in ``Test*`` classes (owner is the dotted
+    class path) - and a module-level ``name = lambda ...`` counts as a helper like a def."""
     tree = ast.parse(source)
     defs = (ast.FunctionDef, ast.AsyncFunctionDef)
-    helpers = {n.name: n for n in tree.body if isinstance(n, defs)}
-    tests: list[tuple[str | None, ast.AST]] = [
-        (None, n) for n in tree.body if isinstance(n, defs) and n.name.startswith("test")
-    ]
-    for cls in (n for n in tree.body if isinstance(n, ast.ClassDef)):
-        if cls.name.startswith("Test"):
-            tests += [(cls.name, n) for n in cls.body if isinstance(n, defs)]
-    return [
-        (owner, fn.name)
-        for owner, fn in tests
-        if fn.name.startswith("test") and _names_docx(fn, helpers, {fn.name})
-    ]
+    helpers: dict[str, ast.AST] = {}
+    for n in ast.walk(tree):
+        if isinstance(n, defs):
+            helpers.setdefault(n.name, n)
+        elif isinstance(n, ast.Assign) and isinstance(n.value, ast.Lambda):
+            for target in n.targets:
+                if isinstance(target, ast.Name):
+                    lam = n.value
+                    helpers.setdefault(
+                        target.id,
+                        ast.FunctionDef(
+                            name=target.id,
+                            args=lam.args,
+                            body=[ast.Expr(lam.body)],
+                            decorator_list=[],
+                        ),
+                    )
+    tests: list[tuple[str | None, ast.AST]] = []
+
+    def visit(node: ast.AST, owner: str | None) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.ClassDef):
+                visit(child, f"{owner}.{child.name}" if owner else child.name)
+            elif isinstance(child, defs):
+                if child.name.startswith("test"):
+                    tests.append((owner, child))
+            else:
+                visit(child, owner)
+
+    visit(tree, None)
+    return [(owner, fn.name) for owner, fn in tests if _names_docx(fn, helpers, {fn.name})]
 
 
 def _marks(obj) -> list:
@@ -118,7 +143,9 @@ def test_fa_b1_other_e14_modules_tests_naming_docx_or_importorskip_carry_ap4_and
             continue
         module = importlib.import_module(path.stem)
         for owner, name in docx_tests_in_source(path.read_text(encoding="utf-8")):
-            holder = getattr(module, owner) if owner else module
+            holder = module
+            for part in (owner or "").split(".") if owner else []:
+                holder = getattr(holder, part)
             fn = getattr(holder, name)
             marks = _marks(fn) + (_marks(holder) if owner else []) + _marks(module)
             found.append((path.stem, owner, name, marks))
@@ -132,6 +159,16 @@ def test_fa_b1_other_e14_modules_tests_naming_docx_or_importorskip_carry_ap4_and
         assert [m.kwargs.get("reason") for m in skips] == [SKIP_REASON], (module, name)
         # the mark object ap4_docx.needs_extra stores, not a skipif copied with its reason
         assert skips[0] is needs_extra.mark, (module, name, skips[0].args)
+    # Orchestrator after-cap repair (lens 3 FA-B2 = RG-B1): repair 2 dropped e67c5fa's guard
+    # that the DOCX tests never call importorskip (a silent skip when the extra is missing);
+    # it is restored here for every test the scan finds.
+    import inspect
+
+    for module, owner, name, _ in found:
+        holder = importlib.import_module(module)
+        for part in (owner or "").split(".") if owner else []:
+            holder = getattr(holder, part)
+        assert "importorskip" not in inspect.getsource(getattr(holder, name)), (module, name)
 
 
 # Literal inputs of the scanner test: lens 2's two counter-examples (fresh-attack T3: a CLI
