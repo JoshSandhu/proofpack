@@ -101,9 +101,9 @@ from pathlib import Path
 from typing import Any
 
 from proofpack.errors import EXIT_DOCX_EXTRA_MISSING, ProofPackError
+from proofpack.render import anchors, markdown, sentences
 from proofpack.render import format as fmt
 from proofpack.render import html as render_html
-from proofpack.render import markdown, sentences
 from proofpack.resources import resource_path
 
 TEMPLATES_DIR = render_html.TEMPLATES_DIR
@@ -296,6 +296,9 @@ def _environment() -> Any:
             "fmt_text": fmt.text,
             "fmt_method": fmt.method,
             "fmt_p": fmt.p_value,
+            # E14 item 2: one block's margin notes, each visible line once (the T1 template's
+            # row loops read ``anchors.sN | distinct_notes``, as the HTML's notes() macro)
+            "distinct_notes": anchors.distinct_notes,
         }
     )
     return env

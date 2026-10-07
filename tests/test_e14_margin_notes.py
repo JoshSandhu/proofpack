@@ -85,3 +85,22 @@ def test_lines_that_differ_in_any_visible_part_stay():
     assert out[0]["also"] == ["E"] and all(x["also"] == [] for x in out[1:])
     # the inputs are not changed (the DOCX template reads the same context)
     assert "also" not in a and "also" not in e
+
+
+def test_docx_t1_prints_each_repeated_line_once_naming_every_id(document):  # noqa: F811
+    """The DOCX margin line prints its ids in brackets; since E14 a merged line names every
+    id it stands for (at 3ee5601 T1.docx section 7 printed four rows, two of them repeats
+    differing only in the bracketed id, and the HTML/DOCX draft-label counts were equal)."""
+    pytest.importorskip("docxtpl")
+    import io  # noqa: PLC0415
+    import zipfile  # noqa: PLC0415
+
+    from proofpack.render import docx as render_docx  # noqa: PLC0415
+
+    data = render_docx.render_docx_bytes(document, "T1")
+    xml = zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode("utf-8")
+    text = re.sub(r"<[^>]+>", "", xml)
+    assert text.count("[FDA_STAT2007_CI, FDA_STAT2007_INDETERMINATE]") == 1
+    assert text.count("[FDA_AIDSF_PERF_VALIDATION, FDA_AIDSF_LABELING_METRICS]") == 1
+    assert "[FDA_STAT2007_INDETERMINATE]" not in text
+    assert "[FDA_AIDSF_LABELING_METRICS]" not in text
