@@ -101,6 +101,7 @@ markers = [
     "day11: Day 11 (E11) carried closure: the A-P4 merge blockers, the T1 header qualifier, one ledger limit, Se/Sp McNemar on T2-3, the Newcombe fetch, the design-effect Wilson interval, the day-6 observers, two reason codes",
     "day12: Day 12 (E12) the R captures (F13 pROC on aSAH, F13b rms::val.prob on F4): fixtures/r/capture.R, the r-captures workflow, the comparison; the E11 lens-4 carried items",
     "day13: Day 13 (E13) validation by code: F12 HALT fixtures through the CLI, F19 egress bytes, F17 on the reference image, F16 native half, the fixtures report rows",
+    "day14: Day 14 (E14, LW-01) what the purchase walk-through found in the engine: the guidance cover row, repeated margin notes, global flags after nested subcommands, the all-high map prompt",
     "fixture: named fixture register entries (F1-F21)",
     "ap2: A-P2 egress, telemetry and --offline (build day 8, lane A); every ap2 test also carries day8",
     "ap3: A-P3 release pipeline, proofpack fixtures, F17, T12 (build day 9, lane A); every ap3 test also carries day9",

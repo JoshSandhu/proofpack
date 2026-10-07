@@ -749,7 +749,7 @@ def build_t8() -> bytes:
             [
                 (
                     "PP Body",
-                    "{% for ref in guidance_refs %}{{ ref.label }}{% if not loop.last %}; "
+                    "{% for ref in cover_guidance %}{{ ref.label }}{% if not loop.last %}; "
                     "{% endif %}{% endfor %}",
                 )
             ],
@@ -1166,7 +1166,7 @@ def build_t1() -> bytes:
             [
                 (
                     "PP Body",
-                    "{% for ref in guidance_refs %}{{ ref.label }}{% if not loop.last %}; "
+                    "{% for ref in cover_guidance %}{{ ref.label }}{% if not loop.last %}; "
                     "{% endif %}{% endfor %}",
                 )
             ],

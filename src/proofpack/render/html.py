@@ -529,6 +529,8 @@ def t8_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
         "rejections": document.get("claim_rejections") or [],
         "out_of_scope": out_of_scope_items(),
         "guidance_refs": refs,
+        # E14 item 1: each distinct guidance document once, no ProofPack-internal row
+        "cover_guidance": anchors.cover_documents(refs, guidance_map),
         "anchor": {
             key: anchors.with_note_fields(by_id[value], guidance_map)
             for key, value in T8_ANCHORS.items()

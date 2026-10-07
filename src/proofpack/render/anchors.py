@@ -122,13 +122,42 @@ def short_list(items: list[dict[str, Any]]) -> str:
     return "; ".join(seen) if seen else "none"
 
 
+def is_internal(row: dict[str, str]) -> bool:
+    """A ProofPack-internal row (``PP_SCOPE``, ``PP_METHODS``): ProofPack's own text, not a
+    regulatory reference - the map's ``status`` column reads ``internal``."""
+    return row.get("status", "").strip().lower() == "internal"
+
+
+def cover_documents(items: list[dict[str, Any]], guidance_map: Any = None) -> list[dict[str, Any]]:
+    """The cover row ``Guidance versions referenced`` (T1, T2, T8; E14 item 1): each
+    distinct guidance document once, by its map label (document, version or date, status
+    - the draft qualifier stays in the label), in the order of ``items``, each item the
+    first of ``items`` that carries the label (so the cover links to the guidance table's
+    first row for it), and never a ProofPack-internal row. The guidance table itself keeps
+    every id (the full register). At 3ee5601 the cover printed every item: on a licensed
+    run of the 5,000-row synthetic cohort, T1's cover had 19 entries - the AI-DSF draft
+    title 12 times and two ``ProofPack internal`` entries - for 3 documents."""
+    rows = _rows(guidance_map)
+    seen: set[str] = set()
+    out: list[dict[str, Any]] = []
+    for it in items:
+        row = rows.get(str(it["id"]))
+        if row is not None and is_internal(row):
+            continue
+        if it["label"] in seen:
+            continue
+        seen.add(it["label"])
+        out.append(it)
+    return out
+
+
 def with_note_fields(item: dict[str, Any], guidance_map: Any = None) -> dict[str, Any]:
     """``item`` (from :func:`resolve`) plus the two parts of D4 section 1.1's margin note
     the label does not carry: ``section`` and ``estar``, from the map row, each printed
     ``to confirm`` while the row leaves it empty (every AI-DSF row today: D4 section 15's
     open item; E9 prints the gap instead of hiding it)."""
     row = _rows(guidance_map)[item["id"]]
-    if row.get("status", "").strip().lower() == "internal":
+    if is_internal(row):
         # ProofPack's own text (PP_SCOPE, PP_METHODS): no document section, no eSTAR slot
         return {**item, "section": "n/a", "estar": "n/a"}
     return {
