@@ -48,15 +48,20 @@ def test_each_visible_margin_line_is_unique_within_its_block(document, licensed_
             assert len(lines) == len(set(lines)), (name, block, lines)
 
 
-def test_t1_section_7_prints_two_lines_and_keeps_every_anchor(document):  # noqa: F811
+def test_t1_section_7_prints_each_distinct_line_once_and_keeps_every_anchor(document):  # noqa: F811
+    """At effc5c7 section 7 printed two lines (both anchors of each document printed
+    ``section to confirm``, so E14 merged them). Since E15 each of the four anchors names
+    its own transcribed section, so the four lines differ in a visible part and all stay
+    (E14's rule: a line merges only with an identical line)."""
     body = dict(blocks(render_t1.render_t1(document)))["t1-s7"]
     notes = NOTE.findall(body)
-    assert len(notes) == 2
+    assert len(notes) == 4
+    assert len({visible(n[3]) for n in notes}) == 4
     assert _ids(notes) == set(render_t1.T1_ANCHORS["s7"])
-    # the AI-DSF line keeps the draft qualifier and the draft class
+    assert all(n[2] == "" for n in notes)  # nothing merged
+    # the AI-DSF lines keep the draft qualifier and the draft class
     drafts = [n for n in notes if n[0]]
-    assert len(drafts) == 1 and DRAFT_LABEL in visible(drafts[0][3])
-    assert drafts[0][2] == "FDA_AIDSF_LABELING_METRICS"
+    assert len(drafts) == 2 and all(DRAFT_LABEL in visible(n[3]) for n in drafts)
 
 
 def test_every_block_still_cites_every_anchor_it_names(document, t2_page):  # noqa: F811
@@ -76,7 +81,13 @@ def test_t2_section_5_prints_the_pccp_line_once(t2_page):  # noqa: F811
 
 
 def test_lines_that_differ_in_any_visible_part_stay():
-    a = {"id": "A", "label": "L", "section": "to confirm", "estar": "to confirm", "draft": True}
+    a = {
+        "id": "A",
+        "label": "L",
+        "section": anchors.SECTION_GAP,
+        "estar": "eSTAR: to confirm",
+        "draft": True,
+    }
     b = {**a, "id": "B", "section": "4.2"}
     c = {**a, "id": "C", "estar": "n/a"}
     d = {**a, "id": "D", "label": "M"}
@@ -90,21 +101,37 @@ def test_lines_that_differ_in_any_visible_part_stay():
 
 @pytest.mark.ap4
 @needs_extra
-def test_docx_t1_prints_each_repeated_line_once_naming_every_id(document):  # noqa: F811
+def test_docx_t1_prints_each_repeated_line_once_naming_every_id(document, monkeypatch):  # noqa: F811
     """The DOCX margin line prints its ids in brackets; since E14 a merged line names every
     id it stands for (at 3ee5601 T1.docx section 7 printed four rows, two of them repeats
     differing only in the bracketed id, and the HTML/DOCX draft-label counts were equal).
     Marked ``ap4`` so the CI job docx-extra runs it under ``PROOFPACK_REQUIRE_DOCX=1``
-    (E14 repair 1, RG-N3)."""
+    (E14 repair 1, RG-N3).
+
+    Since E15 the shipped map gives the four section-7 anchors four different sections, so
+    no section-7 line repeats (each id prints in its own bracket); the merge is exercised
+    on a copy of the map in which ``FDA_STAT2007_INDETERMINATE`` carries
+    ``FDA_STAT2007_CI``'s section, as both carried before E15."""
     import io  # noqa: PLC0415
     import zipfile  # noqa: PLC0415
 
     from proofpack.render import docx as render_docx  # noqa: PLC0415
+    from proofpack.resources import load_guidance_map  # noqa: PLC0415
 
-    data = render_docx.render_docx_bytes(document, "T1")
-    xml = zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode("utf-8")
-    text = re.sub(r"<[^>]+>", "", xml)
+    def docx_text() -> str:
+        data = render_docx.render_docx_bytes(document, "T1")
+        xml = zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode("utf-8")
+        return re.sub(r"<[^>]+>", "", xml)
+
+    text = docx_text()
+    for i in render_t1.T1_ANCHORS["s7"]:
+        assert f"[{i}]" in text, i
+    assert "[FDA_STAT2007_CI, FDA_STAT2007_INDETERMINATE]" not in text
+
+    rows = [dict(r) for r in load_guidance_map()]
+    by_id = {r["internal_id"]: r for r in rows}
+    by_id["FDA_STAT2007_INDETERMINATE"]["section"] = by_id["FDA_STAT2007_CI"]["section"]
+    monkeypatch.setattr(anchors, "load_guidance_map", lambda: tuple(rows))
+    text = docx_text()
     assert text.count("[FDA_STAT2007_CI, FDA_STAT2007_INDETERMINATE]") == 1
-    assert text.count("[FDA_AIDSF_PERF_VALIDATION, FDA_AIDSF_LABELING_METRICS]") == 1
     assert "[FDA_STAT2007_INDETERMINATE]" not in text
-    assert "[FDA_AIDSF_LABELING_METRICS]" not in text

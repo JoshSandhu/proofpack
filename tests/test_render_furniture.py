@@ -91,13 +91,16 @@ def test_each_furniture_element_is_on_t1_and_t8(document):
         assert f'<p class="stamp" data-mark="incomplete">{stamp}</p>' in page
         # the footer on every page section
         assert page.count('class="page-footer"') == page.count('<section class="page')
-        # the margin note in D4 section 1.1's shape
+        # the margin note in D4 section 1.1's shape; since E15 the section is the one
+        # transcribed from the draft (design/guidance_sections.yaml; at effc5c7 "section
+        # to confirm")
         assert re.search(
             r'<aside class="margin-note draft">maps to <a href="#FDA_AIDSF_[A-Z_]+">'
-            r"[^<]*not for implementation</a> · section to confirm · eSTAR: to "
-            r"confirm</aside>",
+            r"[^<]*not for implementation</a> · section [IVX]+\. [^<·]+ · "
+            r"eSTAR: to confirm</aside>",
             page,
         ), name
+        assert "section to confirm" not in page, name
         assert "· section n/a · eSTAR: n/a</aside>" in page  # a ProofPack-internal anchor
         # the Manufacturer-text block (indented, labelled, the customer's words)
         assert '<div class="customer-text"><span class="label">Manufacturer text - ' in page

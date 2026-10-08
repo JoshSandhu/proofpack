@@ -172,17 +172,27 @@ def distinct_notes(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+#: What a margin note prints where the map row's ``section`` is empty (E15 item 1): the
+#: section was not transcribed from the document, so the gap carries the [unverified]
+#: marking (CLAUDE.md). At effc5c7 the note printed ``section to confirm``.
+SECTION_GAP = "[unverified] section not transcribed"
+
+
 def with_note_fields(item: dict[str, Any], guidance_map: Any = None) -> dict[str, Any]:
     """``item`` (from :func:`resolve`) plus the two parts of D4 section 1.1's margin note
-    the label does not carry: ``section`` and ``estar``, from the map row, each printed
-    ``to confirm`` while the row leaves it empty (every AI-DSF row today: D4 section 15's
-    open item; E9 prints the gap instead of hiding it)."""
+    the label does not carry, each as the note prints it: ``section`` is ``section <the
+    map row's section>`` (transcribed from the document on 8 October 2026; provenance in
+    ``design/guidance_sections.yaml``) or :data:`SECTION_GAP` where the row leaves it empty;
+    ``estar`` is ``eSTAR: <the row's estar_section>`` or ``eSTAR: to confirm``. A gap is
+    printed, never hidden (E9)."""
     row = _rows(guidance_map)[item["id"]]
     if is_internal(row):
         # ProofPack's own text (PP_SCOPE, PP_METHODS): no document section, no eSTAR slot
-        return {**item, "section": "n/a", "estar": "n/a"}
+        return {**item, "section": "section n/a", "estar": "eSTAR: n/a"}
+    section = row.get("section", "").strip()
+    estar = row.get("estar_section", "").strip()
     return {
         **item,
-        "section": row.get("section", "").strip() or "to confirm",
-        "estar": row.get("estar_section", "").strip() or "to confirm",
+        "section": f"section {section}" if section else SECTION_GAP,
+        "estar": f"eSTAR: {estar or 'to confirm'}",
     }

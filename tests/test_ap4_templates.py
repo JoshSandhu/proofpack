@@ -152,7 +152,9 @@ def test_margin_notes_are_two_column_tables_with_the_draft_branch(template_id):
         t_text = xml_text(t)
         assert ".draft %}" in t_text and "{%p else %}" in t_text
         assert 'w:val="PPMarginNoteDraft"' in t and 'w:val="PPMarginNote"' in t
-        assert ".label }} · section {{" in t_text and "eSTAR: {{" in t_text
+        # since E15 ``section`` and ``estar`` print their own words (anchors.with_note_fields)
+        assert ".label }} · {{ " in t_text and ".section }} · {{ " in t_text
+        assert ".estar }}" in t_text and "eSTAR: {{" not in t_text
 
 
 @pytest.mark.parametrize("template_id", IDS)
