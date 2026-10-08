@@ -40,6 +40,7 @@ from pathlib import Path
 import pytest
 
 from ap4_docx import all_text, needs_extra, part, styled_runs, synthetic_document
+from proofpack.render.anchors import ESTAR_GAP
 from test_render_figures import _figure, _plot
 
 pytestmark = [pytest.mark.day10, pytest.mark.ap4]
@@ -202,6 +203,13 @@ def test_t7_unverified_runs_are_21_in_pp_unverified_and_one_in_the_conventions_p
 
     runs = styled_runs(render_docx.render_docx_bytes(document, "T7"))
     marked = [(r, t) for t, _, r in runs if "[unverified]" in t]
+    # E15 item 2: each regulatory margin note ends "[unverified] eSTAR section not mapped" in
+    # the note's own run (paragraph style PP Margin Note / PP Margin Note Draft). T7 cites four
+    # regulatory anchors (data, methods, subgroups, calibration) and PP_METHODS twice, which
+    # prints "eSTAR: n/a"
+    notes = [(r, t) for r, t in marked if t.endswith("· " + ESTAR_GAP)]
+    assert len(notes) == 4 and {r for r, _ in notes} == {None}, notes
+    marked = [m for m in marked if m not in notes]
     # 21 since E11 item 5: the rao_scott_1992 citation (wilson_deff) is an open item
     assert Counter(r for r, _ in marked) == {"PP Unverified": 21, None: 1}
     (plain,) = [t for r, t in marked if r is None]
