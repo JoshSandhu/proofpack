@@ -1,8 +1,9 @@
 """Build day 15 (E15): the guidance map's ``section`` column transcribed from the documents.
 
-At effc5c7, 30 of the 32 rows of ``design/guidance_map_v1.csv`` had an empty ``section``
-(the other two are ProofPack's own text) and every ``estar_section`` was empty or ``n/a``,
-so every regulatory margin note printed ``section to confirm · eSTAR: to confirm``. E15
+At effc5c7 all 32 rows of ``design/guidance_map_v1.csv`` had an empty ``section``. Through
+``anchors.with_note_fields`` the 30 regulatory rows gave ``section`` ``to confirm``; the 21
+FDA AI-DSF and PCCP rows gave ``estar`` ``to confirm``, and the 4 ``FDA_STAT2007_*`` rows
+and the 5 UK and EU rows gave ``n/a`` (measured in E15 repair 1). E15
 fetched each primary document on 8 October 2026, filled ``section`` with the headings as the
 document prints them and recorded the reading in ``design/guidance_sections.yaml``; no
 FDA eSTAR mapping was found, so the eSTAR slot prints ``[unverified] eSTAR section not
@@ -114,8 +115,11 @@ def test_no_fda_row_claims_an_estar_section_while_none_was_read():
 
 
 def test_the_draft_row_keeps_its_status_and_the_sections_do_not_carry_it():
-    """The draft words come from the row's status and version (anchors.label_for), not from
-    the transcribed section, so filling ``section`` cannot drop them."""
+    """Inspects the CSV only: each FDA_AIDSF_ row's ``status`` is ``draft - not for
+    implementation``, its ``version_date`` ``2025-01-07``, and its ``section`` free of the
+    word draft. It passes at effc5c7 and calls no label code. The draft label on the page is
+    inspected by test (b) below and by ``test_e11_aidsf_header.py`` (E15 repair 1, mutant
+    K)."""
     for i, r in map_rows().items():
         if i.startswith("FDA_AIDSF_"):
             assert r["status"] == "draft - not for implementation", i

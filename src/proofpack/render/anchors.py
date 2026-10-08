@@ -187,7 +187,14 @@ def with_note_fields(item: dict[str, Any], guidance_map: Any = None) -> dict[str
     map row's section>`` (transcribed from the document on 8 October 2026; provenance in
     ``design/guidance_sections.yaml``) or :data:`SECTION_GAP` where the row leaves it empty;
     ``estar`` is ``eSTAR: <the row's estar_section>`` (``eSTAR: n/a`` for a non-FDA row) or
-    :data:`ESTAR_GAP`. A gap is printed, never hidden (E9), and is marked [unverified]."""
+    :data:`ESTAR_GAP`. A gap is printed, never hidden (E9), and is marked [unverified].
+
+    Return contract, changed in E15 (DEC-43, lane S): at effc5c7 both fields were bare
+    (the row's text, ``to confirm`` where empty, ``n/a`` on an internal row) and the
+    templates printed the words ``section`` and ``eSTAR:``; from E15 each field carries its
+    own words and the templates print it bare. The site ports this rule in
+    ``proofpack-site/src/data/guidance-notes.mjs`` and its tests S10-S3-2 and S10-S3-2b
+    compare that port with this function, field by field and as the note's text."""
     row = _rows(guidance_map)[item["id"]]
     if is_internal(row):
         # ProofPack's own text (PP_SCOPE, PP_METHODS): no document section, no eSTAR slot
