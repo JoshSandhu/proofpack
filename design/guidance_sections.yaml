@@ -1,0 +1,307 @@
+# Where each `section` value in design/guidance_map_v1.csv came from (build day 15, E15 item 1).
+#
+# Every non-empty `section` in the map was transcribed on 8 October 2026 from the primary
+# document named in the row's `document` column, fetched from the URL below that day. Nothing
+# here was taken from memory, from the D4 seeds or from a secondary source: where D4 seeded a
+# location and the document says otherwise, the document wins (FDA_AIDSF_CALIBRATION below).
+#
+# How a value is spelt: the headings as the document prints them, outermost first, joined by
+# " > "; two separate locations are joined by "; ". A heading is quoted with its whitespace
+# collapsed to single spaces and, for the AI-DSF draft, without the line number the PDF prints
+# in its right margin (pypdf runs it onto the heading line). One heading drops a footnote
+# reference (FDA_STAT2007_INDETERMINATE). Pages are the PDF's own page index, 1-based.
+#
+# tests/test_e15_sections.py reads this file: every non-empty `section` in the map has a row
+# here with the document's url, date read and version line, `section` here equals the map's
+# character for character, and every quoted heading appears in it.
+#
+# eSTAR (E15 item 2): no FDA-published document read on 8 October 2026 maps an eSTAR section
+# to these topics, so every `estar_section` that is not `n/a` stays empty and the margin note
+# prints "[unverified] eSTAR section not mapped". See `estar` at the end.
+schema_version: 1
+date_read: "2026-10-08"
+
+documents:
+  - id: fda_aidsf_draft_2025
+    map_document: "FDA draft guidance, Artificial Intelligence-Enabled Device Software Functions: Lifecycle Management and Marketing Submission Recommendations (Docket FDA-2024-D-4488)"
+    url: "https://www.fda.gov/media/184856/download"
+    date_read: "2026-10-08"
+    fetch: "HTTP 200 application/pdf, 1,590,866 bytes, 67 pages, SHA-256 62e83e0f4cbd36aed96f2f98ced597f3146f25ae66abba9849325e4e4b7520bc"
+    version_line: "Document issued on January 7, 2025."
+    status_line: "Draft – Not for Implementation"
+    extraction: "pypdf 6.14.2 extract_text, checked against pdftotext 4.06 -layout; the table of contents is on PDF page 3"
+  - id: fda_stat_2007
+    map_document: "FDA Statistical Guidance on Reporting Results from Studies Evaluating Diagnostic Tests"
+    url: "https://www.fda.gov/media/71147/download"
+    date_read: "2026-10-08"
+    fetch: "HTTP 200 application/pdf, 344,921 bytes, 39 pages, SHA-256 4a5c66b8a05cdd71d0abc68d528c0f225a5382be9908a6517749ed030551bd0b"
+    version_line: "Document issued on: March 13, 2007"
+    status_line: "Guidance for Industry and FDA Staff"
+    extraction: "pypdf 6.14.2 extract_text; the table of contents is on PDF page 3"
+  - id: fda_pccp_2025
+    map_document: "FDA guidance, Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence-Enabled Device Software Functions"
+    url: "https://www.fda.gov/media/166704/download"
+    date_read: "2026-10-08"
+    fetch: "HTTP 200 application/pdf, 666,195 bytes, 49 pages, SHA-256 80f0f423efe0c8104460a9064615a2093e9a620deae013db670792c7f599e4d9"
+    version_line: "Document issued on August 18, 2025. Document originally issued on December 4, 2024."
+    status_line: "Guidance for Industry and Food and Drug Administration Staff"
+    extraction: "pypdf 6.14.2 extract_text; the table of contents is on PDF pages 3-4"
+  - id: uksi_2024_1368
+    map_document: "Medical Devices (Post-market Surveillance Requirements) (Amendment) (Great Britain) Regulations 2024, SI 2024/1368"
+    url: "https://www.legislation.gov.uk/uksi/2024/1368/made"
+    date_read: "2026-10-08"
+    fetch: "HTTP 200 text/html, 139,552 bytes, SHA-256 9b81984c33b1636ebaf4f073364549f5b47325a409620d074297dfad94463c24 (the page is generated, so a later read may hash differently)"
+    version_line: "2024 No. 1368 ... Made 16th December 2024"
+    status_line: "This is the original version (as it was originally made). This item of legislation is currently only available in its original format."
+    extraction: "HTML to text with the Python standard library's html.parser. Regulations 44ZL and 44ZM are regulations of the Medical Devices Regulations 2002 inserted by regulation 4 of this instrument under the crossheading quoted"
+  - id: eu_mdr_2017_745
+    map_document: "Regulation (EU) 2017/745 (MDR)"
+    url: "https://www.legislation.gov.uk/eur/2017/745/pdfs/eur_20170745_adopted_en.pdf"
+    date_read: "2026-10-08"
+    fetch: "HTTP 200 application/pdf, 1,517,689 bytes, 175 pages, SHA-256 71f1b6b6d69def534110691aa109bb17a5c3a2369dc2e1ecd3d2e19e50496db9; PDF metadata Author 'Publications Office', the Official Journal print"
+    version_line: "Official Journal of the European Union L 117, 5.5.2017: REGULATION (EU) 2017/745 OF THE EUROPEAN PARLIAMENT AND OF THE COUNCIL of 5 April 2017"
+    status_line: "the text as adopted, as printed in the Official Journal; later amendments were not read"
+    extraction: "pdftotext 4.06 -enc UTF-8 -layout (pypdf splits words in this PDF)"
+    attempts:
+      - "https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32017R0745 -> HTTP 202 with an empty body (an automated-access challenge; not bypassed)"
+      - "https://eur-lex.europa.eu/eli/reg/2017/745/oj/eng -> HTTP 202 with an empty body (the same)"
+      - "https://www.legislation.gov.uk/eur/2017/745/article/86/adopted -> HTTP 200; the page links the Official Journal print PDF above, which is what was read"
+  - id: mdcg_2022_21
+    map_document: "MDCG 2022-21 guidance on PSUR"
+    url: "https://health.ec.europa.eu/document/download/a7df24c3-d4a3-4218-a8e0-726febfa01c2_en?filename=mdcg_2022-21_en.pdf"
+    date_read: "2026-10-08"
+    fetch: "HTTP 200 application/pdf, 1,426,146 bytes, 40 pages, SHA-256 d1dc8af739e0eb1f92f2a3c8291703544a2d47008ade812cfff009f4342ea3f4; link taken from the Commission's MDCG guidance page (https://health.ec.europa.eu/medical-devices-sector/new-regulations/guidance-mdcg-endorsed-documents-and-other-guidance_en)"
+    version_line: "MDCG 2022-21 GUIDANCE ON PERIODIC SAFETY UPDATE REPORT (PSUR) ACCORDING TO REGULATION (EU) 2017/745 (MDR) December 2022"
+    status_line: "This document has been endorsed by the Medical Device Coordination Group (MDCG)"
+    extraction: "pypdf 6.14.2 extract_text and pdftotext 4.06 -layout; the contents list is on PDF pages 2-3"
+  - id: mdcg_2020_8
+    map_document: "MDCG 2020-8 PMCF evaluation report template"
+    url: "https://health.ec.europa.eu/document/download/11121036-696a-4589-a311-c5525bd84df3_en?filename=md_mdcg_2020_8_guidance_pmcf_evaluation_report_en.pdf"
+    date_read: "2026-10-08"
+    fetch: "HTTP 200 application/pdf, 697,086 bytes, 10 pages, SHA-256 3ea53b2ed18ff2f160c8501b3cb738ccd9876d233080a7b98de001e8bf2f3f21; link taken from the same Commission page"
+    version_line: "MDCG 2020-8 Post-market clinical follow-up (PMCF) Evaluation Report Template A guide for manufacturers and notified bodies April 2020"
+    status_line: "This document has been endorsed by the Medical Device Coordination Group (MDCG)"
+    extraction: "pypdf 6.14.2 extract_text and pdftotext 4.06 -layout; the contents list is on PDF page 3"
+
+rows:
+  - internal_id: FDA_AIDSF_DATA_MGMT
+    document: fda_aidsf_draft_2025
+    section: "VIII. Data Management"
+    headings:
+      - {text: "VIII. Data Management", page: 21}
+    topic_quote: {text: "a clear explanation of the data management", page: 21}
+  - internal_id: FDA_AIDSF_TEST_INDEPENDENCE
+    document: fda_aidsf_draft_2025
+    section: "VIII. Data Management > Management and Independence of Data"
+    headings:
+      - {text: "VIII. Data Management", page: 21}
+      - {text: "Management and Independence of Data", page: 25}
+    topic_quote: {text: "the data used for testing is sequestered from the development process", page: 25}
+  - internal_id: FDA_AIDSF_SITE_DIVERSITY
+    document: fda_aidsf_draft_2025
+    section: "VIII. Data Management > Representativeness"
+    headings:
+      - {text: "VIII. Data Management", page: 21}
+      - {text: "Representativeness", page: 25}
+    topic_quote: {text: "at least three geographically diverse US clinical sites", page: 26}
+  - internal_id: FDA_AIDSF_REPRESENTATIVENESS
+    document: fda_aidsf_draft_2025
+    section: "VIII. Data Management > Representativeness"
+    headings:
+      - {text: "VIII. Data Management", page: 21}
+      - {text: "Representativeness", page: 25}
+    topic_quote: {text: "how the data is representative of the intended use population", page: 25}
+  - internal_id: FDA_AIDSF_REF_STANDARD
+    document: fda_aidsf_draft_2025
+    section: "VIII. Data Management > Reference Standard"
+    headings:
+      - {text: "VIII. Data Management", page: 21}
+      - {text: "Reference Standard", page: 24}
+    topic_quote: {text: "A description of how the reference standard was established.", page: 24}
+  - internal_id: FDA_AIDSF_PERF_VALIDATION
+    document: fda_aidsf_draft_2025
+    section: "X. Validation > A. Performance Validation; Appendix C: Performance Validation Considerations"
+    headings:
+      - {text: "X. Validation", page: 29}
+      - {text: "A. Performance Validation", page: 30}
+      - {text: "Appendix C: Performance Validation Considerations", page: 47}
+    topic_quote: {text: "objective evidence that the device performs predictably and reliably", page: 30}
+  - internal_id: FDA_AIDSF_LABELING_METRICS
+    document: fda_aidsf_draft_2025
+    section: "VI. User Interface and Labeling > B. Labeling > Device Performance Metrics"
+    headings:
+      - {text: "VI. User Interface and Labeling", page: 13}
+      - {text: "B. Labeling", page: 15}
+      - {text: "Device Performance Metrics", page: 17}
+    topic_quote: {text: "All performance estimates should be provided with confidence intervals.", page: 17}
+  - internal_id: FDA_AIDSF_SUBGROUP_PERF
+    document: fda_aidsf_draft_2025
+    section: "X. Validation > A. Performance Validation"
+    headings:
+      - {text: "X. Validation", page: 29}
+      - {text: "A. Performance Validation", page: 30}
+    topic_quote: {text: "as well as in subgroups of interest", page: 30}
+  - internal_id: FDA_AIDSF_CALIBRATION
+    document: fda_aidsf_draft_2025
+    section: "X. Validation > A. Performance Validation"
+    headings:
+      - {text: "X. Validation", page: 29}
+      - {text: "A. Performance Validation", page: 30}
+    topic_quote: {text: "calibration analysis, and/or discrimination analysis", page: 32}
+    note: "D4 section 2 row 8 seeded VI.B ('explanation of any calibration'). The draft's sentence 'An explanation of any calibration of the model output.' is on page 29 under IX. Model Description and Development (Model Development), about how the model was built; the validation of calibration, which is what T1 section 8 reports, is under X.A"
+  - internal_id: FDA_AIDSF_MONITORING
+    document: fda_aidsf_draft_2025
+    section: "XI. Device Performance Monitoring"
+    headings:
+      - {text: "XI. Device Performance Monitoring", page: 35}
+  - internal_id: FDA_AIDSF_PUBLIC_SUMMARY
+    document: fda_aidsf_draft_2025
+    section: "XIII. Public Submission Summary"
+    headings:
+      - {text: "XIII. Public Submission Summary", page: 40}
+  - internal_id: FDA_AIDSF_MODEL_CARD
+    document: fda_aidsf_draft_2025
+    section: "Appendix E: Example Model Card"
+    headings:
+      - {text: "Appendix E: Example Model Card", page: 53}
+  - internal_id: FDA_STAT2007_CI
+    document: fda_stat_2007
+    section: "5. Reporting Recommendations > Measures of accuracy"
+    headings:
+      - {text: "5. Reporting Recommendations", page: 14}
+      - {text: "Measures of accuracy", page: 15}
+    topic_quote: {text: "two-sided 95 percent confidence intervals", page: 15}
+  - internal_id: FDA_STAT2007_PPA_NPA
+    document: fda_stat_2007
+    section: "6. Statistically Inappropriate Practices > 1. Avoid use of the terms “sensitivity” and “specificity” to describe the comparison of a new test to a non-reference standard"
+    headings:
+      - {text: "6. Statistically Inappropriate Practices", page: 17}
+      - {text: "1. Avoid use of the terms “sensitivity” and “specificity” to describe the comparison of a new test to a non-reference standard", page: 17}
+    topic_quote: {text: "positive percent agreement and negative percent agreement", page: 17}
+  - internal_id: FDA_STAT2007_INDETERMINATE
+    document: fda_stat_2007
+    section: "6. Statistically Inappropriate Practices > 2. Avoid elimination of equivocal results"
+    headings:
+      - {text: "6. Statistically Inappropriate Practices", page: 17}
+      - {text: "2. Avoid elimination of equivocal results", page: 18}
+    topic_quote: {text: "one option is to report two different sets of performance measures", page: 18}
+    note: "the PDF prints a footnote reference 5 after 'equivocal' in this heading; the footnote number is left out of the quoted heading"
+  - internal_id: FDA_STAT2007_BY_SITE
+    document: fda_stat_2007
+    section: "5. Reporting Recommendations > Reporting study results"
+    headings:
+      - {text: "5. Reporting Recommendations", page: 14}
+      - {text: "Reporting study results", page: 15}
+    topic_quote: {text: "clinical site or specimen collection site", page: 15}
+  - internal_id: FDA_PCCP_DESC_MODS
+    document: fda_pccp_2025
+    section: "VI. Description of Modifications"
+    headings:
+      - {text: "VI. Description of Modifications", page: 24}
+  - internal_id: FDA_PCCP_MP1_DATA
+    document: fda_pccp_2025
+    section: "VII. Modification Protocol > B. Content of the Modification Protocol Section > (1) Data management practices"
+    headings:
+      - {text: "VII. Modification Protocol", page: 27}
+      - {text: "B. Content of the Modification Protocol Section", page: 29}
+      - {text: "(1) Data management practices", page: 29}
+  - internal_id: FDA_PCCP_MP2_RETRAIN
+    document: fda_pccp_2025
+    section: "VII. Modification Protocol > B. Content of the Modification Protocol Section > (2) Re-training practices"
+    headings:
+      - {text: "VII. Modification Protocol", page: 27}
+      - {text: "B. Content of the Modification Protocol Section", page: 29}
+      - {text: "(2) Re-training practices", page: 30}
+  - internal_id: FDA_PCCP_MP3_PERF_EVAL
+    document: fda_pccp_2025
+    section: "VII. Modification Protocol > B. Content of the Modification Protocol Section > (3) Performance evaluation"
+    headings:
+      - {text: "VII. Modification Protocol", page: 27}
+      - {text: "B. Content of the Modification Protocol Section", page: 29}
+      - {text: "(3) Performance evaluation", page: 31}
+    topic_quote: {text: "pre-defined acceptance criteria, and statistical tests for each planned modification", page: 31}
+  - internal_id: FDA_PCCP_MP4_UPDATE
+    document: fda_pccp_2025
+    section: "VII. Modification Protocol > B. Content of the Modification Protocol Section > (4) Update procedures"
+    headings:
+      - {text: "VII. Modification Protocol", page: 27}
+      - {text: "B. Content of the Modification Protocol Section", page: 29}
+      - {text: "(4) Update procedures", page: 32}
+  - internal_id: FDA_PCCP_IMPACT
+    document: fda_pccp_2025
+    section: "VIII. Impact Assessment"
+    headings:
+      - {text: "VIII. Impact Assessment", page: 34}
+  - internal_id: FDA_PCCP_TRACEABILITY
+    document: fda_pccp_2025
+    section: "VII. Modification Protocol > C. Traceability Between the Description of Modifications Section and the Modification Protocol Section"
+    headings:
+      - {text: "VII. Modification Protocol", page: 27}
+      - {text: "C. Traceability Between the Description of Modifications Section and the Modification Protocol Section", page: 33}
+  - internal_id: FDA_PCCP_LABELING
+    document: fda_pccp_2025
+    section: "V. Policy for Predetermined Change Control Plans > C. Identifying a PCCP in a Marketing Submission"
+    headings:
+      - {text: "V. Policy for Predetermined Change Control Plans", page: 14}
+      - {text: "C. Identifying a PCCP in a Marketing Submission", page: 17}
+    topic_quote: {text: "FDA recommends that the labeling include a statement that the device has an authorized PCCP.", page: 18}
+  - internal_id: FDA_PCCP_PMS_PLANS
+    document: fda_pccp_2025
+    section: "VII. Modification Protocol > B. Content of the Modification Protocol Section > (4) Update procedures"
+    headings:
+      - {text: "VII. Modification Protocol", page: 27}
+      - {text: "B. Content of the Modification Protocol Section", page: 29}
+      - {text: "(4) Update procedures", page: 32}
+    topic_quote: {text: "should also describe their post-market surveillance plans", page: 32}
+  - internal_id: GB_PMS_44ZM3
+    document: uksi_2024_1368
+    section: "New Part 4A (post-market surveillance requirements) > regulation 44ZM (Periodic safety update report), paragraph (3)"
+    headings:
+      - {text: "New Part 4A (post-market surveillance requirements)"}
+      - {text: "44ZM"}
+      - {text: "Periodic safety update report"}
+      - {text: "(3)"}
+    topic_quote: {text: "The PSUR must include"}
+  - internal_id: GB_PMS_44ZL
+    document: uksi_2024_1368
+    section: "New Part 4A (post-market surveillance requirements) > regulation 44ZL (Post-market surveillance report)"
+    headings:
+      - {text: "New Part 4A (post-market surveillance requirements)"}
+      - {text: "44ZL"}
+      - {text: "Post-market surveillance report"}
+    topic_quote: {text: "the manufacturer must produce a post-market surveillance report"}
+  - internal_id: EU_MDR_ART86_1
+    document: eu_mdr_2017_745
+    section: "Article 86 (Periodic safety update report), paragraph 1"
+    headings:
+      - {text: "Article 86", page: 72}
+      - {text: "Periodic safety update report", page: 72}
+    topic_quote: {text: "1. Manufacturers of class IIa, class IIb and class III devices", page: 72}
+    note: "OJ page L 117/72. Read in the text as adopted only (see the document's attempts)"
+  - internal_id: MDCG_2022_21
+    document: mdcg_2022_21
+    section: "ANNEX I: Template for the PSUR"
+    headings:
+      - {text: "ANNEX I: Template for the PSUR", page: 21}
+  - internal_id: MDCG_2020_8
+    document: mdcg_2020_8
+    section: "Post-market clinical follow-up evaluation report Template"
+    headings:
+      - {text: "Post-market clinical follow-up evaluation report Template", page: 4}
+    note: "the row names the template as a whole; this is the heading of the template part (contents, PDF page 3)"
+
+# Rows left with an empty `section`: none besides PP_SCOPE and PP_METHODS, which are
+# ProofPack's own text (status `internal`) and print "section n/a".
+unfilled: []
+
+estar:
+  mapped: false
+  reason: >-
+    No FDA-published document read on 8 October 2026 maps an eSTAR section to these topics.
+    The FDA eSTAR Program page (https://www.fda.gov/medical-devices/how-study-and-market-your-device/estar-program,
+    HTTP 200, 'Content current as of: 09/21/2026') describes eSTAR as an interactive PDF form and
+    lists no sections against guidance topics. The AI-DSF draft's Appendix A (PDF page 43) maps
+    its own sections to a "Recommended Section in Sponsor's Marketing Submission" and says eSTAR
+    is "One way this documentation may be submitted"; it does not call those eSTAR section names,
+    so they are not copied into estar_section.
+  printed: "[unverified] eSTAR section not mapped"

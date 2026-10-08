@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 from proofpack import __version__, scope
 from proofpack.cli import main
@@ -133,8 +134,18 @@ def test_guidance_map_structure_and_blank_sections():
     } <= set(rows[0].keys())
     ids = [r["internal_id"] for r in rows]
     assert len(ids) == len(set(ids))
+    # Day 1 required every section blank (nothing typed from memory). Since E15 a section
+    # may be filled, but only with a provenance row in design/guidance_sections.yaml (the
+    # fetched document, the date read, the quoted headings: tests/test_e15_sections.py).
+    sources = yaml.safe_load(
+        (Path(__file__).resolve().parents[1] / "design" / "guidance_sections.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    with_provenance = {row["internal_id"] for row in sources["rows"]}
     for r in rows:
-        assert r["section"] == "", f"{r['internal_id']}: section must be blank for Josh"
+        if r["section"] != "":
+            assert r["internal_id"] in with_provenance, f"{r['internal_id']}: section has no source"
         assert r["internal_id"].isupper() or "_" in r["internal_id"]
     for must in (
         "FDA_AIDSF_SUBGROUP_PERF",

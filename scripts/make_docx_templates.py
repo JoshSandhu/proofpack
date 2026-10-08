@@ -478,10 +478,9 @@ class Builder:
         whose bracket names every id it stands for (``[FDA_STAT2007_CI,
         FDA_STAT2007_INDETERMINATE]``)."""
         ref = expr if single else "ref"
-        note = (
-            "{{ " + ref + ".label }} · section {{ " + ref + ".section }} · eSTAR: "
-            "{{ " + ref + ".estar }}"
-        )
+        # E15: ``section`` and ``estar`` carry their own words (``section <...>`` or the
+        # [unverified] gap; ``eSTAR: <...>`` or the [unverified] gap), as the HTML macro
+        note = "{{ " + ref + ".label }} · {{ " + ref + ".section }} · {{ " + ref + ".estar }}"
         ids = "  [{{ " + ref + ".id }}]"
         if not single:
             ids = "  [{{ ref.id }}{% for other in ref.also %}, {{ other }}{% endfor %}]"
