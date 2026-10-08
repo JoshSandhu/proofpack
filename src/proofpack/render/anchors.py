@@ -185,16 +185,23 @@ def with_note_fields(item: dict[str, Any], guidance_map: Any = None) -> dict[str
     """``item`` (from :func:`resolve`) plus the two parts of D4 section 1.1's margin note
     the label does not carry, each as the note prints it: ``section`` is ``section <the
     map row's section>`` (transcribed from the document on 8 October 2026; provenance in
-    ``design/guidance_sections.yaml``) or :data:`SECTION_GAP` where the row leaves it empty;
-    ``estar`` is ``eSTAR: <the row's estar_section>`` (``eSTAR: n/a`` for a non-FDA row) or
-    :data:`ESTAR_GAP`. A gap is printed, never hidden (E9), and is marked [unverified].
+    ``design/guidance_sections.yaml``) or :data:`SECTION_GAP` where the row's section is
+    empty after ``str.strip()``; ``estar`` is ``eSTAR: <the row's estar_section>``
+    (``eSTAR: n/a`` for a non-FDA row) or :data:`ESTAR_GAP` on the same test. Both gap
+    strings begin ``[unverified]``. ``tests/test_e15_repair2.py`` feeds an empty cell,
+    three spaces, and a tab followed by a space, and asserts each gap string. The test is
+    ``str.strip()`` only: it keeps U+200B, U+2060, U+FEFF and U+180E, so a cell made only
+    of those prints after ``section`` or ``eSTAR:`` with no marking (E15 lens 2,
+    FA-L2-N2, carried; the shipped map has no such cell).
 
     Return contract, changed in E15 (DEC-43, lane S): at effc5c7 both fields were bare
     (the row's text, ``to confirm`` where empty, ``n/a`` on an internal row) and the
     templates printed the words ``section`` and ``eSTAR:``; from E15 each field carries its
-    own words and the templates print it bare. The site ports this rule in
-    ``proofpack-site/src/data/guidance-notes.mjs`` and its tests S10-S3-2 and S10-S3-2b
-    compare that port with this function, field by field and as the note's text."""
+    own words and the templates print it bare. The site's port,
+    ``proofpack-site/src/data/guidance-notes.mjs``, still implemented the effc5c7 rule at
+    site 576bd09 (lines 70-71 and 95); its tests S10-S3-2 and S10-S3-2b compare that port
+    with this function, field by field and as the note's text, so lane S must re-port the
+    rule when its pin moves past E15."""
     row = _rows(guidance_map)[item["id"]]
     if is_internal(row):
         # ProofPack's own text (PP_SCOPE, PP_METHODS): no document section, no eSTAR slot
