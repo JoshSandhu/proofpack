@@ -176,6 +176,9 @@ def distinct_notes(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 #: section was not transcribed from the document, so the gap carries the [unverified]
 #: marking (CLAUDE.md). At effc5c7 the note printed ``section to confirm``.
 SECTION_GAP = "[unverified] section not transcribed"
+#: What a margin note prints where the map row's ``estar_section`` is empty (E15 item 2): no
+#: FDA-published eSTAR mapping was read (``design/guidance_sections.yaml``, ``estar``).
+ESTAR_GAP = "[unverified] eSTAR section not mapped"
 
 
 def with_note_fields(item: dict[str, Any], guidance_map: Any = None) -> dict[str, Any]:
@@ -183,8 +186,8 @@ def with_note_fields(item: dict[str, Any], guidance_map: Any = None) -> dict[str
     the label does not carry, each as the note prints it: ``section`` is ``section <the
     map row's section>`` (transcribed from the document on 8 October 2026; provenance in
     ``design/guidance_sections.yaml``) or :data:`SECTION_GAP` where the row leaves it empty;
-    ``estar`` is ``eSTAR: <the row's estar_section>`` or ``eSTAR: to confirm``. A gap is
-    printed, never hidden (E9)."""
+    ``estar`` is ``eSTAR: <the row's estar_section>`` (``eSTAR: n/a`` for a non-FDA row) or
+    :data:`ESTAR_GAP`. A gap is printed, never hidden (E9), and is marked [unverified]."""
     row = _rows(guidance_map)[item["id"]]
     if is_internal(row):
         # ProofPack's own text (PP_SCOPE, PP_METHODS): no document section, no eSTAR slot
@@ -194,5 +197,5 @@ def with_note_fields(item: dict[str, Any], guidance_map: Any = None) -> dict[str
     return {
         **item,
         "section": f"section {section}" if section else SECTION_GAP,
-        "estar": f"eSTAR: {estar or 'to confirm'}",
+        "estar": f"eSTAR: {estar}" if estar else ESTAR_GAP,
     }

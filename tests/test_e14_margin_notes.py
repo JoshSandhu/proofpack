@@ -85,7 +85,7 @@ def test_lines_that_differ_in_any_visible_part_stay():
         "id": "A",
         "label": "L",
         "section": anchors.SECTION_GAP,
-        "estar": "eSTAR: to confirm",
+        "estar": anchors.ESTAR_GAP,
         "draft": True,
     }
     b = {**a, "id": "B", "section": "4.2"}

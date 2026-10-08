@@ -15,6 +15,9 @@
 # here with the document's url, date read and version line, `section` here equals the map's
 # character for character, and every quoted heading appears in it.
 #
+# eSTAR (E15 item 2): no FDA-published document read on 8 October 2026 maps an eSTAR section
+# to these topics, so every `estar_section` that is not `n/a` stays empty and the margin note
+# prints "[unverified] eSTAR section not mapped". See `estar` at the end.
 schema_version: 1
 date_read: "2026-10-08"
 
@@ -291,3 +294,14 @@ rows:
 # ProofPack's own text (status `internal`) and print "section n/a".
 unfilled: []
 
+estar:
+  mapped: false
+  reason: >-
+    No FDA-published document read on 8 October 2026 maps an eSTAR section to these topics.
+    The FDA eSTAR Program page (https://www.fda.gov/medical-devices/how-study-and-market-your-device/estar-program,
+    HTTP 200, 'Content current as of: 09/21/2026') describes eSTAR as an interactive PDF form and
+    lists no sections against guidance topics. The AI-DSF draft's Appendix A (PDF page 43) maps
+    its own sections to a "Recommended Section in Sponsor's Marketing Submission" and says eSTAR
+    is "One way this documentation may be submitted"; it does not call those eSTAR section names,
+    so they are not copied into estar_section.
+  printed: "[unverified] eSTAR section not mapped"
