@@ -102,10 +102,10 @@
 <caption>Acceptance-decision runs recorded against this test set in the local ledger</caption>
 <tbody>
 <tr><th scope="row">Test-set SHA-256</th><td class="mono">{{ ledger.test_set_sha256 }}</td></tr>
-<tr><th scope="row">Acceptance runs recorded (including this run)</th><td class="num">{{ ledger.acceptance_runs }}</td></tr>
+<tr><th scope="row">{% if ledger.counted %}Acceptance runs recorded (including this run){% else %}Acceptance runs recorded (stored count; this run not included){% endif %}</th><td class="num">{{ ledger.acceptance_runs }}</td></tr>
 <tr><th scope="row">Manifest ledger count</th><td class="num">{{ ledger.ledger_count }}</td></tr>
 <tr><th scope="row">Declared limit (warn_after_acceptance_runs)</th><td class="num customer-text">{{ ledger.declared_limit }}</td></tr>
-<tr><th scope="row">Counted</th><td>{% if ledger.counted %}yes (this run is included in the count above){% elif ledger.readable %}no (this run added nothing to the ledger; the count above is the stored count){% else %}no (the ledger could not be read or written; see the warning log){% endif %}</td></tr>
+<tr><th scope="row">Counted</th><td>{% if ledger.counted %}yes (the count above includes this run; the ledger is written after this document, and a write that does not succeed is reported as W15 on the console, not here){% elif ledger.readable %}no (this run added nothing to the ledger; the count above is the stored count){% else %}no (the ledger could not be read or written; see the warning log){% endif %}</td></tr>
 </tbody>
 </table>
 <h2 id="s7">7. Narrative integrity</h2>

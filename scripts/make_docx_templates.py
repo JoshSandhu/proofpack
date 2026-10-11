@@ -834,7 +834,14 @@ def build_t8() -> bytes:
     b.table(
         ["Field", "Value"],
         [
-            [("PP Body", "Acceptance runs recorded (including this run)")],
+            [
+                (
+                    "PP Body",
+                    "{% if ledger.counted %}Acceptance runs recorded (including this run)"
+                    "{% else %}Acceptance runs recorded (stored count; this run not included)"
+                    "{% endif %}",
+                )
+            ],
             [_n("ledger.acceptance_runs")],
         ],
         num=(1,),
@@ -859,7 +866,10 @@ def build_t8() -> bytes:
             [
                 (
                     "PP Body",
-                    "{% if ledger.counted %}yes (this run is included in the count above)"
+                    "{% if ledger.counted %}yes (the count above includes this run; the ledger is "
+                    "written after this document, and a write that does not succeed is reported "
+                    "as W15 on the "
+                    "console, not here)"
                     "{% elif ledger.readable %}no (this run added nothing to the ledger; the "
                     "count above is the stored count)"
                     "{% else %}no (the ledger could not be read or written; see the warning "

@@ -564,6 +564,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         parse_formats,
         parse_templates,
         record_ledger,
+        restamp_ledger_after_failed_commit,
         write_documents,
         write_run,
     )
@@ -598,6 +599,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         _, notes = write_documents(outcome, args.out, formats, templates, written=documents)
     finally:
         ledger_failed = record_ledger(outcome, documents)
+        if ledger_failed is not None:
+            restamp_ledger_after_failed_commit(outcome, args.out)
     doc = outcome.document
     manifest = doc["manifest"]
     # A-P2 (build day 8, lane A): the one telemetry call site, after every document is
@@ -809,6 +812,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
         parse_formats,
         parse_templates,
         record_ledger,
+        restamp_ledger_after_failed_commit,
         write_documents,
         write_run,
     )
@@ -847,6 +851,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
         _, notes = write_documents(outcome, args.out, formats, templates, written=documents)
     finally:
         ledger_failed = record_ledger(outcome, documents)
+        if ledger_failed is not None:
+            restamp_ledger_after_failed_commit(outcome, args.out)
     doc = outcome.document
     manifest = doc["manifest"]
     from proofpack.egress import telemetry as telemetry_mod  # noqa: PLC0415 - one call site

@@ -115,3 +115,43 @@ Nothing today. The decision to move the site pin is the orchestrator's.
    site and gps-automation sources finds none; say if you want a separate `count_readable` field added instead.
 2. `y_pred_operating_point` sits at the root of `criteria.yaml`. If you would rather it sat under `score:`, the move is
    one schema edit and one line in `declare.py`.
+
+## Repair round 1 (lens 1 blocker B1: T8 ledger table)
+
+**B1, E8 half fixed.** Two contradictions remained in T8 after the `counted` change.
+
+* A licensed run with no criteria wrote `counted: false`, `acceptance_runs: 0`, but the row label still read
+  "Acceptance runs recorded (including this run)". The label is now conditional on `ledger.counted` in
+  `src/proofpack/templates/T8.html` and in `scripts/make_docx_templates.py` (T8.docx regenerated; T1 and T7 are
+  byte-identical on regeneration): "including this run" when counted, "stored count; this run not included" otherwise.
+* A run whose `ledger.commit` returned W15 after the documents were written left `run.json` at `counted: true` and the
+  rendered T8 at "yes (this run is included ...)". The pages are rendered before the commit, so the engine cannot
+  know the outcome when it writes them. Two changes: `proofpack.run.restamp_ledger_after_failed_commit` (called from
+  `cmd_run` and `cmd_compare` when `record_ledger` returns a finding) rewrites `run.json` with `counted: false`,
+  `acceptance_runs` and `manifest.ledger_count` at the stored count; and the `yes` branch now says the ledger is
+  written after the document and that a write that does not succeed is reported as W15 on the console, not in the
+  document. The word "failed" is avoided because the forbidden-word scan treats it as a verdict word.
+* Not done: the rendered HTML/DOCX pages of a W15 run still print "yes" with that qualification, because they are
+  written before the commit. Moving the commit before the render would reintroduce the DEC-47 defect (a run counted
+  with no document on disk). Say if you would rather have a second pass that re-renders the pages after a W15.
+* `scripts/mutation_sweep.py`: the two day-11 mutant patterns that quote the `finally:` block now include the two
+  restamp lines. Golden `tests/fixtures/golden/T8.html` regenerated (one label line).
+
+Regression tests (`tests/test_fix1011_engine.py`, `-k b1`): label by `counted`, the yes wording, `run.json` after a
+patched W15 commit (`counted` false, count 0, manifest 0), the unpatched run still `counted` true with count 1, and the
+DOCX T8 label and yes wording from a real `--format docx` run (including the licensed no-criteria run).
+
+Proof they fail on the base (src and scripts stashed, tests kept):
+
+```
+git stash push -q -- src scripts
+PYTHONPATH="$PWD/src" ../proofpack/.venv/Scripts/python -m pytest -q -p no:cacheprovider tests/test_fix1011_engine.py -k b1
+FAILED ...test_b1_the_runs_row_label_says_including_this_run_only_when_it_was_counted
+FAILED ...test_b1_the_yes_branch_does_not_claim_a_write_the_engine_cannot_know_of
+FAILED ...test_b1_a_failed_ledger_commit_leaves_run_json_counted_false_and_the_stored_count
+FAILED ...test_b1_the_docx_t8_carries_the_same_label_and_counted_wording_as_the_html
+4 failed, 1 passed, 45 deselected
+git stash pop
+```
+
+On the tip: `5 passed` for `-k b1`; full suite `2497 passed, 5 skipped`; `ruff check` and `ruff format --check` clean.

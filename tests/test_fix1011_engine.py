@@ -509,3 +509,118 @@ def test_readme_status_says_sales_opened_on_9_october_2026():
     )
     assert "not yet on sale" not in status and "still being built" not in status
     assert "on sale since 9 October 2026" in status
+
+
+# ----------------------------------------------------------------------------
+# Repair round, B1: the T8 ledger row label and the yes branch (lens 1)
+# ----------------------------------------------------------------------------
+
+
+def _t8_runs_row(counted: bool, acceptance_runs: int | None) -> tuple[str, str]:
+    """The T8 ledger table's runs row: (label, value)."""
+    from assembler import assemble
+    from proofpack.render import html
+    from test_criteria import CRITERIA, FAIRNESS, cohort_with_a_thirty_row_site
+
+    crit = make_criteria(criteria=copy.deepcopy(CRITERIA), fairness=FAIRNESS)
+    doc = assemble(cohort_with_a_thirty_row_site(), crit)
+    doc["ledger"] = {
+        "test_set_sha256": "0" * 64,
+        "warn_limit": None,
+        "counted": counted,
+        "acceptance_runs": acceptance_runs,
+    }
+    page = html.render_t8(doc)
+    row = re.search(
+        r'<tr><th scope="row">(Acceptance runs recorded[^<]*)</th><td class="num">(.*?)</td>',
+        page,
+        re.S,
+    )
+    assert row is not None
+    return row.group(1), row.group(2)
+
+
+def test_b1_the_runs_row_label_says_including_this_run_only_when_it_was_counted():
+    label, value = _t8_runs_row(True, 4)
+    assert "including this run" in label and value == "4"
+    for runs in (0, None):
+        label, _ = _t8_runs_row(False, runs)
+        assert "including this run" not in label
+        assert "not included" in label
+
+
+def test_b1_the_yes_branch_does_not_claim_a_write_the_engine_cannot_know_of():
+    cell = _t8_counted_cell(True, 4)
+    assert cell.startswith("yes")
+    assert "W15" in cell and "console" in cell
+
+
+def _licensed_run_with_commit(tmp_path: Path, monkeypatch, capsys, *, commit_fails: bool):
+    from conftest import confirmed_mapping
+    from proofpack.run import ledger as run_ledger
+    from test_run_cli import _own_home, _run
+
+    csv_path = write_csv(tmp_path / "test.csv", make_cohort())
+    confirmed_mapping(csv_path)
+    yml = write_yaml(tmp_path / "criteria.yaml", make_criteria())
+    _own_home(tmp_path, monkeypatch)
+    if commit_fails:
+        monkeypatch.setattr(run_ledger, "commit", lambda result: ledger._w15(OSError("disk full")))
+    out = tmp_path / "pack"
+    rc = _run(csv_path, yml, out, "--templates", "T8")
+    printed = capsys.readouterr().out
+    doc = json.loads((out / "run.json").read_text(encoding="utf-8"))
+    return rc, printed, doc, (out / "T8.html").read_text(encoding="utf-8")
+
+
+def test_b1_a_failed_ledger_commit_leaves_run_json_counted_false_and_the_stored_count(
+    tmp_path: Path, monkeypatch, capsys
+):
+    rc, printed, doc, page = _licensed_run_with_commit(
+        tmp_path, monkeypatch, capsys, commit_fails=True
+    )
+    assert "[W15]" in printed and "were not counted" in printed
+    assert doc["ledger"]["counted"] is False
+    assert doc["ledger"]["acceptance_runs"] == 0
+    assert doc["manifest"]["ledger_count"] == 0
+    # the rendered page was written before the commit: it must not assert the write
+    cell = re.search(r'<th scope="row">Counted</th><td>(.*?)</td>', page, re.S)
+    assert cell is not None and "W15" in cell.group(1)
+
+
+def test_b1_a_run_whose_commit_succeeds_keeps_counted_true(tmp_path: Path, monkeypatch, capsys):
+    rc, printed, doc, _ = _licensed_run_with_commit(
+        tmp_path, monkeypatch, capsys, commit_fails=False
+    )
+    assert "W15" not in printed
+    assert doc["ledger"]["counted"] is True
+    assert doc["ledger"]["acceptance_runs"] == 1
+    assert doc["manifest"]["ledger_count"] == 1
+
+
+def test_b1_the_docx_t8_carries_the_same_label_and_counted_wording_as_the_html(
+    tmp_path: Path, monkeypatch, capsys
+):
+    from ap4_docx import cell_texts
+    from conftest import confirmed_mapping
+    from test_run_cli import _own_home, _run
+
+    csv_path = write_csv(tmp_path / "test.csv", make_cohort())
+    confirmed_mapping(csv_path)
+    yml = write_yaml(tmp_path / "criteria.yaml", make_criteria())
+    _own_home(tmp_path, monkeypatch)
+    out = tmp_path / "pack"
+    _run(csv_path, yml, out, "--templates", "T8", "--format", "docx")
+    capsys.readouterr()
+    cells = cell_texts(out / "T8.docx")
+    assert "Acceptance runs recorded (including this run)" in cells
+    counted = [c for c in cells if c.startswith("yes (")]
+    assert counted and "W15" in counted[0]
+    # a licensed run with no criteria adds nothing: the label must not say it is included
+    yml2 = write_yaml(tmp_path / "criteria_none.yaml", make_criteria(criteria=[]))
+    out2 = tmp_path / "pack2"
+    _run(csv_path, yml2, out2, "--templates", "T8", "--format", "docx")
+    capsys.readouterr()
+    cells2 = cell_texts(out2 / "T8.docx")
+    assert not any("including this run" in c for c in cells2)
+    assert "Acceptance runs recorded (stored count; this run not included)" in cells2

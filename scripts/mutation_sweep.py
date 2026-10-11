@@ -3010,6 +3010,8 @@ MUTANTS_DAY11: tuple[Mutant, ...] = (
             "written=documents)\n"
             "    finally:\n"
             "        ledger_failed = record_ledger(outcome, documents)\n"
+            "        if ledger_failed is not None:\n"
+            "            restamp_ledger_after_failed_commit(outcome, args.out)\n"
             "    doc = outcome.document\n"
             '    manifest = doc["manifest"]\n'
             "    # A-P2"
@@ -3032,6 +3034,8 @@ MUTANTS_DAY11: tuple[Mutant, ...] = (
             "written=documents)\n"
             "    finally:\n"
             "        ledger_failed = record_ledger(outcome, documents)\n"
+            "        if ledger_failed is not None:\n"
+            "            restamp_ledger_after_failed_commit(outcome, args.out)\n"
             "    doc = outcome.document\n"
             '    manifest = doc["manifest"]\n'
             "    from proofpack.egress"

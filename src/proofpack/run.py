@@ -550,6 +550,24 @@ def record_ledger(outcome: RunOutcome, documents: list[Path]) -> Finding | None:
     return ledger.commit(outcome.ledger)
 
 
+def restamp_ledger_after_failed_commit(outcome: RunOutcome, out: str | Path) -> None:
+    """Review fix B1 (11 October 2026, lens 1): the documents are rendered before
+    :func:`record_ledger` commits, so a commit that returns ``W15`` leaves ``run.json``
+    saying ``counted: true`` and the count including a run the file never recorded. Put
+    the stored count back and ``counted: false`` in ``run.json`` (the rendered T8 cannot
+    be re-rendered; its ``yes`` row says the failure is reported as ``W15`` on the
+    console). ``tests/test_fix1011_engine.py::test_b1_a_failed_ledger_commit_*``."""
+    led = outcome.ledger
+    doc = outcome.document
+    if led is None or not isinstance(doc.get("ledger"), dict):
+        return
+    doc["ledger"]["acceptance_runs"] = led.stored
+    doc["ledger"]["counted"] = False
+    if isinstance(doc.get("manifest"), dict):
+        doc["manifest"]["ledger_count"] = led.stored
+    (Path(out) / RUN_JSON).write_bytes(manifest_mod.canonical_json(doc))
+
+
 def _warning_entry(f: Finding) -> dict[str, Any]:
     return {"code": f.code, "text_id": None, "params": dict(f.detail)}
 
