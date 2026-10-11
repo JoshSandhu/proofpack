@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from ap4_docx import needs_extra
 from conftest import make_cohort, make_criteria, write_csv, write_yaml
 from proofpack.errors import HALT_CODES, HaltError
 from proofpack.gates import ingest
@@ -598,9 +599,14 @@ def test_b1_a_run_whose_commit_succeeds_keeps_counted_true(tmp_path: Path, monke
     assert doc["manifest"]["ledger_count"] == 1
 
 
+@pytest.mark.ap4
+@needs_extra
 def test_b1_the_docx_t8_carries_the_same_label_and_counted_wording_as_the_html(
     tmp_path: Path, monkeypatch, capsys
 ):
+    # Needs the [docx] extra: skipped in the main pytest job, run by the
+    # docx-extra job (-m ap4 with PROOFPACK_REQUIRE_DOCX=1, where a skip is
+    # refused). Gate run on 3dcb228 failed with "No module named 'docx'".
     from ap4_docx import cell_texts
     from conftest import confirmed_mapping
     from test_run_cli import _own_home, _run
