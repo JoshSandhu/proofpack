@@ -92,7 +92,7 @@ METHOD_DESCRIPTIONS: dict[str, str] = {
     "wilson": (
         "Wilson score interval without continuity correction, for a proportion k/n on "
         "independent rows. Clopper-Pearson is not printed beside it at k = 0 or k = n in this "
-        "build (D4 section 1.2 asks for it; carried)."
+        "build (the report format specified for ProofPack asks for it; this is a known gap)."
     ),
     "wilson_cc": "Wilson score interval with continuity correction.",
     "clopper_pearson": "Clopper-Pearson exact interval for a proportion.",

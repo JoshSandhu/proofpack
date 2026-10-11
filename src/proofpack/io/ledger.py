@@ -101,11 +101,17 @@ class LedgerResult:
     pending: bool = False
 
     def as_dict(self) -> dict[str, Any]:
+        """``counted`` is true only when this run added one to the test-set ledger: it
+        carried a ``criteria`` block, wrote a document, and the ledger could be read.
+        Review fix E8, 11 October 2026: it used to mean "the stored count could be read",
+        so a run with no licence (nothing written, nothing added) read ``true`` and T8
+        printed "Counted: yes". Whether the stored count could be read is
+        ``acceptance_runs`` being an integer rather than null."""
         return {
             "test_set_sha256": self.key,
             "acceptance_runs": self.count,
             "warn_limit": self.limit,
-            "counted": self.count is not None,
+            "counted": bool(self.pending) and self.count is not None,
         }
 
 

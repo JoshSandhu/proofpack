@@ -143,9 +143,13 @@ def test_clustering_list_keys_of_two_halt_e01_and_of_one_do_not(key):
         ei.value.message == f"clustering.{key} lists 2 columns; reduce your case key to one column"
     )
     assert ei.value.detail == {"n_case_key_columns": 2, "key": key}
-    declare.validate_dict(
-        make_criteria(clustering={"unit": "case_id", key: ["a"], "declared_by": "t"})
-    )  # one column listed: no halt
+    # one column listed: not E01. Since review fix E6 (11 October 2026) the key is not a
+    # declared clustering key, so it halts H08 as an unknown key instead of passing silently
+    with pytest.raises(HaltError) as one:
+        declare.validate_dict(
+            make_criteria(clustering={"unit": "case_id", key: ["a"], "declared_by": "t"})
+        )
+    assert one.value.code == "H08" and one.value.detail["path"] == f"clustering/{key}"
 
 
 def test_one_column_units_outside_the_enum_stay_h08():

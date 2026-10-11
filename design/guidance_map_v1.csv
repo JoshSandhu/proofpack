@@ -29,5 +29,5 @@ GB_PMS_44ZL,"Medical Devices (Post-market Surveillance Requirements) (Amendment)
 EU_MDR_ART86_1,"Regulation (EU) 2017/745 (MDR)",,final,"Article 86 (Periodic safety update report), paragraph 1",n/a,"section transcribed 2026-10-08 from the fetched primary document; provenance in design/guidance_sections.yaml (PSUR)"
 MDCG_2022_21,"MDCG 2022-21 guidance on PSUR",2022,guidance,ANNEX I: Template for the PSUR,n/a,"section transcribed 2026-10-08 from the fetched primary document; provenance in design/guidance_sections.yaml (PSUR structure)"
 MDCG_2020_8,"MDCG 2020-8 PMCF evaluation report template",2020,guidance,Post-market clinical follow-up evaluation report Template,n/a,"section transcribed 2026-10-08 from the fetched primary document; provenance in design/guidance_sections.yaml (PMCF evaluation report template)"
-PP_SCOPE,"ProofPack internal: scope and limits block (D4 section 7.2)",engine version,internal,,,"ProofPack's own text; not a regulatory reference"
+PP_SCOPE,"ProofPack internal: scope and limits block",engine version,internal,,,"ProofPack's own text; not a regulatory reference"
 PP_METHODS,"ProofPack internal: methods appendix conventions (T7)",engine version,internal,,,"ProofPack's own text; not a regulatory reference"

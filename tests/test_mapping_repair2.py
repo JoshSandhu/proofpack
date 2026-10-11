@@ -397,9 +397,13 @@ def test_list_key_strings_and_upper_case_and_reach_e01(key):
     assert ei.value.code == "E01"
     assert ei.value.message == f"clustering.{key} names 2 columns; " + DEC11
     assert ei.value.detail == {"n_case_key_columns": 2, "key": key}
-    declare.validate_dict(
-        make_criteria(clustering={"unit": "case_id", key: "subject_id", "declared_by": "t"})
-    )  # one token: no halt
+    # one token: not E01. Since review fix E6 (11 October 2026) the key is not a declared
+    # clustering key, so it halts H08 as an unknown key instead of passing silently
+    with pytest.raises(HaltError) as one:
+        declare.validate_dict(
+            make_criteria(clustering={"unit": "case_id", key: "subject_id", "declared_by": "t"})
+        )
+    assert one.value.code == "H08" and one.value.detail["path"] == f"clustering/{key}"
     with pytest.raises(HaltError) as ei:
         declare.validate_dict(make_criteria(clustering={"unit": "a AND b", "declared_by": "t"}))
     assert ei.value.message == "clustering.unit names 2 columns; " + DEC11  # was 3 at e92989b

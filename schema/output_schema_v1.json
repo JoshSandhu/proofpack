@@ -115,14 +115,14 @@
     "drift": { "type": ["object", "null"] },
     "ledger": {
       "type": "object",
-      "description": "Build day 7 (E7, io.ledger; D4 section 11 item 6): the analysed test set's SHA-256, the acceptance runs recorded on it in the local ledger (including this run, when it carried criteria and wrote a document - DEC-47; a compare that wrote a document is a run on the same key - DEC-70 (b)), the customer's declared limit (null when no ledger block was declared), and whether the count could be read.",
+      "description": "Build day 7 (E7, io.ledger; D4 section 11 item 6): the analysed test set's SHA-256, the acceptance runs recorded on it in the local ledger (including this run, when it carried criteria and wrote a document - DEC-47; a compare that wrote a document is a run on the same key - DEC-70 (b)), the customer's declared limit (null when no ledger block was declared), and counted: true only when this run added one to the ledger (it carried a criteria block, wrote a document and the ledger could be read), false for a run that added nothing, whether or not the stored count could be read (acceptance_runs is null when it could not).",
       "required": ["test_set_sha256", "acceptance_runs", "warn_limit", "counted"],
       "additionalProperties": false,
       "properties": {
         "test_set_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "acceptance_runs": { "type": ["integer", "null"], "minimum": 0 },
         "warn_limit": { "type": ["integer", "null"], "minimum": 1 },
-        "counted": { "type": "boolean" }
+        "counted": { "type": "boolean", "description": "True when this run added one to the test-set ledger; false when it did not (no criteria block, no document written, or the ledger could not be read or written). Before 11 October 2026 this meant only that the stored count could be read." }
       }
     },
     "criteria_results": {
@@ -856,7 +856,7 @@
       "properties": {
         "auroc": { "$ref": "#/$defs/Number" },
         "auroc_wald": {
-          "description": "Secondary Wald interval, shown beside the logit interval (R2 section 1.3).",
+          "description": "The AUROC's second DeLong interval, the one that is not primary on this run: the Wald interval (method delong_wald) when the logit interval is primary (AUROC above 0.9, or fewer than 30 cases in either class), and the logit interval (method delong_logit) when the Wald interval is primary. The key is not renamed; read the method field of the Number to see which interval it holds. Null when there is no second interval, for example on a clustered plan, where DeLong is refused.",
           "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/Number" }]
         },
         "auprc": {

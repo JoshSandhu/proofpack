@@ -329,7 +329,10 @@ def test_every_decimal_token_of_the_docx_parses_back_to_run_json_at_fmts_roundin
     orphans = sorted({t for t in tokens if t not in by_number | by_scalar | literals})
     assert orphans == [], (template_id, orphans)
     explained_by_numbers = sum(1 for t in tokens if t in by_number)
-    assert explained_by_numbers >= {"T1": 400, "T7": 20, "T8": 15}[template_id], (
+    # T7's floor was 20 until review fix E7 (11 October 2026) removed the internal section
+    # references from the conventions text; one token that matched a Number only by
+    # coincidence went with them (19 of 86 remain explained by a Number)
+    assert explained_by_numbers >= {"T1": 400, "T7": 15, "T8": 15}[template_id], (
         template_id,
         explained_by_numbers,
         len(tokens),

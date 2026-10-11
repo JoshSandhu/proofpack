@@ -122,9 +122,13 @@ def test_an_alias_chain_24_deep_is_walked_in_under_two_seconds():
     crit = make_criteria()
     crit["model"]["extra"] = _alias_chain(24)
     t0 = time.perf_counter()
-    declare.validate_dict(crit)
+    # review fix E6 (11 October 2026) closed the ``model`` object, so the walks accept the
+    # document and the schema then halts on the key they were fed through
+    with pytest.raises(HaltError) as accepted:
+        declare.validate_dict(crit)
     elapsed = time.perf_counter() - t0
     assert elapsed < 2.0, elapsed
+    assert accepted.value.detail["path"] == "model/extra" and "reason" not in accepted.value.detail
 
     lines = ['l0: &l0 [x, "\\x01"]'] + [f"l{i}: &l{i} [*l{i - 1}, *l{i - 1}]" for i in range(1, 24)]
     crit = make_criteria()
@@ -164,7 +168,12 @@ def test_a_shared_but_not_self_referential_alias_is_accepted():
     crit["model"]["extra_a"] = shared
     crit["model"]["extra_b"] = shared
     assert declare.self_reference_at(crit) is None
-    declare.validate_dict(crit)
+    # since review fix E6 (11 October 2026) ``model`` is closed: the walks accept the shared
+    # list and the halt is the schema's unknown-key halt, not the self-reference one
+    with pytest.raises(HaltError) as accepted:
+        declare.validate_dict(crit)
+    assert accepted.value.detail["path"] == "model/extra_a"
+    assert "reason" not in accepted.value.detail
 
 
 # ------------------------------------------------ RG-N1 / FA-N2: the declare.py sentences

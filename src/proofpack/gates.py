@@ -82,10 +82,36 @@ def gate_h03(table: Table, decl: Declarations) -> None:
 
 
 def gate_h04(table: Table, decl: Declarations, mask: np.ndarray) -> None:
+    """``y_pred`` must equal the declared rule applied to ``score`` at the operating point
+    it was produced at.
+
+    A ``y_pred`` column is one set of predictions, made at one threshold. With one declared
+    operating point that is the point. With more than one, the engine never infers which
+    (review fix E3, 11 October 2026: it used to require ``y_pred`` to match at every point,
+    which two different thresholds cannot both satisfy, so every such table halted): the
+    customer names it in ``criteria.yaml`` as ``y_pred_operating_point``, the check runs at
+    that point only, and without the declaration the gate halts H04 saying to declare it.
+    The H04 meaning string in ``errors.py`` is unchanged; the wording lives in this message."""
     if table.y_pred is None or table.score is None:
         return
     yp = table.y_pred
-    for op in decl.operating_points:
+    points = list(decl.operating_points)
+    if len(points) > 1:
+        ids = [op.id for op in points]
+        declared = decl.y_pred_operating_point
+        if declared is None:
+            raise HaltError(
+                "H04",
+                f"the table has a y_pred column and {len(ids)} operating points are declared "
+                f"({', '.join(ids)}); y_pred was made at one of them, and ProofPack does not "
+                "infer which: declare it as y_pred_operating_point in criteria.yaml",
+                {
+                    "reason": "y_pred_operating_point_undeclared",
+                    "operating_points": ids,
+                },
+            )
+        points = [op for op in points if op.id == declared]
+    for op in points:
         mismatch = 0
         for i in np.flatnonzero(mask):
             p = yp[i]

@@ -30,7 +30,7 @@
 {% endif %}
 <p>Warnings raised: {% if warning_codes %}{{ warning_codes | join(", ") }}{% else %}none{% endif %}.</p>
 <table class="flow">
-<caption>Table T1-2 - flow of rows (D4 section 5.10)</caption>
+<caption>Table T1-2 - flow of rows</caption>
 <tbody>
 {% for label, value in flow_rows %}
 <tr><th scope="row">{{ label }}</th><td class="num">{{ value }}</td></tr>
@@ -95,7 +95,7 @@
 <p class="conventions-sentence">{{ conventions_sentence }}</p>
 <div class="conventions">{{ conventions_intro | safe }}</div>
 <table class="tiers">
-<caption>Tier superscripts - ProofPack reporting convention (R2 section 3.3); annotations, never suppression</caption>
+<caption>Tier superscripts - ProofPack reporting convention; annotations, never suppression</caption>
 <tbody>
 {% for mark, text in tier_legend %}
 <tr><th scope="row">{{ mark }}</th><td>{{ text }}</td></tr>

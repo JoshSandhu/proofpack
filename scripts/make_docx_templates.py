@@ -94,8 +94,7 @@ STYLE_TOKENS: dict[str, dict[str, str]] = {
     "PP Highlight": {"type": "character", "color": "ink", "fill": "brand-soft"},
 }
 TIER_LEGEND_CAPTION = (
-    "Tier superscripts - ProofPack reporting convention (R2 section 3.3); annotations, "
-    "never suppression"
+    "Tier superscripts - ProofPack reporting convention; annotations, never suppression"
 )
 
 
@@ -606,7 +605,7 @@ def criteria_table(b: Builder) -> None:
         "One row per evaluated criterion, in the order the engine evaluated them (a criterion "
         "with level: * yields one row per level; rows are addressed by position, never by id, "
         "and each row's author, date and justification are those of the criteria.yaml entry it "
-        "was evaluated from). Observed values print by the metric's rule of D4 section 1.2; the "
+        "was evaluated from). Observed values print by the rule for the metric; the "
         "declared value prints with every digit run.json carries, unrounded; the compared "
         "statistic and the largest attainable lower bound, which the engine computed, print on "
         "the unit scale to three decimals. Status words are the engine's three and nothing else. "
@@ -674,7 +673,7 @@ def criteria_table(b: Builder) -> None:
 
 
 def flow_table(b: Builder) -> None:
-    b.caption("Table T1-2 - flow of rows (D4 section 5.10)")
+    b.caption("Table T1-2 - flow of rows")
     b.table(["Step", "Rows"], [[_n("row[0]")], [_n("row[1]")]], loop="row in flow_rows", num=(1,))
 
 
@@ -860,8 +859,11 @@ def build_t8() -> bytes:
             [
                 (
                     "PP Body",
-                    "{% if ledger.counted %}yes{% else %}no (the ledger could not be read or "
-                    "written; see the warning log){% endif %}",
+                    "{% if ledger.counted %}yes (this run is included in the count above)"
+                    "{% elif ledger.readable %}no (this run added nothing to the ledger; the "
+                    "count above is the stored count)"
+                    "{% else %}no (the ledger could not be read or written; see the warning "
+                    "log){% endif %}",
                 )
             ],
         ],
@@ -1226,7 +1228,7 @@ def build_t1() -> bytes:
     b.margin_notes("anchors.s4")
     b.placeholder('slots["CT-05"].text')
     b.tag("{%p if site_block %}")
-    b.p("Table T1-5 is the site table of section 9 (per site, D4 section 5.3 format).")
+    b.p("Table T1-5 is the site table of section 9 (one row per site).")
     b.tag("{%p else %}")
     b.no_data("No site attribute was supplied: per-site performance is not reported.")
     b.tag("{%p endif %}")
@@ -1353,7 +1355,7 @@ def build_t1() -> bytes:
     b.placeholder('slots["CT-09"].text')
     b.tag("{%p if calibration.present %}")
     b.caption(
-        "Table T1-9 - calibration of the declared probability score (D4 section 5.5)"
+        "Table T1-9 - calibration of the declared probability score"
         "{% if calibration.curve_note %}; {{ calibration.curve_note }}{% endif %}"
     )
     b.table(
@@ -1366,13 +1368,13 @@ def build_t1() -> bytes:
     b.p(
         "{% if calibration.ipa_tiers %}The IPA row's tier superscript ({{ calibration.ipa_tiers "
         "}}) is the proportion tier applied to the IPA's own interval: it states the half-width "
-        "on the IPA's scale and nothing about a proportion (ProofPack reporting convention; T7, "
-        "DEC-35).{% endif %}{% if calibration.ipa_tiers and calibration.clustered %} {% endif %}"
+        "on the IPA's scale and nothing about a proportion (ProofPack reporting convention; T7)."
+        "{% endif %}{% if calibration.ipa_tiers and calibration.clustered %} {% endif %}"
         "{% if calibration.clustered %}Under the clustered plan every interval above is a "
         "cluster-bootstrap interval and carries the mark ᵈ (coverage not established for its "
         "case sizes; legend in section 9); each cell keeps its tier annotation and the measured "
-        "coverage of the route, including the one cell below the bar, is in T7 (DEC-18 (c), "
-        "DEC-34).{% endif %}",
+        "coverage of the route, including the one cell below the bar, is in T7."
+        "{% endif %}",
         "PP Caption",
     )
     b.tag("{%p endif %}")

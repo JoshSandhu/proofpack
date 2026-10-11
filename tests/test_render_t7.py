@@ -152,7 +152,7 @@ def test_the_page_carries_the_sentences_d4_and_the_master_name(document):
     # DEC-34's 0.897 cell and DEC-35's IPA note ride in the calibration conventions
     assert "0.897" in page and "IPA" in page
     # the fairness impossibility citation keeps its [unverified] marking
-    assert "[unverified - cited from memory in R2; not resolved here]" in page
+    assert "[unverified - cited from memory; not resolved here]" in page
     assert page.count("citation pending verification") >= 5
     assert "Not part of this run: robustness analyses" in page
 

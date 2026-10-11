@@ -13,6 +13,7 @@ The engine supplies no default for anything a customer must own.
 
 from __future__ import annotations
 
+import datetime as _dt
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -238,6 +239,10 @@ class Declarations:
     period: dict[str, Any] | None = None
     egress: dict[str, Any] = field(default_factory=dict)
     bootstrap: dict[str, Any] = field(default_factory=dict)
+    #: The id of the operating point the table's ``y_pred`` column was produced at, as the
+    #: customer declared it (``y_pred_operating_point``); ``None`` when not declared. Never
+    #: inferred (review fix E3, 11 October 2026).
+    y_pred_operating_point: str | None = None
 
     @property
     def classes(self) -> set[str]:
@@ -267,20 +272,127 @@ def _label(v: Any) -> str:
     return str(v).strip()
 
 
+#: The two ``model`` scalars that are version labels. A label is text as the customer wrote
+#: it: ``2.10`` is not the number 2.1 (review fix E5, 11 October 2026).
+VERSION_KEYS: tuple[str, ...] = ("version", "prior_version")
+
+
+def _keep_versions_as_written(text: str, data: dict[str, Any]) -> None:
+    """Replace ``model.version`` / ``model.prior_version`` that ``safe_load`` turned into a
+    number by the text the file holds. Only those two scalars are re-read, with
+    ``yaml.BaseLoader`` (which resolves no scalar to a number); a value written as a string,
+    a null or a missing key is left as it is, and nothing else in the document changes."""
+    model = data.get("model")
+    if not isinstance(model, dict):
+        return
+    numeric = [
+        k
+        for k in VERSION_KEYS
+        if isinstance(model.get(k), (int, float)) and not isinstance(model.get(k), bool)
+    ]
+    if not numeric:
+        return
+    try:
+        plain = yaml.load(text, Loader=yaml.BaseLoader)  # noqa: S506 - BaseLoader builds str only
+    except yaml.YAMLError:
+        return
+    written = plain.get("model") if isinstance(plain, dict) else None
+    if not isinstance(written, dict):
+        return
+    for k in numeric:
+        text_value = written.get(k)
+        if isinstance(text_value, str) and text_value.strip():
+            model[k] = text_value
+
+
+def iso_dates_in_place(data: Any) -> None:
+    """Replace every ``datetime.date`` / ``datetime.datetime`` in a parsed document by its
+    ISO text (``2026-01-01``), in place. PyYAML turns an unquoted ``date: 2026-01-01`` into
+    a ``datetime.date``; the schema wants the text. Only dates are converted, nothing else
+    is coerced. Iterative, and each list or mapping object is entered once (a YAML alias can
+    point at the same object twice), so an alias chain costs no more than it does in
+    :func:`control_character_at`. Review fix E4, 11 October 2026."""
+    if not isinstance(data, (dict, list)):
+        return
+    entered = {id(data)}
+    stack: list[dict | list] = [data]
+    while stack:
+        node = stack.pop()
+        items = node.items() if isinstance(node, dict) else enumerate(node)
+        for k, v in list(items):
+            if isinstance(v, (_dt.date, _dt.datetime)):
+                node[k] = v.isoformat()
+            elif isinstance(v, (dict, list)) and id(v) not in entered:
+                entered.add(id(v))
+                stack.append(v)
+
+
 def load_yaml(path: str | Path) -> dict[str, Any]:
     p = Path(path)
     try:
-        with p.open("r", encoding="utf-8") as fh:
-            data = yaml.safe_load(fh)
-    except (OSError, yaml.YAMLError) as exc:
+        text = p.read_text(encoding="utf-8")
+        data = yaml.safe_load(text)
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
         raise HaltError("H08", f"criteria file could not be read: {type(exc).__name__}") from exc
     if not isinstance(data, dict):
         raise HaltError("H08", "criteria file must be a YAML mapping")
+    _keep_versions_as_written(text, data)
     return data
 
 
-def _h08_from_schema_error(err: jsonschema.ValidationError) -> HaltError:
+def _declared_keys(node: Any, root: dict[str, Any]) -> set[str]:
+    """The property names a schema node declares, following ``allOf`` and local ``$ref``."""
+    if not isinstance(node, dict):
+        return set()
+    ref = node.get("$ref")
+    if isinstance(ref, str) and ref.startswith("#/"):
+        target: Any = root
+        for part in ref[2:].split("/"):
+            target = target.get(part) if isinstance(target, dict) else None
+        return _declared_keys(target, root)
+    keys = set(node.get("properties") or {})
+    for sub in node.get("allOf") or []:
+        keys |= _declared_keys(sub, root)
+    return keys
+
+
+def _unknown_keys(err: jsonschema.ValidationError, root: dict[str, Any]) -> list[str]:
+    """The keys of ``err.instance`` the schema node does not declare (empty for any other
+    error). ``unevaluatedProperties`` also fires when a declared property failed its own
+    check inside an ``allOf`` branch (annotations of a failed branch are dropped), and
+    then names no unknown key: the property's own error is the one to report."""
+    if err.validator not in ("additionalProperties", "unevaluatedProperties"):
+        return []
+    if not isinstance(err.instance, dict):
+        return []
+    known = _declared_keys(err.schema, root)
+    return sorted(str(k) for k in err.instance if k not in known)
+
+
+def _h08_from_schema_error(
+    err: jsonschema.ValidationError, root: dict[str, Any] | None = None
+) -> HaltError:
     path = "/".join(str(x) for x in err.absolute_path) or "<root>"
+    if err.validator in ("oneOf", "anyOf"):
+        # the criterion scope is "overall" or an object: an unknown key inside the object
+        # surfaces as the branch's own additionalProperties error, one level down
+        for branch_error in err.context or []:
+            if branch_error.validator == "additionalProperties" and list(
+                branch_error.absolute_path
+            ) == list(err.absolute_path):
+                return _h08_from_schema_error(branch_error, root)
+    unknown = _unknown_keys(err, root or {})
+    if unknown:
+        # a key the schema does not declare: name it, so a misspelt margin or comparator is
+        # found rather than silently ignored (review fix E6, 11 October 2026). The key is a
+        # name in the customer's own file, never a value from the table.
+        key = unknown[0][:64]
+        where = f"{path}/{key}" if path != "<root>" else key
+        return HaltError(
+            "H08",
+            f"declaration invalid at {where}: unknown key; correct its spelling or remove it",
+            {"path": where, "validator": err.validator, "unknown_keys": len(unknown)},
+        )
     # jsonschema messages can echo the offending *value*; keep only the validator and path.
     return HaltError(
         "H08",
@@ -375,6 +487,8 @@ def validate_dict(data: dict[str, Any]) -> Declarations:
     # self-reference and DEC-65 halts, above the lines below that print a criterion id
     _check_dec11_case_key(data.get("clustering"))
     _check_control_characters(data)
+    # an unquoted `date: 2026-01-01` is a datetime.date to PyYAML: text for the schema
+    iso_dates_in_place(data)
 
     # authored fields first so the message is specific (D1 section 2 rule)
     criteria_block = data.get("criteria") or []
@@ -410,9 +524,16 @@ def validate_dict(data: dict[str, Any]) -> Declarations:
 
     schema = load_json_schema("criteria_schema.json")
     validator = jsonschema.Draft202012Validator(schema)
-    errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
+    errors = sorted(
+        (
+            e
+            for e in validator.iter_errors(data)
+            if e.validator != "unevaluatedProperties" or _unknown_keys(e, schema)
+        ),
+        key=lambda e: list(e.absolute_path),
+    )
     if errors:
-        raise _h08_from_schema_error(errors[0])
+        raise _h08_from_schema_error(errors[0], schema)
 
     ops = [
         OperatingPoint(
@@ -433,6 +554,14 @@ def validate_dict(data: dict[str, Any]) -> Declarations:
             "H08",
             "operating point id is a key the run document reserves: " + ", ".join(reserved),
             {"field": "operating_points", "reserved": reserved},
+        )
+
+    y_pred_op = data.get("y_pred_operating_point")
+    if y_pred_op is not None and str(y_pred_op) not in op_ids:
+        raise HaltError(
+            "H09",
+            "y_pred_operating_point references an unknown operating point",
+            {"field": "y_pred_operating_point"},
         )
 
     known_metrics = metric_ids()
@@ -497,6 +626,7 @@ def validate_dict(data: dict[str, Any]) -> Declarations:
         period=data.get("period"),
         egress=dict(data.get("egress") or {}),
         bootstrap=dict(data.get("bootstrap") or {}),
+        y_pred_operating_point=None if y_pred_op is None else str(y_pred_op),
     )
 
 

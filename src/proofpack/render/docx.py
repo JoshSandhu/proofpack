@@ -110,9 +110,15 @@ TEMPLATES_DIR = render_html.TEMPLATES_DIR
 DOCX_FILES: dict[str, str] = {"T1": "T1.docx", "T7": "T7.docx", "T8": "T8.docx"}
 #: The three modules of the ``[docx]`` extra, by import name.
 EXTRA_MODULES: tuple[str, ...] = ("docx", "docxtpl", "matplotlib")
+#: The three packages of the ``[docx]`` extra with the minimum versions ``pyproject.toml``
+#: declares (``tests/test_fix1011_engine.py`` compares this tuple with the file). The line
+#: below names them rather than ``proofpack[docx]``: in a fresh environment that spelling
+#: installs the PyPI ``0.1.0.dev1`` build, not the build this engine was installed from.
+EXTRA_PACKAGES: tuple[str, ...] = ("docxtpl>=0.19", "python-docx>=1.1", "matplotlib>=3.9")
 EXTRA_LINE = (
     "--format docx needs the [docx] extra (docxtpl, python-docx, matplotlib), which is not "
-    'installed: pip install "proofpack[docx]" (docs: /docs/run); nothing was written'
+    "installed: pip install " + " ".join(f'"{p}"' for p in EXTRA_PACKAGES) + " (docs: /docs/run); "
+    "nothing was written"
 )
 #: The character style ids docxtpl's RichText names (python-docx's id of each style name).
 STYLE_CUSTOMER_INLINE = "PPManufacturerTextInline"

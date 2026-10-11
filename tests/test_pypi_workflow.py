@@ -54,4 +54,5 @@ def test_the_readme_status_that_pypi_shows_names_the_six_subcommands_and_not_the
     assert "Build day 7 (E7, 2026-09-21)" not in status
     for sub in ("doctor", "map", "run", "compare", "fixtures", "licence"):
         assert f"`{sub}`" in status, sub
-    assert "not yet on sale" in status
+    # review fix, 11 October 2026: sales opened on 9 October 2026; the page says so
+    assert "not yet on sale" not in status and "on sale since 9 October 2026" in status

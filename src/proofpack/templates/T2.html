@@ -85,7 +85,7 @@
 {{ placeholder(slots["CT-23"]) }}
 <div class="table-wrap">
 <table class="flow">
-<caption>Table T2-flow - flow of rows of each version's table (D4 section 5.10); the comparison pairs the analysed rows on row_id</caption>
+<caption>Table T2-flow - flow of rows of each version's table; the comparison pairs the analysed rows on row_id</caption>
 <thead><tr><th scope="col">Count</th><th scope="col" class="num">New version</th><th scope="col" class="num">Prior version</th></tr></thead>
 <tbody>
 {% for label, value in flow_rows %}
@@ -98,7 +98,7 @@
 </div>
 <div class="table-wrap">
 <table class="table1">
-<caption>Table T2-1b - Table 1 of the evaluation set (the new version's table; D4 section 5.4)</caption>
+<caption>Table T2-1b - Table 1 of the evaluation set (the new version's table)</caption>
 <thead><tr><th scope="col">Attribute</th><th scope="col">Level</th><th scope="col" class="num">Test n (%)</th></tr></thead>
 <tbody>
 {% for r in table1_rows %}
@@ -154,7 +154,7 @@
 </div>
 <p class="comparison-facts">Clustering route: <span class="mono">{{ tables.clustering_route }}</span>; bootstrap B {{ tables.bootstrap.B }}, seed {{ tables.bootstrap.seed }}, {{ tables.bootstrap.interval }} interval (the paired bootstrap differences and any cluster-bootstrap difference).</p>
 <table class="tiers">
-<caption>Tier superscripts on the cells of Tables T2-2 to T2-5 - ProofPack reporting convention (R2 section 3.3); annotations, never suppression</caption>
+<caption>Tier superscripts on the cells of Tables T2-2 to T2-5 - ProofPack reporting convention; annotations, never suppression</caption>
 <tbody>
 {% for mark, text in tier_legend %}
 <tr><th scope="row">{{ mark }}</th><td>{{ text }}</td></tr>

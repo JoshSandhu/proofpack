@@ -10,8 +10,11 @@ accepted, approved or endorsed it (see `src/proofpack/scope.py`).
 
 ## Status
 
-Pre-release (`0.1.0.dev1`), still being built and not yet on sale. The command line
-has six subcommands: `doctor`, `map`, `run`, `compare`, `fixtures` and `licence`
+Version `0.1.0.dev1`. ProofPack has been on sale since 9 October 2026 from
+https://proofpack.globalphoenix.co.uk, and this repository is the engine that site serves.
+Install it as the site's install page describes, not from PyPI: the `0.1.0.dev1` listed
+there is an earlier build than the one the site serves. The engine is still being
+developed. The command line has six subcommands: `doctor`, `map`, `run`, `compare`, `fixtures` and `licence`
 (`proofpack --help`). `run` writes the assembled document `run.json` from a confirmed
 mapping and, with a usable licence installed, the HTML documents named by
 `--templates`; `compare` writes `run.json` with a comparison block and `T2.html`;
@@ -340,8 +343,10 @@ and the same bytes are `manifest.mapping_sha256` in `run.json` (DEC-27).
   `src/proofpack/templates/T*.docx` (built by `scripts/make_docx_templates.py`, D5 section
   3.5 named styles from `design/tokens.json`) and the same context the HTML uses; figures
   F2-F5 are matplotlib PNGs (Agg, 300 dpi, 160 mm) from the same arrays as the SVG. It
-  needs the `[docx]` extra (`pip install "proofpack[docx]"`: docxtpl, python-docx,
-  matplotlib); without it `--format docx` exits 7 with one typed line and writes nothing,
+  needs the `[docx]` extra, whose three packages you install by name
+  (`pip install "docxtpl>=0.19" "python-docx>=1.1" "matplotlib>=3.9"`; do not ask pip
+  for the package's own `docx` extra, which in a fresh environment fetches the PyPI
+  `0.1.0.dev1` build); without it `--format docx` exits 7 with one typed line and writes nothing,
   and `--format json,html` needs none of the three. The container is byte-stable for one
   `run.json` on one machine (zip mtimes and core properties are the manifest's `started`).
 * **H02 reads `y_pred` too** (repair 1 of build day 8): a `y_pred` column holding a

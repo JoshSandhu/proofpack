@@ -448,7 +448,9 @@ def test_a_clustered_run_prints_the_calibration_cells_with_their_tiers_dec34():
     assert row.count(tiers) >= 1 if tiers else True
     assert "cluster_bootstrap_percentile" in row
     assert "Under the clustered plan every interval above is a cluster-bootstrap interval" in out
-    assert "DEC-34" in out
+    # review fix E7 (11 October 2026): the decision id is not printed to the customer; the
+    # sentence it was cited for stays
+    assert "DEC-34" not in out and "the measured coverage of the route" in out
 
 
 def test_run_templates_t1_writes_t1_html_beside_run_json(cli_run):

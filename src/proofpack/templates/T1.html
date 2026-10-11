@@ -80,7 +80,7 @@
 {{ notes("s2") }}
 {{ placeholder(slots["CT-03"]) }}
 <table class="flow">
-<caption>Table T1-2 - flow of rows (D4 section 5.10)</caption>
+<caption>Table T1-2 - flow of rows</caption>
 <tbody>
 {% for label, value in flow_rows %}
 <tr><th scope="row">{{ label }}</th><td class="num">{{ value }}</td></tr>
@@ -110,7 +110,7 @@
 {{ notes("s4") }}
 {{ placeholder(slots["CT-05"]) }}
 {% if site_block %}
-<p>Table T1-5 is the site table of section 9 (per site, D4 section 5.3 format).</p>
+<p>Table T1-5 is the site table of section 9 (one row per site).</p>
 {% else %}
 {{ no_data("No site attribute was supplied: per-site performance is not reported.") }}
 {% endif %}
@@ -183,7 +183,7 @@
 {% if calibration.present %}
 <div class="table-wrap">
 <table class="calibration">
-<caption>Table T1-9 - calibration of the declared probability score (D4 section 5.5){% if calibration.curve_note %}; {{ calibration.curve_note }}{% endif %}</caption>
+<caption>Table T1-9 - calibration of the declared probability score{% if calibration.curve_note %}; {{ calibration.curve_note }}{% endif %}</caption>
 <thead><tr><th scope="col">Quantity</th><th scope="col" class="num">Estimate [95% CI]</th><th scope="col">Method</th></tr></thead>
 <tbody>
 {% for r in calibration.rows %}
@@ -192,7 +192,7 @@
 </tbody>
 </table>
 </div>
-{% if calibration.ipa_tiers or calibration.clustered %}<p class="footnote">{% if calibration.ipa_tiers %}The IPA row's tier superscript ({{ calibration.ipa_tiers }}) is the proportion tier applied to the IPA's own interval: it states the half-width on the IPA's scale and nothing about a proportion (ProofPack reporting convention; T7, DEC-35).{% endif %}{% if calibration.ipa_tiers and calibration.clustered %} {% endif %}{% if calibration.clustered %}Under the clustered plan every interval above is a cluster-bootstrap interval and carries the mark ᵈ (coverage not established for its case sizes; legend in section 9); each cell keeps its tier annotation and the measured coverage of the route, including the one cell below the bar, is in T7 (DEC-18 (c), DEC-34).{% endif %}</p>{% endif %}
+{% if calibration.ipa_tiers or calibration.clustered %}<p class="footnote">{% if calibration.ipa_tiers %}The IPA row's tier superscript ({{ calibration.ipa_tiers }}) is the proportion tier applied to the IPA's own interval: it states the half-width on the IPA's scale and nothing about a proportion (ProofPack reporting convention; T7).{% endif %}{% if calibration.ipa_tiers and calibration.clustered %} {% endif %}{% if calibration.clustered %}Under the clustered plan every interval above is a cluster-bootstrap interval and carries the mark ᵈ (coverage not established for its case sizes; legend in section 9); each cell keeps its tier annotation and the measured coverage of the route, including the one cell below the bar, is in T7.{% endif %}</p>{% endif %}
 <div class="table-wrap">
 <table class="deciles">
 <caption>Decile table - ten equal-mass bins by score; observed k/n (%) with its interval</caption>
@@ -260,7 +260,7 @@
 {% endfor %}
 {{ no_data("Intersectional subgroups (sex x age, race x site) are not computed in this release (v1.1).") }}
 <table class="tiers">
-<caption>Tier superscripts - ProofPack reporting convention (R2 section 3.3); annotations, never suppression</caption>
+<caption>Tier superscripts - ProofPack reporting convention; annotations, never suppression</caption>
 <tbody>
 {% for mark, text in tier_legend %}
 <tr><th scope="row">{{ mark }}</th><td>{{ text }}</td></tr>

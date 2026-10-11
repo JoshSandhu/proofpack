@@ -1251,8 +1251,8 @@ def _fairness(
             ),
         },
         "impossibility_citation": (
-            "R2 section 4: Kleinberg / Chouldechova impossibility "
-            "[unverified - cited from memory in R2; not resolved here]"
+            "Kleinberg / Chouldechova impossibility "
+            "[unverified - cited from memory; not resolved here]"
         ),
         "gaps": gaps,
     }

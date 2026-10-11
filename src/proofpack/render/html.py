@@ -88,14 +88,14 @@ _BIDI = re.compile("[‪-‮⁦-⁩‎‏]")
 
 
 class RendererUnavailable(ProofPackError):
-    """jinja2 is not installed: ``pip install jinja2>=3.1`` (a runtime dependency of the
+    """jinja2 is not installed: ``pip install "jinja2>=3.1"`` (a runtime dependency of the
     package; the HTML renderer is the only importer)."""
 
     def __init__(self, package: str = "jinja2") -> None:
         self.package = package
         super().__init__(
             f"the HTML renderer needs the package {package!r}, which is not installed "
-            f"(install proofpack with its dependencies: {package}>=3.1)"
+            f'(install proofpack with its dependencies, or: pip install "{package}>=3.1")'
         )
 
 
@@ -523,6 +523,7 @@ def t8_context(document: dict[str, Any], guidance_map: Any = None) -> dict[str, 
             "test_set_sha256": fmt.text(ledger.get("test_set_sha256")),
             "acceptance_runs": fmt.count(ledger.get("acceptance_runs")),
             "counted": bool(ledger.get("counted")),
+            "readable": ledger.get("acceptance_runs") is not None,
             "warn_limit": fmt.count(ledger.get("warn_limit")),
             "declared_limit": fmt.count(declared_limit),
             "ledger_count": fmt.count(document["manifest"].get("ledger_count")),

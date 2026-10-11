@@ -1465,7 +1465,8 @@ def f13_comparison_record(
 
 
 class OptionalDependencyMissing(RuntimeError):
-    """A comparison needs a package the install does not have (scipy: ``proofpack[stats]``)."""
+    """A comparison needs a package the install does not have (scipy, installed with
+    ``pip install "scipy>=1.14"``)."""
 
     def __init__(self, package: str) -> None:
         self.package = package

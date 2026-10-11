@@ -46,7 +46,8 @@ REQUIRE_ENV = "PROOFPACK_REQUIRE_DOCX"
 EXTRA_REQUIRED = os.environ.get(REQUIRE_ENV) == "1"
 SKIP_REASON = (
     "the [docx] extra (docxtpl, python-docx, matplotlib) is not installed: pip install "
-    '"proofpack[docx]"; the CI job docx-extra installs it and runs -m ap4 with '
+    '"docxtpl>=0.19" "python-docx>=1.1" "matplotlib>=3.9"; the CI job docx-extra installs '
+    "it and runs -m ap4 with "
     f"{REQUIRE_ENV}=1, where this skip is refused"
 )
 needs_extra = pytest.mark.skipif(not extra_available() and not EXTRA_REQUIRED, reason=SKIP_REASON)
