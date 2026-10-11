@@ -442,7 +442,7 @@ def write_documents(
         what = " and ".join(f.upper() for f in wanted)
         notes.append(
             f"{what} not written: licence {outcome.licence.status} "
-            f"({outcome.licence.reason_code}); run.json only (D1 section 7: after grace, "
+            f"({outcome.licence.reason_code}); run.json only (after grace, "
             "JSON only)"
         )
         return written, notes

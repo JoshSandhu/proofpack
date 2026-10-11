@@ -59,9 +59,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("doctor", help="environment self-check", parents=[common])
 
-    m = sub.add_parser(
-        "map", help="map original headers to canonical roles (D1 section 5)", parents=[common]
-    )
+    m = sub.add_parser("map", help="map original headers to canonical roles", parents=[common])
     m.add_argument("--input", required=True)
     m.add_argument("--criteria")
     m.add_argument("--out", default="mapping.json")
@@ -83,7 +81,7 @@ def _build_parser() -> argparse.ArgumentParser:
     r.add_argument(
         "--mapping",
         help="a confirmed mapping.json (proofpack map); default <input>.mapping.json beside "
-        "the input (DEC-26: run never proposes a mapping itself)",
+        "the input (run never proposes a mapping itself)",
     )
     r.add_argument("--out", default="./pack")
     r.add_argument(
@@ -115,7 +113,7 @@ def _build_parser() -> argparse.ArgumentParser:
     c.add_argument(
         "--mapping",
         help="a confirmed mapping.json for both tables (proofpack map); default "
-        "<input>.mapping.json beside the new table (DEC-26)",
+        "<input>.mapping.json beside the new table",
     )
     c.add_argument("--out", default="./pack")
     c.add_argument(
@@ -335,7 +333,7 @@ def _confirm_interactive(m, ask=None, say=print, *, period_column: str | None = 
         ignored, name, holder = pair
         return (
             f"  refused: the ignored column {ignored.original!r} is named for the role "
-            f"{name} that {holder.original!r} would hold (DEC-31); give one of them another role"
+            f"{name} that {holder.original!r} would hold; give one of them another role"
         )
 
     def held_by(r, role):

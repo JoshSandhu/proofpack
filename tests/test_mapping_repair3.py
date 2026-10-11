@@ -43,11 +43,11 @@ pytestmark = pytest.mark.day6
 FIXTURES = Path(__file__).parent / "fixtures" / "mapping"
 DEC31_PRIOR = (
     "HALT H07: mapping.json ignores the column whose header is the role name score and maps "
-    "another column to score (DEC-31); run proofpack map again and give one of them another role"
+    "another column to score; run proofpack map again and give one of them another role"
 )
 DEC31_PROMPT = (
     "  refused: the ignored column 'score' is named for the role score that {holder!r} would "
-    "hold (DEC-31); give one of them another role"
+    "hold; give one of them another role"
 )
 
 

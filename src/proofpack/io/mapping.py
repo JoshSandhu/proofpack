@@ -949,7 +949,7 @@ def _check_prior_against_table(prior: Mapping, headers: list[str]) -> None:
         raise HaltError(
             "H07",
             f"mapping.json ignores the column whose header is the role name {role} and maps "
-            f"another column to {role} (DEC-31); run proofpack map again and give one of "
+            f"another column to {role}; run proofpack map again and give one of "
             "them another role",
             {"role": role},
         )

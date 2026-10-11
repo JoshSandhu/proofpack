@@ -71,7 +71,7 @@ SCHEMA_CODES: dict[str, str] = {
 #: ``run`` and ``map`` through ``main()`` and one subprocess and asserts exit 3, the first
 #: stderr line and no ``Traceback``.
 MAPPING_CODES: dict[str, str] = {
-    "E01": "composite case key: two or more columns identify a case (DEC-11)",
+    "E01": "composite case key: two or more columns identify a case",
 }
 
 #: Gates that produce a flag/warning rather than a HALT. W14 is the ledger's limit
@@ -88,7 +88,7 @@ FLAG_ONLY_CODES = frozenset({"H10", "W14", "W16"})
 #: three of the four codes in use appear nowhere in the spec. D1 section 5 names W06;
 #: the rest are recorded here as engine codes so at least they cannot drift silently.
 WARN_CODES: dict[str, str] = {
-    "W06": "single-class site(s) present; site-level metrics limited (D1 section 5)",
+    "W06": "single-class site(s) present; site-level metrics limited",
     "W10": "observed prevalence differs from declared intended-use prevalence by > 0.10",
     "W12": "unmatched row_ids in a paired compare; unpaired methods used",
     "W13": "clustering detected from repeated case_id although clustering.unit is 'none'",
