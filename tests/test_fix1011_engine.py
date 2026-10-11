@@ -620,8 +620,11 @@ def test_b1_the_docx_t8_carries_the_same_label_and_counted_wording_as_the_html(
     capsys.readouterr()
     cells = cell_texts(out / "T8.docx")
     assert "Acceptance runs recorded (including this run)" in cells
-    counted = [c for c in cells if c.startswith("yes (")]
-    assert counted and "W15" in counted[0]
+    # the ledger's own cell: on the Linux runner the reference-platform cell
+    # also reads "yes (linux-x86_64-cp312)" (gate on 1dc302f), so select by
+    # the ledger wording, not by the first "yes (" cell
+    counted = [c for c in cells if c.startswith("yes (") and "ledger" in c]
+    assert len(counted) == 1 and "W15" in counted[0]
     # a licensed run with no criteria adds nothing: the label must not say it is included
     yml2 = write_yaml(tmp_path / "criteria_none.yaml", make_criteria(criteria=[]))
     out2 = tmp_path / "pack2"
